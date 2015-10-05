@@ -14,7 +14,7 @@
    library as well. This means that programs originally written for the
    IC library should run with GFD with little modifications, beyond 
    renaming any explicit calls to the ic family of modules.</P><P>
-
+ 
    The main differences from the IC library are:
 <UL>
        <LI>Real interval arithmetic and variables are not supported.
@@ -77,7 +77,7 @@
 
 </UL><P>
       <P>
-   The following can be used inside arithmetic constraint expressions:
+   The following can be used inside arithmetic integer expressions:
    <DL>
    <DT><STRONG>X</STRONG><DD>
 	    Variables.  If X is not yet a domain variable, it is turned 
@@ -85,9 +85,6 @@
 
    <DT><STRONG>123</STRONG><DD>
 	    Integer constants.
-
-   <DT><STRONG>+Expr</STRONG><DD>
-	    Identity.
 
    <DT><STRONG>-Expr</STRONG><DD>
 	    Sign change.
@@ -108,13 +105,14 @@
 	    Integer division. Truncate towards zero.
 
    <DT><STRONG>E1/E2</STRONG><DD>
-	    Division, defined only where E2 evenly divides E1,
+	    Division, defined only where E2 evenly divides E1 (non-inlined),
 
    <DT><STRONG>E1 rem E2</STRONG><DD>
 	    Integer remainder (modulus), same sign as E1.
 
-   <DT><STRONG>Expr^2</STRONG><DD>
-	    Square. Equivalent to sqr(Expr).
+   <DT><STRONG>Expr^N</STRONG><DD>
+	    Power, Expr to the power N. N is a non-negative integer. 
+            Mapped to sqr(Expr) if N = 2.
 
    <DT><STRONG>min(E1,E2)</STRONG><DD>
 	    Minimum.
@@ -127,9 +125,22 @@
 
    <DT><STRONG>isqrt(Expr)</STRONG><DD>
 	    Integer square root. Truncated to nearest smaller integer.
+            Always non-negative
 
    <DT><STRONG>sqrt(Expr)</STRONG><DD>
 	    Square root, defined only where Expr is the square of an integer.
+            Always non-negative (non-inlined).
+
+   <DT><STRONG>inroot(Expr,N)</STRONG><DD>
+	    Integer Nth root. N is a positive integer. Truncated to nearest smaller integer.
+            For even N, result is the non-negative root. 
+
+   <DT><STRONG>rsqr(Expr)</STRONG><DD>
+	    Reverse of the sqr function.  Negative root is not excluded (non-inlined).
+
+   <DT><STRONG>rpow(E1,N)</STRONG><DD>
+	    Reverse of exponentiation. i.e. finds X in E1 = X^N. N is a
+            positive integer (non-inlined).
 
    <DT><STRONG>sum(ExprCol)</STRONG><DD>
 	    Sum of a collection of expressions.
@@ -144,47 +155,79 @@
    <DT><STRONG>max(ExprCol)</STRONG><DD>
 	    Maximum of a collection of expressions.
 
+   <DT><STRONG>element(ExprIdx, Col)</STRONG><DD>
+            Element constraint, Evaluate to the ExprIdx'th element of Col.
+	    ExprIdx can be an integer expression. 
+
    <DT><STRONG>Functional/reified constraints</STRONG><DD>
             Written without last argument, which is taken as the value of
             the expression. Only reified constraints (whose last argument
             is the 0/1 boolean) and constraints that can be written as 
             functions (last argument is a domain variable) are allowed.
-
-   <DT><STRONG>and</STRONG><DD>
-	    Reified constraint conjunction.  e.g. X&gt;3 and Y&lt;8
-
-   <DT><STRONG>or</STRONG><DD>
-	    Reified constraint disjunction.  e.g. X&gt;3 or Y&lt;8
-            These are restricted to the top-level of an expression,
-            and for reifiable expressions only,
-
-   <DT><STRONG>xor</STRONG><DD>
-	    Reified constraint exclusive disjunction.  e.g. X&gt;3 xor Y&lt;8
-            These are restricted to the top-level of an expression,
-            and for reifiable expressions only,
-
-   <DT><STRONG>=&gt;</STRONG><DD>
-	    Reified constraint implication.  e.g. X&gt;3 =&gt; Y&lt;8
-            These are restricted to the top-level of an expression,
-            and for reifiable expressions only,
-
-   <DT><STRONG>&lt;=&gt;</STRONG><DD>
-	    Reified constraint equivalence.  e.g. X&gt;3 &lt;=&gt; Y&lt;8
-            These are restricted to the top-level of an expression,
-            and for reifiable expressions only,
-
-   <DT><STRONG>&gt;=</STRONG><DD>
-	    Reified constraint reverse implication.  e.g. X&gt;3 &gt;= Y&lt;8
-            These are restricted to the top-level of an expression,
-            and for reifiable expressions only,
-
-   <DT><STRONG>neg</STRONG><DD>
-	    Reified constraint negation.  e.g. neg X&gt;3
-            These are restricted to the top-level of an expression,
-            and for reifiable expressions only,
+            Expressions in relational constraints are restricted to 
+            inlined expressions only.
+            (non-inlined).
 
    <DT><STRONG>eval(Expr)</STRONG><DD>
-	    Equivalent to Expr - Expr evaluated at run-time only.
+	    Equivalent to Expr.
+  
+ <DT><STRONG>ConLev: Expr</STRONG><DD>
+	    Expr is passed to Gecode at constraint level ConLev.
+            ConLev can be gfd_gac, gfd_bc, gfd_vc, gfd. 
+   </DL>
+<p>
+The following can be used inside logical constraint expressions:
+   <DL>
+   <DT><STRONG>X</STRONG><DD>
+	    Boolean variables with 0..1 domain.  If X is not yet a
+            domain variable, it is turned 
+	    into one.
+
+   <DT><STRONG>1/STRONG><DD>
+	    boolean constants. 0 for false, 1 for true.
+
+   <DT><STRONG>E1 and E2</STRONG><DD>
+	    Reified constraint conjunction.  
+`           E1 and E2 are logical constraint expressions.
+
+   <DT><STRONG>E1 or E2</STRONG><DD>
+	    Reified constraint disjunction.
+`           E1 and E2 are logical constraint expressions.
+
+   <DT><STRONG>E1 xor E2</STRONG><DD>
+	    Reified constraint exclusive disjunction/non-equivalence. 
+`           E1 and E2 are logical constraint expressions.
+
+   <DT><STRONG>E1 =&gt; E2</STRONG><DD>
+	    Reified constraint implication.
+`           E1 and E2 are logical constraint expressions.
+
+   <DT><STRONG>E1 &lt;=&gt; E2</STRONG><DD>
+	    Reified constraint equivalence.
+`           E1 and E2 are logical constraint expressions.
+
+   <DT><STRONG>neg E</STRONG><DD>
+	    Reified constraint negation. 
+`           E is a logical constraint expression.
+
+   <DT><STRONG>element(ExprIdx, BoolCol)</STRONG><DD>
+            Element constraint, Evaluate to the ExprIdx'th element of BoolCol.
+	    ExprIdx can be an inlined integer expression. BoolCol is a
+	    collection of boolean values or domain variable.
+
+   <DT><STRONG>Reified constraints</STRONG><DD>
+            Written without last argument, which is taken as the truth
+            value of the expression. Reified relational constraints
+            are supported inlined and only inlined integer expressions
+            are allowed.
+            (non-inlined except reified relational constraints).
+
+   <DT><STRONG>eval(Expr)</STRONG><DD>
+	    Equivalent to Expr.
+  
+ <DT><STRONG>ConLev: Expr</STRONG><DD>
+	    Expr is passed to Gecode at constraint level ConLev.
+            ConLev can be gfd_gac, gfd_bc, gfd_vc, gfd.
    </DL>
 ")).
 
@@ -261,7 +304,7 @@
 :- comment(get_bounds/3, [
     amode: (get_bounds(?, -, -) is det),
     args: [
-	"Var": "A variable or a number",
+	"Var": "A (domain) variable or an integer",
 	"Lo":  "Lower bound",
 	"Hi":  "Upper bound"
     ],
@@ -285,7 +328,7 @@
 :- comment(get_min/2, [
     amode: (get_min(?, -) is det),
     args: [
-	"Var": "A variable or an integer",
+	"Var": "A (domain) variable or an integer",
 	"Lo":  "Lower bound"
     ],
     summary: "Retrieve the current lower bound of Var.",
@@ -305,7 +348,7 @@
 :- comment(get_max/2, [
     amode: (get_max(?, -) is det),
     args: [
-	"Var": "A variable or an integer",
+	"Var": "A (domain) variable or an integer",
 	"Hi":  "Upper bound"
     ],
     summary: "Retrieve the current upper bound of Var.",
@@ -325,7 +368,7 @@
 :- comment(get_integer_bounds/3, [
     amode: (get_integer_bounds(?, -, -) is det),
     args: [
-	"Var": "A variable or an integer",
+	"Var": "A (domain) variable or an integer (array notation recognised)",
 	"Lo":  "Lower bound",
 	"Hi":  "Upper bound"
     ],
@@ -344,7 +387,7 @@
 :- comment(get_finite_integer_bounds/3, [
     amode: (get_finite_integer_bounds(?, -, -) is det),
     args: [
-	"Var": "A variable or a number",
+	"Var": "A (domain) variable or an integer",
 	"Lo":  "Lower bound",
 	"Hi":  "Upper bound"
     ],
@@ -363,7 +406,7 @@
 :- comment(get_domain_size/2, [
     amode: (get_domain_size(?, -) is det),
     args: [
-	"Var":   "An GFD domain variable or an integer",
+	"Var":   "A domain variable or an integer",
         "Size":  "A variable (or integer)"
     ],
     summary: "Size is the number of integer elements in the GFD domain for Var",
@@ -386,7 +429,7 @@
 :- comment(get_domain/2, [
     amode: (get_domain(?, -) is det),
     args: [
-	"Var":    "A GFD domain variable or an integer.",
+	"Var":    "A domain variable or an integer.",
         "Domain": "A ground representation of the domain of Var."
     ],
     summary: "Returns a ground representation of the current GFD domain of a variable.",
@@ -415,14 +458,14 @@ D = [1 .. 5, 10]
    exceptions: [
         5: "Var is neither an IC variable or number."
    ],
-   fail_if: "The initial value of DomainList fails to unify with the returned value."
+   fail_if: "The initial value of Domain fails to unify with the returned value."
 ]).
 
 %---------------------------------------------------------------------
 :- comment(get_domain_as_list/2, [
     amode: (get_domain_as_list(?, -) is det),
     args: [
-	"Var":   "A GFD domain variable or a number",
+	"Var":   "A domain variable or a number ",
         "DomainList":  "The domain of Var as a list of elements."
     ],
     summary: "List of all the elements in the GFD domain of Var",
@@ -451,7 +494,7 @@ D = [1, 2, 3, 4, 5, 10]
 :- comment(get_median/2, [
     amode: (get_median(?, -) is det),
     args: [
-	"Var":    "A variable or an integer",
+	"Var":    "A (domain) variable or an integer",
 	"Median": "The median of the domain"
     ],
     summary: "Returns the median of the domain of the GFD domain variable Var.",
@@ -460,6 +503,7 @@ D = [1, 2, 3, 4, 5, 10]
     desc: html("<P>
    Returns the median of the domain of Var, i.e. if there are N values in
    the domain, the N/2'th (rounded down if N is odd) value is returned.
+   If Var is not a GFD domain variable, it will be turned into one.
    Note that this is different from the definition used in IC, where the
    median (a float) of the interval is returned. If Var is an integer, the 
    median is unified with that number.
@@ -486,7 +530,7 @@ M = 3
 :- comment(get_delta/2, [
     amode: (get_delta(?, -) is det),
     args: [
-	"Var":   "A variable or an integer",
+	"Var":   "A domain variable or an integer ",
 	"Width": "Width of the interval"
     ],
     summary: "Returns the width of the interval of Var.",
@@ -504,7 +548,7 @@ M = 3
 :- comment(get_constraints_number/2, [
     amode: (get_constraints_number(?, -) is det),
     args: [
-	"Var":   "A variable or a term",
+	"Var":   "A domain variable or a term",
 	"Number": "Variable (instantiates to a non-negative integer)"
     ],
     summary: "Returns the number of propagators attached to the gecode"
@@ -538,13 +582,25 @@ M = 3
     ],
     summary: "Returns the weighted degree of domain variable Var.",
     kind:[varq],
+    see_also:[set_weighted_degree_decay/1, init_weighted_degree/1],
     desc: html("<P>
-   Returns the weighted degree for a domain variable. Weighted degree is call 
-   AFC (accumulated failure count) in Gecode, and is a count of the number of 
-   failures so far of propagators associated with the variable, plus the 
-   number of propagator attached to the variable (to give reasonable 
-   starting values when there are not failures yet).  This is usually used 
-   in selecting a variable for labelling.
+   Returns the weighted degree for a domain variable. Weighted degree
+   is the original name used in the literature for this measure, ans is 
+   known as AFC (accumulated failure count) in Gecode, and is usually
+   used as a criterion for selecting a variable for labelling.
+</p><p>
+   The weighted degree is a floating point, 
+   due to Gecode's extension of the basic weighted degree measure: weighted
+   degree for a variable is defined as the count of the failures so 
+   far of the constraints (propagators) associated with the variable, plus
+   an initial value that is proportional to the variable's degree (number 
+   of associated constraints) -- to give reasonable initial values.
+   The degree proportionality can be non-integral but is by default one 
+   (i.e. the default initial value for the weighted degree of a
+   variable is its degree), but can be changed by init_weighted_degree/1. 
+   In addition, the failure count for a constraint can decay if the 
+   constraint was not involved in the failure. The rate of decay can be
+   set by set_weighted_degree_decay/1 (the default is 1 -- no decay).
 </P>
 ")
 ]).
@@ -593,7 +649,7 @@ M = 3
     amode: (is_in_domain(++,?) is semidet),
     args: [
         "Val": "An integer",
-        "Var": "A GFD domain variable or an integer"
+        "Var": "A domain variable or an integer"
     ],
     summary: "Succeeds iff Val is in the domain of Var",
     exceptions:[5: "Val is not an integer"],
@@ -611,8 +667,8 @@ M = 3
     amode: (is_in_domain(++,?,-) is det),
     args: [
         "Val": "A number",
-    	"Var": "A GFD domain variable or an integer",
-        "Result": "An atom"
+    	"Var": "A domain variable or an integer",
+        "Result": "A variable"
     ],
     summary: "Binds Result to indicate presence of Val in domain of Var",
     exceptions:[5: "Val is not an integer"],
@@ -632,7 +688,7 @@ M = 3
     amode: #::(?, ++),
     template: "?Vars #:: ++Domain",
     args: [
-	"Vars":   "Variable or collection (a la collection_to_list/2) of variables",
+	"Vars":   "Variable (array notation accepted) or collection (a la collection_to_list/2) of variables",
 	"Domain": "Domain specification"
     ],
     summary: "Constrain Vars to have the domain Domain.",
@@ -647,7 +703,7 @@ M = 3
     amode: ::(?, ++),
     template: "?Vars :: ++Domain",
     args: [
-	"Vars":   "Variable or collection (a la collection_to_list/2) of variables",
+	"Vars":   "Variable (array notation accepted) or collection (a la collection_to_list/2) of variables",
 	"Domain": "Domain specification"
     ],
     summary: "Constrain Vars to have the domain Domain.",
@@ -687,9 +743,9 @@ Y = Y{[-1 .. 10, 21]}
     amode: ::(?, ++, ?),
     template: "::(?Var, ++Domain, ?Bool)",
     args: [
-	"Var":    "Variable",
+	"Var":    "(Domain) variable (array notation accepted)",
 	"Domain": "Domain specification",
-        "Bool":   "Reified truth value"
+        "Bool":   "Reified truth value  (array notation accepted)"
     ],
     summary: "Reflect into Bool the truth of Var having the domain Domain.",
     see_also: [_:(::)/3, (::)/2],
@@ -743,9 +799,9 @@ X = X{[-1000000 .. 1000000]}
     amode: #::(?, ++, ?),
     template: "#::(?Var, ++Domain, ?Bool)",
     args: [
-	"Var":    "Variable",
+	"Var":    "(Domain) variable (array notation accepted)",
 	"Domain": "Domain specification",
-        "Bool":   "Reified truth value"
+        "Bool":   "Reified truth value (array notation accepted)"
     ],
     summary: "Reflect into Bool the truth of Var having the domain Domain.",
     see_also: [_:(#::)/3, (#::)/2],
@@ -1234,7 +1290,7 @@ B = B{[0, 2, 4, 6]}
 :- comment(indomain/1, [
     amode: (indomain(?) is nondet),
     args: [
-    	"Var": "An GFD domain variable or an integer"
+    	"Var": "A domain variable or an integer"
     ],
     kind: [search],
     summary: "Instantiates a domain GFD variable to an element of its domain.",
@@ -1349,7 +1405,7 @@ B = B{[0, 2, 4, 6]}
    If the computation since the parent is deterministic, the old
    parent will be discarded and replaced by the new parent.
 </P><P>
-   The intented use for this predicate is just before the search
+   The intended use for this predicate is just before the search
    starts in the user's program, if the search is performed in ECLiPSe. 
    Note that gfd_update is included in GFD's labeling/1 and labeling/3, 
    and so if you use these, you do not need to use gfd_update. Also, this 
@@ -1423,7 +1479,7 @@ B = B{[0, 2, 4, 6]}
             "Collection to satisfy the relation N Rel Limit.",
     amode:nvalues(+,+,?),
     args:[
-	"Collection": "Collection of integers or domain variables.",
+	"Collection": "Collection of integers or (domain) variables.",
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
 	"Limit":"Variable or integer"
     ],
@@ -1473,12 +1529,12 @@ N = N{[1 .. 4]}
 
 :- comment(all_le/2, [
     summary:"Constrains all in Collection to be less than or equal to Y.",
-    template: "<ConsistencyModule:> le(?Collection,?Y)",
+    template: "<ConsistencyModule:> all_le(?Collection,?Y)",
     amode:all_le(+,?),
     args:[
         "Collection":"Collection of integers
- or domain variables",
-        "Y":"An integer or domain variable"
+ or (domain) variables",
+        "Y":"An integer or (domain) variable (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:[arith] ]]],
     eg: "\
@@ -1518,11 +1574,11 @@ A = A{[3 .. 5]}
 
 :- comment(all_lt/2, [
     summary:"Constrains Collection to be less than Y.",
-    template: "<ConsistencyModule:> lt(?Collection,?Y)",
+    template: "<ConsistencyModule:> all_lt(?Collection,?Y)",
     amode:all_lt(+,?),
     args:[
-        "Collection":"Collection of integers or domain variables",
-        "Y":"An integer or domain variable"
+        "Collection":"Collection of integers or (domain) variables",
+        "Y":"An integer or (domain) variable (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:[arith] ]]],
     eg: "\
@@ -1559,8 +1615,8 @@ D = D{[-1000000 .. 2]}
     summary:"Constrains Collection to be greater than or equal to Y.",
     template: "<ConsistencyModule:> all_ge(?Collection,?Y)",
     args:[
-        "Collection":"Collection of integers or domain variables",
-        "Y":"An integer or domain variable"
+        "Collection":"Collection of integers or (domain) variables",
+        "Y":"An integer or (domain) variable (array notation accepted)"
     ],
     amode:all_ge(+,?),
     kind: [constraint:[extra:[gccat:[arith] ]]],
@@ -1606,8 +1662,8 @@ A = A{[-1000000 .. 10]}
     template: "<ConsistencyModule:> all_gt(?Collection,?Y)",
     amode:all_gt(+,?),
     args:[
-        "Collection":"Collection of integers or domain variables",
-        "Y":"An integer or domain variable"
+        "Collection":"Collection of integers or (domain) variables",
+        "Y":"An integer or (domain) variable (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:[arith] ]]],
     eg:"\
@@ -1637,8 +1693,8 @@ A = A{[-1000000 .. 10]}
     template: "<ConsistencyModule:> all_ne(?Collection,?Y)",
     amode:all_ne(+,?),
     args:[
-        "Collection":"Collection of integers or domain variables",
-        "Y":"An integer or domain variable"
+        "Collection":"Collection of integers or (domain) variables",
+        "Y":"An integer or (domain) variable (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:[arith] ]]],
     eg:"\
@@ -1673,8 +1729,8 @@ X = X{[2, 6 .. 10]}
     template: "<ConsistencyModule:> all_eq(?Collection,?Y)",
     amode:all_eq(+,?),
     args:[
-        "Collection":"Collection of integers or domain variables",
-        "Y":"An integer or domain variable"
+        "Collection":"Collection of integers or (domain) variables",
+        "Y":"An integer or (domain) variable (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:[arith] ]]],
     eg:"\
@@ -1714,10 +1770,10 @@ A = A{[9, 10]}
     template: "<ConsistencyModule:> divmod(?X,?Y,?Q,?M)",
     amode:divmod(?,?,?,?),
     args:[
-        "X":"An integer or domain variable",
-        "Y":"An integer or domain variable",
-        "Q":"An integer or domain variable",
-        "M":"An integer or domain variable"
+        "X":"An integer or (domain) variable (array notation accepted)",
+        "Y":"An integer or (domain) variable (array notation accepted)",
+        "Q":"An integer or (domain) variable (array notation accepted)",
+        "M":"An integer or (domain) variable (array notation accepted)"
     ],
     kind: [constraint],
     desc:html("\
@@ -1734,19 +1790,457 @@ A = A{[9, 10]}
 
 %---------------------------------------------------------------------
 
+:- comment(min_index/2, [
+    summary:"Index is constrained to the index(es) of the variable(s) with the minimum value in Collection",
+    amode:min_index(+,?),
+    template: "<ConsistencyModule:> min_index(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain) variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:min_index]]],
+    eg:"\
+[eclipse 1]: min_index([1,2,3], I).
+
+I = 1
+
+
+[eclipse 2]: min_index([1,2,3,1,10,9,10], I).
+
+I = I{[1, 4]}
+
+[eclipse 4]: L = [A,B,C,D,E], L :: 1..10, min_index(L, 3), C #> 4.
+
+L = [A{[5 .. 10]}, B{[5 .. 10]}, C{[5 .. 10]}, D{[5 .. 10]}, E{[5 .. 10]}]
+A = A{[5 .. 10]}
+B = B{[5 .. 10]}
+C = C{[5 .. 10]}
+D = D{[5 .. 10]}
+E = E{[5 .. 10]}
+
+[eclipse 5]: L = [A,B,C,D,E], L :: 1..10, min_index(L, 3), B #> 4.
+
+L = [A{[1 .. 10]}, B{[5 .. 10]}, C{[1 .. 10]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 10]}
+B = B{[5 .. 10]}
+C = C{[1 .. 10]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 6]:  L = [A,B,C,D,E], L :: 1..10, min_index(L, 3), B #< 4.
+
+L = [A{[1 .. 10]}, B{[1 .. 3]}, C{[1 .. 3]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 10]}
+B = B{[1 .. 3]}
+C = C{[1 .. 3]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+[eclipse 7]: [A,B,D] :: 1..10, C :: 20..30, min_index([A,B,C,D], I).
+
+A = A{[1 .. 10]}
+B = B{[1 .. 10]}
+D = D{[1 .. 10]}
+C = C{[20 .. 30]}
+I = I{[1, 2, 4]}
+
+",
+    desc:html("\
+    	Index is constrained to the index(es) of the variable(s) with
+        the minimum  value in Collection. If Index is a variable, it
+        must not occur in  Collection..</P><P>  
+
+        You may find it more convenient to embed <TT>min_index(Vars)</TT> in a
+        constraint expression.
+        </P><P>
+        As with all constraints that involve indexes, the index starts
+        from 1, unlike Gecode's native indexes that starts from 0 - a
+        dummy first element is added to Collection in the constraint posted
+        to Gecode if Collection is not empty. 
+        </P><P> 
+        ConsistencyModule is the optional module specification to give the 
+        consistency level for the propagation for this constraint: 
+        gfd_gac for domain (generalised arc) consistency. 
+</P><P>
+        This constraint is known as min_index in the global constraint catalog,
+        and is implemented using Gecode's minarg() constraint with tie-break
+        set to false.
+</P>
+"),
+    see_also:[min_first_index/2, max_index/2, max_first_index/2, min/2, max/2, collection_to_list/2]
+    ]).
+
+:- comment(min_index_g/2, [
+    summary:"Index is constrained to the index(es) of the variable(s) with the"
+" minimum value in Collection, with native gecode indexing",
+    amode:min_index_g(+,?),
+    template: "<ConsistencyModule:> min_index_g(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain) variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:min_index]]],
+    see_also: [min_index/2],
+    desc:html("\
+  This version of min_index/2 uses the native Gecode indexing, which starts 
+  from 0, i.e. the first element of Collection has index 0. This is different 
+  from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps directly to Gecode's native implementation of the
+  constraint, and may therefore be more efficient, but could also be
+  incompatible with existing ECLiPSe code. 
+</P><P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+</p><p>
+  See min_index/2 for a more detailed description of this predicate.")
+]).   
+
+%---------------------------------------------------------------------
+
+:- comment(min_first_index/2, [
+    summary:"Index is constrained to the index of the first variable with the minimum value in Collection",
+    amode:min_first_index(+,?),
+    template: "min_first_index(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or d(omain) variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:min_index]]],
+    desc:html("\
+    	Index is constrained to the index of the first (smallest index)
+        variable(s) with the minimum value in Collection.  If Index is a
+        variable, it must not occur in  Collection..</P><P>  
+  
+        You may find it more convenient to embed <TT>min_first_index(Vars)</TT> 
+        in a constraint expression.
+        </P><P>
+        As with all constraints that involve indexes, the index starts
+        from 1, unlike Gecode's native indexes that starts from 0 - a
+        dummy first element is added to Collection in the constraint posted
+        to Gecode if Collection is not empty. 
+        </P><P> 
+        This constraint is a variation of min_index in the global
+        constraint catalog, and is implemented using
+        Gecode's minarg() constraint with tie-break set to true..
+        
+</P>
+"),
+    see_also:[min_index/2, max_first_index/2, max_index/2, min/2, max/2, collection_to_list/2]
+    ]).
+
+:- comment(min_first_index_g/2, [
+    summary:"Index is constrained to the index of the first variable with the"
+" minimum value in Collection, with native gecode indexing",
+    amode:min_first_index_g(+,?),
+    template: "min_first_index_g(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain) variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:min_index]]],
+    see_also: [min_first_index/2],
+    eg:"\
+[eclipse 11]: min_first_index([1,2,3], I).
+
+I = 1
+
+[eclipse 12]: min_first_index([1,2,3,1,10,9,10], I).
+
+I = 1
+
+[eclipse 13]: L = [A,B,C,D,E], L :: 1..10, min_first_index(L, 3), C #> 4.
+
+L = [A{[6 .. 10]}, B{[6 .. 10]}, C{[5 .. 9]}, D{[5 .. 10]}, E{[5 .. 10]}]
+A = A{[6 .. 10]}
+B = B{[6 .. 10]}
+C = C{[5 .. 9]}
+D = D{[5 .. 10]}
+E = E{[5 .. 10]}
+[eclipse 14]: L = [A,B,C,D,E], L :: 1..10, min_first_index(L, 3), B #> 4.
+
+L = [A{[2 .. 10]}, B{[5 .. 10]}, C{[1 .. 9]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[2 .. 10]}
+B = B{[5 .. 10]}
+C = C{[1 .. 9]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 15]: L = [A,B,C,D,E], L :: 1..10, min_first_index(L, 3), B #< 4.
+
+L = [A{[2 .. 10]}, B{[2, 3]}, C{[1, 2]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[2 .. 10]}
+B = B{[2, 3]}
+C = C{[1, 2]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 16]: [A,B,D] :: 1..10, C :: 20..30, min_first_index([A,B,C,D], I).
+
+A = A{[1 .. 10]}
+B = B{[1 .. 10]}
+D = D{[1 .. 10]}
+C = C{[20 .. 30]}
+I = I{[1, 2, 4]}
+
+",
+    desc:html("\
+  This version of min_first_index/2 uses the native Gecode indexing,
+  which starts from 0, i.e. the first element of Collection has index 0.
+  This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps directly to Gecode's native implementation of the
+  constraint, and may therefore be more efficient, but could also be
+  incompatible with existing ECLiPSe code. 
+</P><P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+</p><p>
+  See min_first_index/2 for a more detailed description of this predicate.")
+]).   
+
+%---------------------------------------------------------------------
+
+:- comment(max_index/2, [
+    summary:"Index is constrained to the index(es) of the variable(s) with the maximum value in Collection",
+    amode:max_index(+,?),
+    template: "<ConsistencyModule:> max_index(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain) variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:max_index]]],
+    eg:"\
+[eclipse 17]: max_index([1,2,3], I).
+
+I = 3
+
+[eclipse 18]: max_index([1,2,3,1,10,9,10], I).
+
+I = I{[5, 7]}
+
+[eclipse 19]: L = [A,B,C,D,E], L :: 1..10, max_index(L, 3), C #> 4.
+
+L = [A{[1 .. 10]}, B{[1 .. 10]}, C{[5 .. 10]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 10]}
+B = B{[1 .. 10]}
+C = C{[5 .. 10]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 20]:  L = [A,B,C,D,E], L :: 1..10, max_index(L, 3), C #< 4.
+
+L = [A{[1 .. 3]}, B{[1 .. 3]}, C{[1 .. 3]}, D{[1 .. 3]}, E{[1 .. 3]}]
+A = A{[1 .. 3]}
+B = B{[1 .. 3]}
+C = C{[1 .. 3]}
+D = D{[1 .. 3]}
+E = E{[1 .. 3]}
+
+[eclipse 21]:  L = [A,B,C,D,E], L :: 1..10, max_index(L, 3), B #> 4.
+
+L = [A{[1 .. 10]}, B{[5 .. 10]}, C{[5 .. 10]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 10]}
+B = B{[5 .. 10]}
+C = C{[5 .. 10]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 23]:  L = [A,B,C,D,E], L :: 1..10, max_index(L, 3), B #< 4.
+
+L = [A{[1 .. 10]}, B{[1 .. 3]}, C{[1 .. 10]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 10]}
+B = B{[1 .. 3]}
+C = C{[1 .. 10]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 24]: [A,B,D] :: 1..10, C :: 20..30, max_index([A,B,C,D], I).
+
+A = A{[1 .. 10]}
+B = B{[1 .. 10]}
+D = D{[1 .. 10]}
+C = C{[20 .. 30]}
+I = 3
+
+",
+    desc:html("\
+    	Index is constrained to the index(es) of the variable(s) with
+        the maximum  value in Collection. If Index is a variable, it
+        must not occur in  Collection..</P><P>  
+
+        You may find it more convenient to embed <TT>max_index(Vars)</TT> in a
+        constraint expression.
+        </P><P>
+        As with all constraints that involve indexes, the index starts
+        from 1, unlike Gecode's native indexes that starts from 0 - a
+        dummy first element is added to Collection in the constraint posted
+        to Gecode if Collection is not empty. 
+        </P><P> 
+        ConsistencyModule is the optional module specification to give the 
+        consistency level for the propagation for this constraint: 
+        gfd_gac for domain (generalised arc) consistency. 
+</P><P>
+        This constraint is known as max_index in the global constraint catalog,
+        and is implemented using Gecode's maxarg() constraint with tie-break
+        set to false.
+</P>
+"),
+    see_also:[max_first_index/2, min_index/2, min_first_index/2, min/2, max/2, collection_to_list/2]
+    ]).
+
+:- comment(max_index_g/2, [
+    summary:"Index is constrained to the index(es) of the variable(s) with the"
+" maximum value in Collection, with native gecode indexing",
+    amode:max_index_g(+,?),
+    template: "<ConsistencyModule:> max_index_g(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain) variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:max_index]]],
+    see_also: [max_index/2],
+    eg:"\
+[eclipse 25]: max_first_index([1,2,3], I).
+
+I = 3
+
+[eclipse 26]: max_first_index([1,2,3,1,10,9,10], I).
+
+I = 5
+
+[eclipse 27]: L = [A,B,C,D,E], L :: 1..10, max_first_index(L, 3), C #> 4.
+
+L = [A{[1 .. 9]}, B{[1 .. 9]}, C{[5 .. 10]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 9]}
+B = B{[1 .. 9]}
+C = C{[5 .. 10]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+[eclipse 28]: L = [A,B,C,D,E], L :: 1..10, max_first_index(L, 3), C #< 4.
+
+L = [A{[1, 2]}, B{[1, 2]}, C{[2, 3]}, D{[1 .. 3]}, E{[1 .. 3]}]
+A = A{[1, 2]}
+B = B{[1, 2]}
+C = C{[2, 3]}
+D = D{[1 .. 3]}
+E = E{[1 .. 3]}
+
+[eclipse 29]:  L = [A,B,C,D,E], L :: 1..10, max_first_index(L, 3), B #> 4.
+
+L = [A{[1 .. 9]}, B{[5 .. 9]}, C{[6 .. 10]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 9]}
+B = B{[5 .. 9]}
+C = C{[6 .. 10]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 30]:  L = [A,B,C,D,E], L :: 1..10, max_first_index(L, 3), B #< 4.
+
+L = [A{[1 .. 9]}, B{[1 .. 3]}, C{[2 .. 10]}, D{[1 .. 10]}, E{[1 .. 10]}]
+A = A{[1 .. 9]}
+B = B{[1 .. 3]}
+C = C{[2 .. 10]}
+D = D{[1 .. 10]}
+E = E{[1 .. 10]}
+
+[eclipse 31]: [A,B,D] :: 1..10, C :: 20..30, max_first_index([A,B,C,D], I).
+
+A = A{[1 .. 10]}
+B = B{[1 .. 10]}
+D = D{[1 .. 10]}
+C = C{[20 .. 30]}
+I = 3
+
+",
+    desc:html("\
+  This version of max_index/2 uses the native Gecode indexing, which starts 
+  from 0, i.e. the first element of Collection has index 0. This is different 
+  from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps directly to Gecode's native implementation of the
+  constraint, and may therefore be more efficient, but could also be
+  incompatible with existing ECLiPSe code. 
+</P><P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+</p><p>
+  See max_index/2 for a more detailed description of this predicate.")
+]).   
+
+%---------------------------------------------------------------------
+
+:- comment(max_first_index/2, [
+    summary:"Index is constrained to the index of the first variable with the maximum value in Collection",
+    amode:max_first_index(+,?),
+    template: "max_first_index(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain) variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:max_index]]],
+    desc:html("\
+    	Index is constrained to the index of the first (smallest index)
+        variable(s) with the maximum value in Collection. If Index is a 
+        variable, it must not occur in  Collection..</P><P>  
+
+        You may find it more convenient to embed <TT>max_first_index(Vars)</TT> 
+        in a constraint expression.
+        </P><P>
+        As with all constraints that involve indexes, the index starts
+        from 1, unlike Gecode's native indexes that starts from 0 - a
+        dummy first element is added to Collection in the constraint posted
+        to Gecode if Collection is not empty. 
+        </P><P> 
+        This constraint is a variation of max_index in the global
+        constraint catalog, and is implemented using
+        Gecode's maxarg() constraint with tie-break set to true..
+        
+</P>
+"),
+    see_also:[max_index/2, max_first_index/2, min_index/2, max/2, min/2, collection_to_list/2]
+    ]).
+
+:- comment(max_first_index_g/2, [
+    summary:"Index is constrained to the index of the first variable with the"
+" maximum value in Collection, with native gecode indexing",
+    amode:max_first_index_g(+,?),
+    template: "max_first_index_g(+Collection,?Index)",
+    args:[
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain_ variables",
+	"Index":"(Domain) variable or integer (array notation accepted)"
+    ],
+    kind: [constraint:[extra:[gccat:max_index]]],
+    see_also: [max_first_index/2],
+    desc:html("\
+  This version of max_first_index/2 uses the native Gecode indexing,
+  which starts from 0, i.e. the first element of Collection has index 0.
+  This is different from normal ECLiPSe's indexing, which starts from 1.
+</p><p>
+  This predicate maps directly to Gecode's native implementation of the
+  constraint, and may therefore be more efficient, but could also be
+  incompatible with existing ECLiPSe code. 
+</P><P>
+   This constraint can be embedded in a constraint expression in its
+   functional form (without the last argument).
+</p><p>
+  See max_first_index/2 for a more detailed description of this predicate.")
+]).   
+
+%---------------------------------------------------------------------
+
 :- comment(max/2, [
     summary:"Max is the maximum of the values in Collection",
     template: "<ConsistencyModule:> max(+Collection,?Max)",
     amode:max(+,?),
     args:[
-	"Collection":"A collection (a la collection_to_list/2) of integers or domain variables",
-	"Max":"Variable or integer"
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain )variables",
+	"Max":"(Domain) variable or integer (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:maximum]]],
     desc:html("\
 	Max is the maximum of the values in Collection.</P><P>
 
-        You may find it more convenient to embed <TT>maxlist(Vars)</TT> in a
+        You may find it more convenient to embed <TT>max(Vars)</TT> in a
         constraint expression.
         </P><P> 
         ConsistencyModule is the optional module specification to give the 
@@ -1769,14 +2263,14 @@ A = A{[9, 10]}
     amode:min(+,?),
     template: "<ConsistencyModule:> min(+Collection,?Min)",
     args:[
-	"Collection":"A collection (a la collection_to_list/2) of integers or domain variables",
-	"Min":"Variable or integer"
+	"Collection":"A collection (a la collection_to_list/2) of integers or (domain) variables",
+	"Min":"(Domain) variable or integer (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:minimum]]],
     desc:html("\
     	Min is the minimum of the values in Collection.</P><P>  
 
-        You may find it more convenient to embed <TT>minlist(Vars)</TT> in a
+        You may find it more convenient to embed <TT>min(Vars)</TT> in a
         constraint expression.
         </P><P> 
         ConsistencyModule is the optional module specification to give the 
@@ -1800,8 +2294,8 @@ A = A{[9, 10]}
     amode:sum(+,?),
     args:[
 	"Collection or Coeffs*Collection":
-        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers.",
-	"Sum":"Variable or integer"
+        "Collection: collection of N integers or (domain) variables. Coeffs: collection of N integers.",
+	"Sum":"(Domain) variable or integer (array notation accepted)"
     ],
     see_also: [sumlist/2, _:sum/2],
     kind: [constraint:[extra:[gccat:sum_ctr]]],
@@ -1840,8 +2334,8 @@ A = A{[9, 10]}
     amode:sumlist(+,?),
     args:[
 	"Collection or Coeffs*Collection":
-        "Collection: collection of N integers or domain variables. Coeffs: collection of N integers.",
-	"Sum":"Variable or integer"
+        "Collection: collection of N integers or (domain) variables. Coeffs: collection of N integers.",
+	"Sum":"(Domain) variable or integer (array notation accepted)"
     ],
     see_also: [_:sumlist/2],
     kind: [constraint:[extra:[gccat:sum_ctr]]],
@@ -1861,9 +2355,9 @@ A = A{[9, 10]}
     template: "<ConsistencyModule:> sum(+Collection,+Rel,?Sum)",
     amode:sum(+,+,?),
     args:[
-	"Collection": "Collection of integers or domain variables.",
+	"Collection": "Collection of integers or (domain) variables.",
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
-	"Sum":"Variable or integer"
+	"Sum":"(Domain) variable or integer (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:sum_ctr]]],
     see_also: [sum/4],
@@ -1902,10 +2396,10 @@ A = A{[9, 10]}
     template: "<ConsistencyModule:> sum(+Collection,+Rel,?Sum,?Bool)",
     amode:sum(+,+,?,?),
     args:[
-	"Collection": "Collection of integers or domain variables.",
+	"Collection": "Collection of integers or (domain) variables.",
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
-	"Sum":"Variable or integer",
-        "Bool":"Variable or the integer 0 or 1"
+	"Sum":"(Domain) variable or integer (array notation accepted)",
+        "Bool":"(Domain) variable or the integer 0 or 1 (array notation accepted)"
     ],
     kind: [constraint],
     see_also: [sum/3],
@@ -1936,8 +2430,8 @@ A = A{[9, 10]}
     amode: mem(+, ?),
     template: "<ConsistencyModule:> mem(+Vars,?Member)",
     args:[
-	"Vars": "Collection (a la collection_to_list/2) of variables or integers (NOT arbitrary expressions)",
-	"Member":  "Member element of Vars (domain variable or integer)"
+	"Vars": "Collection (a la collection_to_list/2) of (domain) variables or integers (NOT arbitrary expressions)",
+	"Member":  "Member element of Vars (domain variable or integer, array notation accepted)"
     ],
     summary: "Constrains Member to be the a member element in Vars.",
     see_also: [mem/3, collection_to_list/2],
@@ -1993,10 +2487,10 @@ C = C{[1, 4, 5]}
     amode: mem(+, ?, ?),
     template: "<ConsistencyModule:> mem(+Vars,?Member,?Bool)",
     args:[
-	"Vars": "Collection (a la collection_to_list/2) of variables or integers (NOT arbitrary expressions)",
+	"Vars": "Collection (a la collection_to_list/2) of (domain) variables or integers (NOT arbitrary expressions)",
 	"Member":  "Member element of Vars (domain variable or
- integer)",
-        "Bool": "Reified truth value (0/1 integer or domain variable)"
+ integer, array notation accepted)",
+        "Bool": "Reified truth value (0/1 integer or (domain) variable, array notation accepted)"
     
     ],
     summary: "Reflect into Bool the truth of Member being a member element of Vars.",
@@ -2052,9 +2546,9 @@ Bool = 0
     amode:scalar_product(++,+,+,?),
     args:[
 	"Coeffs": "Collection of N integers.",
-	"Collection": "Collection of N integers or domain variables.",
+	"Collection": "Collection of N integers or (domain) variables.",
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
-	"P":"Variable or integer"
+	"P":"(Domain) variable or integer (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:scalar_product]]],
     desc:html("<P>\
@@ -2099,10 +2593,10 @@ Bool = 0
     amode:scalar_product(++,+,+,?,?),
     args:[
 	"Coeffs": "Collection of N integers.",
-	"Collection": "Collection of N integers or domain variables.",
+	"Collection": "Collection of N integers or (domain) variables.",
         "RelOp": "One of the atom: #>, #>=, #<, #=<, #=, #\\=",
-	"P":"Variable or integer",
-        "Bool":"Variable or the integer 0 or 1"
+	"P":"(Domain) variable or integer (array notation accepted)",
+        "Bool":"(Domain) variable or the integer 0 or 1 (array notation accepted)"
     ],
     kind: [constraint],
     desc:html("<P>\
@@ -2165,7 +2659,7 @@ Bool = 0
     args: [
 	"ConX": "Constraint",
 	"ConY": "Constraint",
-        "Bool": "Reified truth value of the constraint"
+        "Bool": "Reified truth value of the constraint (array notation accepted)"
     ],
     summary: "Bool is the reified truth of both constraints ConX and ConY being true.",
     see_also: [(and)/2, (neg)/2, (or)/3, (xor)/3, (=>)/3,
@@ -2234,7 +2728,7 @@ Bool = 0
     args: [
 	"ConX": "Constraint",
 	"ConY": "Constraint",
-        "Bool": "Reified truth value of the constraint"
+        "Bool": "Reified truth value of the constraint (array notation accepted)"
     ],
     summary: "Bool is the reified truth of at least one of the constraints ConX or ConY being true.",
     see_also: [(or)/2, (neg)/2, (xor)/3, (and)/3, (=>)/3,
@@ -2302,7 +2796,7 @@ Bool = 0
     args: [
 	"ConX": "Constraint",
 	"ConY": "Constraint",
-        "Bool": "Reified truth value of the constraint"
+        "Bool": "Reified truth value of the constraint (array notation accepted)"
     ],
     summary: "Bool is the reified truth of one of the constraints ConX or ConY being true.",
     see_also: [(or)/2, (neg)/2, (and)/3, (xor)/3, (=>)/3,
@@ -2370,7 +2864,7 @@ Bool = 0
     args: [
 	"ConX": "Constraint",
 	"ConY": "Constraint",
-        "Bool": "Reified truth value of the constraint"
+        "Bool": "Reified truth value of the constraint (array notation accepted)"
     ],
     summary: "Bool is the reified truth of constraint ConX implying the truth of ConY.",
     see_also: [(=>)/2, (neg)/2, (or)/3, (xor)/3, (and)/3, (<=>)/3,
@@ -2443,7 +2937,7 @@ Bool = 0
     args: [
 	"ConX": "Constraint",
 	"ConY": "Constraint",
-        "Bool": "Reified truth value of the constraint"
+        "Bool": "Reified truth value of the constraint (array notation accepted)"
     ],
     summary: "Bool is the reified truth of constraint ConX is equivalent to the truth of ConY.",
     see_also: [(<=>)/2, (neg)/2, (=>)/3, (or)/3, (xor)/3, (and)/3, _:(#\=)/3],
@@ -2471,7 +2965,7 @@ Bool = 0
 </P><P>
    A more restricted version of this constraint is defined in the 
    global constraint catalog as 'equivalent', in that the reified truth value
-   is the logical equivalance of 0/1 variables rather than constraints.
+   is the logical equivalence of 0/1 variables rather than constraints.
 </P>
 ")
 ]).
@@ -2512,7 +3006,7 @@ Bool = 0
     template: "<ConsistencyModule:> neg(+Con,Bool)",
     args: [
 	"Con": "Constraint",
-        "Bool": "Reified truth value of the constraint"
+        "Bool": "Reified truth value of the constraint (array notation accepted)"
     ],
     summary: "Bool is the logical negation of the reified truth constraints Con.",
     see_also: [(and)/3, (neg)/1, (xor)/3, (or)/3, (=>)/3,
@@ -2543,9 +3037,9 @@ Bool = 0
 	summary:"Value is the Index'th element of the integer collection Collection.",
 	template:"<ConsistencyModule:> element(?Index, +Collection, ?Value)",
 	args:[
-	    "?Index" : "A domain variable or an integer.",
-	    "+Collection" : "A non-empty collection of integers or domain variable.",
-	    "?Value" : "A domain variable or an integer."
+	    "?Index" : "A (domain) variable or an integer (array notation accepted).",
+	    "+Collection" : "A non-empty collection of integers or (domain) variable.",
+	    "?Value" : "A (domain) variable or an integer (array notation accepted)."
 	],
 	fail_if:"Fails if Value is not the Index'th element of Collection.",
         kind: [constraint:[extra:[gccat:element]]],
@@ -2607,9 +3101,9 @@ V = V{[1, 2, 4 .. 10]}
 	summary:"Value is the Index'th element of the integer list List, with native Gecode indexing.",
 	template:"<ConsistencyModule:> element_g(?Index, ++List, ?Value)",
 	args:[
-	    "?Index" : "A domain variable or an integer.",
-	    "+Collection" : "A non-empty collection of integers or domain variable.",
-	    "?Value" : "A domain variable or an integer."
+	    "?Index" : "A (domain) variable or an integer.",
+	    "+Collection" : "A non-empty collection of integers or (domain) variable.",
+	    "?Value" : "A (domain) variable or an integer (array notation accepted)."
 	],
 	fail_if:"Fails if Value is not the Index'th element of Collection.",
 	see_also: [element/3],
@@ -2633,12 +3127,12 @@ V = V{[1, 2, 4 .. 10]}
 
 :- comment(occurrences/3, [
     summary:"The value Value occurs in Vars N times",
-    template:"<ConsistencyModule:> occurrences(++Value,+Vars.?N)",
+    template:"<ConsistencyModule:> occurrences(++Value,+Vars,?N)",
     amode:occurrences(++,+,?),
     args:[
-	"Value":"Integer (or domain variable)",
-	"Vars":"Collection (a la collection_to_list/2) of integers or domain variables",
-	"N":"Domain variable or integer"
+	"Value":"Integer (or (domain) variable)",
+	"Vars":"Collection (a la collection_to_list/2) of integers or (domain) variables",
+	"N":"(Domain) variable or integer (array notation accepted)"
     ],
     kind: [constraint:[extra:[gccat:exactly]]],
     eg:"
@@ -2743,14 +3237,11 @@ N = N{[2, 3]}
    count/4 constraint is also known as count in the global 
    constraint catalog, and the constraint is implemented using 
    Gecode's count() constraint.
-</p><p>
-   The constraint is also known as atmost in the global constraint
-   catalog, and is implemented using Gecode's count() constraint.
   </p>
 "),
-	args:["N" : "An integer or domain variable",
-	      "+Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
-	      "V" : "An integer"],
+	args:["N" : "An integer or (domain) variable (array notation accepted)",
+	      "+Vars" : "A collection (a la collection_to_list/2) of (domain) variables or integers",
+	      "V" : "An integer."],
 	fail_if:"   Fails if more than N elements of Vars can be instantiated to V.",
 	see_also:[_:atmost/3, count/4, atleast/3, element/3, occurrences/3, collection_to_list/2]]).
 
@@ -2788,13 +3279,10 @@ A = A{[-1000000 .. 1000000]}
    count/4 constraint is also known as count in the global 
    constraint catalog, and the constraint is implemented using 
    Gecode's count() constraint.
-</p><p>
-   The constraint is also known as atleast in the global constraint
-   catalog, and is implemented using Gecode's count() constraint.
 </p>
 "),
-	args:["N" : "An integer or domain variable",
-	      "Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+	args:["N" : "An integer or (domain) variable (array notation accepted)",
+	      "Vars" : "A collection (a la collection_to_list/2) of (domain) variables or integers",
 	      "V" : "An integer"],
 	fail_if:"   Fails if less than N elements of Vars can be instantiated to V.",
 	see_also:[count/4, atmost/3, element/3, occurrences/3, collection_to_list/2]]).
@@ -2809,10 +3297,10 @@ A = A{[-1000000 .. 1000000]}
         amode: count(?,+,+,?),
         amode: count(+,+,+,?),
         template:"<ConsistencyModule:> count(+Value, ?Vars, +Rel, ?N)",
-	args:["+Value" : "An integer (or a domain variable)",
-	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+	args:["?Value" : "An integer or a (domain) variable (array notation accepted)",
+	      "?Vars" : "A collection (a la collection_to_list/2) of (domain) variables or integers",
               "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
-	      "?N" : "An integer or domain variable"],
+	      "?N" : "An integer or (domain) variable (array notation accepted)"],
         kind: [constraint:[extra:[gccat:count]]],
         eg: "
 [eclipse 33]: count(5, [](4,5,5,4,5), (#>=), 2).   % succeed
@@ -2891,9 +3379,10 @@ A = A{[-1000000 .. 1000000]}
 </P><P>
    ConsistencyModule is the optional module specification to give the 
    consistency level for the propagation for this constraint: 
-   gfd_gac for domain (generalised arc) consistency. Note that if
-   Value is a domain variable, then the propagation is weak, achieving
-   neither domain or bound consistency until Value becomes ground.
+   gfd_gac the (default) and gfd_bc. Both propagation do not achive 
+   bound consistency in all cases, and gfd_bc is different from gfd_gac
+   only if Value is a domain variable, as its domain is not pruned
+   with gfd_bc. 
 </P><P>
    This constraint is known as count in the global constraint catalog.
    It is implemented using gecode's count() constraint (variants with
@@ -2908,9 +3397,9 @@ A = A{[-1000000 .. 1000000]}
 	summary: "The number of occurrence (Occ) in Vars of values taken from the set of values specified in Values satisfy  the relation Occ Rel N",
 	template:"<ConsistencyModule:> among(+Values, ?Vars, +Rel, ?N)",
 	args:["+Values" : "A collection of specifications for integer values",
-	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers",
+	      "?Vars" : "A collection (a la collection_to_list/2) of (domain) variables or integers",
               "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
-	      "?N" : "An integer or domain variable"],
+	      "?N" : "An integer or (domain) variable (array notation accepted)"],
         kind: [constraint:[extra:[gccat:counts]]],
         eg:"\
 [eclipse 24]: among([1,3,4,9], [4,5,5,4,1,5], (#=), N).
@@ -2980,9 +3469,9 @@ N = N{[-1000000 .. 2, 4 .. 1000000]}
  relation Matches Rel N.",
 	template:"<ConsistencyModule:> count_matches(+Values, ?Vars, +Rel, ?N)",
 	args:["+Values" : "A collection of M integer values",
-	      "?Vars" : "A collection of M domain variables or integers",
+	      "?Vars" : "A collection of M (domain) variables or integers",
               "+Rel":"One of the atom: #>, #>=, #<, #=<, #=, #\\=",
-	      "?N" : "An integer or domain variable"],
+	      "?N" : "An integer or (domain) variable (array notation accepted)"],
         kind: [constraint],
         eg: "\
 [eclipse 5]: count_matches([1,2,3,4], [A,B,C,D], (#=), N).
@@ -3046,8 +3535,8 @@ N = 0
     amode:sorted(+,-),
     amode:sorted(-,+),
     template:"<ConsistencyModule:> sorted(?Unsorted, ?Sorted)",
-    args:["Unsorted":"List or collection of N domain variables or integers",
-    	"Sorted":"List or collection of N domain variables or integers"],
+    args:["Unsorted":"Collection of N (domain) variables or integers",
+    	"Sorted":"Collection of N (domain) variables or integers"],
     kind: [constraint:[extra:[gccat:sort]]],
     eg: "
 [eclipse 2]: sorted([1,9,1,5,2|L], [1,1,1,2,5,9]).
@@ -3070,15 +3559,14 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
 
     ",
     desc:html("\
-    Declaratively: The two lists (or collections) have the same length
-    and Sorted is a sorted permutation of Unsorted.
+    Declaratively: The two collections have the same length and Sorted is
+    a sorted permutation of Unsorted.
 <P>
     Operationally:  the elements in both collections are constrained such
     that their domains are consistent with the assumption that Sorted
     is the sorted version of Unsorted.
 <P>
-    One of the two arguments can be uninstantiated or partial lists
-    at call time.
+    One of the two arguments can be uninstantiated at call time.
 <P>
     Any input variables which is not already a domain variable will be
     turned into a domain variable with default bounds.
@@ -3100,9 +3588,9 @@ Xs = [_832{[8 .. 100]}, _852{[8 .. 100]}, _872{[8 .. 100]}, _892{[8 .. 100]}]
     amode:sorted(?,+,?),
     amode:sorted(?,?,+),
     template:"<ConsistencyModule:> sorted(?Unsorted, ?Sorted, ?Positions)",
-    args:["Unsorted":"Collection of N domain variables or integers",
-    	"Sorted":"Collection of N domain variables or integers",
-    	"Positions":"Collection of N domain variables or integers"],
+    args:["Unsorted":"Collection of N (domain) variables or integers",
+    	"Sorted":"Collection of N (domain) variables or integers",
+    	"Positions":"Collection of N (domain) variables or integers"],
     kind: [constraint:[extra:[gccat:sort_permutation]]],
     desc:html("\
     Declaratively:  Sorted is a sorted permutation of Unsorted.  Positions
@@ -3155,9 +3643,9 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
     amode:sorted_g(?,+,?),
     amode:sorted_g(?,?,+),
     template:"<ConsistencyModule:> sorted_g(?Unsorted, ?Sorted, ?Positions)",
-    args:["Unsorted":"Collection of N domain variables or integers",
-    	"Sorted":"Collection of N domain variables or integers",
-    	"Positions":"Collection of N domain variables or integers"],
+    args:["Unsorted":"Collection of N (domain) variables or integers",
+    	"Sorted":"Collection of N (domain) variables or integers",
+    	"Positions":"Collection of N (domain) variables or integers"],
     see_also: [sorted/3],	
     kind: [constraint:[extra:[gccat:sort_permutation]]],
     desc:html("\
@@ -3178,8 +3666,8 @@ Ps = [_969{[1 .. 3]}, _989{[2 .. 4]}, _1009{[1 .. 4]}, _1029{[1 .. 4]}]
 :- comment(bool_channeling/3, [
         amode: bool_channeling(?, +, +),
        template:"<ConsistencyModule:> bool_channeling(?Var, +DomainBools, +Min)",
-        args: ["Var": "A domain variable",
-               "DomainBools": "A collection of N 0/1 domain variables or"
+        args: ["Var": "A (domain) variable (array notation accepted)",
+               "DomainBools": "A collection of N 0/1 (domain) variables or"
                            " integers",
                "Min": "An integer"],
         summary: "Channel the domain values of Vars to the 0/1 boolean"
@@ -3234,7 +3722,7 @@ B5 = B5{[0, 1]}
         args: ["Bounds":"A list of elements specifying the cardinality of"
                         " values occurring in Vars of the form "
                         "gcc(Low,High,Value) or occ(Occ,Value).",
-               "Vars":"A collection of different variables or integers"
+               "Vars":"A collection of different (domain) variables or integers"
               ],
         summary:"Constrain the cardinality of each Value according to the specification in Bounds.",
         eg: "\
@@ -3288,8 +3776,8 @@ B5 = B5{[0, 1]}
 
 :- comment(inverse/2, [
         amode: inverse(+,+),
-        args: ["Succ":"A collection of N different variables or integers",
-               "Pred":"A collection  of N different variables or integers"
+        args: ["Succ":"A collection of N different (domain) variables or integers",
+               "Pred":"A collection  of N different (domain) variables or integers"
               ],
         template:"<ConsistencyModule:> inverse(+Succ,+Pred)",
         summary: "Constrains elements of Succ to be the successors and"
@@ -3328,8 +3816,8 @@ B5 = B5{[0, 1]}
 
 :- comment(inverse_g/2, [
         amode: inverse_g(+,+),
-        args: ["Succ":"A collection of N different variables or integers",
-               "Pred":"A collection  of N different variables or integers"
+        args: ["Succ":"A collection of N different (domain) variables or integers",
+               "Pred":"A collection  of N different (domain) variables or integers"
               ],
         template:"<ConsistencyModule:> inverse_g(+Succ,+Pred)",
         summary: "Constrains elements of Succ to be the successors and"
@@ -3352,9 +3840,9 @@ B5 = B5{[0, 1]}
 
 :- comment(inverse/4, [
         amode: inverse(+,+,+,+),
-        args: ["Succ":"A collection of N different variables or integers",
+        args: ["Succ":"A collection of N different(domain)  variables or integers",
                "SuccOffset":"An integer.",
-               "Pred":"A collection  of N different variables or integers",
+               "Pred":"A collection  of N different (domain) variables or integers",
                "PredOffset":"An integer."
               ],
         template:"<ConsistencyModule:> inverse(+Succ,+SuccOffset,+Pred,+PredOffset)",
@@ -3393,9 +3881,9 @@ B5 = B5{[0, 1]}
 
 :- comment(inverse_g/4, [
         amode: inverse_g(+,+,+,+),
-        args: ["Succ":"A collection of N different variables or integers",
+        args: ["Succ":"A collection of N different (domain) variables or integers",
                "SuccOffset":"An integer.",
-               "Pred":"A collection  of N different variables or integers",
+               "Pred":"A collection  of N different (domain) variables or integers",
                "PredOffset":"An integer."
               ],
         template:"<ConsistencyModule:> inverse_g(+Succ,+SuccOffset,+Pred,+PredOffset)",
@@ -3418,7 +3906,7 @@ B5 = B5{[0, 1]}
 
 :- comment(circuit/1, [
         amode: circuit(+),
-        args: ["Succ":"A collection of different variables or integers"
+        args: ["Succ":"A collection of different (domain) variables or integers"
               ],
         template:"<ConsistencyModule:> circuit(+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit.", 
@@ -3462,7 +3950,7 @@ A = 1
 
 :- comment(circuit_g/1, [
         amode: circuit_g(+),
-        args: ["Succ":"A collection of different variables or integers"
+        args: ["Succ":"A collection of different (domain) variables or integers"
               ],
         template:"<ConsistencyModule:> circuit_g(+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit, with native Gecode indexing.", 
@@ -3487,9 +3975,9 @@ A = 1
 
 :- comment(circuit/3, [
         amode: circuit(+,++,?),
-        args: ["Succ":"A collection of N different variables or integers",
-               "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+        args: ["Succ":"A collection of N different (domain) variables or integers",
+               "CostMatrix":"A NxN matrix collection of integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit(+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost.", 
@@ -3533,9 +4021,9 @@ C = 10
 
 :- comment(circuit_g/3, [
         amode: circuit_g(+,++,?),
-        args: ["Succ":"A collection of N different variables or integers",
+        args: ["Succ":"A collection of N different (domain) variables or integers",
                "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost. This version uses native Gecode indexing.", 
@@ -3569,10 +4057,10 @@ C = 11
 
 :- comment(circuit/4, [
         amode: circuit(+,++,+,?),
-        args: ["Succ":"A collection of N different variables or integers",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
-               "Cost": "An domain variable or integer."
+        args: ["Succ":"A collection of N different (domain) variables or integers",
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit(+Succ,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[circuit/1,circuit/3,circuit_g/4],
@@ -3621,10 +4109,10 @@ C = 10
 
 :- comment(circuit_g/4, [
         amode: circuit_g(+,++,+,?),
-        args: ["Succ":"A collection of N different variables or integers",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
-               "Cost": "An domain variable or integer."
+        args: ["Succ":"A collection of N different (domain) variables or integers",
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers.",
+               "Cost": "An (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit_g(+Succ,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian circuit with cost Cost, using native Gecode indexing.", 
@@ -3648,7 +4136,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 
 :- comment(circuit_offset/2, [
         amode: circuit_offset(+,+),
-        args: ["Succ":"A collection of different variables or integers",
+        args: ["Succ":"A collection of different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)"
               ],
         template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset)",
@@ -3681,7 +4169,7 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 
 :- comment(circuit_offset_g/2, [
         amode: circuit_offset_g(+,+),
-        args: ["Succ":"A collection of different variables or integers",
+        args: ["Succ":"A collection of different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)"
               ],
         template:"<ConsistencyModule:> circuit_offset_g(+Succ, +Offset)",
@@ -3703,10 +4191,10 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 
 :- comment(circuit_offset/4, [
         amode: circuit_offset(+,+,++,?),
-        args: ["Succ":"A collection of N different variables or integers",
+        args: ["Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+               "CostMatrix":"A NxN matrix collection of integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost.", 
@@ -3745,10 +4233,10 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 
 :- comment(circuit_offset_g/4, [
         amode: circuit_offset_g(+,+,++,?),
-        args: ["Succ":"A collection of N different variables or integers",
+        args: ["Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+               "CostMatrix":"A NxN matrix collection of integers.",
+               "Cost": "A (domain variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit_offset_g(+Succ,+Offset,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost. This version uses native Gecode indexing.", 
@@ -3772,11 +4260,11 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 
 :- comment(circuit_offset/5, [
         amode: circuit_offset(+,+,++,+,?),
-        args: ["Succ":"A collection of N different variables or integers",
+        args: ["Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
-               "Cost": "An domain variable or integer."
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit_offset(+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[circuit_offset/2,circuit_offset/4,circuit_offset_g/5],
@@ -3815,11 +4303,11 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 
 :- comment(circuit_offset_g/5, [
         amode: circuit_offset_g(+,+,++,+,?),
-        args: ["Succ":"A collection of N different variables or integers",
+        args: ["Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
-               "Cost": "An domain variable or integer."
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> circuit_offset_g(+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian circuit with cost Cost, using native Gecode indexing.", 
@@ -3838,9 +4326,9 @@ CostM = []([](0,3,5,7),[](4,0,9,6),[](2,1,0,5),[](-7,8,-2,0)),
 
 :- comment(ham_path/3, [
         amode: ham_path(?,?,+),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of different variables or integers"
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of different (domain) variables or integers"
               ],
         template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End.",
@@ -3898,9 +4386,9 @@ E = 2
 
 :- comment(ham_path_g/3, [
         amode: ham_path_g(?,?,+),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of different variables or integers"
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of different (domain) variables or integers"
               ],
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End, with native Gecode indexing.", 
@@ -3938,11 +4426,11 @@ E = 1
 
 :- comment(ham_path/5, [
         amode: ham_path(?,?,+,++,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
-               "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+        args: ["Start": "An integer or )domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
+               "CostMatrix":"A NxN matrix collection of integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End with cost Cost.",
@@ -3990,11 +4478,11 @@ C = 5
 
 :- comment(ham_path_g/5, [
         amode: ham_path_g(?,?,+,++,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
-               "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
+               "CostMatrix":"A NxN matrix collection of integers.",
+               "Cost": "A )domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End with cost Cost. This version uses native Gecode indexing.", 
@@ -4021,12 +4509,12 @@ C = 5
 
 :- comment(ham_path/6, [
         amode: ham_path(?,?,+,++,+,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
-               "Cost": "An domain variable or integer."
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> ham_path(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[ham_path/3,ham_path/5,ham_path_g/6],
@@ -4078,12 +4566,12 @@ C = 5
 
 :- comment(ham_path_g/6, [
         amode: ham_path_g(?,?,+,++,+,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
-               "Cost": "An domain variable or integer."
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers.",
+               "Cost": "A  (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,++CostMatrix,+ArcCosts,?Cost)",
         summary: "Constrains elements in Succ to form a Hamiltonian path from Start to End, with cost Cost, using native Gecode indexing.", 
@@ -4114,9 +4602,9 @@ C = 5
 
 :- comment(ham_path_offset/4, [
         amode: ham_path_offset(?,?,+,+),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of different variables or integers",
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)"
               ],
         template:"<ConsistencyModule:> ham_path_offset(?Start,?End,+Succ,+Offset)",
@@ -4151,9 +4639,9 @@ C = 5
 
 :- comment(ham_path_offset_g/4, [
         amode: ham_path_offset_g(?,?,+,+),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of different variables or integers",
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)"
               ],
         template:"<ConsistencyModule:> ham_path_g(?Start,?End,+Succ,+Offset)",
@@ -4175,12 +4663,12 @@ C = 5
 
 :- comment(ham_path_offset/6, [
         amode: ham_path_offset(?,?,+,+,++,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+               "CostMatrix":"A NxN matrix collection of integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to form a Hamiltonian path from Start to End with cost Cost.", 
@@ -4221,12 +4709,12 @@ C = 5
 
 :- comment(ham_path_offset_g/6, [
         amode: ham_path_offset_g(?,?,+,+,++,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers.",
-               "Cost": "An domain variable or integer."
+               "CostMatrix":"A NxN matrix collection of integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> ham_path_offset_g(?Start,?End,+Succ,+Offset,++CostMatrix,?Cost)",
         summary: "Constrains elements in Succ (offset by Offset) to
@@ -4251,13 +4739,13 @@ C = 5
 
 :- comment(ham_path_offset/7, [
         amode: ham_path_offset(?,?,+,+,++,+,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
-               "Cost": "An domain variable or integer."
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers.",
+               "Cost": "A (domain) variable or integer (array notation accepted)."
               ],
         template:"<ConsistencyModule:> ham_path_offset(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
 	see_also:[ham_path_offset/4,ham_path_offset/6,ham_path_offset_g/7],
@@ -4299,12 +4787,12 @@ C = 5
 
 :- comment(ham_path_offset_g/7, [
         amode: ham_path_offset_g(?,?,+,+,++,+,?),
-        args: ["Start": "An integer or domain variable",
-               "End": "An integer or domain variable",
-               "Succ":"A collection of N different variables or integers",
+        args: ["Start": "An integer or (domain) variable (array notation accepted)",
+               "End": "An integer or (domain) variable (array notation accepted)",
+               "Succ":"A collection of N different (domain) variables or integers",
                "Offset":"Offset for Succ (An integer)",
-               "CostMatrix":"A NxN matrix of integers",
-               "ArcCosts": "A collection of N variables or integers.",
+               "CostMatrix":"A NxN matrix collection of integers",
+               "ArcCosts": "A collection of N (domain) variables or integers (array notation accepted).",
                "Cost": "An domain variable or integer."
               ],
         template:"<ConsistencyModule:> ham_path_offset_g(?Start,?End,+Succ,+Offset,++CostMatrix,+ArcCosts,?Cost)",
@@ -4375,7 +4863,7 @@ S4 = S4{[4 .. 9]}
 </P><P>
     This constraint is also known as disjunctive in the global constraint
     catalog, but in the catalog, tasks with zero duration are allowed
-    to overlap with other tasks. The consreaint is implemented using 
+    to overlap with other tasks. The constraint is implemented using 
     Gecode's unary constraint (with extra constraints on task end times if 
     any task duration is a domain variable).
 </P>
@@ -4538,7 +5026,7 @@ S4 = S4{[4 .. 9]}
   args:  ["StartTimes":  "Collection of start times for tasks (integer variables or integers)",
           "Durations":   "Collection of duration for tasks (non-negative integer variables or integers)",
           "Usages":   "Collection of resource usages (positive integers)",
-          "ResourceLimit": "Maximum amount of resource available (integer variable)"
+          "ResourceLimit": "Maximum amount of resource available (domain variable, array notation accepted)"
          ],
   summary: "Single resource cumulative constraint on scheduling tasks.",
   see_also: [disjunctive/2, cumulative_optional/5, cumulatives/5, collection_to_list/2, _:cumulative/4],
@@ -4584,7 +5072,7 @@ S4 = S4{[4 .. 9]}
 </P><P>
     This constraint is also known as cumulative in the global constraint
     catalog, but in the catalog, tasks with zero duration have a different
-    definition of overlap with other tasks. The consreaint is implemented 
+    definition of overlap with other tasks. The constraint is implemented 
     using Gecode's cumulative constraint (with extra constraints on task 
     end-times if any task duration is a domain variable).
 </P>")
@@ -4596,7 +5084,7 @@ S4 = S4{[4 .. 9]}
           "Durations":   "Collection of duration for tasks (non-negative integer variables or integers)",
           "Usages":   "Collection of resource usages (positive integers)",
           "ResourceLimit": "Maximum amount of resource available
-                            (integer variable)",
+                            (domain variable or integer, array notation accepted)",
           "Scheduled":   "Collection of N scheduled booleans for task (0/1"
 " domain variables or integers)"
          ],
@@ -4697,7 +5185,7 @@ S4 = S4{[4 .. 9]}
     gfd_vc for value consistency.
 </P><P>
     This constraint is also known as cumulatives in the global constraint
-    catalog, where CTR is \"less than or equal to\" case  The consreaint is 
+    catalog, where CTR is \"less than or equal to\" case  The constraint is 
     implemented using Gecode's cumulatives constraint (with extra constraints 
     on task end-times if any task duration is a domain variable).
 </P>")
@@ -4740,7 +5228,7 @@ S4 = S4{[4 .. 9]}
           "Heights":   "Collection of N resource usages (positive) or productions"
 " (negative) by tasks (domain variables or integers) with the assigned machine",
           "Assigned": "Collection of N ID of machine assigned to tasks"
-" (domains variables or integers)",
+" (domain variables or integers)",
           "MachineConsumptions": "Collection of M minimum amount of resource"
 " consumptions for machines (integers)"
          ],
@@ -4792,7 +5280,7 @@ S4 = S4{[4 .. 9]}
     gfd_vc for value consistency.
 </P><P>
     This constraint is known as cumulatives in the global constraint
-    catalog, where CTR is \"greater than or equal to\" case  The consreaint is 
+    catalog, where CTR is \"greater than or equal to\" case  The constraint is 
     implemented using Gecode's cumulatives constraint (with extra constraints 
     on task end-times if any task duration is a domain variable).
 </P>"
@@ -4836,8 +5324,8 @@ S4 = S4{[4 .. 9]}
         args: ["Low":"Non-negative integer",
                "High":"Positive integer",
                "K": "Positive integer",
-               "Vars": "A list of variables or integers",
-               "Values": "A list of (different) integers"
+               "Vars": "A collection of (domain) variables or integers",
+               "Values": "A collection of (different) integers"
               ],
         summary: "The number of values taken from Values is between Low and"
                  " High for all sequences of K variables in Vars.", 
@@ -4870,7 +5358,7 @@ S4 = S4{[4 .. 9]}
         args: ["Low":"Non-negative integer",
                "High":"Positive integer",
                "K": "Positive integer",
-               "ZeroOnes": "A collection of 0/1 variables or integers"
+               "ZeroOnes": "A collection of 0/1 domain) variables or integers"
               ],
         summary: "The number of occurrences of the value 1 is between Low and"
                  " High for all sequences of K variables in ZeroOnes", 
@@ -4913,15 +5401,15 @@ S4 = S4{[4 .. 9]}
 
 :- comment(bin_packing/3, [
        amode: bin_packing(+,++,+),
-       args: ["Items": "A collection of M variables or integers (domain/value"
+       args: ["Items": "A collection of M (domain) variables or integers (domain/value"
                        " between 1 and N)",
               "ItemSizes": "A collection of M non-negative integers",
-              "BinLoads": "A collection of N variables or non-negative integers"
+              "BinLoads": "A collection of N (domain) variables or non-negative integers"
              ],
        see_also:[bin_packing/4,bin_packing_g/3,_:bin_packing/3],
        summary:"The one-dimensional bin packing constraint with loads: packing "
                "M items into N bins, each bin having a load",
-       kind: [constraint:[extra:[gccat:bin_packing]]],
+       kind: [constraint:[extra:[gccat:bin_packing_capa]]],
        eg:"
 [eclipse 7]: bin_packing([3,1,3], [4,3,1], [L1,L2,L3,L4]).
 
@@ -4967,10 +5455,10 @@ L4 = 0
 
 :- comment(bin_packing_g/3, [
        amode: bin_packing_g(+,++,+),
-       args: ["Items": "A collection of M variables or integers (domain/value"
+       args: ["Items": "A collection of M (domain) variables or integers (domain/value"
                        " between 0 and N-1)",
               "ItemSizes": "A collection of M non-negative integers",
-              "BinLoads": "A collection of N variables or non-negative integers"
+              "BinLoads": "A collection of N v(domain) ariables or non-negative integers"
              ],
        see_also:[bin_packing/4,bin_packing/3],
        summary:"The one-dimensional bin packing constraint with loads, using native Gecode indexing",
@@ -4989,7 +5477,7 @@ L4 = 0
 
 :- comment(bin_packing/4, [
        amode: bin_packing(+,++,+,+),
-       args: ["Items": "A collection of M variables or integers (domain/value"
+       args: ["Items": "A collection of M (domain) variables or integers (domain/value"
                        " between 1 and N)",
               "ItemSizes": "A collection of M non-negative integers",
               "N": "A positive Integer",
@@ -5038,6 +5526,122 @@ L4 = 0
 ")
           ]).
 
+:- comment(bin_packing_md/3, [
+       amode: bin_packing_md(+,++,+),
+       args: ["Items": "A collection of M (domain) variables or integers (domain/value"
+                       " between 1 and N)",
+              "ItemMDSizes": "A 2-D collection of M*L non-negative integers",
+              "BinMDLoads": "A 2-D collection of N*L (domai) variables or non-negative integers"
+             ],
+       see_also:[bin_packing_md/4,bin_packing/4,bin_packing/3],
+       summary:"The multi-dimensional bin packing constraint with loads: packing "
+               "M L-Dimensional items into N L-Dimensional bins, each"
+               " bin having a load in each dimension",
+       kind: [constraint],
+       eg:"
+[eclipse 2]: bin_packing_md([3,1,3], [[4,2], [3,0], [1,3]], [[L11,L12],[L21,L22],[L31,L32]]).
+
+L11 = 3
+L12 = 0
+L21 = 0
+L22 = 0
+L31 = 5
+L32 = 5
+
+",
+       desc: html("\
+   This constraint is for multi-dimensional bin-packing, that is, to
+   pack M L-dimensional items with individual sizes in each dimension
+   into N L-dimensional bins, such that the sum of sizes of items in
+   each dimension of each bin equals the load for that dimension of
+   that bin, as specified in BinMDLoads. The constraint is logically
+   equivalent to posting L 1-dimensional bin_packing constraints, one
+   for each dimension, with the additional constraint that the items
+   are placed in the same bin for all the constraints.
+</p><p>
+   Items and Bins are L-dimensional, i.e. each Item/Bin has a
+   size/load in each dimension. Thus,ItemMDSizes and BinMDLoads are
+   2-D collections, i.e. a 2-D matrix or a list of lists, such that
+   each element is itself a collection of L sub-elements.
+</p><p>
+   Each element of Items and its corresponding element in ItemMDSizes
+   represents an item, such that the i'th element of ItemMDSizes is
+   the size of the i'th item, and the i'th element of Item is the bin
+   this item is packed into. BinMDLoads represent the loads of each
+   bin, i.e. the sum of the sizes of items (in each dimension)
+   assigned to that bin, with the j'th element representing the load
+   for bin j. An (integer finite domain) variable for the load in each
+   dimension allows a constraint on the load to be specified, such as
+   a minimum and/or maximum load for the bin in that dimension.
+</P><P>
+    Note that the Gecode implementation of this constraint has index
+    starting from 0, i.e. the numbering for the bins starts from
+    0. These native indices are mapped to the ECLiPSe indices starting
+    from 1 with an additional dummy zero'th bin that is assigned a
+    dummy item 0.
+</p><p>
+   This constraint is implemented using Gecode's multi-dimensional
+   variant of binpacking() constraint, which requires both the maximum
+   bin size (as in bin_packing_md/4) and all the bin loads to be specified. 
+   This gfd version of the constraint deduces the maximum bin size from 
+   BinMDLoads.
+</p>
+")
+          ]).
+
+:- comment(bin_packing_md/4, [
+       amode: bin_packing_md(+,++,+,+),
+       args: ["Items": "A collection of M (domain) variables or integers (domain/value"
+                       " between 1 and N)",
+              "ItemMDSizes": "A 2-D collection of M*L non-negative integers",
+              "N": "A positive Integer",
+              "BinMDSize": "A collection of L non-negative integer"
+             ],
+       see_also:[bin_packing_md/3, bin_packing/3, bin_packing/4],
+       summary:"The multi-dimensional bin packing constraint: packing "
+               "M L-dimensional items into N L-dimensional bins of size BinMDSize.",
+       eg: "
+[eclipse 4]: bin_packing_md([3,1,3], [[4,1],[3,2],[1,1]], 3, [5,4]).  % Succeed
+
+[eclipse 5]: bin_packing_md([3,3,3], [[4,1],[3,2],[1,1]], 3, [5,4]).  % Fails
+
+",
+       kind: [constraint],
+       desc: html("\
+   This constraint is for multi-dimensional bin-packing, that is, to
+   pack M L-dimensional items with individual sizes into N
+   L-dimensional bins, such that the sum of sizes of items in each bin
+   does not exceed BinMDSize in any dimension.  The constraint is
+   logically equivalent to posting L 1-dimensional bin_packing
+   constraints, one for each dimension, with the additional constraint
+   that the items are placed in the same bin for all the constraints.
+
+   Items and Bins are L-dimensional, i.e. each Item/Bin has a
+   size/load in each dimension, and in this version of the constraint,
+   all the Bins have the same size, as specified by BinMDSize.
+   Thus,ItemMDSizes is a 2-D collection, i.e. a 2-D matrix or a list
+   of lists, such that each element is itself a collection of L
+   sub-elements.
+</P><P>
+   Each element of Items and its corresponding element in ItemMDSizes
+   represents an item, such that the i'th element of ItemSizes is the
+   size of the i'th item, and the i'th element in Items is the bin
+   this item is packed into.
+</P><P>
+    Note that the Gecode implementation of this constraint has index
+    starting from 0, i.e. the numbering for the bins starts from
+    0. These native indices are mapped to the ECLiPSe indices starting
+    from 1 with an additional dummy zero'th bin that is assigned a
+    dummy item 0.
+</p><p>
+   This constraint is implemented using Gecode's multi-dimensional
+   variant of binpacking() constraint, which requires both the maximum
+   bin size and all the bin loads (as in bin_packing_md/3) to be specified. 
+   This gfd version of the constraint constructs the bin loads from BinMDSize.
+</p>
+")
+          ]).
+
 
 % ----------------------------------------------------------------------
 
@@ -5045,8 +5649,8 @@ L4 = 0
     summary:"Collection1 is lexicographically less or equal to Collection2",
     amode:lex_le(+,+),
     args:[
-	"Collection1":"Collection of integers or domain variables",
-	"Collection2":"Collection of integers or domain variables"
+	"Collection1":"Collection of integers or (domain) variables",
+	"Collection2":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:lex_leq]]],
     eg:"
@@ -5087,8 +5691,8 @@ No (0.00s cpu)
     summary:"Collection1 is lexicographically less than  Collection2",
     amode:lex_lt(+,+),
     args:[
-	"Collection1":"Collection of integers or domain variables",
-	"Collection2":"Collection of integers or domain variables"
+	"Collection1":"Collection of integers or (domain) variables",
+	"Collection2":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:lex_less]]],
     see_also: [lex_le/2, lex_gt/2, lex_ge/2, lex_eq/2, lex_ne/2, _:lex_lt/2],
@@ -5132,8 +5736,8 @@ No (0.00s cpu)
     summary:"Collection1 is lexicographically greater or equal to Collection2",
     amode:lex_ge(+,+),
     args:[
-	"Collection1":"Collection of integers or domain variables",
-	"Collection2":"Collection of integers or domain variables"
+	"Collection1":"Collection of integers or (domain) variables",
+	"Collection2":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:lex_greatereq]]],
     eg:"
@@ -5177,8 +5781,8 @@ No (0.00s cpu)
     summary:"Collection1 is lexicographically greater than  Collection2",
     amode:lex_gt(+,+),
     args:[
-	"Collection1":"Collection of integers or domain variables",
-	"Collection2":"Collection of integers or domain variables"
+	"Collection1":"Collection of integers or (domain) variables",
+	"Collection2":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:lex_greater]]],
     eg:"
@@ -5216,8 +5820,8 @@ No (0.00s cpu)
     summary:"Collection1 is lexicographically equal to Collection2",
     amode:lex_eq(+,+),
     args:[
-	"Collection1":"Collection of integers or domain variables",
-	"Collection2":"Collection of integers or domain variables"
+	"Collection1":"Collection of integers or (domain) variables",
+	"Collection2":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:lex_equal]]],
     eg:"
@@ -5253,11 +5857,11 @@ No (0.00s cpu)
 ]).
 
 :- comment(lex_ne/2, [
-    summary:"Colloection1 is lexicographically not equal to Collection2",
+    summary:"Collection1 is lexicographically not equal to Collection2",
     amode:lex_ne(+,+),
     args:[
-	"Collection1":"Collection of integers or domain variables",
-	"Collection2":"Collection of integers or domain variables"
+	"Collection1":"Collection of integers or (domain) variables",
+	"Collection2":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:lex_different]]],
     eg:"
@@ -5303,7 +5907,7 @@ No (0.00s cpu)
     amode:ordered(++,+),
     args:[
 	"Relation":"One of the atoms #<, #=<, #>, #>=, #=, #\\=",
-	"Vars":"Collection of integers or domain variables"
+	"Vars":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:[strictly_increasing,
                                      increasing,
@@ -5408,7 +6012,7 @@ D = 4
     args:[
 	"S": "Integer",
 	"T": "Integer",
-	"Collection":"Collection of integers or domain variables"
+	"Collection":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:int_value_precede]]],
     eg: "\
@@ -5452,7 +6056,7 @@ E = E{[-1000000 .. 1000000]}
     amode:precede(++,+),
     args:[
 	"Values": "Collection of integers",
-	"Collection":"Collection of integers or domain variables"
+	"Collection":"Collection of integers or (domain) variables"
     ],
     kind: [constraint:[extra:[gccat:int_value_precede_chain]]],
     eg: "\
@@ -5493,8 +6097,8 @@ E = E{[-1000000 .. 1000000]}
     summary:"Constrain Vars' solutions to be those defined by the tuples in Table.",
     amode:table(+,++),
     args:[
-	"Vars": "Collection of N domain variables or integers,
- or a collection of a collection of N domain variables or integers.",
+	"Vars": "Collection of N (domain) variables or integers,
+ or a collection of a collection of N (domain) variables or integers.",
 	"Table":"Collection of tuples, each of which is a collection
  of N integer values"
     ],
@@ -5552,8 +6156,8 @@ No (0.00s cpu)
     summary:"Constrain Vars' solutions to be those defined by the tuples in Table.",
     amode:table(+,++,+),
     args:[
-	"Vars": "Collection of N domain variables or integers,
- or a collection of a collection of N domain variables or integers.",
+	"Vars": "Collection of N (domain) variables or integers,
+ or a collection of a collection of N (domain) variables or integers.",
 	"Table":"Collection of tuples, each of which is a collection
  of N integer values",
         "Option": "the atom 'mem' or 'speed' or 'default'"
@@ -5614,8 +6218,8 @@ No (0.00s cpu)
             " the regular expression RegExp.",
     amode:regular(+,++),
     args:[
-	"Vars": "Collection of domain variables or integers,
- or a collection of a collection domain variables or integers.",
+	"Vars": "Collection of (domain) variables or integers,
+ or a collection of a collection of (domain) variables or integers.",
 	"RegExp":"A regular expression"
 
     ],
@@ -5709,7 +6313,8 @@ F = 4
    gfd_gac for generalised arc consistency (domain consistency).
 </p><p>
    This constraint is implemented in Gecode as the extensional() constraint 
-   with the variant that takes a REG (regular expression) as an argument.
+   with the variant that takes a DFA (Deterministic Finite-state
+   Automaton) as an argument, with the regular expression converted to a DFA.
 </p>
 ")
 ]).
@@ -5723,8 +6328,8 @@ F = 4
             " and  final states Finals.",
     amode:extensional(+,++,+,++),
     args:[
-	"Vars": "Collection of domain variables or integers,
- or a collection of a collection domain variables or integers",
+	"Vars": "Collection of (domain) variables or integers,
+ or a collection of a collection of (domain) variables or integers",
 	"Transitions":"A collection of transitions of the form trans{f,"
                      "l,t)",
         "Start":"Start state (non-negative integer)",
@@ -5800,7 +6405,7 @@ No (0.00s cpu)
    gfd_gac for generalised arc consistency (domain consistency).
 </p><p>
    This constraint is implemented in Gecode as the extensional() constraint 
-   with the variant that takes a REG (regular expression) as an argument.
+   with the variant that takes a variant that takes a DFA as an argument.
 </p>
 ")
 ]).
@@ -5813,7 +6418,7 @@ summary:"Interface to gecode search-engines to perform search in gecode.",
 amode:(search(+,++,++,+,++,+) is nondet),
 
 args:[
-      "L" : "is a collection (a la collection_to_list/2) of domain
+      "L" : "is a collection (a la collection_to_list/2) of (domain)
 	    variables (Arg = 0) or a collection of terms (Arg > 0)",
 
       "Arg" :"is an integer, which is 0 if L is a collection of
@@ -5822,70 +6427,125 @@ args:[
 	    selected argument of the term",
 
 
-      "Select" :  "is a predefined variable selection method. Predefined methods are 
+      "Select" :  "is a predefined variable selection method. Available methods are 
             input_order, first_fail, anti_first_fail, smallest, largest, 
             occurrence, anti_occurrence, most_constrained, 
             most_constrained_per_value, least_constrained_per_value, 
             max_regret, max_regret_lwb, min_regret_lwb, max_regret_upb,
-            min_regret_upb, random, max_weighted_degree, min_weighted_degree, 
-            max_weighted_degree_per_value, min_weighted_degree_per_value",
+            min_regret_upb, random, random(+Seed), 
+	    max_weighted_degree, max_weighted_degree_per_value, 
+	    min_weighted_degree, min_weighted_degree_per_value, 
+	    max_activity, max_activity_per_value, 
+	    min_activity, min_activity_per_value,
+	    max_weighted_degree(+WP), max_weighted_degree_per_value(+WP), 
+	    min_weighted_degree(+WP), min_weighted_degree_per_value(+WP), 
+	    max_activity(+AP), max_activity_per_value(+AP), 
+	    min_activity(+AP), min_activity_per_value(+AP)",
 
       "Choice" :  "is the name of a predefine value choice method for choosing
             the value to try for a variable; Predefined choice methods are:
-            indomain, indomain_reverse_enum, indomain_min, indomain_max, 
-            indomain_middle, indomain_median, indomain_split, 
-            indomain_reverse_split, indomain_random, indomain_interval,
-            indomain_interval_min, indomain_interval_max",
+            indomain, indomain_reverse_enum, min, max, median, split, 
+            reverse_split, random, random(+Seed), interval_min, interval_max,
+            from_smaller(P,Vals), from_larger(P,Vals), from_down(P,Vals),
+            from_up(P,Vals)",
 
       "Method" :  "is one of the following:  complete,
             bb_min(Cost:domain variable),
-	    restart_min(Cost:domain variable)",
+	    restart_min(Cost:domain variable),
+	    restart_min(Cost:domain variable,Cutoff),
+	    restart_min(Cost:domain variable,Cutoff,Lim),
+            restart(Cutoff), restart(Cutoff,Lim)",
 
        "Option" :  "is a list of option terms.  Currently recognized are:
 	  tiebreak(+Select), stats(+Stats), limits(+Stop), 
           timeout(+Seconds), control(+Control), backtrack(-N), 
-          node(+Call), nodes(+N)"
+          nodes(+N), ldsb_syms(+Syms)"
 ],
 kind: [search],
 desc:html("<b>Search/6</b> provides an interface to gecode's search-engine,
-to allow search to be performed by gecode. It is designed to have the same 
+allowing search to be performed by gecode. It is designed to have the same 
 arguments as the generic search/6 routine available for integer domain solvers.
 so that for common cases, the call will work for both search/6. The generic
 search/6 is available in the gfd_search module. The difference is that here
 the search is performed by gecode, and is an atomic step when viewed from
-ECLiPSe. For the non-optimising search method, backtracking into this
-predicate will produce the next solution if it exists. By changing the 
-<b>Method</b> argument, different gecode search-engines (implementation 
-of different complete, partial and optimising search algorithms (and 
-their parameters)) can be selected and controlled. The availability of 
-optimising search-engines means that this predicate also provide some of 
-the functionality of lib(branch_and_bound). The predicate also provides a 
-number of pre-defined variable selection  methods (to choose which variable 
-will be assigned next) and some pre-defined value assignment methods 
-(to try out the possible values for the selected variable in some 
-heuristic order).
+ECLiPSe. In addition, this predicat support features of gecode's search
+engine not in generic search, such as variable selection methods based
+ on propagation history, optimising and restart-based search methods, 
+symmetry breaking with LDSB and searching in parallel.  
+<p?
+The predicate perform search on the search variables in <b>L</b>, using the
+search method specified by <b>Method</b>, with variable and value selection
+methods specified by <b>Select</b> and <b>Choice</b>,respectively. For search
+methods that cab produce multiple solutions, backtracking into the predicate
+will produce the next solution if it exists. The search can be controlled 
+further via the terms specified in <b>Options</b>.
 </P><P>
-In order to allow more structure in the application program, it is possible 
-to pass a collection of terms rather than only a collection of domain 
-variables. In this way all information about some entity can be easily 
-grouped together. 
+In order to allow more structure in the application program, L can be a
+collection of compound terms rather than just domain variables. In this 
+way all information about some entity can be easily grouped together. 
+The terms can include items that are associated with the
+domain variable needed in some of the labelling methods. In addition, 
+to allow L to reflect structures in the problem, it can be a nested
+collection such as a matrix.
+<p>
+Search methods are implmeneted by gecode's search engines. These include
+optimising and restart based search methods, which are not available in
+generic search. The optimising search methods provide some of the 
+functionality in.<b>lib(branch_and_bound)</b>, and is likely to be
+faster, but less flexible. The optimising search methods returns a
+single optimal solution by finding succesively better feasible solutions
+until no better solution can be found. If the search is terminated early, 
+e.g. because of time-out, the best feasible solution, will be returned. 
+<p>
+Symmetry breaking using Lightweight Dynamic Symmetry Breaking (LDSB) can be
+specified in the Option argument, and can be used with all search methods 
+and most variable selection methods.
 <p>
 The variable selection and value choice methods are defined by gecode. They
 are mapped to the closest matching methods in the generic search/6 (or with
 a name following the same convention if the method have no correspondence).
-For variable selection, if several entries
-have the same heuristic value, then a tiebreak selection method, specified by
-the tiebreak method, can be used to chose from these entries. Note that
-there are some differences from ECLiPSe search in how the methods are 
-applied: variable selection is always performed before each value selection:
-in ECLiPSe, once a variable is selected, all the possible values for that
-variable are tried on backtracking without re-selecting the variable. 
+Note that except for indomain and indomain_reverse_enum, the indomain style
+selection methods of generic search, are not supported. Instead, most
+value choice methods makes a two-way choice like the methods in try_value/2.
+At each choice, a variable is selected, and two alternatives are
+ created that reduces the variable's domain in complementary ways. 
 <p>
+For source compatibility with code written for the IC and FD solvers, 
+the generic search's indomain style method names are also accepted,
+but are mapped to the closest two-way choice method, e.g.\
+indomain_min is translated to min.
+<p>
+For variable selection, if several entries have the same heuristic value, 
+then a tiebreak selection method, specified by the tiebreak option term, can 
+be used to chose from these entries.  
+<p>
+Several of the variable selection methods makes use of one of two 
+dynamic measurements of gecode's constraint propagation performed 
+by the program so far: 1) Weighted degree, called AFC 
+(accumulated failure count) in gecode; 2) Activity. These two measurements
+may make better variable selection in many programs because it is based
+on actual constraint propagation performed.
+<p>
+Weighted degree is a count of the number of failures so far of
+propagators associated with the variable. By default, the starting count
+is set to the number of propagator attached to the variable,
+to give reasonable starting values for variable selection.
+<p>
+Activity is a count of the number of domain reductions on the variable
+during propagation so far. 
+<p>
+A decay factor (between 0 and 1) can be specified for both measure so that
+the count for a variable can be reduced by the Factor if it is not 
+incremented. 
+</p><p>
 The pre-defined <b>selection methods</b> (with the gecode name in brackets) 
 use the following criteria:
 <ul>
 <li><b>input_order</b> (INT_VAR_NONE) the first entry in the list is selected</li>
 <li><b>random</b> (INT_VAR_RND) an entry is selected at random.</li>
+
+<li><b>random(+Seed)</b> (INT_VAR_RND) an entry is selected at random,
+ with the random seed Seed. Seed is a non-negative integer.</li>
 
 <li><b>anti_occurrence</b> (INT_VAR_DEGREE_MIN) the entry whose corresponding gecode variable with the
 smallest number of attached propagators is selected</li>
@@ -5893,15 +6553,85 @@ smallest number of attached propagators is selected</li>
 <li><b>occurrence</b> (INT_VAR_DEGREE_MAX) the entry whose corresponding gecode variable with the
 largest number of attached propagators is selected</li>
 
-<li><b>min_weighted_degree</b> (INT_VAR_AFC_MIN) the entry with the smallest
-weighted degree is selected.</li>
+<li><b>max_weighted_degree max_weighted_degree(+WDParams)</b> (INT_VAR_AFC_MAX)
+the entry with the largest weighted degree is selected. The optional WDParams
+argument is a list of parameters for initialising the weighted degree.
+</li>
 
-<li><b>max_weighted_degree</b> (INT_VAR_AFC_MAX) the entry with the largest
-weighted degree is selected. Weighted degree is call AFC (accumulated failure
-count) in gecode, and is a count of the number of failures so far of
-propagators associated with the variable, plus the number of propagator
-attached to the variable (to give reasonable starting values when there are
-not failures yet).</li>
+<li><b>max_weighted_degree_per_value  max_weighted_degree_per_value(+WDParams)</b> 
+(INT_VAR_AFC_SIZE_MIN) the entry with the smallest weighted degree divided by 
+domain size is selected. The optional WDParams argument is a list of 
+parameters for initialising the weighted degree. The parameters are:
+
+<ul>
+<li><b>decay(Decay)</b> specify the decay factor (number between
+ 0 and 1, where 1 is no decay). Default is the existing decay factor 
+for weighted degree (normally 1, unless explicitly changed).
+</li>
+<li><b>init(Init)</b> re-initialise the weighted degree values before
+starting the search according to Init. Init can be:
+<ul>
+<li>degree(+Factor)</b>  set the value of the weighted degree
+for a problem variable to Factor*degree for the variable. Factor is a 
+non-negative number. If Factor is 1, then the weighted degree for each 
+variable will be its degree, the default initial value for weighted
+ degree.
+</li>
+<li><b>none</b> no initialisation is done. This is the default.
+</li></ul>
+</li></ul>
+</li> 
+
+<li><b>min_weighted_degree min_weighted_degree(+WDParams)</b> (INT_VAR_AFC_MIN) the entry with the smallest
+weighted degree is selected. The optional WDParams
+argument is a list of parameters for initialising the weighted degree.</li>
+
+<li><b>min_weighted_degree_per_value  min_weighted_degree_per_value(+WDParams)</b> 
+(INT_VAR_AFC_SIZE_MAX) the entry with the largest weighted degree divided by 
+domain size is selected. The optional WDParams
+argument is a list of parameters for initialising the weighted degree.</li> 
+
+<li><b>max_activity max_activity(+AParams)</b> (INT_VAR_ACTIVITY_MAX) the entry with the
+ largest activity is selected. Activity for a variable  Activity is a
+ measure of how much that variable was involved in constraint
+ propagation. Note that activity is maintained by gecode's search engine 
+ for the search variables, and is not available outside.
+<p>
+The parameters are:
+<ul>
+<li><b>decay(Decay)</b> specify the decay factor (number between
+ 0 and 1, where 1 is no decay). Default is 1.
+</li>
+<li><b>init(Init)</b> set the start values for activity for the
+search variables according to Init. Init can be:
+<ul>
+<li> <b>degree(+Factor)</b> set the start value to 
+Factor*degree for the variable. Factor is a non-negative number.
+</li>
+ <li><b>vals(Pos,Starts)</b> set the start values to those specified in
+Starts. Starts is a collection of either the start values (Pos=0), or 
+compound terms containing the value, in the Pos'th argument. The number
+of start values is the same as the number of variable, and each value
+is a non-negative number. 
+</li>
+ <li><b>none</b> no initialisation (default)
+</li>
+</ul>
+</li>
+</ul>
+
+</li>
+
+<li><b>max_activity_per_value max_activity_per_value(+AParams)</b> (INT_VAR_ACTIVITY_SIZE_MAX) the entry with the
+largest activity divided by domain size is selected.
+</li>
+
+<li><b>min_activity min_activity(+AParams)</b> (INT_VAR_ACTIVITY_MIN) the entry with the
+ smallest activity is selected. </li?
+
+<li><b>min_activity_per_value min_activity_per_value(+AParams)</b> (INT_VAR_ACTIVITY_SIZE_MIN) the entry with the
+smallest activity divided by domain size is selected.
+</li>
 
 <li><b>smallest</b> (INT_VAR_MIN_MIN) the entry with the smallest value in the domain is selected</li>
 
@@ -5917,17 +6647,11 @@ not failures yet).</li>
 
 <li><b>anti_first_fail</b> (INT_VAR_SIZE_MAX) the entry with the largest domain size is selected</li>
 
-<li><b>least_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MIN) the entry with the largest domain size
-divided by the number of attached propagators.</li> 
+<li><b>least_constrained_per_value</b> (INT_VAR_DEGREE_SIZE_MAX) the entry with the largest number of attached propagators divided by domain size.</li> 
 
-<li><b>most_constrained_per_value</b> (INT_VAR_SIZE_DEGREE_MAX) the entry with the smallest domain size
-divided by the number of attached propagators.</li> 
+<li><b>most_constrained_per_value</b> (INT_VAR_DEGREE_SIZE_MIN) the entry with the smallest 
+number of attached propagators divided by the domain size.</li> 
 
-<li><b>min_weighted_degree_per_value</b> (INT_VAR_SIZE_AFC_MIN) the entry with
- the smallest domain size divided by weighted degree is selected.</li> 
-
-<li><b>max_weighted_degree_per_value</b> (INT_VAR_SIZE_AFC_MAX) the entry with
- the largest domain size divided by weighted degree is selected.</li> 
 
 <li><b>min_regret_lwb</b> (INT_VAR_REGRET_MIN_MIN) the entry with the smallest difference between the
 smallest and second smallest value in the domain is selected.</li>
@@ -5958,58 +6682,75 @@ largest and second largest value in the domain is selected.</li>
 </ul><p>
 The pre-defined <b>choice methods</b> (with gecode name in brackets) have the following meaning:
 <ul>
-<li><b>indomain</b> (INT_VALUES_MIN)
-Values are tried in increasing order. 
-On failure, the previously tested value is not removed.</li>
+<li><b>indomain</b> (INT_VALUES_MIN) 
+Values are tried in increasing order.</li>
 
 <li><b>indomain_reverse_enum</b> (INT_VALUES_MAX)
-Values are tried in decreasing order. 
-On failure, the previously tested value is not removed.</li>
+Values are tried in decreasing order.</li> 
 
-<li><b>indomain_min</b> (INT_VAL_MIN)
-Values are tried in increasing order.  On failure, the previously
-tested value is removed.  The values are tested in the same order as
-for <b>indomain</b>, but backtracking may occur earlier.</li>
+<li><b>min</b> (INT_VAL_MIN)
+Minimum value in the domain (alias: indomain_min). </li>
 
-<li><b>indomain_max</b> (INT_VAL_MAX)
-Values are tried in decreasing order.  On failure, the previously
-tested value is removed.</li>
+<li><b>max</b> (INT_VAL_MAX)
+Maximum value in the domain (alias: indomain_max). </li>
 
-<li><b>indomain_median</b>(INT_VAL_MED)
-Values are tried beginning from the median value of the domain.  On
-failure, the previously tested value is removed, and the new median value will
-be chosen next.</li>
+<li><b>median</b>(INT_VAL_MED)
+Median value of the domain Note median is defined differently from IC (alias: indomain_median). 
+</li>
 
-<li><b>indomain_split</b> (INT_VAL_SPLIT_MIN)
-Values are tried by successive domain splitting, trying the lower half
-of the domain first.  On failure, the tried interval is removed.  This
-enumerates values in the same order as indomain or indomain_min, but
-may fail earlier.</li>
+<li><b>random</b> (INT_VAL_RND)
+Random element in the domain is selected (alias: indomain_random).</li> 
 
-<li><b>indomain_reverse_split</b> (INT_VAL_SPLIT_MAX)
-Values are tried by successive domain splitting, trying the upper half
-of the domain first.  On failure, the tried interval is removed.  This
-enumerates values in the same order as indomain or indomain_max, but
-may fail earlier.</li>
+<li><b>random(+Seed)</b> (INT_VAL_RND)
+Random element in the domain is selected  The random sequence is
+initialised with seed Seed, which is a non-negative integer.
+</li> 
 
-<li><b>indomain_random</b> (INT_VAL_RND)
-Values are tried in a random order.  On backtracking, the previously
-tried value is removed.  Using this routine may lead to unreproducible
-results, as another call will create random numbers in a different
-sequence. </li> 
+<li><b>split</b> (INT_VAL_SPLIT_MIN)
+try first the lower domain half, then the upper (alias: indomain_split).</li>
 
-<li><b>indomain_interval</b> (INT_VAL_RANGE_MIN)
-If the domain consists of several intervals, we first branch on the choice of
-the interval, choosing the smallest interval.  For one interval, we use domain
-splitting.</li>
+<li><b>reverse_split</b> (INT_VAL_SPLIT_MAX)
+try first the upper domain half, then the lower 
+(alias: indomain_reverse_split).</li>
 
-<li><b>indomain_interval_min</b> (INT_VAL_RANGE_MIN)
-Alias for indomain interval.</li>
+<li><b>interval_min</b> (INT_VAL_RANGE_MIN)
+If the domain consists of several intervals, chose the smallest interval.
+For one interval, split is used.
+(alias: indomain_interval)
+</li>
 
-<li><b>indomain_interval_max</b> (INT_VAL_RANGE_MAX)
-If the domain consists of several intervals, we first branch on the choice of
-the interval, choosing the largest interval.  For one interval, we use reverse 
-domain splitting.</li>
+<li><b>interval_max</b> (INT_VAL_RANGE_MAX)
+If the domain consists of several intervals, chose the largest interval.
+the interval, choosing the largest interval.  For one interval,
+ reverse_split is used 
+</li>
+
+<li><b>from_larger(+Pos,+Suggestions)</b> (INT_VAL_NEAR_MAX)
+Suggestions is a collection containing suggested values, one for each search
+ variable. For each variable, pick the domain value nearest its
+corresponding suggested value. If there is a tie, chose the larger
+ value.
+<p>
+If Pos is 0, then Suggestions is a collection of values. If Pos &gt; 0,
+ then Suggestions is a collection of structures, with the suggested
+ value in the Pos'th argument of the structure. The idea is that the same
+structure can be used to store both the variable and its suggested
+ value, e.g. as a pair Var-2.
+</li>
+
+<li><b>from_smaller(+Pos,+Suggestions)</b> (INT_VAL_NEAR_MAX)
+similar to from_larger, except chose the smaller value if there is a tie.
+</li>
+
+<li><b>from_down(+Pos,+Suggestions)</b> (INT_VAL_NEAR_DEC)
+similar to from_larger, except chose values smaller than the suggested
+ value first.
+</li>
+
+<li><b>from_up(+Pos,+Suggestions)</b> (INT_VAL_NEAR_INCC)
+similar go from_down, except chose values larger than its suggested
+value first.  
+</li>
 
 </ul><p>
 
@@ -6017,7 +6758,8 @@ domain splitting.</li>
 The different <b>search methods</b> are
 <ul>
 <li><b>complete</b> (DFS)
-a complete search routine which explores all alternative choices.</li>
+a complete search routine which explores all alternative choices. Alternative
+solutions are returned on backtracking</li>
 
 
 <li><b>bb_min(Cost)</b> (BAB)
@@ -6028,12 +6770,51 @@ in which case, the best solution found (if there is one) is returned. If Cost
 variable is not instantiated at the end of the search, the search is aborted.
 This provide some of the functionality of branch-and-bound search in
 lib(branch_and_bound), but is less flexible (no user defined search) but is 
-likely to be faster.
+likely to be faster. Will only return one optimal solution.
 
-<li><b>restart_min(Cost)</b> (Restart)
+<li><b>restart(+Cutoff [,+Nogoodslim])</b> (RBS with DFS)
+Restart search will restart the search when the number of nodes searched
+exceeds the cutoff threshold. The threshold can change with successive
+restart, and is specified by Cutoff. Nogoodslim is an optional argument, which
+if supplied, nogoods learning will be performed during the search, and
+no-good constraints learned from the old search are posted before restarting
+the search.
+<p>
+Cutoff specifies the cutoff threshold sequence. The following are available:
+
+<ul>
+<li><b>geo(+S, +Base)</b> Geometric cutoff with a scale factor S and base Base (both
+non-negative integers). The cutoff thresholds are defined by S*(Base^N), where
+N is the Nth restart.
+</li>
+<li><b>luby(+S)</b> the cutoff sequence is based on the Luby sequence, multiplied by 
+the scale factor S (non-negative integer). The Luby sequence is a sequence of 
+restart thresholds suggested by Luby and others in 1993.
+</li>
+<li><b>random(+Min,+Max,+N,+Seed)</b> the cutoff value is chosen randomly between Min and
+Max, with only N+1 values distributed evenly in the range are available for
+selection, to make sure that values chosen are significantly different from 
+each other. 
+</li>
+<li><b>con(+C)</b> the same cutoff value C (positive integer) is used for all 
+restarts.
+</li>
+<li><b<lin(+S)</b> The cutoff value is increased by S (positive integer) for each
+restart.
+</li>
+</ul>
+<p>
+Nogoodslim (non-negative integer) specifies the depth limit in the search-tree to which no-goods will be learned. Setting this to 0 (zero) is the same as not
+using no-goods. 
+
+</li>
+<li><b>restart_min(Cost [,+Cutoff [,+Nogoodslim]])</b> (RBS with BAB)
 Branch-and-bound search as in bb_min, but the search is restarted after finding
-a new solution and imposing the new bound.        
-
+a new solution and imposing the new bound. Optionally, if Cutoff is supplied,
+the search will also restart when the number of nodes searched exceed the given
+Cutoff. An additional optional argument NogoodsLim can also be supplied that
+will use no-good learning.
+<p>
 </ul>
 The option list is used to pass additional parameters to and from the
 procedure.  The currently recognized options are:
@@ -6056,14 +6837,18 @@ mem for peak memory allocated (in bytes).</li>
 <li><b>timeout(+Seconds)</b>
 Specify the number of seconds that the search will be performed before it is
 terminated. Seconds can be a real or integer number, and 0 means there is
-no timeout. The timer is reset each time a new solution is obtained (for the
-non-optimising search).
+no timeout. For multi-solution search, the timer is reset each time a
+new solution is obtained. For optimising search, the best feasible
+solution found so far, if any, is returned. 
 
 <li><b>limits(+Stats)</b>
 Specify limits to stop the search. Stats is the same gfd_stats struct used for
 obtaining statistics. To specify a limit for a particular statistics, the
 corresponding field should be instantiated to the limit. Only the prop, node, 
-fail and mem fields are significant. Entries in the other fields are ignored.</li>
+fail and mem fields are significant. Entries in the other fields are ignored.
+For optimising search, the best feasible solution found so far, if any, is 
+returned.
+</li>
 
 <li><b>control(+Control)</b>
  Control is a named gfd_control structure, defined as:
@@ -6083,12 +6868,84 @@ Provided for compatibility with generic search/6. Returns the number of fail
 Provided for compatibility with generic search/6. Equivalent to setting the
 node field of limits. The node field will be unified with N</li>
 
+<li><b>ldsb_syms(+Syms)</b>
+Use Lightweight Dynamic Symmetry Breaking (LDSB) to reduce the search-space.
+The symmetries for the problem are specified in Syms, which is a list of
+symmetry specifications. The syntax for the symmetry specifications are
+compatible with the ones used in \bip{ldsb_initialise/2} of lib(ldsb),
+the LDSB library for IC.
+<p>
+Some of the symmetry specifications expect a matrix of NRows rows by NCols 
+columns. Such an argument should be supplied as a 2-D collection, i.e. 
+either as a Matrix M with dimensions dim(M, [NRows,NCols]),
+or a list of NRows lists, where the sub-lists are all the same length of NCols 
+items.
+<p>
+Some of the symmetry specifications can be applied to all the search variables
+(i.e. the first argument (L) of the predicate), or to a subset.
+For such specifications, if the specification includes a collection of
+variables, these will be used; otherwise it is applied to all search variables.
+Note that the same form is expected for variables given with the specification
+and those in L, i.e. the variables will be in the same Arg'th position
+of the items in the collection given for L and in any symmetry 
+specifications.
+<p>
+The following are available:
+<ul>
+<li><b>value_interchange(+Vars)</b> specifies that the variables in collection 
+Vars are interchangeable.
+</li>
+<li><b>variable_interchange(++Vals)</b> specifies that the values in collection
+Vals are interchangeable. 
+</li>
+<li><b>variables_interchange</b> specifies that all search variables are 
+interchangeable.
+</li>
+<li><b>parallel_variable_interchange(+Vars)</b> Vars is a 2-D collection of
+search variables. This specifies that the variables
+in the sub-list or sub-vector are interchangeable, e.g. 
+parallel_variable_interchange([]([](A,B),[](C,D),[](E,F))) says that the
+sequence A-B can be interchanged with the sequence C-D and E-F.
+</li> 
+<li><b>parallel_value_interchange(++Vals)</b> Vals is a 2-D collection of 
+values. This specifies that the value sequences in each sub-vector or sub-list 
+in Vals are interchangeable. 
+</li> 
+<li><b>value_reflection(+L,+U)</b> specifies the values L..U can be reflected,
+i.e. vale L+i maps to U-1. 
+</li> 
+<li><b>rows_interchange rows_interchange(+MatVars)</b> specifies that 
+the rows of the matrix is interchangeable. The matrix is either given
+ in MatVars, or is all the search variables (L), and must be in 
+matrix form.
+</li> 
+<li><b>columns_interchange columns_interchange(+MatVars)</b> specifies that
+the columns of matrix are interchangeable. The matrix is either given in 
+MatVars, or is all the search variables L, and must be
+in matrix form.
+</li> 
+<li><b>row_reflection rows_reflection(+MatVars)</b>  specifies that the rows
+of the matrix can be reflected around their centre. The matrix is either given in  MatVars, or is all the search variables L), and must be
+in matrix form.
+</li> 
+<li><b>column_reflection columns_reflection(+MatVars)</b> specifies that the columns
+of the matrix can be reflected around their centre. The matrix must be
+ a square matrix, and can be either given in  MatVars, or is all the search variables (L), and must be
+in matrix form.
+</li> 
+<li><b>diagonal_reflection diagonal_reflection(+MatVars)</b> specifies that the 
+variables of the matrix can be reflected around the main diagonal of the
+matrix. The matrix must be a square matrix, and is either given in  MatVars, or is all the search 
+variables (L), and must be in matrix form.
+</li>
+</ul> 
+</li> 
 </ul>
 "),
 fail_if:"Fails if the search engine does not find any solution.
 For partial search methods, this does not mean that the problem does not 
 have a solution.",
-resat: 'yes (non-optimising searches)',
+resat: 'yes (non-optimising and non-restart searches)',
 eg:"
 top:-
 	length(L,8),
@@ -6100,6 +6957,19 @@ top:-
         L::1..8,
         L = [Cost|L],
         search(L,0,input_order,indomain_max,bb_min(Cost),[]).
+
+:- local struct(data(var,start)).
+top(Ds) :-
+	length(L, 8),
+	L :: 1..8,
+	(foreach(V, L),
+ 	 count(I, 1, _),
+	 foreach(D, Ds) do
+		D = data{var:V,start:I}
+	),
+	search(Ds, var of data, input_order, 
+	       from_larger(start of data,Ds), complete, []).
+
 ",
 
 see_also:[indomain/1,gfd_search:indomain/2,labeling/1,gfd_search:delete/5,gfd_search:search/6] 
@@ -6113,50 +6983,123 @@ amode:(select_var(-,+,+,+,?) is semidet),
 
 args:[
       "X" : " a free variable",
-      "Vars" : " a collection of GFD domain variables or terms, or a handle ",
-      "Rest" : "variable, will be bound to handle for remaining collection",
+      "Vars" : " a collection of existing domain variables or terms, or a handle ",
+      "Handle" : "free variable, will be bound to handle for remaining collection",
       "Arg" : " an integer",
       "Select" : "a predefined selection method."
 ],
 kind: [search],
 desc:html("<p>
-This predicate picks one domain variable in Vars based
-on some selection criterion. The selected entry is returned in X.
-Vars is either a collection of domain variables (Arg is 0), or terms
-containing domain variables (in which case the domain variable is in the
- Arg'th argument of each term). 
+This predicate picks one domain variable in Vars based on some selection 
+criterion. The selected entry is returned in X. Vars is either a 
+collection of domain variables/terms containing domain variables, or 
+a handle representing domain variables returned in Handle from a
+previous call to select_var/5. 
 </p><p>
-This predicate provides similar functionality as delete/5, but is
-more efficient and specific to GFD, and Select cannot be a user-
-defined method. This predicate is more efficient than delete/5
-because the variable selection is done by a single low-level
- procedure. Unlike delete/5, which does the selection at the ECLiPSe 
-level, and deletes the selected element from Vars, select_var/5 can
-select the variable using a handle, which is a low-level representation
-of the variables extracted from Vars.
-The first time the
- predicate is called, select_var/5 will extract the domain variables from Vars
-and create the low-level handle to these variables, which is returned in Rest.
-The handle can then be used (in place of Vars) in subsequent calls to
-select_var/5, avoiding the overhead of re-analysing the variable collection.
+This predicate provides similar functionality as delete/5 of gfd_search,
+and is designed to be used in a similar way -- the selection is done on
+the variables represented in Vars, while Handle is then passed as the
+next Vars argument for variable selection in the next call to select_var/5,
+as is done with Rest for delete/5. select_var/5 can thus be used as a 
+replacement for delete/5 in gfd_search:search/6.
+</p><p>
+The main difference with delete/5 is that Handle is a low-level
+representation of all the domain variables in Vars, rather than the
+rest of the domain variables with the selected variable removed as in Rest
+for delete/5. This allows select_var/5 to be used for both the 'indomain'
+style labelling (where a selected variable is labelled to different values on 
+backtracking), or the more Gecode-like labelling (where variable
+selection and a binary value choice is performed for each labelling step).
+Unlike delete/5, a domain variable that is instantiated will not be selected,
+and the search is complete when select_var/5 fails because all the 
+domain variables in Vars are instantiated. 
+</p><p>
+When select_var/5 is called with Vars being a collection, the domain variables
+in the collection are extracted according to Arg in the same way as
+delete/5, i.e. the Arg'th argument of each element in the collection is the
+domain variable for that element. In addition to creating the low-level
+ handle representation of the domain variables in Handle, additional
+initialisation is done for some selection methods that have initialisation
+parameters (i.e. those involving weighted degree or activity). When 
+select_var/5 is called with Vars being a handle created from a previous 
+call to select_var/5, then Args and any initialisation parameters given 
+with Select are ignored. 
 </p><p>
 Select is one of the following predefined selection methods:
 input_order, occurrence, anti_occurrence, 
-max_weighted_degree, min_weighted_degree,
-max_weighted_degree_per_value, min_weighted_degree_per_value,
 smallest, largest, smallest_upb, largest_lwb,
 first_fail, anti_first_fail, 
 most_constrained,  most_constrained_per_value, least_constrained_per_value, 
 max_regret, max_regret_lwb, min_regret_lwb, max_regret_upb.
+max_weighted_degree, min_weighted_degree,
+max_weighted_degree_per_value, min_weighted_degree_per_value,
+max_activity, min_activity,
+max_activity_per_value, min_activity_per_value
 </p><p>
-These are essentially the same selection methods as those for search/6.
- The selection works by calculating the selection
- criterion for each variable in Vars, in the order they are in
- Vars, and chosing the first variable with the best value. Note
- that only non-instantiated variables (i.e. variable with more than 1
- value in its domain) are considered. If all variables are
- instantiated, the predicate fails, i.e. the predicate will fail when
-all variables in Vars have been labelled. 
+These are essentially the same selection methods supported for using
+Gecode's search engine (search/6), except for random, which is not
+supported here. For methods that uses activity or weighted degree,
+Select can include an optional argument in the form of a list, where each 
+list item is a parameter setting. If a parameter is not specified in the
+list, the default setting for the parameter will be used.
+These parameters are:
+</p><p>
+For weighted degree:
+<ul>
+<li><b>decay(Decay)</b> specify the decay factor (number between
+ 0 and 1, where 1 is no decay). Default is the existing decay factor 
+for weighted degree (normally 1, unless explicitly changed).
+</li>
+<li><b>init(Init)</b> set the start values for activity for the
+search variables according to Init. Init can be:
+<ul>
+<li> <b>degree(+Factor)</b> set the start value to 
+Factor*degree for the variable. Factor is a non-negative number.
+</li>
+ <li><b>vals(Pos,Starts)</b> set the start values to those specified in
+Starts. Starts is a collection of either the start values (Pos=0), or 
+compound terms containing the value, in the Pos'th argument. The number
+of start values is the same as the number of variable, and each value
+is a non-negative number. Starts can be the same collection as Vars,
+with each item in the collection storing both a variable and its
+activity start value.
+</li>
+ <li><b>none</b> no initialisation (default)
+</li>
+</ul>
+</ul>
+</p><p>
+For activity:
+<ul>
+<li><b>decay(Decay)</b> specify the decay factor (number between
+ 0 and 1, where 1 is no decay). Default is 1.
+</li>
+<li><bi>init(Init)</bi> set the initial values for activity according
+ to Init. Init can be:
+<ul>
+<li> <b>degree</b? the initial value for each search variable will be the degree (number of
+ propagator) for that variable.</li>
+ <li><b>vals(Starts)</b> set the initial values to those specified in
+ Starts.Starts is a collection of non-negative numbers, and is the
+ same size as Vars, i.e. each item in Starts represents the initial
+ activity value of the corresponding search variable in Vars.
+ corresponding variable in Vars.
+</li>
+ </li><b>none</b> no initialisation (default)
+</li>
+</ul>
+</li>
+</ul>
+
+Due to the way gfd implement activity, there are some limitations to
+the way activity can be used. Gecode requires activity to be declared
+for a fixed set of variables -- and activity information for these variables
+will then be collected subsequently. In gfd this is done during the
+ initialisation call to select_var/5. Thus, to use selection methods
+ that involve activity, it must be used in the initialisation call. In
+addition, gfd supports only one activity declaration per Gecode solver
+ state, so activity can only be used as a selection method for one set
+ of variable in each branch of the search.  
  </p>
 "),
 eg: "
@@ -6177,6 +7120,15 @@ labelling2(Vars, Select, Choice) :-
         ;
             true
         ).
+
+
+
+        % A call with max_activity with parameters
+        select_var(V, Vars, Rest, 0, 
+                   max_activity([init(degree),
+                                 decay(0.9)
+                                ])),
+
 ",
 fail_if:"fails if no variable can be selected",
 
@@ -6229,7 +7181,7 @@ desc:html("<P>
     <DT>reverse_split</DT>
 	<DD>try first the upper domain half, then the lower</DD>
 </DL>
-    The indomain style group choses an initial value from the variable's
+    The indomain style group chooses an initial value from the variable's
     domain of according to the given method, and on backtracking 
     select other values in the domain. 
 <DL>
@@ -6261,21 +7213,21 @@ desc:html("<P>
     The indomain style methods do instantiate the variable. If used in
     a tree search, try_value represents a n-ary choice for all the
     values of a variable. In this case, the maximum depth of the
-    search-tree is the number of probem variables. 
+    search-tree is the number of problem variables. 
 </P><P>
     This predicate should be more efficient than using generic value
     choice predicates or explicitly writing code to do the choice. The
     exclusion of values before a new choice is done by specialised
-    low-level primitves that are more efficient than user-level
+    low-level primitives that are more efficient than user-level
     constraints. This efficiency is particularly important because
     they make recomputation more efficient. For the binary choice
     methods, the exclusion of values are performed in every
     recomputation of the choice; and for the indomain style methods,
     the old values are excluded from the variable's domain to allow
     the next value to be chosen. On recomputation, the variable is
-    directly set to the chosem value.  This reduces the amount of
+    directly set to the chosen value.  This reduces the amount of
     recomputation, but any reduction in the search space resulting
-    from propagating rhe exclusion of old values may also be lost.
+    from propagating the exclusion of old values may also be lost.
 </P><P>
     try_value/2 is best used in combination with select_var/5. Both can
     be used to parameterise the generic gfd_search:search/6 procedure.
@@ -6296,6 +7248,99 @@ eg:"
 "
 ]).
 
+
+:- comment(max_regret_lwb/2, [
+        summary:"Generic search compatible variable selection method,"
+                " returns the regret value for Var",
+        args: [
+                  "Var": "Domain variable or integer",
+                  "Criterion": "Variable" 
+              ],
+        see_also: [gfd_search:delete/5, gfd_search:search/6],
+        desc: html("<P>
+This predicate is designed to be used as a variable selection method
+with generic search (lib(gfd_search)), and should be used with 
+gfd_search's delete/5 and search/6. The effect is to select the first
+variable with the maximum regret (the largest difference between the 
+smallest and second smallest value in the domain).
+</P><P>
+Unlike the built-in generic search's max_regret method, where the regret
+value is calculated in ECLiPSe from the variable's domain, this predicate 
+obtain the regret value from Gecode.
+")
+]).
+
+:- comment(max_regret_upb/2, [
+        summary:"Generic search compatible variable selection method,"
+                " returns the upper-bound regret value for Var",
+        args: [
+                  "Var": "Domain variable or integer",
+                  "Criterion": "Variable" 
+              ],
+        see_also: [gfd_search:delete/5, gfd_search:search/6],
+        desc: html("<P>
+This predicate is designed to be used as a variable selection method
+with generic search (lib(gfd_search)), and should be used with 
+gfd_search's delete/5 and search/6. The effect is to select the first
+variable with the maximum regret on the upper bound (the largest
+difference between the largest and second largest value in the domain).
+</P><P>
+This predicate obtain the regret value from Gecode.
+")
+]).
+        
+:- comment(max_weighted_degree/2, [
+        summary:"Generic search compatible variable selection method,"
+                " returns the weighted degree for Var",
+        args: [
+                  "Var": "Domain variable or integer",
+                  "Criterion": "Variable" 
+              ],
+        see_also: [gfd_search:delete/5, gfd_search:search/6],
+        desc: html("<P>
+This predicate is designed to be used as a variable selection method
+with generic search (lib(gfd_search)), and should be used with 
+gfd_search's delete/5 and search/6. The effect is to select the first
+variable with the maximum weighted degree.
+</P><P>
+This predicate obtain the weighted degree for the variable from Gecode.
+")
+]).
+        
+:- comment(max_weighted_degree_per_value/2, [
+        summary:"Generic search compatible variable selection method,"
+                " returns the domain size divided by weighted degree for Var",
+        args: [
+                  "Var": "Domain variable or integer",
+                  "Criterion": "Variable" 
+              ],
+        see_also: [gfd_search:delete/5, gfd_search:search/6],
+        desc: html("<P>
+This predicate is designed to be used as a variable selection method
+with generic search (lib(gfd_search)), and should be used with 
+gfd_search's delete/5 and search/6. The effect is to select the first
+variable with the maximum (domain size)/(weighted degree). (rounded to
+ the nearest integer)
+</P><P>
+This predicate obtain the weighted degree for the variable from Gecode.
+")
+]).
+
+:- comment(most_constrained_per_value/2, [
+        summary:"Generic search compatible variable selection method,",
+        args: [
+                  "Var": "Domain variable or integer",
+                  "Criterion": "Variable" 
+              ],
+        see_also: [gfd_search:delete/5, gfd_search:search/6],
+        desc: html("<P>
+This predicate is designed to be used as a variable selection method
+with generic search (lib(gfd_search)), and should be used with 
+gfd_search's delete/5 and search/6. The effect is to select the first
+variable with the the largest value of (domain size)/(number of constraints).
+(rounded to the nearest integer)
+")
+]).
 
 /*
 :-comment(indomain/2,[
@@ -6400,7 +7445,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(impose_min/2, [
     amode: impose_min(?, ++),
     args: [
-    	"Var":   "Variable or integer",
+    	"Var":   "(Domain) variable or integer",
 	"Bound": "Lower bound (integer)"
     ],
     summary: "Update (if required) the lower bound of Var.",
@@ -6443,7 +7488,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(impose_max/2, [
     amode: impose_max(?, ++),
     args: [
-    	"Var":   "Variable or integer",
+    	"Var":   "(Domain) variable or integer",
 	"Bound": "Upper bound (integer)"
     ],
     summary: "Update (if required) the upper bound of Var.",
@@ -6486,7 +7531,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(impose_bounds/3, [
     amode: impose_bounds(?, ++, ++),
     args: [
-    	"Var": "Variable or integer",
+    	"Var": "(Domain) variable or integer",
 	"Lo":  "Lower bound (integer)",
 	"Hi":  "Upper bound (integer)"
     ],
@@ -6517,8 +7562,8 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(impose_domain/2, [
     amode: impose_domain(?, ?),
     args: [
-    	"Var":   "Variable or integer",
-	"DomVar": "Variable or integer"
+    	"Var":   "(Domain) variable or integer",
+	"DomVar": "(Domain) variable or integer"
     ],
     summary: "Restrict (if required) the domain of Var to the domain of DomVar.",
     see_also: [impose_min/2, impose_max/2, impose_bounds/3, exclude/2, exclude_range/3],
@@ -6577,7 +7622,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(exclude/2, [
     amode: exclude(?, ++),
     args: [
-    	"Var":  "Domain variable or integer",
+    	"Var":  "(Domain) variable or integer",
 	"Excl": "Integer value to exclude"
     ],
     summary: "Exclude the element Excl from the domain of Var.",
@@ -6620,7 +7665,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(exclude_range/3, [
     amode: exclude_range(?, ++, ++),
     args: [
-    	"Var": "Domain variable or integer",
+    	"Var": "Existing domain variable or integer",
 	"Lo":  "Integer lower bound of range to exclude",
 	"Hi":  "Integer upper bound of range to exclude"
     ],
@@ -6664,8 +7709,8 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     amode: gfd_vars_impose_domain(+, ?),
     amode: gfd_vars_impose_domain(+, ++),
     args: [
-    	"Vars":   "Collection of variables or integers",
-	"Domain": "List of domain specs or Domain Variable or integer"
+    	"Vars":   "Collection of (domain) variables or integers",
+	"Domain": "List of domain specs or existing domain Variable or integer"
     ],
     summary: "Restrict (if required) the domain of Var to the domain"
              " specified  in Domain",
@@ -6715,7 +7760,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(gfd_vars_impose_min/2, [
     amode: gfd_vars_impose_min(+, ++),
     args: [
-    	"Vars":   "Collection of variables or integers",
+    	"Vars":   "Collection of (domain) variables or integers",
 	"Bound": "Lower bound (integer)"
     ],
     summary: "Update (if required) the lower bounds of Vars.",
@@ -6758,7 +7803,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(gfd_vars_impose_max/2, [
     amode: gfd_vars_impose_max(+, ++),
     args: [
-    	"Vars":   "Collection of variables or integers",
+    	"Vars":   "Collection of (domain) variables or integers",
 	"Bound": "Upper bound (integer)"
     ],
     summary: "Update (if required) the upper bounds of Vars.",
@@ -6801,7 +7846,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(gfd_vars_impose_bounds/3, [
     amode: gfd_vars_impose_bounds(+, ++, ++),
     args: [
-    	"Vars":   "Collection of variables or integers",
+    	"Vars":   "Collection of (domain) variables or integers",
 	"Lo": "Lower bound (integer)",
 	"Hi": "Upper bound (integer)"
     ],
@@ -6846,7 +7891,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(gfd_vars_exclude/2, [
     amode: gfd_vars_exclude(+, ++),
     args: [
-    	"Vars":  "Collection of Domain variable or integer",
+    	"Vars":  "Collection of existing domain variable or integer",
 	"Excl": "Integer value to exclude"
     ],
     summary: "Exclude the element Excl from the domains of Vars.",
@@ -6883,7 +7928,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 :- comment(gfd_vars_exclude_range/3, [
     amode: gfd_vars_exclude_range(+, ++, ++),
     args: [
-    	"Vars": "Collection of Domain variable or integer",
+    	"Vars": "Collection of existing domain variable or integer",
 	"Lo":  "Integer lower bound of range to exclude",
 	"Hi":  "Integer upper bound of range to exclude"
     ],
@@ -6923,8 +7968,8 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
     amode: gfd_vars_exclude_domain(+, ?),
     amode: gfd_vars_exclude_domain(+, ++),
     args: [
-    	"Vars":   "Collection of variables or integers",
-	"Domain": "List of domain specs or Domain Variable or integer"
+    	"Vars":   "Collection of existing domain variables or integers",
+	"Domain": "Domain specs or existing domain variable or integer"
     ],
     summary: "Exclude the values specified in Domain from the domains"
              " of Vars.",
@@ -6969,9 +8014,95 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 
 %---------------------------------------------------------------------
 
+:- comment(get_weighted_degree_decay/1, [
+     amode: get_weighted_degree_decay(-),
+     args: ["Decay": "(Domain) variable"],
+     summary: "Return the current decay rate for weighted degree.",
+     desc: html("<P>
+   Return the current decay rate for weighted degree. The decay rate
+   governs how fast the weighted degree decays -- each time a failure
+   occurs during Gecode's constraint propagation, the constraint that
+   failed will have 1 added to its failure count, while
+   all other constraints' failure count is updated by multiplying its
+   old value by the decay rate. The decay rate is a floating point value
+   between 1 (no decay) and 0 (decay to 0 immediately). The weighted
+   degree for a domain variable is the sum of all the failure
+   counts of the constraints that the variable occurs in. 
+")]).
+
+:- comment(set_weighted_degree_decay/1, [
+     amode: set_weighted_degree_decay(+),
+     args: ["Decay": "Number between 0 and 1."],
+     summary: "Change the current decay rate for weighted degree to Decay.",
+     desc: html("<P>
+   Change the current decay rate for weighted degree to Decay. The decay rate
+   governs how fast the weighted degree decays -- each time a failure
+   occurs during Gecode's constraint propagation, the constraint that
+   failed will have 1 added to its failure count, while all
+   other constraints' failure count is updated by multiplying its
+   old value by the decay rate. The decay rate is a floating point value
+   between 1 (no decay) and 0 (decay to 0 immediately). The weighted
+   degree for a domain variable is the sum of all the failure
+   counts of the constraints that the variable occurs in. 
+")]).
+
+:- comment(init_weighted_degree/1, [
+     amode: init_weighted_degree(+),
+     args: ["Factor": "Non-negative Number."],
+     summary: "Initialise weighted degree so that the initial value"
+              " for a variable is Factor*degree..",
+     desc: html("<P>
+   Initialise weighted degree by setting the initial value for 
+   each constraint's failure count to Factor. The weighted degree for
+   a variable is the sum of all its constraints failure count, i.e.
+   Factor*(degree for variable).By default, the initial failure count
+   for each constraint is set to 1.0, so the initial weighted
+   degree for a domain variable is its degree (number of associated
+   constraints).
+</p><p>
+   As with failure count for a constraint is automatically set, 
+   init_weighted_degree/1 is only needed if the user want to erase the 
+   accumulated failure counts and reset the weighted degree for 
+   variables, and/or if a different value for Factor is wanted.
+</p><p>
+   Changing Factor changes the relative importance of subsequent failures,
+   The smaller the Factor, the more important each failure will be in the 
+   subsequent changes in the weighted degree. Note that unless Factor
+   is  set to 0, the initial  relative ordering of weighted degree
+   will not change (subject to floating point precision considerations).
+")]).
+
+%---------------------------------------------------------------------
+
+:- comment(solver_constraints_number/1, [
+     amode: solver_constraints_number(-),
+     args: ["NumberOfConstraints": "Free variable"],
+     summary: "Returns the number of constraints in the gecode solver state",
+     see_also: [solver_vars_number/1],
+     desc: html("<P>\
+  Returns the current total number of active constraints (propagators)
+  in the gecode solver state.</P>")
+]).
+
+%---------------------------------------------------------------------
+
+:- comment(solver_vars_number/1, [
+     amode: solver_vars_number(-),
+     args: ["NumberOfVariables": "Free variable"],
+     summary: "Returns the number of domain variables in the gecode solver state",
+     see_also: [solver_constraints_number/1],
+     desc: html("<P>\
+  Returns the current total number of domain variables in the gecode solver
+  state. This is for the variables that are created at the ECLiPSe
+  level by the program or by GFD.
+</P>")
+]).
+
+%---------------------------------------------------------------------
+
 :- comment(gfd_maxint/1, [
      amode: gfd_maxint(-),
-     args: ["Var": "Variable"],
+     args: ["Var": "Free variable"],
      summary: "Returns the maximum value allowed in gecode's domain.",
      see_also: [gfd_minint/1],
      desc: html("<P>\
@@ -6986,7 +8117,7 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 
 :- comment(gfd_minint/1, [
      amode: gfd_minint(-),
-     args: ["Var": "Variable"],
+     args: ["Var": "Free variable"],
      summary: "Returns the minimum value allowed in gecode's domain.",
      see_also: [gfd_minint/1],
      desc: html("<P>\
@@ -7073,8 +8204,8 @@ see_also:[search/6,indomain/1,gfd_search:indomain/2]
 
 :- comment(msg/3, [
 amode: msg(-,-,?), amode:msg(++,++,?),
-args:  ["Var1": "A variable or number",
-	"Var2": "A variable or number",
+args:  ["Var1": "A (domain) variable or number",
+	"Var2": "A (domain) variable or number",
 	"MSG": "Most specific generalisation (variable)"
        ],
 summary: "Computes the most specific generalisation of Var1 and Var2 that is expressible with GFD variables.",
@@ -7088,11 +8219,10 @@ desc: html("\
 </P>")
 ]).
 
-
 %---------------------------------------------------------------------
 :- comment(gfd_var_print/2, hidden).
 :- comment(gfd_handle_tr_out/2, hidden).
-
+:- comment(gfd_copy_var/2, hidden).
 
 %---------------------------------------------------------------------
 %
@@ -7185,8 +8315,62 @@ desc: html("\
                 ]
                          ]).
 
-%:- comment(struct(gfd), hidden).
+:- comment(struct(trans), [
+        summary: "Specification of s transition in the DFA for"
+                 " extensional/4.",
+        fields: ["f": "From state",
+                 "t": "To state",
+                 "l": "label"],
+        desc: html("\
+<P>
+This is used to specify a transition in the DFA for the extensional constraint
+extensional/4. The transition trans{f:F,t:T,l:L} is a transition from state
+F to state T, and labelling the variable with the value L.</P>")
+]).
 
-%:- comment(struct(gfd_prob), hidden).
 
-%:- comment(struct(gfd_space), hidden).
+:- comment(struct(gfd), [
+        summary: "Attribute for gfd domain variable (for"
+                 " implementation use only)",
+        fields: [
+            idx:"index for variable in array",	
+            bool:"index for linked boolean in C++, if any",
+            prob:"pointer to problem handle",
+            any: "any suspension list",
+            set: "" 	% use for marking variable as already set in Gecode
+                ],
+        desc:html("This is the structure used for gfd's attribute, and is"
+             " part of the implementation of gfd.")
+]).
+
+:- comment(struct(gfd_prob), [
+        summary: "ECLiPSe level problem handle (for implementation use"
+                 " only)",
+        fields:[
+             cp_stamp: "",		% for time-stamp
+             nvars: "current number of problem variables",
+             nevents:"number of events in events queue",
+             vars: "problem variable array",
+             prop:"suspension for performing propagation in Gecode",
+             last_anc:"ancestor to clone from",
+             space: "handle for Gecode space",
+             events:"events queue for recomputation",
+             events_tail:""	% new events added here
+               ],
+        desc: html("This is the structure used to represent the Gecode"
+              " computation state at the ECLiPSe level, and is part of"
+              " the implementation of gfd.")
+]).
+
+:- comment(struct(gfd_space), [
+        summary: "Handle for Gecode solver state (for implementation"
+                 " use only)",
+        fields:[
+                   handle: "low level handle to current Gecode space"
+                           " in C++", 
+                   stamp:""   
+               ],
+        desc: html("The ECLiPSe level handle for the Gecode's solver"
+                   " state, and is part of the implementation of gfd")
+
+]).
