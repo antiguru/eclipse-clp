@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Gecode interface
-# $Id: Makefile.in,v 1.14 2011/10/20 23:50:25 kish_shen Exp $
+# $Id: Makefile.in,v 1.15 2015/10/05 20:30:23 kish_shen Exp $
 #
 
 # The location of third party software releases, e.g. Gecode
@@ -183,14 +183,8 @@ CONFIG_PREFIX=
   else
     ifeq ($(OSCLASS),win)
 
-      ifeq ($(ARCH),i386_nt)
-CROSSTARGET=i386-mingw32
-      else
-CROSSTARGET=x86_64-w64-mingw32
-      endif
-
 # assuming we are cross-compiling on 32 bit x86 Linux (i586-pc-linux)
-ADD_GECODE_CONFIG_FLAGS=--build=i586-pc-linux --host=$(CROSSTARGET)
+ADD_GECODE_CONFIG_FLAGS=--build=i586-pc-linux 
 CONFIG_PREFIX=CONFIG_SITE=../../../config.$(ARCH)
 
     else
@@ -210,7 +204,7 @@ gecode:	$(GECODEDIR)/$(ARCH)/Makefile
 
 $(GECODEDIR)/$(ARCH)/Makefile:	$(GECODEDIR)/configure
 	mkdir -p $(GECODEDIR)/$(ARCH)
-	(cd $(GECODEDIR)/$(ARCH) ; $(CONFIG_PREFIX) ../configure --enable-static $(ADD_GECODE_CONFIG_FLAGS) --prefix=$(THIRDPARTY_GECODE_DEST))
+	(cd $(GECODEDIR)/$(ARCH) ; $(CONFIG_PREFIX) ../configure CFLAGS="$(CLFAGS)" CXXFLAGS="$(CFLAGS)" --host=@host@ --enable-static --disable-mpfr --disable-float-vars $(ADD_GECODE_CONFIG_FLAGS) --prefix=$(THIRDPARTY_GECODE_DEST))
 
 $(GECODEDIR)/configure:
 	svn --username anonymous --password $(GECODE_SVN_PASSWD) co https://svn.gecode.org/svn/gecode/tags/release-$(GECODE_VERSION) $(GECODEDIR)
