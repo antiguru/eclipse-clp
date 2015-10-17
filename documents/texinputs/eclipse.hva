@@ -1,4 +1,4 @@
-% $Id: eclipse.hva,v 1.1 2006/09/23 01:49:40 snovello Exp $
+% $Id: eclipse.hva,v 1.2 2015/10/17 03:04:11 kish_shen Exp $
 % BEGIN LICENSE BLOCK
 % Version: CMPL 1.1
 %
@@ -27,6 +27,10 @@
 \colorsections{55}
 
 \usepackage{underscore}
+
+\newcommand{\hfill}{}
+\newcommand{\vfill}{}
+\newcommand{\parbox}[2]{#2}
 
 \newcommand{\ohtml}[1]{#1}
 \newcommand{\olatex}[1]{}
