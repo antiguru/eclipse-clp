@@ -26,8 +26,8 @@
 \definecolor{lblue}{rgb}{0.8,0.8,1.0}
 \newenvironment{code}{
 	\begin{bgcolor}{lblue}
-	\begin{quote}\begin{alltt}\hrulefill}
-	{\hrulefill\end{alltt}\end{quote}\end{bgcolor}}
+	\begin{quote}\begin{alltt}}
+	{\end{alltt}\end{quote}\end{bgcolor}}
 
 
 %
