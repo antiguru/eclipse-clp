@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.5 2009/07/16 09:11:24 jschimpf Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.6 2015/10/21 19:40:36 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -87,6 +87,7 @@
 #define DBI_NYI            10
 #define DBI_MEMORY         11
 #define DBI_BUFFER_OVER    12
+#define DBI_DATA_TRUNC     13
 
 #ifdef HAVE_LONG_LONG
 
@@ -131,7 +132,8 @@ char *dbi_error[] =
 /* DBI_NO_PARAM */      "DBI-009: input parameters not supplied",
 /* DBI_NYI */		"DBI-010: not implemented" ,
 /* DBI_MEMORY */        "DBI-011: memory allocation problem",
-/* DBI_BUFFER_OVER */   "BBI-012: buffer overflow"
+/* DBI_BUFFER_OVER */   "BBI-012: buffer overflow",
+/* DBI_DATA_TRUNC */    "BBI-013: result data truncated"
 };
 
 /* ----------------------------------------------------------------------
@@ -354,14 +356,17 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 	switch(argmap->prolog_tag)
 	{
 	case TDICT:
-	    argbuf[ ((uword *)lengths)[arg] ] = '\0';
+	    /* lengths is a unsigned long * rather than uword *, as defined
+               in MySQL. 
+	    */
+	    argbuf[((unsigned long *)lengths)[arg] ] = '\0';
 	    Make_Atom(&pw[arg+1], Did(argbuf, 0));
 	    break;
 	case TSTRG:
 	    pw[arg+1].tag.kernel = TSTRG;
-	    Make_Stack_String(((uword *)lengths)[arg] , pw[arg+1].val, s);
-	    Copy_Bytes(s, argbuf, ((uword *)lengths)[arg]);
-	    s[ ((uword *)lengths)[arg] ] = '\0';
+	    Make_Stack_String(((unsigned long *)lengths)[arg] , pw[arg+1].val, s);
+	    Copy_Bytes(s, argbuf, ((unsigned long *)lengths)[arg]);
+	    s[ ((unsigned long *)lengths)[arg] ] = '\0';
 	    break;
 	case TINT:
 	    /* signed integer */
@@ -378,15 +383,23 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 #if defined(HAVE_MYSQLBIGINT) 
 		long_long i;
 #ifdef _WIN32
-		sscanf(((MYSQL_ROW)buffer)[arg],"%I64d",&i);
+		if (sscanf(((MYSQL_ROW)buffer)[arg],"%I64d",&i) == 0) {
 #else
-		sscanf(((MYSQL_ROW)buffer)[arg],"%lld",&i);
+		if (sscanf(((MYSQL_ROW)buffer)[arg],"%lld",&i) == 0) {
 #endif
+		    raise_dbi_error(DBI_TYPE_CONV); /* no integer read */
+		    return -1;
+		}
+
 		/* may convert to ECLiPSe TBIG if required */
 		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](i, &pw[arg+1]);
 #else
 		word i;
-		sscanf(((MYSQL_ROW)buffer)[arg],"%ld",&i);
+		if (sscanf(((MYSQL_ROW)buffer)[arg],"%ld",&i) == 0) {
+		    raise_dbi_error(DBI_TYPE_CONV);
+		    return -1;
+		}
+
 		Make_Integer(&pw[arg+1], i);
 #endif
 	    }
@@ -398,7 +411,11 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 	    } else
 	    {
 		double f; 
-		sscanf(((MYSQL_ROW)buffer)[arg],"%lf",&f);
+		if (sscanf(((MYSQL_ROW)buffer)[arg],"%lf",&f) == 0) {
+		    raise_dbi_error(DBI_TYPE_CONV);
+		    return -1;
+		}
+
 		Make_Float(&pw[arg+1], f);
 	    }
 
@@ -481,7 +498,7 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
     value argval;
     map_t * m;
     char * argbuf;
-    uword * largbuf;
+    unsigned long * largbuf;
     extern pword * term_to_dbformat(pword *,dident);
 
 #ifdef DEBUG
@@ -499,7 +516,7 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
     for (i = 0 ; i < template->arity ; i++)
     {
 	m = &(template->map[i]);
-	largbuf = &(((uword *)lengths)[i]);
+	largbuf = &(((unsigned long *)lengths)[i]);
 	arg = tuple->val.ptr + i + 1;
 #ifdef DEBUG
 	fprintf(stderr,"m=0x%x arg=0x%x\n",m,arg);
@@ -810,7 +827,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
     map_t * m;
     word free_off;
     word size;
-    uword *tlengths;
+    unsigned long *tlengths;
     my_bool * errors;
 #ifdef DEBUG
     int * mytype;
@@ -864,7 +881,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	return NULL;
     }
     memset(bind, 0, sizeof(MYSQL_BIND)*query->arity);
-    if (!(tlengths = (uword *) malloc(query->arity*sizeof(uword))))
+    if (!(tlengths = (unsigned long *) malloc(query->arity*sizeof(unsigned long))))
     {
 	raise_dbi_error(DBI_MEMORY);
 	return NULL;
@@ -921,11 +938,19 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	    break;
 	case MYSQL_TYPE_STRING:
 	    /* fixed length string, get the length (+1 for \0) */
+	    if (m->prolog_tag != TSTRG && m->prolog_tag != TDICT) 
+		goto conversion_error;
+
 	    m->size = field->length+1;
 	    break;
+
+	/* last cases: no clue from DB type as to what size  is needed */
 	case MYSQL_TYPE_VAR_STRING: /* VARCHAR, BINARY data */
+	    if (m->prolog_tag != TSTRG && m->prolog_tag != TDICT) 
+		goto conversion_error;
+	    break;
 	case MYSQL_TYPE_BLOB:
-	    /* no clue from DB type as to what size  is needed */
+	    if (m->prolog_tag != 0) goto conversion_error;
 	    break;
 /* unsupported types - these should not occur in prepared statements
 	case MYSQL_TYPE_GEOMETRY:
@@ -949,8 +974,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
     fprintf(stderr,"DEBUG buffer = 0x%x\n",b);
 #endif
     cursor->tuple_buffer = b;
-    /* assumes unsigned long fits into uword */
-    cursor->tuple_datalengths = (void *) tlengths;
+    cursor->tuple_datalengths = tlengths;
     cursor->tuple_errors = errors;
 
     for(i=0 ; i < query->arity ; i++)
@@ -1034,7 +1058,7 @@ session_sql_prep(session_t *session,
 
     for(i=0 ; i < template->arity ; i++)
     {
-	uword size = DEFAULT_BUFFER_SIZE;
+	unsigned long size = DEFAULT_BUFFER_SIZE;
 
 	m = &(template->map[i]);
 	
@@ -1065,7 +1089,7 @@ session_sql_prep(session_t *session,
     }
     memset(bind, 0, sizeof(MYSQL_BIND)*template->arity);
 
-    if (!(cursor->param_datalengths = (unsigned long *) malloc(template->arity*sizeof(uword))))
+    if (!(cursor->param_datalengths = (unsigned long *) malloc(template->arity*sizeof(unsigned long))))
     {
 	raise_dbi_error(DBI_MEMORY);
 	return NULL;
@@ -1352,8 +1376,9 @@ cursor_one_tuple(cursor_t *cursor)
 		raise_mysql_stmt_error(cursor->s.stmt);
 		return -1;
 		break;
-	    case MYSQL_DATA_TRUNCATED: /* truncated  - buffer(s) too small */
-		raise_dbi_error(DBI_BUFFER_OVER);
+	    case MYSQL_DATA_TRUNCATED: 
+		/* truncated  - cinversion problems or buffer(s) too small */
+		raise_dbi_error(DBI_DATA_TRUNC);
 		return -1;
 		break;
 	    /* otherwise, there is no problem */
