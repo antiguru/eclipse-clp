@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.6 2015/10/21 19:40:36 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.7 2015/10/22 22:50:41 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -922,6 +922,8 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	case MYSQL_TYPE_ENUM:
 	case MYSQL_TYPE_NULL:
 	case MYSQL_TYPE_BIT:
+	case MYSQL_TYPE_DECIMAL:
+	case MYSQL_TYPE_NEWDECIMAL:
 	    /*
 	     * These are types whose string representation will never be
 	     * very long so we can save a bit of buffer space in 
@@ -954,8 +956,6 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	    break;
 /* unsupported types - these should not occur in prepared statements
 	case MYSQL_TYPE_GEOMETRY:
-	case MYSQL_TYPE_DECIMAL:
-	case MYSQL_TYPE_NEWDECIMAL:
 */
 	default:
 	    goto conversion_error;
