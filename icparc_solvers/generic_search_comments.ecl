@@ -63,11 +63,11 @@ args:[
 	   are backtrack(-N), node(++Call), nodes(++N)"
 ],
 desc:html("<b>Search/6</b> provides a generic interface to a set of different search
-methods.  It can currently be used with either the finite domains (if
-loaded via lib(fd_search)), or integer IC domains (if loaded via
-lib(ic_search)).  By changing the <b>Method</b> argument, different partial
-search algorithms (and their parameters) can be selected and
-controlled. The search predicate also provides a number of pre-defined
+methods.  It can currently be used with either the finite domains (if loaded
+via lib(fd_search)), integer IC finite domains, and GFD integer finite 
+domains (if loaded via lib(gfd_search)).  By changing the <b>Method</b> 
+argument, different partial search algorithms (and their parameters) can be
+selected and controlled. The search predicate also provides a number of pre-defined
 variable selection methods (to choose which variable will be assigned next)
 and some pre-defined value assignment methods (to try out the possible
 values for the selected variable in some heuristic order), but user-defined
