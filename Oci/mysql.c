@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.7 2015/10/22 22:50:41 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.8 2015/10/26 22:30:23 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -785,7 +785,7 @@ session_sql_prepare(session_t * session, char * SQL, word length, char use_prepa
 	    }
 
 	    session->refs++; /* incremented before cursor_free() can be called */
-	    if (mysql_stmt_prepare(cursor->s.stmt, SQL, length) != 0)
+	    if (mysql_stmt_prepare(cursor->s.stmt, SQL, (unsigned long)length) != 0)
 	    {
 		raise_mysql_stmt_error(cursor->s.stmt);
 		cursor_free(cursor);
