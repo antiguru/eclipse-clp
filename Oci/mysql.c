@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.8 2015/10/26 22:30:23 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.9 2015/10/29 01:04:21 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -823,7 +823,6 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
     MYSQL_RES *resdata = NULL;
     MYSQL_FIELD *field;
     char * b;
-    word i;
     map_t * m;
     word free_off;
     word size;
@@ -892,6 +891,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	return NULL;
     }
 
+    unsigned int i;
     for(i=0 ; i < query->arity ; i++)
     {
 	m = &(query->map[i]);
