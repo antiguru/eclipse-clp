@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.10 2016/03/14 21:26:59 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.11 2016/03/14 23:21:02 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -869,7 +869,13 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
        and actual result columns early here. For direct statements, this
        can only be done after the statement is executed
     */
-    if (resdata == NULL || mysql_num_fields(resdata) != query->arity)
+    if (resdata == NULL)
+    {
+	raise_dbi_error(DBI_NOT_QUERY);
+	return NULL;
+    }
+
+    if (mysql_num_fields(resdata) != query->arity)
     {
 	mysql_free_result(resdata);
 	raise_dbi_error(DBI_BAD_TEMPLATE);
@@ -894,6 +900,8 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
     }
     if (!(errors = (my_bool *) malloc(query->arity*sizeof(my_bool))))
     {
+        mysql_free_result(resdata);
+	TryFree(bind);
 	raise_dbi_error(DBI_MEMORY);
 	return NULL;
     }
