@@ -465,7 +465,7 @@ transfer_(Session, Amount, FromAccount, ToAccount) :-
     SQL = "update accounts set balance = balance + ? \
                                              where id = ?",
     Deduct is - Amount,
-    session_sql_prepare(Session,incbal(1.0,12),SQL,1,Update),
+    session_sql_prepare(Session,incbal(1.0,12),SQL,Update),
     cursor_next_execute(Update,incbal(Deduct,FromAccount)),
     cursor_next_execute(Update,incbal(Amount,ToAccount)).
 \end{verbatim}
@@ -516,9 +516,9 @@ transfer_(Session, Amount, FromAccount, ToAccount) :-
     SQL = "update accounts set balance = balance + ? \
                                              where id = ?",
     Deduct is - Amount,
-    session_sql_prepare(Session,incbal(1.0,12),SQL,2,Update),
+    session_sql_prepare(Session,incbal(1.0,12),SQL,Update),
     Updates = [incbal(Deduct,FromAccount),incbal(Amount,ToAccount)],
-    cursor_N_execute(Update,2,Updates,[]).
+    cursor_N_execute(Update,_,Updates,[]).
 \end{verbatim}
 
 The example shows how to re-code the bank transfer predicate from
@@ -661,7 +661,7 @@ overdrawn, and a cursor for this query is created.
 make_check_overdraft_limit(Session, Cursor) :-
     SQL = "select count(id) from accounts where ID = ? \
                and balance < overdraft",
-    session_sql_prepare_query(Session,a(0),c(0),SQL,1,Cursor).
+    session_sql_prepare_query(Session,a(0),c(0),SQL,Cursor).
 
 check_overdraft_limit(Check,Account) :-
     cursor_next_execute(Check,a(Account)),

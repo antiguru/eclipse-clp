@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.9 2015/10/29 01:04:21 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.10 2016/03/14 21:26:59 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -507,8 +507,13 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
 #endif
 
     /* if there is no template */
-    if (IsNil(tuple->tag) && template == NULL) { Succeed; }
-
+    if (template == NULL) {
+      if (IsNil(tuple->tag)) { Succeed; }
+      else {
+	/* template exists, but tuple has no template */
+	Bip_Error(TYPE_ERROR);
+      }
+    }
     Check_Structure(tuple->tag)
     if (template->did != tuple->val.ptr->val.did)
 	Bip_Error(TYPE_ERROR);
@@ -826,17 +831,17 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
     map_t * m;
     word free_off;
     word size;
-    unsigned long *tlengths;
-    my_bool * errors;
+    unsigned long *tlengths = NULL;
+    my_bool * errors = NULL;
 #ifdef DEBUG
     int * mytype;
 #endif
 
     /* params != NULL only for prepared statements which have (input) parameters */
     if (params)
-    	cursor = session_sql_prep(session, params, SQL, length, 1);
+      cursor = session_sql_prep(session, params, SQL, length, 1);
     else
-	cursor = session_sql_prepare(session,SQL,length,use_prepared);
+      cursor = session_sql_prepare(session,SQL,length,use_prepared);
 
     if (NULL == cursor)
 	return NULL;
@@ -864,10 +869,9 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
        and actual result columns early here. For direct statements, this
        can only be done after the statement is executed
     */
-    if (mysql_num_fields(resdata) != query->arity)
+    if (resdata == NULL || mysql_num_fields(resdata) != query->arity)
     {
-	TryFree(bind);
-	TryFree(resdata);
+	mysql_free_result(resdata);
 	raise_dbi_error(DBI_BAD_TEMPLATE);
 	return NULL;
     }
@@ -876,12 +880,15 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 
     if (!(bind = (MYSQL_BIND *)malloc(sizeof(MYSQL_BIND)*query->arity)))
     {
+        mysql_free_result(resdata);
 	raise_dbi_error(DBI_MEMORY);
 	return NULL;
     }
     memset(bind, 0, sizeof(MYSQL_BIND)*query->arity);
     if (!(tlengths = (unsigned long *) malloc(query->arity*sizeof(unsigned long))))
     {
+        mysql_free_result(resdata);
+	TryFree(bind);
 	raise_dbi_error(DBI_MEMORY);
 	return NULL;
     }
@@ -958,12 +965,14 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	case MYSQL_TYPE_GEOMETRY:
 */
 	default:
-	    goto conversion_error;
+	  goto conversion_error;
     	}
 
 	m->increment = m->size;
 	free_off += N * m->size;
     }
+    mysql_free_result(resdata);
+    resdata = NULL;
 
     if (!(b = (char *)malloc(free_off)))
     {
@@ -973,7 +982,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 #ifdef DEBUG
     fprintf(stderr,"DEBUG buffer = 0x%x\n",b);
 #endif
-    cursor->tuple_buffer = b;
+    cursor->tuple_buffer = (void *)b;
     cursor->tuple_datalengths = tlengths;
     cursor->tuple_errors = errors;
 
@@ -982,7 +991,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	m = &(query->map[i]);
 	bind[i].buffer_type = m->ext_type;
 	bind[i].buffer = (char *)b+m->offset;
-	bind[i].buffer_length = m->size;
+	bind[i].buffer_length = (unsigned long) m->size;
 	bind[i].length = (unsigned long *) &(tlengths[i]);
 	bind[i].is_null = &(m->is_null);
 	m->is_null = 0;
@@ -1004,19 +1013,18 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 	goto mysql_error;
     }
     TryFree(bind);
-    TryFree(resdata);
     return cursor;
 
 mysql_error:
     TryFree(bind);
-    TryFree(resdata);
+    if (resdata != NULL) mysql_free_result(resdata);
     raise_mysql_error(session->mysql);
     cursor_free(cursor);
     return NULL;
 
 conversion_error:
     TryFree(bind);
-    TryFree(resdata);
+    if (resdata != NULL) mysql_free_result(resdata);
     raise_dbi_error(DBI_TYPE_CONV);
     cursor_free(cursor);
     return NULL;
@@ -1101,7 +1109,7 @@ session_sql_prep(session_t *session,
 	bind[i].length = &(cursor->param_datalengths[i]);
 	bind[i].buffer_type = m->ext_type;
 	bind[i].buffer = (char *) b + m->offset;
-	bind[i].buffer_length = m->size;
+	bind[i].buffer_length = (unsigned long) m->size;
 	bind[i].is_null = &(m->is_null);
     }
 
@@ -1512,6 +1520,7 @@ cursor_free(cursor_t * cursor)
 	session_t * s;
 
 	if (cursor == NULL) return;
+
 	s = cursor->session;
 
 	if (cursor->state != closed && ! s->closed )
@@ -1577,6 +1586,7 @@ cursor_free(cursor_t * cursor)
 	}
 
 	free(cursor);
+	cursor = NULL;
 
 	/*
 	 * update session cursor count

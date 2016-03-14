@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.8 2013/06/20 20:59:09 kish_shen Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.9 2016/03/14 21:26:59 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -51,7 +51,7 @@
 :- comment(categories, ["Interfacing"]).
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2013/06/20 20:59:09 $").
+:- comment(date, "$Date: 2016/03/14 21:26:59 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -915,7 +915,7 @@ make_accounts(Session) :-
                "SQL": "A SQL statement in prepared syntax (string)",
                "Cursor": "Returned cursor handle"
               ],
-        summary: "Prepares a SQL statement for execution by the DBMS.",
+        summary: "Prepares a non-query SQL statement for execution by the DBMS.",
         see_also: [cursor_next_execute/2, cursor_all_execute/2,
                    cursor_N_execute/4, cursor_close/1,
                    session_sql/3, session_sql_prepare_query/5
@@ -933,19 +933,23 @@ make_accounts(Session) :-
                                                where id = ?\",
       Deduct is - Amount,
       % incbal(1.0,12) is the parameter template
-      session_sql_prepare(Session,incbal(1.0,12),SQL,1,Update),
+      session_sql_prepare(Session,incbal(1.0,12),SQL,Update),
       cursor_next_execute(Update,incbal(Deduct,FromAccount)),
       cursor_next_execute(Update,incbal(Amount,ToAccount)).",
 
         desc: html("\
 <P>
- Prepares a SQL statement for execution. The statement is not actually
+ Prepares a non-query SQL statement for execution. The statement is not actually
  executed, and a cursor_*_execute family of predicate is required to
  execute the predicate. This facility is only available if the DBMS
  supports prepared statements, and the SQL statement has to be written in
  the prepared statement syntax of the DBMS. The predicate returns the
  cursor handle representing this prepared statement in Cursor, which can
  then be used in subsequent library predicates.
+</P><P>
+ The SQL statement must be a non-query, i.e. it does not return any
+ results. If the SQL statement is a query, an error would be raised
+ when the statement is executed.
 </P><P>
  A prepared SQL statement is parsed by the DBMS, so that it could be
  executed more efficiently. It can also be parameterised, where the 
@@ -959,8 +963,10 @@ make_accounts(Session) :-
  </P><P>
  The SQL statement must be valid for the DBMS to execute. It can contain
  NULL characters, i.e. it can contain binary data. The SQL statement cannot
- return any results. If it does, then an error would be raised when the SQL
- statement is actually executed. 
+ return any results, i.e. it should not be a query. If it does, then
+ an error would be raised when the SQL statement is actually executed.
+ The error is not detected at this predicate because the database cannot
+ tell if a SQL statement will return results or not until it is executed.
 </P><P>
  Note that some DBMS restricts which SQL statements can be prepared. If an
  SQL statement cannot be prepared, it can still be executed using
@@ -995,7 +1001,7 @@ make_accounts(Session) :-
       % different in other DBMS
       SQL = \"select count(id) from accounts where ID = ? \\
                  and balance < overdraft\",
-      session_sql_prepare_query(Session,a(0),c(0),SQL,1,Cursor).",
+      session_sql_prepare_query(Session,a(0),c(0),SQL,Cursor).",
 
         desc: html("\
 <P>
@@ -1007,6 +1013,9 @@ make_accounts(Session) :-
  to be written in the prepared statement syntax of the DBMS. The predicate
  returns the cursor handle representing this prepared query in Cursor,
  which can then be used in subsequent library predicates.
+</P><P>
+ The SQL statement must be a query, i.e. it must return results. If
+ the SQL statement is not a query, an error will be raised.
 </P><P>
  A prepared SQL statement is parsed by the DBMS, so that it could be
  executed more efficiently. It can also be parameterised, where the 
@@ -1020,9 +1029,10 @@ make_accounts(Session) :-
 </P><P>
  The SQL query returns result in tuples of N elements each. Each tuple is
  mapped to a Prolog structure of arity N. ResultTemplate is a structure of
- arity N specifying the types of the return data for ECLiPSe. See the
- general description of this library or the manual for a description of 
- the template specification.
+ arity N specifying the types of the return data for ECLiPSe. If N
+ does not match the number of elements expected for the query, an
+ error will be raised. See the general description of this library or
+ the manual for a description of the template specification.
 </P><P>
  The SQL query must be valid for the DBMS to execute. It can contain
  NULL characters, i.e. it can contain binary data.
@@ -1108,9 +1118,11 @@ make_accounts(Session) :-
  uninstantiated variable, to denote a NULL value for the corresponding
  parameter.
 </P><P>
- If the SQL statement is a query, and was prepared as a query using
- session_sql_prepare_query/5, results can be obtained from the query by
- the cursor_*_tuple family of predicates.
+ If the SQL statement is a query, then it should be prepared as a
+ query using session_sql_prepare_query/5, and results can be obtained from
+ the query by the cursor_*_tuple family of predicates. A dbi_bad_template
+ error would be raised if the query was prepared with session_sql_prepared/4,
+ because no result tuple template was specified.
 </P><P>
  This predicate is called with default options for the cursor, i.e. it is
  equivalent to calling cursor_next_execute/3 with an empty Options list.
@@ -1261,10 +1273,10 @@ make_accounts(Session) :-
       SQL = \"update accounts set balance = balance + ? \
                                                where id = ?\",
       Deduct is - Amount,
-      session_sql_prepare(Session,incbal(1.0,12),SQL,2,Update),
+      session_sql_prepare(Session,incbal(1.0,12),SQL,Update),
       Updates = [incbal(Deduct,FromAccount),incbal(Amount,ToAccount)],
       % execute both updates with one call to cursor_N_execute/4
-      cursor_N_execute(Update,2,Updates,[]).
+      cursor_N_execute(Update,_,Updates,[]).
 ",
         desc: html("\
 <P>

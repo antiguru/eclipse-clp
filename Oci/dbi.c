@@ -26,7 +26,7 @@
  *
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.4 2007/07/03 20:42:47 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.5 2016/03/14 21:27:23 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	dbi.c
@@ -296,6 +296,7 @@ void
 session_free(session_t * session)
 {
 
+printf("Freeing session`n");
     if (session == NULL) return;
 
     if (--(session->refs) == 0)
@@ -311,9 +312,9 @@ session_free(session_t * session)
 	}
 	free(session);
     }
-#ifdef DEBUG
+/*#ifdef DEBUGA*/
     fprintf(stderr,"session free\n");
-#endif
+/*#endif*/
 
     return;
 }
@@ -831,12 +832,15 @@ p_cursor_free(value v_cursorh, type t_cursorh)
 {
     pword handle;
 
+    printf("Freeing cursor....\n");
     handle.val.all = v_cursorh.all;
     handle.tag.all = t_cursorh.all;
 
-    return ec_free_handle(handle, &cursor_handle_tid);
+/*    return ec_free_handle(handle, &cursor_handle_tid); */
+    {int res= ec_free_handle(handle, &cursor_handle_tid);
 
-
+    printf("Freed cursor...\n");
+    return res;}
 }
 
 int
