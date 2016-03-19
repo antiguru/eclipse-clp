@@ -3034,8 +3034,10 @@ case "$ARCH" in
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     LDTCL="-framework Tcl"
     # RUNPATH_LDLAG is really a noop here (-rpath not supported pre 10.5)
-    RUNPATH_DYLDFLAG="-L"
-    RUNPATH_LDFLAG="-L"
+    #RUNPATH_DYLDFLAG="-L"
+    #RUNPATH_LDFLAG="-L"
+    RUNPATH_DYLDFLAG="-rpath"
+    RUNPATH_LDFLAG="-rpath"
     LDD="otool"
     LDDFLAG="-L"
     STRIPFLAGS="-u -i -S"
@@ -3075,8 +3077,10 @@ case "$ARCH" in
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     LDTCL="-framework Tcl"
     # RUNPATH_LDLAG is really a noop here (-rpath not supported pre 10.5)
-    RUNPATH_DYLDFLAG="-L"
-    RUNPATH_LDFLAG="-L"
+    #RUNPATH_DYLDFLAG="-L"
+    #RUNPATH_LDFLAG="-L"
+    RUNPATH_DYLDFLAG="-rpath"
+    RUNPATH_LDFLAG="-rpath"
     LDD="otool"
     LDDFLAG="-L"
     STRIPFLAGS="-u -i -S"
@@ -8698,7 +8702,7 @@ fi
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90 102 110 121 122 1251"
+    	cplex_versions_requested="75 81 90 102 110 121 122 1251 1262"
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"

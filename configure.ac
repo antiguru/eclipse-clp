@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.65 2015/10/05 21:00:58 kish_shen Exp $])
+AC_REVISION([$Id: configure.ac,v 1.66 2016/03/19 03:18:08 kish_shen Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -291,8 +291,10 @@ case "$ARCH" in
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     LDTCL="-framework Tcl"
     # RUNPATH_LDLAG is really a noop here (-rpath not supported pre 10.5)
-    RUNPATH_DYLDFLAG="-L"
-    RUNPATH_LDFLAG="-L"
+    #RUNPATH_DYLDFLAG="-L"
+    #RUNPATH_LDFLAG="-L"
+    RUNPATH_DYLDFLAG="-rpath"
+    RUNPATH_LDFLAG="-rpath"
     LDD="otool"
     LDDFLAG="-L"
     STRIPFLAGS="-u -i -S"
@@ -332,8 +334,10 @@ case "$ARCH" in
     # LDTCL for loading Tcl/Tk, implemented as a Framework
     LDTCL="-framework Tcl"
     # RUNPATH_LDLAG is really a noop here (-rpath not supported pre 10.5)
-    RUNPATH_DYLDFLAG="-L"
-    RUNPATH_LDFLAG="-L"
+    #RUNPATH_DYLDFLAG="-L"
+    #RUNPATH_LDFLAG="-L"
+    RUNPATH_DYLDFLAG="-rpath"
+    RUNPATH_LDFLAG="-rpath"
     LDD="otool"
     LDDFLAG="-L"
     STRIPFLAGS="-u -i -S"
@@ -1591,7 +1595,7 @@ AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90 102 110 121 122 1251" 
+    	cplex_versions_requested="75 81 90 102 110 121 122 1251 1262" 
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
