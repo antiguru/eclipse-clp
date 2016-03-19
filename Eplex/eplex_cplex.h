@@ -34,6 +34,7 @@
 #endif
 
 /* The values CPX_VERSION_VERSION and CPX_VERSION_RELEASE were introduced in CPLEX 12.3.
+ * Kish 2016-03-18: added suppoered for CPX_VERSION_MODIFICATION, need for CPLEX 12.6.2
  * For earlier versions, we compute them from the 4-digit CPX_VERSION.
  */
 #ifndef CPX_VERSION_VERSION
@@ -41,6 +42,9 @@
 #endif
 #ifndef CPX_VERSION_RELEASE
 #define CPX_VERSION_RELEASE ((CPX_VERSION/10)%10)
+#endif
+#ifndef CPX_VERSION_MODIFICATION
+#define CPX_VERSION_MODIFICATION 0
 #endif
 
 #if (CPLEX == 0)
@@ -55,6 +59,12 @@ Version mismatch!
 Version mismatch!
 #endif
 
+#ifndef CPLEXMINORMINOR
+#define CPLEXMINORMINOR CPX_VERSION_MODIFICATION
+#elif (CPLEXMINORMINOR != VERSION_MODIFICATION)
+Version mismatch!
+#endif
+ 
 #ifndef CPXPUBLIC
 #define CPXPUBLIC
 #endif

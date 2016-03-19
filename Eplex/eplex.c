@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.16 2014/07/14 01:02:27 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.17 2016/03/19 03:35:14 kish_shen Exp $
  *
  */
 
@@ -702,7 +702,8 @@ p_cpx_init(value vlicloc, type tlicloc,
 	Check_Integer(tserialnum);
 	Get_Name(vlicloc, tlicloc, licloc);
 	if (*licloc == '\0') licloc = NULL;
-#  if CPLEX >= 7
+#  if CPLEX >= 7 
+#    if CPLEX < 12 || (CPLEX == 12 && (CPLEXMINOR < 6 || CPLEXMINOR == 6 && CPLEXMINORMINOR <= 1)) 
 	if (licloc)
 	{
 	    /* We have a CPLEX runtime key, call CPXRegisterLicense().
@@ -718,6 +719,7 @@ p_cpx_init(value vlicloc, type tlicloc,
 		Fail;
 	    }
 	}
+#    endif /* CPLEX < 12 */
 	/* Note CPLEX prints a banner to stderr in CPXopenCPLEX! */
 	CallN(cpx_env = CPXopenCPLEX(&dev_status));
 	if (dev_status)
