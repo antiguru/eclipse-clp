@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.9 2014/07/11 02:30:18 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.10 2016/07/24 19:34:44 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2014/07/11 02:30:18 $').
+:- comment(date, '$Date: 2016/07/24 19:34:44 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -43,7 +43,6 @@
 :- pragma(deprecated_warnings(not_reexports)).
 
 :- reexport eclipse_language except
-	call/2,
 	dynamic/1,
         ensure_loaded/1,
 	select/3,
@@ -52,11 +51,9 @@
 :- reexport cio.
 
 :- reexport
-	catch/3,
-	close/2,
 	current_input/1,
 	current_output/1,
-	throw/1,
+	initialization/1,
 	set_stream_position/2,
 	set_input/1,
 	set_output/1,
@@ -98,6 +95,7 @@
 :- export
 	op(1150, fx, initialization),
 	op(1150, fx, module_transparent),
+	op(1150, fx, discontiguous),
 	op(1150, fx, multifile),
 	op(1150, fx, thread_local),
 	op(1150, fx, volatile),
@@ -167,6 +165,14 @@ t_ignore(ignore(Goal), (Goal->true;true)).
 :- tool(ignore/1, ignore_/2).
 ignore_(Goal, Module) :-
 	( call(Goal)@Module -> true ; true ).
+
+:- export freeze/2.
+:- tool(freeze/2, freeze_/3).
+:- inline(freeze/2, tr_freeze/2).
+tr_freeze(freeze(X, Goal), (var(X) -> suspend(Goal, 0, (X->inst)) ; Goal)).
+
+freeze_(X, Goal, Module) :- var(X), suspend(Goal, 0, (X->inst))@Module.
+freeze_(X, Goal, Module) :- nonvar(X), call(Goal)@Module.
 
 
 % Signals
@@ -357,6 +363,28 @@ string_to_list(S, L) :-
 between(Low, High, Value) :-
 	between(Low, High, 1, Value).
 
+:- export op(400, xfx, rdiv).
+:- export rdiv/3.	% for rdiv/2 function
+rdiv(X, Y, Z) :- Z is rational(eval(X))/eval(Y).
+
+:- export random/2.	% for random/1 function
+random(Max, X) :- X is fix(frandom*Max).
+
+:- export sum_list/2.
+sum_list(Xs, S) :- S is sum(Xs).
+
+:- export max_list/2.
+max_list(Xs, S) :- S is max(Xs).
+
+:- export min_list/2.
+min_list(Xs, S) :- S is min(Xs).
+
+:- export numlist/3.
+numlist(L, H, Is) :- do((for(I,L,H), foreach(I,Is)), true).
+
+:- export set_random/1.
+set_random(seed(Seed)) :- seed(Seed).
+
 
 % Lists
 
@@ -432,6 +460,19 @@ convert_time(Time, String) :-
 	Seconds is fix(Time),
 	local_time_string(Seconds, `%c`, String).
 
+
+% Modules
+
+:- export module_property/2.
+module_property(M, file(F)) :-
+	current_compiled_file(F, _, M).
+module_property(M, exports(Ps)) :-
+	get_module_info(M, interface, Interface),
+	findall(P, (member((export P),Interface), P=_/_), Ps).
+module_property(M, exported_operators(Ops)) :-
+	get_module_info(M, interface, Interface),
+	findall(Op, (member((export Op),Interface), Op=op(_,_,_)), Ops).
+	
 
 %-----------------------------------------------------------------------
 % Proposed ISO extension

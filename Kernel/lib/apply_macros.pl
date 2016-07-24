@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: apply_macros.pl,v 1.4 2013/02/09 20:27:57 jschimpf Exp $
+% Version:	$Id: apply_macros.pl,v 1.5 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(apply_macros).
@@ -32,7 +32,7 @@
 :- comment(summary, "Utilities to apply a predicate to all elements of a list resp. all subterms of a term").
 :- comment(author, "Joachim Schimpf, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2013/02/09 20:27:57 $").
+:- comment(date, "$Date: 2016/07/24 19:34:44 $").
 :- comment(desc, html("
     Note that this library is largely superseded by the do-loop construct!
     <P>
@@ -545,8 +545,7 @@ sumargs(Pred, Term, A1, A3, N, Module) :-
 
 applist_body(_, [], _).
 applist_body(Pred, [In|ListIn], Module) :-
-    append_args(Pred, [In], Goal),
-    call(Goal)@Module,
+    call(Pred, In)@Module,
     applist_body(Pred, ListIn, Module).
 
 :- tool(selectlist/3, selectlist_body/4).

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.19 2013/03/11 01:32:03 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.20 2016/07/24 19:34:45 jschimpf Exp $
  */
 
 /*
@@ -2776,6 +2776,7 @@ set_stream(dident name, stream_id neww)
 	    return(SYSTEM_STREAM);
 	if(!IsReadStream(neww))
 	    return(STREAM_MODE);
+	if (old->unit != 0) StreamMode(old) &= ~SSYSTEM;
 	StreamMode(neww) |= SSYSTEM;
     }
     else if(name == d_.stdout0 || name == d_.stderr0)
@@ -2784,6 +2785,7 @@ set_stream(dident name, stream_id neww)
 	    return(SYSTEM_STREAM);
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
+	if (old->unit != 1 && old->unit != 2) StreamMode(old) &= ~SSYSTEM;
 	StreamMode(neww) |= SSYSTEM;
     }
     /* And now change the stream */

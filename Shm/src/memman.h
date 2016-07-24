@@ -38,6 +38,14 @@ typedef char *generic_ptr;
 typedef void *generic_ptr;
 #endif
 
+#ifdef _WIN32
+#ifndef DLLEXP
+#define DLLEXP __declspec(dllexport)
+#endif
+#else
+#define DLLEXP
+#endif
+
 /*---------------------------------------------------------------------
  * Size-dependent values
  *---------------------------------------------------------------------*/
@@ -299,9 +307,10 @@ int		alloc_statistics(struct heap_descriptor *, int);
 generic_ptr	hp_alloc_size(word size);
 void		hp_free_size(generic_ptr, word size);
 generic_ptr	hp_realloc_size(generic_ptr, word, word);
-generic_ptr	hp_alloc(word size);
-void		hp_free(generic_ptr);
-generic_ptr	hp_resize(generic_ptr, word);
+/* export these for possible use in eplex */
+DLLEXP generic_ptr	hp_alloc(word size);
+DLLEXP void		hp_free(generic_ptr);
+DLLEXP generic_ptr	hp_resize(generic_ptr, word);
 int		hp_statistics(int what);
 
 char		*shared_mem_base(void);

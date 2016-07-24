@@ -196,6 +196,13 @@ All files in lib_tcl/widget/*
 
 _______________________________________________________________________________
 
+Grappa is provided under the terms of the Eclipse Public License - v 1.0
+
+    http://www.graphviz.org/License.php or
+    http://www.eclipse.org/legal/epl-v10.html
+
+_______________________________________________________________________________
+
 ecrc_solvers/propia/*
 ecrc_solvers/chr/*
 Opium/demo/*

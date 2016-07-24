@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
 //Title:        Java/ECLiPSe interface
-//Version:      $Id: EclipseEngine.java,v 1.1 2006/09/23 01:54:09 snovello Exp $
+//Version:      $Id: EclipseEngine.java,v 1.2 2016/07/24 19:34:44 jschimpf Exp $
 //Author:       Josh Singer / Stefano Novello
 //Company:      Parc Technologies
 //Description:  Interface for objects providing full access to an ECLiPSe engine.
@@ -34,7 +34,7 @@ import java.io.*;
  * provided by the {@link EclipseConnection} interface,
  * classes which implement
  * <i>EclipseEngine</i> also allow access to the ECLiPSe engine's standard
- * streams: <code>stdin</code>, <code>stdout</code> and <code>sterr</code>.</li>
+ * streams: <code>stdin</code>, <code>stdout</code> and <code>sterr</code>.
  * @see EclipseConnection
  * @see EmbeddedEclipse
  * @see OutOfProcessEclipse

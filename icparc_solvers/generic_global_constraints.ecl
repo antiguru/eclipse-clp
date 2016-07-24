@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.15 2015/01/14 01:31:10 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.16 2016/07/24 19:34:45 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -1030,19 +1030,19 @@ sorted(Us, Ss) :-
 	( foreach(_,Us), foreach(_,Ss) do true ),
 	SsArr =.. [[]|Ss],
 	functor(SsArr, [], N),
-	N > 0,
-	!,
-	ordered(=<, Ss),
-	% This gets the global lower and upper bounds while also ensuring
-	% finiteness...
-	arg(1,SsArr,S1), get_finite_bounds(S1,MinDom,_),
-	arg(N,SsArr,Sn), get_finite_bounds(Sn,_,MaxDom),
-	Us :: MinDom..MaxDom,
-	suspend(sorted_demon(Us, SsArr, Susp), 4,
-		[Us-Ss->[min,max]], Susp),
-	sorted_demon(Us, SsArr, Susp).
-sorted(Us, Ss) :-
-	error(6, sorted(Us, Ss)).
+	( N < 2 ->
+	    Us = Ss
+	;
+	    ordered(=<, Ss),
+	    % This gets the global lower and upper bounds while also ensuring
+	    % finiteness...
+	    arg(1,SsArr,S1), get_finite_bounds(S1,MinDom,_),
+	    arg(N,SsArr,Sn), get_finite_bounds(Sn,_,MaxDom),
+	    Us :: MinDom..MaxDom,
+	    suspend(sorted_demon(Us, SsArr, Susp), 4,
+		    [Us-Ss->[min,max]], Susp),
+	    sorted_demon(Us, SsArr, Susp)
+	).
 
 % This demon does two symmetric passes, each pass can retrigger the other.
 % Since both passes share the same pre-sorting, we have not separated them.
@@ -1107,21 +1107,21 @@ sorted(Us, Ss, Ps) :-
 	( foreach(_,Us), foreach(_,Ss), foreach(_,Ps) do true ),
 	SsArr =.. [[]|Ss],
 	functor(SsArr, [], N),
-	N > 0,
-	!,
-	ordered(=<, Ss),
-	% This gets the global lower and upper bounds while also ensuring
-	% finiteness...
-	arg(1,SsArr,S1), get_finite_bounds(S1,MinDom,_),
-	arg(N,SsArr,Sn), get_finite_bounds(Sn,_,MaxDom),
-	Us :: MinDom..MaxDom,
-	Ps :: 1..N,
-	alldifferent(Ps),
-	suspend(sorted_demon(Us, SsArr, Ps, Susp), 4,
-		[Us-Ss-Ps->[min,max]], Susp),
-	sorted_demon(Us, SsArr, Ps, Susp).
-sorted(Us, Ss, Ps) :-
-	error(6, sorted(Us, Ss, Ps)).
+	( N < 1 ->
+	    true
+	;
+	    ordered(=<, Ss),
+	    % This gets the global lower and upper bounds while also ensuring
+	    % finiteness...
+	    arg(1,SsArr,S1), get_finite_bounds(S1,MinDom,_),
+	    arg(N,SsArr,Sn), get_finite_bounds(Sn,_,MaxDom),
+	    Us :: MinDom..MaxDom,
+	    Ps :: 1..N,
+	    alldifferent(Ps),
+	    suspend(sorted_demon(Us, SsArr, Ps, Susp), 4,
+		    [Us-Ss-Ps->[min,max]], Susp),
+	    sorted_demon(Us, SsArr, Ps, Susp)
+	).
 
 
 :- demon sorted_demon/4.

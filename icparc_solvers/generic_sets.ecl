@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: generic_sets.ecl,v 1.6 2010/04/04 14:05:09 jschimpf Exp $
+% Version:	$Id: generic_sets.ecl,v 1.7 2016/07/24 19:34:45 jschimpf Exp $
 %
 %	Many thanks to Neng-Fa Zhou, on whose ideas this solver
 %	implementation is based. We started work on this solver
@@ -1381,6 +1381,10 @@ membership_booleans(Set0, BoolArr) :-
 	    MinS >= 1,
 	    Max = MaxS,
 	    functor(BoolArr, [], Max)
+	; Set == [] ->
+	    BoolArr = [], Max = 0
+	; ground(Set) ->
+	    error(5, membership_booleans(Set, BoolArr))
 	;
 	    error(4, membership_booleans(Set, BoolArr))
 	),
@@ -1777,9 +1781,18 @@ lset_add_nonmember(Elem, Attr) :-
 % fail for non-set variables and []
 set_min_max(_{int_sets:Attr}, Min, Max) ?-
 	uset_min_max(Attr, Min, Max).
-set_min_max([First|Rest], Min, Max) ?-
-	Min = First,
-	once append(_, [Max], Rest).
+set_min_max(Set, Min, Max) :-
+	sorted_ints_last(Set, 0, Max),
+	Set = [Min|_].
+
+    % Check for sorted positive integers, return last one
+    sorted_ints_last([], Prev, Max) ?-
+    	Prev > 0, Max = Prev.
+    sorted_ints_last([I|Is], Prev, Max) ?-
+	integer(I),
+	I > Prev,
+	sorted_ints_last(Is, I, Max).
+
 
 uset_min_max(int_sets{dom:Map,off:Offset}, Min, Max) ?-
 	Min is Offset+1,
@@ -1945,7 +1958,7 @@ initial_nonmember_events(XAttr, YAttr, ZAttr, Susp, Receiver) :-
 %----------------------------------------------------------------------
 
 :- comment(author, "Joachim Schimpf, Neng-Fa Zhou").
-:- comment(date, "$Date: 2010/04/04 14:05:09 $").
+:- comment(date, "$Date: 2016/07/24 19:34:45 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("

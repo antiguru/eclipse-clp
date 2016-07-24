@@ -46,7 +46,11 @@ Build on multi-architecture machine, e.g. 64 bit build on 32/64 bit solaris:
 Cross build, e.g. for Windows on Linux:
 
 	export ECLIPSEARCH=i386_nt
-	CONFIG_SITE=config.$ECLIPSEARCH ./configure --host=i586-mingw32msvc
+	CONFIG_SITE=config.$ECLIPSEARCH ./configure --host=i686-w64-mingw32
+	make -f Makefile.$ECLIPSEARCH
+
+	export ECLIPSEARCH=x86_64_nt
+	CONFIG_SITE=config.$ECLIPSEARCH ./configure --host=x86_64-w64-mingw32
 	make -f Makefile.$ECLIPSEARCH
 
 Build for Windows on Windows/Cygwin:

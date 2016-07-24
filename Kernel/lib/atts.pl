@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: atts.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: atts.pl,v 1.4 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -33,10 +33,33 @@
 :- module(atts).
 
 :- comment(categories, ["Compatibility"]).
-:- comment(summary, "Variable attributes compatible with SICStus v3").
+:- comment(summary, "Variable attributes compatible with SICStus Prolog").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Micha Meier, ECRC Munich").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
+:- comment(date, "$Date: 2016/07/24 19:34:44 $").
+:- comment(desc, html("<P>
+    Implements SICStus-Prolog compatible attributes on variables, via
+    mapping to native ECLiPSe attributes (one ECLiPSe attribute for
+    each module that defines SICStus attributes).
+</P><P>
+    Implements the predicates
+<DL>
+    <DT>get_atts(-Var, ?AccessSpec)</DT>
+	<DD>getting attributes</DD>
+    <DT>put_atts(-Var, +AccessSpec)</DT>
+	<DD>setting attributes</DD>
+</DL>
+    and allows the user definition of the hook predicates
+<DL>
+    <DT>verify_attributes(-Var, +Value, -Goals)</DT>
+	<DD>pre-unification hook, called as ECLiPSe's pre_unify handler</DD>
+    <DT>attribute_goal(-Var, -Goal)</DT>
+	<DD>allows to define an interpretation of the attribute as goal.
+	If defined, it is also used as the print-handler for attributes.</DD>
+</DL>
+    ECLiPSe's toplevel makes no attempts to invoke any hooks.
+</P>
+")).
 
 :- export op(1150, fx, [attribute]).
 
@@ -67,7 +90,10 @@
 :- tool(put_atts/2, put_atts_body/3).
 
 attribute_body(Decls, Module) :-
+    % declare attribute immediately
     meta_attribute(Module, [])@Module,
+    % declare handlers later, when they exist
+    local(initialization(atts:atts_handlers_init))@Module,
     conj_to_list_functor(Decls, Attrs, 1, Size),
     functor(Vector, v, Size),
     compute_att_mask(Attrs, Module, Vector, ProcList, []),
@@ -90,6 +116,21 @@ conj_to_list_functor(N/A, [H], I, K) :-
     functor(H, N, A),
     K is I+A.
 
+
+% Initialization of attribute handlers for a module.
+% To be called after the handlers have been compiled.
+
+:- export atts_handlers_init/0.
+:- tool(atts_handlers_init/0, atts_handlers_init_/1).
+atts_handlers_init_(Module) :-
+    ( current_predicate(verify_attributes/3)@Module ->
+	Hs = [pre_unify:verify_attributes/3|Hs1]
+    ;   Hs = Hs1 ),
+    ( current_predicate(attribute_goal/2)@Module ->
+    	export(attribute_goal/2)@Module,
+	Hs1 = [print:attribute_goal/2]
+    ;   Hs1 = [] ),
+    meta_attribute(Module, Hs)@Module.
 
 
 %

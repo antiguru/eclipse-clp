@@ -23,7 +23,7 @@
 # 
 # END LICENSE BLOCK
 #
-# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.6 2013/06/20 20:59:09 kish_shen Exp $
+# $Header: /cvsroot/eclipse-clp/Eclipse/Oci/Makefile.in,v 1.7 2016/07/24 19:34:45 jschimpf Exp $
 #
 
 #ORACLE_HOME=/home/mac/oracle
@@ -73,7 +73,7 @@ ELIBS	= -L$(PREFIX)/lib/$(ARCH) -L$(MYSQLDIR)/lib -leclipse @GMP_LD@ $(LIBS)
 
 MLIBS_i386_nt      = $(MYSQLDIR)/lib/libmysql.dll.a
 MLIBS_x86_64_nt      = $(MYSQLDIR)/lib/libmysql.dll
-MLIBS_unix	   = -lmysqlclient -lz -lpthread
+MLIBS_unix	   = -lmysqlclient -lpthread
 ifeq "$(ARCH)" "i386_nt"
    MLIBS = $(MLIBS_i386_nt)
 else 

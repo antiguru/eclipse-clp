@@ -261,7 +261,7 @@ The following operations invoke attributed variable handlers:
 The handler procedure is
 \begin{quote}
 \predspec{%
-unify_handler(+\pattern{Term},~?\pattern{Attribute}~[,\pattern{SuspAttr}])}
+unify_handler(+\pattern{Term},~?\pattern{Attribute}~[,~?\pattern{SuspAttr}])}
 \end{quote}
 The first argument is the term that was unified with the attributed variable,
 it is either a non-variable or another attributed variable.
@@ -459,15 +459,20 @@ normal unification, but it is called \emph{before} the unification
 itself occurs.
 The handler procedure is
 \begin{quote}
-\predspec{pre_unify_handler(?\pattern{AttrVar},~+\pattern{Term})}
+\predspec{pre_unify_handler(?\pattern{AttrVar},~+\pattern{Term}~[,~-\pattern{Goals}])}
 \end{quote}
 The first argument is the attributed variable to be unfied,
 the second argument is the term it is going to be unified with.
-This handler is provided only for compatibility with SICStus Prolog
-and its use is not recommended, because it is less efficient
-than the \notation{unify} handler and because its semantics is somewhat
-unclear, there may be cases where changes inside this handler
-may have unexpected effects.
+The optional third argument can be used to return goals that
+will be called after all pre-unify handlers for this variable
+have finished, and the variable has been bound.
+The handlers itself should not bind any variables.
+If multiple attributed variables were bound in a single
+unification, all these bindings are first undone, then the
+handlers are called and the variables re-bound one by one.
+This handler is provided for compatibility with SICStus
+Prolog and its use is not recommended. It can be used together
+with a \notation{unify} handler, which is called afterwards.
 
 \item [delayed_goals:]\handleridx{delayed_goals}
   this handler is superseded by the

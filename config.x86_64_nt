@@ -4,8 +4,8 @@
 # Change MINGW64ROOT and CROSS for the local configuration
 #
 
-ECLIPSETOOLS=$HOME/tools
-MINGW64ROOT=/usr/local/mingw64
+ECLIPSETOOLS=${ECLIPSETOOLS:-/vol/Eclipse/tools}
+MINGW64ROOT=/usr/
 CROSS=x86_64-w64-mingw32
 CC=$MINGW64ROOT/bin/$CROSS-gcc
 CXX=$MINGW64ROOT/bin/$CROSS-c++

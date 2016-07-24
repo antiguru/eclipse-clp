@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.8 2013/02/12 18:52:16 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.9 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -79,6 +79,12 @@
 %
 
 :- tool(meta_attribute/2, meta_attribute_body/3).
+
+% The name of the following records is the handler type name.
+% The record entries are structures of the form
+%	t(AttributeIndex, AttributeName, HandlerType, HandlerPred, Module)
+% where HandlerPred is Name/Arity.
+
 :- local_record(pre_unify).
 :- local_record(unify).
 :- local_record(test_unify).
@@ -257,6 +263,7 @@ is_meta_event(_, _) :-
     set_bip_error(6).
 
 meta_event(pre_unify, 2).
+meta_event(pre_unify, 3).
 meta_event(unify, 2).
 meta_event(unify, 3).
 meta_event(test_unify, 2).
@@ -353,9 +360,11 @@ recompile_system_handlers :-
 /*
  *	The handlers have the format
  *		pre_unify_attributes(AttrVar, Term, Pair) :-
- *		    pre_handler1(AttrVar, Term),
+ *		    pre_handler1(AttrVar, Term, Goals1),
  *		    ....
  *		    do_meta_bind(Pair, Term),
+ *		    call_list(Goals1),
+ *		    ....
  *		    
  *		unify_attributes(Term, meta(Attr1, ...)) :-
  *		    post_handler1(Term, Attr1),
@@ -400,6 +409,7 @@ local_unify_handlers([t(I, _, _, N/A, M)|List], Meta, Term, SuspAttr, Body) :-
     ),
     local_unify_handlers(List, Meta, Term, SuspAttr, NewBody).
 
+
 %------------------------------
 pre_unify_attributes(_AttrVar, _Term, _Pair).
 
@@ -410,7 +420,8 @@ recompile_pre_unify_handler :-
 	set_default_error_handler(11, unify_handler/1),
 	set_error_handler(11, unify_handler/1)
     ;
-	local_pre_unify_handlers(PreList, AttrVar, Term, Pair, Body),
+	local_pre_unify_handlers(PreList, AttrVar, Term, Pair, Body, Middle, Middle),
+%	writeclause((pre_unify_attributes(AttrVar, Term, Pair) :- Body)),
 	compile_term((pre_unify_attributes(AttrVar, Term, Pair) :- Body), [debug:off]),
 	set_default_error_handler(11, pre_unify_handler/1),
 	set_error_handler(11, pre_unify_handler/1)
@@ -418,18 +429,26 @@ recompile_pre_unify_handler :-
 
 undo_meta_bindings([], []).
 undo_meta_bindings([Pair|List], [p(AttrVar, Term, Pair)|PList]) :-
-    Pair = [Term|_],
+    Pair = [Term|_],	% save the binding value in Term
     undo_meta_bind(Pair, AttrVar),
     undo_meta_bindings(List, PList).
 
-local_pre_unify_handlers([t(_, _, _, N/_, M)], AttrVar, Term, Pair, LastCall) :-
-    !,
-    Goal =.. [N, AttrVar, Term],
-    LastCall = (M:Goal, do_meta_bind(Pair, Term)).
-local_pre_unify_handlers([t(_, _, _, N/_, M)|List], AttrVar, Term, Pair, Body) :-
-    Goal =.. [N, AttrVar, Term],
-    Body = (M:Goal, NewBody),
-    local_pre_unify_handlers(List, AttrVar, Term, Pair, NewBody).
+local_pre_unify_handlers([t(_, _, _, N/A, M)|Hs], AttrVar, Term, Pair, Front, Middle, Back) :-
+    functor(Goal, N, A),
+    Goal =.. [N, AttrVar, Term|OptionalArg],
+    Front = (M:Goal, Front1),
+    ( Hs==[] ->
+	Front1 = (do_meta_bind(Pair, Term), Middle),
+	( OptionalArg=[], Back = true
+	; OptionalArg=[Gs], Back = sepia_kernel:call_list(Gs,M)
+	)
+    ;
+	( OptionalArg=[], Back = Back1
+	; OptionalArg=[Gs], Back = (sepia_kernel:call_list(Gs,M), Back1)
+	),
+	local_pre_unify_handlers(Hs, AttrVar, Term, Pair, Front1, Middle, Back1)
+    ).
+
 
 %------------------------------
 :- mode test_unify_attributes(?, ++).
@@ -698,6 +717,12 @@ unify_handler([[Term|Attr]|List]) :-
     unify_handler(List).
 :- pragma(nodebug).
 
+:- export call_list/2.
+call_list([],_M).
+call_list([G|Gs],M) :-
+    call(G)@M,
+    call_list(Gs,M).
+
 pre_unify_handler(List) :-
     undo_meta_bindings(List, NewList),
     pre_unify_pairs(NewList),
@@ -928,7 +953,6 @@ x_res(=, 3).
 
 :- untraceable
 	unify_attributes/2,
-	pre_unify_attributes/3,
 	test_unify_attributes/2,
 	compare_instances_attributes/3,
 	copy_term_attributes/2,
@@ -937,9 +961,7 @@ x_res(=, 3).
 	delayed_goals_attributes/3,
 	delayed_goals_number_attributes/2,
 	unify_handler/1,
-	pre_unify_handler/1,
 	undo_meta_bindings/2,
-	pre_unify_pairs/1,
 	copy_term_handler/1,
 	test_unify_handler/1.
 

@@ -34,8 +34,8 @@ dnl
 # AC_INIT defines PACKAGE_NAME and PACKAGE_VERSION
 AC_INIT([ECLiPSe], [6.2])
 AC_PREREQ([2.59])
-AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems, Inc])
-AC_REVISION([$Id: configure.ac,v 1.66 2016/03/19 03:18:08 kish_shen Exp $])
+AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
+AC_REVISION([$Id: configure.ac,v 1.67 2016/07/24 19:34:43 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -109,7 +109,7 @@ else
         if test "$ARCH" == "ppc64_macosx" ; then
             arch=$ARCH
         else
-		AC_MSG_WARN([Cross-compiling without site config file $CONFIG_SITE!!!])
+	    AC_MSG_ERROR([Mismatch between target host ($host) and ECLiPSe arch ($ARCH)!!!])
         fi
     fi
 fi
@@ -128,7 +128,7 @@ fi
 
 # Make sure we are using a reasonable CONFIG_SITE file
 if test -r "$CONFIG_SITE"; then
-    if echo "$CONFIG_SITE" | grep -v -q "^config.*\.$ARCH"; then
+    if basename "$CONFIG_SITE" | grep -v -q "^config.*\.$ARCH"; then
 	AC_MSG_ERROR([Won't use "$CONFIG_SITE" for architecture $ARCH,
 	    change or unset CONFIG_SITE])
     fi
@@ -246,7 +246,7 @@ OSCLASS="unix"
 
 # -D_REENTRANT is e.g. for making use of errno thread-safe
 #	(we could use -pthread but that isn't supported everywhere)
-CFLAGS="-fPIC -D_REENTRANT $CFLAGS"
+CFLAGS="-D_REENTRANT $CFLAGS"
 
 # needed for strip on Mac OS X 
 STRIPFLAGS=
@@ -810,6 +810,15 @@ AC_TRY_COMPILE([] , [return 0;],
     CFLAGS="$SAVED_CFLAGS" 
     AC_DEFINE(MAY_HAVE_STRICT_OVERFLOW)])
 
+AC_MSG_CHECKING(whether fPIC compiler option is accepted)
+SAVED_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fPIC -Werror"
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([], [return 0;])],
+    [AC_MSG_RESULT(yes)
+     CFLAGS="$SAVED_CFLAGS -fPIC"],
+    [AC_MSG_RESULT(no)
+     CFLAGS="$SAVED_CFLAGS"])
 
 dnl Check for void pointers
 AC_CACHE_CHECK(for void pointer, ec_cv_c_void_p,
@@ -1576,44 +1585,50 @@ fi
 #----------
 
 case $ARCH in
-    i386_linux)		CPLEX_ARCH_PREFIX=x86_debian ;;
-    x86_64_linux)	CPLEX_ARCH_PREFIX=x86-64_debian ;;
-    sparc_sunos5)	CPLEX_ARCH_PREFIX=ultrasparc32 ;;
-    i386_nt)		CPLEX_ARCH_PREFIX=x86_win32 ;;
-    x86_64_nt)		CPLEX_ARCH_PREFIX=x64_win64 ;;
-    i386_macosx)	CPLEX_ARCH_PREFIX=x86_darwin ;;
-    x86_64_macosx)	CPLEX_ARCH_PREFIX=x86-64_darwin ;;
-    *)			CPLEX_ARCH_PREFIX=unsupported ;;
+    i386_linux)		CPLEX_ARCH=x86_debian ;;
+    x86_64_linux)	CPLEX_ARCH=x86-64_debian ;;
+    sparc_sunos5)	CPLEX_ARCH=ultrasparc32 ;;
+    i386_nt)		CPLEX_ARCH=x86_win32 ;;
+    x86_64_nt)		CPLEX_ARCH=x64_win64 ;;
+    i386_macosx)	CPLEX_ARCH=x86_darwin ;;
+    x86_64_macosx)	CPLEX_ARCH=x86-64_darwin ;;
+    *)			CPLEX_ARCH=unsupported ;;
 esac
 
 AC_ARG_WITH([cplex], [[  --with-cplex[=versions]
 			Build ECLiPSe interface to ILOG Cplex.  You can
-			optionally specify a version list, e.g. "81 90".
-			Default is to build all available versions.
+			optionally specify a version list, e.g. "121 90".
+			Default is to build the first matching version
+			found in $ECLIPSETHIRDPARTY.
     ]],
     [cplex_versions_requested="$withval"], [cplex_versions_requested=yes])
 
 if test "$cplex_versions_requested" != "no"; then
     if test "$cplex_versions_requested" = "yes"; then
-    	cplex_versions_requested="75 81 90 102 110 121 122 1251 1262" 
+    	cplex_versions_requested="1262 126 1251 124 122 121 110 102 90 81 75" 
     fi
     for version in $cplex_versions_requested; do
 	CPLEXDIR="$ECLIPSETHIRDPARTY/cplex$version"
-	if test -d $CPLEXDIR/lib/$ARCH -o \
-		-d $CPLEXDIR/lib/$CPLEX_ARCH_PREFIX -o \
-		-d $CPLEXDIR/bin/$CPLEX_ARCH_PREFIX >/dev/null 2>&1 ; then
-	    CPLEX_VERSIONS="$CPLEX_VERSIONS $version"
+	if test -d $CPLEXDIR/lib/$CPLEX_ARCH -o \
+		-d $CPLEXDIR/bin/$CPLEX_ARCH >/dev/null 2>&1 ; then
+	    CPLEX_VERSION="$version"
 	    AC_MSG_NOTICE([Using Cplex in $CPLEXDIR])
+	    break
+	elif test -d $CPLEXDIR/lib/$ARCH >/dev/null 2>&1 ; then
+	    CPLEX_ARCH="$ARCH"
+	    CPLEX_VERSION="$version"
+	    AC_MSG_NOTICE([Using Cplex in $CPLEXDIR])
+	    break
 	else
 	    AC_MSG_WARN([Could not find $ARCH support in $CPLEXDIR])
 	fi
     done
 fi
-if test -n "$CPLEX_VERSIONS"; then
-    AC_MSG_NOTICE([Will build Cplex interfaces for versions $CPLEX_VERSIONS])
+if test -n "$CPLEX_VERSION"; then
+    AC_MSG_NOTICE([Will build Cplex interface for version $CPLEX_VERSION])
     INSTALL_EPLEX=install_eplex
 else
-    AC_MSG_NOTICE([Not building any Cplex interfaces])
+    AC_MSG_NOTICE([Not building Cplex interface])
 fi
 
 
@@ -1624,29 +1639,33 @@ fi
 AC_ARG_WITH([xpress], [[  --with-xpress[=versions]
 			Build ECLiPSe interface to Dash Xpress-MP.  You can
 			optionally specify a version list, e.g. "1427 1525".
-			Default is to build all available versions.
+			Default is to build the first matching version
+			found in $ECLIPSETHIRDPARTY.
     ]],
     [xpress_versions_requested="$withval"], [xpress_versions_requested=yes])
 
 if test "$xpress_versions_requested" != "no"; then
     if test "$xpress_versions_requested" = "yes"; then
-    	xpress_versions_requested="1326icp 1427icp 1427 1525 2000"
+    	xpress_versions_requested="2401 2201 2000 1601"
     fi
     for version in $xpress_versions_requested; do
 	XPRESSDIR="$ECLIPSETHIRDPARTY/xosl$version"
 	if test -d "$XPRESSDIR/$ARCH"; then
-	    XPRESS_VERSIONS="$XPRESS_VERSIONS $version"
+	    XPRESS_VERSION="$version"
+	    XPRESS_MAJOR=`echo $version|cut -c 1-2`
+	    XPRESS_MINOR=`echo $version|cut -c 3-4`
 	    AC_MSG_NOTICE([Using Xpress-MP in $XPRESSDIR])
+	    break
 	else
-	    AC_MSG_WARN([Could not find $XPRESSDIR])
+	    AC_MSG_WARN([Could not find $ARCH support in $XPRESSDIR])
 	fi
     done
 fi
-if test -n "$XPRESS_VERSIONS"; then
-    AC_MSG_NOTICE([Will build Xpress-MP interfaces for versions $XPRESS_VERSIONS])
+if test -n "$XPRESS_VERSION"; then
+    AC_MSG_NOTICE([Will build Xpress-MP interface for version $XPRESS_VERSION])
     INSTALL_EPLEX=install_eplex
 else
-    AC_MSG_NOTICE([Not building any Xpress-MP interfaces])
+    AC_MSG_NOTICE([Not building Xpress-MP interface])
 fi
 
 
@@ -1702,6 +1721,19 @@ if test -n "$GUROBI_VERSION"; then
 else
     AC_MSG_NOTICE([Not building Gurobi interface])
 fi
+
+
+#----------
+# General Eplex build option
+#----------
+
+AC_ARG_ENABLE(eplex_own_malloc, [[  --enable-eplex-own-malloc
+			Use ECLiPSe's own allocator instead of malloc in Eplex.
+	]],
+	[ EPLEX_FLAGS="-DUSE_OWN_MALLOC" ]
+	AC_MSG_NOTICE(Eplex uses ECLiPSe's own allocator instead of malloc),
+	AC_MSG_NOTICE(Eplex uses standard malloc)
+)
 
 
 #----------
@@ -2104,14 +2136,18 @@ AC_SUBST(GMP_LIB)
 AC_SUBST(INSTALL_GMP)
 AC_SUBST(LOCK)
 AC_SUBST(INSTALL_EPLEX)
+AC_SUBST(EPLEX_FLAGS)
 AC_SUBST(OSI_VERSIONS)
 AC_SUBST(CLPCBCDIR)
 AC_SUBST(SYMCLPDIR)
 AC_SUBST(OSIGLPKDIR)
 AC_SUBST(OSICLP_ADDLIB)
 AC_SUBST(OSICLP_ADDDEF)
-AC_SUBST(CPLEX_VERSIONS)
-AC_SUBST(XPRESS_VERSIONS)
+AC_SUBST(CPLEX_ARCH)
+AC_SUBST(CPLEX_VERSION)
+AC_SUBST(XPRESS_VERSION)
+AC_SUBST(XPRESS_MAJOR)
+AC_SUBST(XPRESS_MINOR)
 AC_SUBST(GUROBIDIR)
 AC_SUBST(GUROBI_VERSION)
 AC_SUBST(ALL_WITH_GECODE)

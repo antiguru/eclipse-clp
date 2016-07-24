@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.17 2016/03/19 03:35:14 kish_shen Exp $
+ * Version:	$Id: eplex.c,v 1.18 2016/07/24 19:34:43 jschimpf Exp $
  *
  */
 
@@ -477,15 +477,20 @@ Free(void *p)
     free(p);
 }
 #else
-#if 1
-#define Malloc(size) malloc(size)
-#define Realloc(p, size) realloc(p, size)
-#define Free(p) free(p)
-#else
+#ifdef USE_OWN_MALLOC
+
 /* Eclipse's hp_alloc() can cause problems because of private heap limit */
+#include "memman.h"
 #define Malloc(size) hp_alloc(size)
 #define Realloc(p, size) hp_resize(p, size)
 #define Free(p) hp_free(p)
+
+#else
+
+#define Malloc(size) malloc(size)
+#define Realloc(p, size) realloc(p, size)
+#define Free(p) free(p)
+
 #endif
 #endif
 
@@ -694,7 +699,7 @@ p_cpx_init(value vlicloc, type tlicloc,
 	CallN(coin_create_prob(&cpx_env, NULL));
 #endif
 
-# if defined(CPLEX)
+#ifdef CPLEX
 	char errmsg[512];
 	int status, dev_status;
 	char *licloc; /* environment string (CPLEX) */
@@ -780,10 +785,10 @@ p_cpx_init(value vlicloc, type tlicloc,
 	    Bip_Error(EC_EXTERNAL_ERROR);
 	}
 
-# endif /* CPLEX */
+#endif /* CPLEX */
 
-# ifdef XPRESS
-	int err;
+#ifdef XPRESS
+	int err = 0;
 	char slicmsg[256], banner[256];
 	char *licloc, /* licence location (XPRESS) */
 	     *subdir; /* solver/platform/version-specific stuff (XPRESS 15) */
@@ -793,34 +798,41 @@ p_cpx_init(value vlicloc, type tlicloc,
 	Get_Name(vsubdir, tsubdir, subdir);
 	if (*licloc == '\0') licloc = NULL;
 
+#if (XPRESS == 15) 
+	{/* Xpress 15 requires the PATH environment variable to be set
+	    to where the license manager lmgrd is, as it execs an
+	    unqualified lmgrd from within XPRSinit()!
+	 */
+	    const char * curpaths;
+	    char * newpaths;
+	    curpaths = getenv("PATH");
+	    newpaths = Malloc(strlen("PATH=") + strlen(curpaths)
+		    + strlen(PATH_SEPARATOR) + strlen(subdir) + 1);
+	    strcpy(newpaths, "PATH=");
+	    strcat(newpaths, subdir);
+	    strcat(newpaths, PATH_SEPARATOR);
+	    strcat(newpaths, curpaths);
+	    putenv(newpaths);
+	}
+#endif
+	
 	/* Embedded OEM licence handling */
 	if (oem_xpress == XP_OEM_YES)
 	{
-	    i = (int) vserialnum.nint;
-	    err = XPRSlicense(&i, slicmsg);	/* second call */
-	}
-#  ifdef XPRESS_OEM_ICPARC_2002
-	Handle_OEM_ICPARC
-#  endif
-#  if (XPRESS == 15) 
-	    {/* Xpress 15 requires the PATH environment variable to be set
-                to where the license manager lmgrd is, as it execs an
-                unqualified lmgrd from within XPRSinit()!
+	    /* lp_get_license_challenge/1 (XPRSlicense()) was called earlier.
+	     * It is expected that its output was used together with the
+	     * OEM magic formula to compute this response n:
 	     */
-		const char * curpaths;
-		char * newpaths;
-		curpaths = getenv("PATH");
-		newpaths = Malloc(strlen("PATH=") + strlen(curpaths)
-			+ strlen(PATH_SEPARATOR) + strlen(subdir) + 1);
-		strcpy(newpaths, "PATH=");
-		strcat(newpaths, subdir);
-		strcat(newpaths, PATH_SEPARATOR);
-		strcat(newpaths, curpaths);
-		putenv(newpaths);
-	    }
-#  endif
-		
-	err = XPRSinit(licloc);
+	    int n = (int) vserialnum.nint;	/* magic number response */
+	    err = XPRSlicense(&n, slicmsg);	/* second call */
+	    err = XPRSinit(licloc);
+	}
+	else
+	{
+	    int n = (int) vserialnum.nint;
+#include "eplex_xpress_init.h"
+
+	}
 
 #  if (XPRESS >= 20) 
 	if (err != 0  &&  err != 32 /* Student mode */)
@@ -874,7 +886,7 @@ p_cpx_init(value vlicloc, type tlicloc,
 	/* use cpx_env to store the `default problem' */
 	CallN(XPRScreateprob(&cpx_env));
 
-# endif /* XPRESS */
+#endif /* XPRESS */
 
 #ifdef GUROBI
 	int status;
@@ -921,19 +933,19 @@ int
 p_cpx_challenge(value v, type t)
 {
 # ifdef XPRESS
-#  if defined(WIN32) 
     int nvalue;
     char slicmsg[256];
-    /* Caution: calling optlicence() twice crashes on some non-oem XPRESSes */
     if (oem_xpress != XP_OEM_NO)
     {
+#if XPRESS > 20
+	XPRSbeginlicensing(NULL);
+#endif
 	if (XPRSlicense(&nvalue, slicmsg) != 8)
 	{
 	    oem_xpress = XP_OEM_YES;
 	    Return_Unify_Integer(v, t, (long) nvalue);
 	}
     }
-#  endif
     oem_xpress = XP_OEM_NO;
 # endif
     Fail;

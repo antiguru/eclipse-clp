@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.17 2015/01/14 01:31:08 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.18 2016/07/24 19:34:43 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -101,7 +101,12 @@
 :- export lp_add_indexed/4.     % lp_add_indexed(+Handle, +NormConstraints, +Ints, -Indices)
 :- export lp_add_vars/2.        % lp_add_vars(+Handle, +Vars)
 :- export lp_add_columns/2.     % lp_add_columns(+Handle, +VarCols)
-
+% added by AE 06/11/02
+:- export extend_base/4.        % extend_base(+Base, +OldCols, +AddedCols, -NewBase)
+% end added by AE
+% added by AE 06/06/05
+:- export extend_arrays/8.        % extend_base(+Base, +Sol, +Djs, +OldCols, +AddedCols, -NewBase, -NewSol, -NewDjs)
+% end added by AE
 :- export lp_demon/5.		% lp_demon(+Handle, ?Cost, +PreGoal, +PostGoal, +Module)
 :- export lp_demon_setup/5.     % lp_demon_setup(+Objective, ?Cost, +Options,
                                 %	+TriggerModes, -Handle[,+Module])
@@ -2776,6 +2781,77 @@ setup_new_cols(Handle, NewObjCoeffs, NewLos, NewHis, NewColCoeffs, OldCols, Adde
         copy_extended_arrays(OldBase, OldSol, OldDjs,
                              ExtendedBase, ExtendedSol, ExtendedDjs).
 
+
+
+    extend_base(OldBase, OldCols, AddedCols, ExtendedBase) :-
+        iarray_size(OldBase, Size),
+        ExtendedSize is Size + AddedCols,
+        create_iarray(ExtendedSize, ExtendedBase),
+        (
+            for(I, 0, OldCols-1),
+            param(OldBase),
+            param(ExtendedBase)
+        do
+            get_iarray_element(OldBase, I, El),
+            set_iarray_element(ExtendedBase, I, El)
+        ),
+        (
+            for(I, OldCols, OldCols+AddedCols-1),
+            param(ExtendedBase)
+        do
+            set_iarray_element(ExtendedBase, I, 0)
+        ),
+        (
+            for(I0, OldCols, Size-1),
+            for(I1, OldCols+AddedCols, ExtendedSize-1),
+            param(OldBase),
+            param(ExtendedBase)
+        do
+            get_iarray_element(OldBase, I0, El),
+            set_iarray_element(ExtendedBase, I1, El)
+        ).
+	
+    extend_arrays(OldBase, OldSol, OldDjs,
+                  OldCols, AddedCols,
+                  ExtendedBase, ExtendedSol, ExtendedDjs) :-
+        iarray_size(OldBase, Size),
+        ExtendedSize is Size + AddedCols,
+        create_iarray(ExtendedSize, ExtendedBase),
+        darray_size(OldSol, OldCols),
+        darray_size(OldDjs, OldCols),
+        ExtendedDSize is OldCols + AddedCols,
+        create_darray(ExtendedDSize, ExtendedSol),
+        create_darray(ExtendedDSize, ExtendedDjs),
+        (
+            for(I, 0, OldCols-1),
+            param(OldBase, OldSol, OldDjs,
+                  ExtendedBase, ExtendedSol, ExtendedDjs)
+        do
+            get_iarray_element(OldBase, I, Base_i),
+            set_iarray_element(ExtendedBase, I, Base_i),
+            get_darray_element(OldSol, I, Sol_i),
+            set_darray_element(ExtendedSol, I, Sol_i),
+            get_darray_element(OldDjs, I, Dj_i),
+            set_darray_element(ExtendedDjs, I, Dj_i)
+        ),
+        (
+            for(I, OldCols, OldCols+AddedCols-1),
+            param(ExtendedBase, ExtendedSol, ExtendedDjs)
+        do
+            set_iarray_element(ExtendedBase, I, 0),
+            set_darray_element(ExtendedSol, I, 0.0),
+            set_darray_element(ExtendedDjs, I, 0.0)
+        ),
+        (
+            for(I0, OldCols, Size-1),
+            for(I1, OldCols+AddedCols, ExtendedSize-1),
+            param(OldBase, ExtendedBase)
+        do
+            get_iarray_element(OldBase, I0, El),
+            set_iarray_element(ExtendedBase, I1, El)
+        ).
+
+
 % ----------------------------------------------------------------------
 % Solving
 % lp_solve - cplex optimisation is invoked. When it finds a
@@ -3871,6 +3947,10 @@ lp_set1(Handle, order, SpecList) :-
 	make_order_list(SpecList, SId, OrderList, 0, Length),
 	!,
 	cplex_loadorder(CPH, Length, OrderList).
+lp_set1(Handle, sols, RawArr) :-                % undocumented
+        array(RawArr), !,
+	( arg(sols of prob, Handle, RawArr) -> true
+	; setarg(sols of prob, Handle, RawArr) ).
 lp_set1(Handle, cbasis, RawArr) :-		% undocumented
 	array(RawArr), !,
 	( arg(cbase of prob, Handle, RawArr) -> true
@@ -3879,6 +3959,10 @@ lp_set1(Handle, rbasis, RawArr) :-		% undocumented
 	array(RawArr), !,
 	( arg(rbase of prob, Handle, RawArr) -> true
 	; setarg(rbase of prob, Handle, RawArr) ).
+lp_set1(Handle, djs, RawArr) :-                 % undocumented
+        array(RawArr), !,
+	( arg(djs of prob, Handle, RawArr) -> true
+	; setarg(djs of prob, Handle, RawArr) ).
 lp_set1(Handle, suboptimal_handler, Spec) :- !,
         lp_set_state_handler(Handle, subopth of prob, Spec).
 lp_set1(Handle, unbounded_handler, Spec) :- !,

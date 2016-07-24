@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.11 2013/02/08 15:00:52 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.12 2016/07/24 19:34:45 jschimpf Exp $
  */
 
 /*
@@ -894,6 +894,13 @@ ec_gc_dictionary(void)
     {
 	if (DidProc(d))
 	    _mark_dids_from_procs(DidProc(d));
+	if (DidProperties(d))
+	    mark_dids_from_properties(DidProperties(d));
+    }
+
+    for (idx=0; idx <= NTYPES; idx++)	/* mark from the type properties */
+    {
+	d = &dict->tag_did[idx];
 	if (DidProperties(d))
 	    mark_dids_from_properties(DidProperties(d));
     }

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.13 2015/04/02 14:35:46 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.14 2016/07/24 19:34:45 jschimpf Exp $
 *
 
 Supported operations:
@@ -564,19 +564,6 @@ ec_i_div(
     double ul;
     double uu;
     double ll_lu, ul_uu;
-
-    /* Correctly handle division by negative zero */
-    if (yl == 0.0) {
-	/* This will ensure that if yl == 0.0 or yl == -0.0 then
-	   it will be set to 0.0 */
-	yl = 0.0;
-    }
-
-    if (yu == 0.0) {
-	/* This will ensure that if yu == 0.0 or yu == -0.0 then
-	   it will be set to -0.0 */
-	yu = NEGZERO;
-    }
 
     /* If divisor spans zero, nothing to be done */
     if (!samesign(yl, yu)) {

@@ -21,7 +21,7 @@
 // END LICENSE BLOCK
 
  //Title:        Java/ECLiPSe interface
-//Version:      $Id: EclipseConnection.java,v 1.1 2006/09/23 01:54:08 snovello Exp $
+//Version:      $Id: EclipseConnection.java,v 1.2 2016/07/24 19:34:44 jschimpf Exp $
 //Author:       Josh Singer / Stefano Novello
 //Company:      Parc Technologies
 //Description:  Java interface representing a connection to an ECLiPSe engine.
@@ -147,7 +147,7 @@ public interface EclipseConnection
   /**
    * Direct ECLiPSe to compile a named object file.
    *
-   * @param file the path of the ECLiPSe object file which is to be compiled.
+   * @param f file the path of the ECLiPSe object file which is to be compiled.
    *
    * @throws EclipseException if ECLiPSe failed or threw an exception whilst trying
    * to compile the file.

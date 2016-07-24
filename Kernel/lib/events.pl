@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.30 2014/02/05 03:29:16 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.31 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1359,6 +1359,14 @@ postpone_suspensions(Susp) :-
 	error(5, attach_suspensions(postponed, Susp)).
 
 
+%-------------------------------------
+% Dictionary GC
+%-------------------------------------
+
+garbage_collect_stacks_and_dictionary :-
+	garbage_collect,	% cleanup stacks before dictionary marking
+	garbage_collect_dictionary.
+
 
 %-------------------------------------
 % default error handler definitions
@@ -1558,7 +1566,8 @@ postpone_suspensions(Susp) :-
 
 ?- set_event_handler(postponed, trigger/1),
    set_event_handler(requested_fail_event, trigger/1),
-   set_event_handler(garbage_collect_dictionary, garbage_collect_dictionary/0),
+%   set_event_handler(garbage_collect_dictionary, garbage_collect_dictionary/0),
+   set_event_handler(garbage_collect_dictionary, garbage_collect_stacks_and_dictionary/0),
    set_event_handler(abort, throw/1).
 
 reset_error_handlers :-

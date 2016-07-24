@@ -33,7 +33,7 @@
 :- comment(summary, "Mapping from FlatZinc to lib(ic) and lib(ic_sets)").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
 :- comment(copyright, "Cisco Systems Inc, licensed under CMPL").
-:- comment(date, "$Date: 2015/01/14 01:31:09 $").
+:- comment(date, "$Date: 2016/07/24 19:34:45 $").
 :- comment(see_also, [library(flatzinc),
 	library(ic),library(ic_sets),library(ic_global),
 	library(propia),library(branch_and_bound)]).
@@ -289,15 +289,15 @@ bool_xor(X, Y, Z) :- #\=(X, Y, Z).
 bool_not(X, Z) :- neg(X, Z).
 
 % array_bool_???(array[int] of var bool, var bool)
-array_bool_and(Xs, B) :- ic_global:minlist(Xs, B).
-array_bool_or(Xs, B) :- ic_global:maxlist(Xs, B).
+array_bool_and(Xs, B) :- ( Xs==[] -> B=1 ; ic_global:minlist(Xs, B) ).
+array_bool_or(Xs, B) :- ( Xs==[] -> B=0 ; ic_global:maxlist(Xs, B) ).
 
 % bool_clause(array[int] of var bool, array[int] of var bool)
 bool_clause(Ps, Ns) :-
 	bool_clause_reif(Ps, Ns, 1).
 bool_clause_reif(Ps, Ns, B) :-          % OBSOLETE 1.2
-	ic_global:maxlist(Ps, B1),
-	ic_global:minlist(Ns, B2),
+	array_bool_or(Ps, B1),
+	array_bool_and(Ns, B2),
 	#>=(B1,B2,B).
 
 
@@ -495,7 +495,7 @@ cumulative_avint_aint_aint_vint(Ss,Ds,Rs,B) :- ic_edge_finder:cumulative(Ss,Ds,R
 %cumulative_avint_aint_aint_vint(Ss,Ds,Rs,B) :- ic_edge_finder3:cumulative(Ss,Ds,Rs,B).
 
 :- export sort/2.	% to resolve ambiguity with sort/2 builtin
-sort(Xs,Ss) :- ic_global:sorted(Xs, _Ps, Ss).
+sort(Xs,Ss) :- ic_global:sorted(Xs, Ss).
 
 
 :- reexport disjoint/2 from ic_sets.

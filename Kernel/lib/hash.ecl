@@ -26,7 +26,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Stefano Novello, IC-Parc
-% Version:	$Id: hash.ecl,v 1.5 2014/07/05 15:51:27 jschimpf Exp $
+% Version:	$Id: hash.ecl,v 1.6 2016/07/24 19:34:44 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -36,7 +36,7 @@
 :- comment(summary, "Hash table library").
 :- comment(author, "Stefano Novello, IC-Parc").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2014/07/05 15:51:27 $").
+:- comment(date, "$Date: 2016/07/24 19:34:44 $").
 
 :- export(hash_create/1).
 :- export(hash_add/3).
@@ -266,7 +266,7 @@ hash_clone(Old, New) :-
     	" Fail if an entry for Key already exists."]).
 
 hash_insert(H,Key,Elem) :-
-	hash_add(H,Key,Elem,false).
+	hash_set(H,Key,Elem,false).
 
 
 :- comment(hash_set/3, [
@@ -275,10 +275,6 @@ hash_insert(H,Key,Elem) :-
     see_also:[hash_get/3,hash_insert/3,hash_update/4],
     summary:"Add an (or modify the existing) entry with key Key and value Value to the hash table"]).
 
-hash_set(H,Key,Elem) :-
-	hash_add(H,Key,Elem,true).
-
-
 :- comment(hash_add/3, [
     amode:(hash_add(+,++,+) is det),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
@@ -286,9 +282,12 @@ hash_set(H,Key,Elem) :-
     summary:"A synonym for hash_set/3"]).
 
 hash_add(H,Key,Elem) :-
-	hash_add(H,Key,Elem,true).
+	hash_set(H,Key,Elem,true).
 
-hash_add(H,Key,Elem,Replace) :-
+hash_set(H,Key,Elem) :-
+	hash_set(H,Key,Elem,true).
+
+hash_set(H,Key,Elem,Replace) :-
 	H = hash_table{size:Size,nb_elems:Nb,table:T,change:Susps},
 	hash(Key,Size,Index),
 	arg(Index, T, Bucket),
@@ -298,7 +297,7 @@ hash_add(H,Key,Elem,Replace) :-
 	    ( var(Susps) -> true ; notify(H, chg(Key,OldElem, Elem)))	% should be last
 	;
 	    Nb1 is Nb + 1,
-	    MaxNb is Size * 3,
+	    MaxNb is Size * 2,
 	    (Nb1 =< MaxNb ->
 		Match = hash_elem{key:Key,elem:Elem},
 		setarg(nb_elems of hash_table,H,Nb1),
@@ -307,7 +306,7 @@ hash_add(H,Key,Elem,Replace) :-
 		( var(Susps) -> true ; notify(H, add(Key,Elem)))	% should be last
 	    ;
 		grow(H),
-		hash_add(H,Key,Elem)
+		hash_set(H,Key,Elem)
 	    )
 	).
 
@@ -353,7 +352,7 @@ hash_delete(H, Key) :-
     fail_if:"No entry for Key" ]).
 
 hash_contains(H,Key) :-
-	hash_find(H,Key,_).
+	hash_get(H,Key,_).
 
 
 :- comment(hash_get/3, [
@@ -363,10 +362,6 @@ hash_contains(H,Key) :-
     see_also:[hash_create/1,hash_set/3,hash_list/3,hash_contains/2,hash_update/4],
     fail_if:"No entry for Key" ]).
 
-hash_get(H,Key,Elem) :-
-	hash_find(H,Key,Elem).
-
-
 :- comment(hash_find/3, [
     amode:(hash_find(+,++,-) is semidet),
     args:["Table":"A hash table", "Key":"a ground term", "Value":"Any term"],
@@ -375,10 +370,14 @@ hash_get(H,Key,Elem) :-
     fail_if:"No entry for Key" ]).
 
 hash_find(H,Key,Elem) :-
+	hash_get(H,Key,Elem).
+
+hash_get(H,Key,Elem) :-
 	H = hash_table{size:Size,table:T},
 	hash(Key,Size,Index),
 	arg(Index, T, Bucket),
-	member(hash_elem{key:Key,elem:E}, Bucket),
+	member(Entry, Bucket),
+	hash_elem{key:Key,elem:E} = Entry,
 	!,
 	E=Elem.
 
@@ -470,9 +469,10 @@ hash_entry(Hash, Key, Value) :-
 	Hash = hash_table{size:Size,table:T},
 	between(1, Size, 1, Index),
 	arg(Index, T, Bucket),
-	member(hash_elem{key:Key,elem:Value}, Bucket).
+	member(Entry, Bucket),
+	hash_elem{key:Key,elem:Value} = Entry.
 hash_entry(Hash, Key, Value) :-
-	hash_find(Hash, Key, Value).
+	hash_get(Hash, Key, Value).
 
 
 :- comment(hash_last/1, [amode:(hash_last(+) is semidet),

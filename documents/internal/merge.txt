@@ -189,7 +189,7 @@ After resolving the conflicts
 - If any of the "bootfiles" have changed (these are the files that are in
   CVS as precompiled .eco files because they are needed for bootstrapping
   the system), their corresponding .eco files have to be remade.
-  The boofiles are (this list may be out of date):
+  The bootfiles are (this list may be out of date):
 
     Kernel/lib/kernel.pl and all the files it includes
     Kernel/lib/{asm,suspend,module_options,hash,eclipse_language}.{pl,ecl}

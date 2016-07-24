@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.22 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.23 2016/07/24 19:34:45 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -308,7 +308,7 @@ static int     		p_nl(value vs, type ts),
 #endif
 			p_stream_number(value val1, type tag1),
 			p_get_stream(value vi, type ti, value vs, type ts),
-			p_next_open_stream(value v1, type t1, value v2, type t2),
+			p_gen_open_stream(value vprev, type tprev, value v, type t),
 			p_seek(value vs, type ts, value vp, type tp),
 			p_stream_truncate(value vs, type ts),
 			p_stream_info_(value vs, type ts, value vi, type ti, value v, type t),
@@ -431,8 +431,7 @@ bip_io_init(int flags)
 	(void) built_in(in_dict("accept", 3),	p_accept,	B_UNSAFE|U_SIMPLE);
 	built_in(in_dict("stream_select", 3),	p_select,	B_UNSAFE|U_GROUND)
 	    -> mode = BoundArg(3, GROUND);
-	local_built_in(in_dict("next_open_stream", 2),
-			p_next_open_stream, B_UNSAFE|U_GROUND)
+	b_built_in(in_dict("gen_open_stream", 2), p_gen_open_stream, 	d_.kernel_sepia)
 	    -> mode = BoundArg(2, CONSTANT);
 	b_built_in(in_dict("wait", 3), 		p_wait, 	d_.kernel_sepia)
 	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
@@ -643,24 +642,29 @@ ec_get_stream(const pword pw, stream_id* nst)
 
 
 /*
- * next_open_stream(+Stream, -Stream)
- * Auxiliary for enumerating streams, should start with stdin>
+ * gen_open_stream(+Count, -Stream)
+ * Auxiliary for enumerating streams, call with gen_open_stream(0,Stream)
  * 
  */
 static int
-p_next_open_stream(value v1, type t1, value v2, type t2)
+p_gen_open_stream(value vprev, type tprev, value v, type t)
 {
-    int err, i;
     pword hstream;
-    stream_id nst = get_stream_id(v1, t1, 0, &err);
-    if (nst == NO_STREAM) { Bip_Error(err); }
-    i = StreamNr(nst);
+    stream_id nst;
+    Check_Integer(tprev);
+    if (vprev.nint < 0)
+	{  Bip_Error(RANGE_ERROR); }
     do {
-	if (++i >= NbStreams) { Fail_; }
-	nst = StreamId(i);
+	if (vprev.nint >= NbStreams) {
+	    Cut_External;
+	    Fail_;
+	}
+	nst = StreamId(vprev.nint);
+	++vprev.nint;
     } while (!IsOpened(nst) || IsInvalidSocket(nst));
     hstream = StreamHandle(nst);
-    Return_Unify_Pw(v2, t2, hstream.val, hstream.tag);
+    Remember(1, vprev, tprev);
+    Return_Unify_Pw(v, t, hstream.val, hstream.tag);
 }
 
 

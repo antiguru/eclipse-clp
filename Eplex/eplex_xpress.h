@@ -130,13 +130,21 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define CPXgetnumqpnz(E,A1)		xprs_getintattr(A1, XPRS_QELEMS)
 
 # define SUPPORT_IIS
+# if XPRESS <= 20
 # define Find_Conflict(Err, L, NRows, NCols) { \
 	Err = XPRSiis(L, ""); \
         if (!Err) Err = XPRSgetiis(L, &(NCols), &(NRows), NULL, NULL); \
 }
-
 # define Get_Conflict(L, Status, RowIdxs, RowStat, Nrows_p, ColIdxs, ColStat, Ncols_p)  \
 	Status = XPRSgetiis(L, Ncols_p, Nrows_p,  ColIdxs, RowIdxs)
+# else
+# define Find_Conflict(Err, L, NRows, NCols) { \
+	Err = XPRSiisfirst(L, 1, &Err); \
+        if (!Err) Err = XPRSgetiisdata(L, 1, &(NRows), &(NCols), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL); \
+}
+# define Get_Conflict(L, Status, RowIdxs, RowStat, Nrows_p, ColIdxs, ColStat, Ncols_p)  \
+	Status = XPRSgetiisdata(L, 1, Nrows_p,  Ncols_p, RowIdxs, ColIdxs, NULL, NULL, NULL, NULL, NULL, NULL)
+# endif
 
 # define Get_Feasibility_Tolerance(E,L,T) XPRSgetdblcontrol((L)->lp, XPRS_FEASTOL, T)
 
@@ -157,10 +165,6 @@ int XPRS_CC XPRSpostsolve(XPRSprob prob);
 # define Get_Primal_Infeas(lp, v) XPRSgetintattrib(lp, XPRS_PRIMALINFEAS, v)
 
 # define SetPreSolve(state) 
-
-#ifdef XPRESS_OEM_ICPARC_2002
-# include "xprsoem.h"
-#endif
 
 
 # define Get_Xp_Stat(lpd) \

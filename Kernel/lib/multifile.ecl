@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: multifile.ecl,v 1.3 2013/02/04 14:52:11 jschimpf Exp $
+% Version:	$Id: multifile.ecl,v 1.4 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(multifile).
@@ -31,7 +31,7 @@
 :- comment(summary, "Multifile declaration, for Prolog compatibility").
 :- comment(author, "Joachim Schimpf, Coninfer Ltd").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2013/02/04 14:52:11 $").
+:- comment(date, "$Date: 2016/07/24 19:34:44 $").
 :- comment(desc, html("
 	This library implements the multifile/1 declaration, and allows clauses
 	for multifile predicates to be prefixed with their module name.
@@ -69,8 +69,15 @@ multifile_(P, Module) :-
 % Support Quintus-style "qualified clauses" (for dynamic/multifile predicates only)
 
 :- export macro((:)/2, t_colon_clause/3, [clause]).
-
-t_colon_clause(((Module:Head):-Body), NewClause, CM) ?-
+:- export macro((:)/4, t_colon_clause/3, [clause]).
+t_colon_clause(((Module:Head):-Body), NewClause, CM) ?- !,
+	t_colon_clause((Module:(Head:-Body)), NewClause, CM).
+t_colon_clause((:(Module,DCGHead,S0,S):-Body), NewClause, CM) ?- !,
+	% Assume this was the result of a "qualified grammar rule" like
+	% Module:DCGHead --> Body
+	DCGHead =.. [Name|DCGArgs],
+	append(DCGArgs, [S0,S], Args),
+	Head =.. [Name|Args],
 	t_colon_clause((Module:(Head:-Body)), NewClause, CM).
 t_colon_clause(Module:Clause, NewClause, CM) :-
 	( Module == CM ->

@@ -192,14 +192,6 @@ Some state must be saved/restored across the notification handlers.
 
 
 
-Tracing delay/wake
-------------------
-Make make_suspension (DELAY) regular so we can call the tracer.
-Or raise a suspend-event in make_suspension and make the handler
-the trace routine. The suspension must be a parameter.
-Its invocation number field can be set from Prolog in the tracer.
-
-
 Selective trace modes
 ---------------------
 
@@ -248,8 +240,8 @@ simplification of the abstract machine ...)
 
 
 Debug_call (instruction for new compiler -- support source tracing)
-        sets DBG_PRI,DBG_PORT,DBG_INVOC,DBG_PATH,DBG_LINE,DBG_FROM,DBG_TO, and
-        raises event
+        sets DBG_PRI,DBG_PORT,DBG_INVOC,DBG_PATH,DBG_LINE,DBG_FROM,DBG_TO,
+	and raises event
 
 Call-instruction
 	sets up call and goes to event handler
@@ -272,13 +264,39 @@ restore_code_debug
 	continuation after debugger is restore_code
 
 restore_code
-	restore call state
+	restore call state from environment
 	insert trap for exit tracing
 
 The method of inserting a 'trap' for exit notification is not the fastest
 but the most robust one (wrt to getting out of sync with call/exits).
 The trap consists of pushing a return address that points to code that
 generates the exit notification, and then returns to the original point.
+
+
+* Metacall tracing
+If tracing needed, the metacall directly creates the save-environment with
+areguments and DBG_XXX fields, then goes to handle non-debug events,
+then restore_code_debug.
+
+* Wake tracing
+Like metacall tracing
+
+
+Tracing DELAY
+------------------
+--- Regular delay:
+We raise a DEBUG_DELAY_EVENT in make_suspension/3,4 and make the handler
+the trace routine.  The event is raised after the suspension has been made
+and assigned it an invocation number.
+
+An alternative would be to make make_suspension regular,
+so we can simply call the tracer afterwards.
+
+-- Delay inside external:
+Delays inside externals are traced by the external returning DEBUG_SUSP_EVENT
+instead of PSUCCEED.  The handler retrieves a list of new suspensions
+(using LD and DBG_DELAY_INVOC), and traces them.
+
 
 
 Emulator mechanism for redo notification
@@ -305,6 +323,21 @@ stack frames that have the L flag set.
 
 This is fragile as it relies on F/L flags being always correct and
 never missing anywhere. Difficulties with hidden predicates for example.
+
+
+Tracing of simple (emulator) builtins
+--------------------------------------------------------------
+Example:
+    debug_call_simple        arity/2 1 string 1 7 13 -1 2 
+    bi_arity                 a(1) a(1) 4 
+    debug_exit_simple        0 ref(L0) 
+
+The debug_xxx_simple instructions push/manipulate the top trace frame
+directly, then raise an event as if raised by the builtin itself:
+DEBUG_BIPCALL_EVENT
+DEBUG_BIPEXIT_EVENT
+The handlers do not receive any arguments, they access the trace stack
+directly.
 
 
 Tracing of simple (emulator) builtins

@@ -25,7 +25,7 @@
 
 :- module(minizinc).
 
-:- comment(date, "$Date: 2012/10/23 00:38:15 $").
+:- comment(date, "$Date: 2016/07/24 19:34:45 $").
 :- comment(categories, ["Interfacing","Constraints"]).
 :- comment(summary, "Utilities for using MiniZinc with ECLiPSe").
 :- comment(author, "Joachim Schimpf, supported by Cisco Systems and NICTA Victoria").
@@ -299,15 +299,15 @@ solver mapping. The following table shows the mapping used with fzn_ic
 	    get_flag(hostarch, Arch),
 	    getval(here, Here),
 	    findall(Dir2, (
-		    ( Dir1 = "$ECLIPSEMZN/"
-		    ; Dir1 = "$HOME/"
-		    ; Dir1 = "$HOMEPATH/"
-		    ; concat_string([Here,Arch,/], Dir1)
-		    ; concat_string([EclDir,"/lib_public/",Arch,/], Dir1)
-		    ; concat_string([EclDir,"/lib/",Arch,/], Dir1)
-		    ; concat_string([EclDir,"/"], Dir1)
-		    ; concat_string([EclDir,"/../"], Dir1)
-		    ; Dir1 = "$PROGRAMFILES/"
+		    ( getenv("ECLIPSEMZN", Dir1)
+		    ; getenv("HOME", Dir1)
+		    ; getenv("HOMEPATH", Dir1)
+		    ; concat_string([Here,Arch], Dir1)
+		    ; concat_string([EclDir,"/lib_public/",Arch], Dir1)
+		    ; concat_string([EclDir,"/lib/",Arch], Dir1)
+		    ; Dir1=EclDir
+		    ; concat_string([EclDir,"/.."], Dir1)
+		    ; getenv("PROGRAMFILES", Dir1)
 		    ),
 		    canonical_path_name(Dir1, Dir2)
 		), Dirs),
@@ -320,7 +320,7 @@ solver mapping. The following table shows the mapping used with fzn_ic
                     read_directory(Dir, "", SubDirs0, _),
                     sort(0, >=, SubDirs0, SubDirs),	% attempt to prefer newer ones
                     member(Sub, SubDirs),
-                    member(Prefix, ["minizinc-","MiniZinc "]),
+                    member(Prefix, ["minizinc-","MiniZinc ","MiniZinc-","MiniZincIDE-"]),
                     substring(Sub, Prefix, 1),
                     concat_string([Dir,Sub,/], MznDir)
                 ),
@@ -334,6 +334,8 @@ solver mapping. The following table shows the mapping used with fzn_ic
 		( concat_string([MznDir,"bin/private/mzn2fzn"], Mzn2Fzn)
 		; concat_string([MznDir,"bin/actual/mzn2fzn"], Mzn2Fzn)
 		; concat_string([MznDir,"bin/private/mzn2fzn-actual"], Mzn2Fzn)
+		; concat_string([MznDir,"bin/mzn2fzn"], Mzn2Fzn)
+		; concat_string([MznDir,"mzn2fzn"], Mzn2Fzn)
 		),
 		existing_file(Mzn2Fzn, ["",".exe"], [readable], _Mzn2FznExe)
 	    ->
@@ -650,7 +652,7 @@ mzn_load_string(MznModel, SolverOrOptions, ParMap, VarMap, State) :-
     amode:(mzn_load(++,++,++,+,-) is semidet),
     args:["ModelFile":"File name (extension defaults to .mzn)",
 	"SolverOrOptions":"Name of solver mapping module, or zn_options-structure",
-	"ParMap":"List of FznId=ECLiPSeGroundTerm correspondences",
+	"InstFileOrParMap":"Instance file name (extension defaults to .dzn, then .mzn), or list of FznId=ECLiPSeGroundTerm correspondences",
 	"VarMap":"List of FznId=ECLiPSeVarTerm correspondences",
 	"FznState":"FlatZinc state descriptor"],
     fail_if:"Fails if the constraint setup fails",
@@ -664,6 +666,7 @@ mzn_load_string(MznModel, SolverOrOptions, ParMap, VarMap, State) :-
 	of a list of FznId=ECLiPSeGroundTerm correspondences.  Here, FznId
 	is an atom (the FlatZinc parameter identifier within the model),
 	and ECLiPSeGroundTerm is the corresponding ECLiPSe constant.
+	Alternatively, an instance file can be specified.
     </P><P>
     	To access the ECLiPSe variables corresponding to the model's
 	variables, VarMap can be given, consisting of a list of
@@ -709,17 +712,21 @@ mzn_load_string(MznModel, SolverOrOptions, ParMap, VarMap, State) :-
     Yes (0.03s cpu, solution 1, maybe more)
 </PRE>
 "]).
-mzn_load(MznFile, SolverOrOptions, ParMap, VarMap, State) :-
+mzn_load(MznFile, SolverOrOptions, ParMapOrFile, VarMap, State) :-
 	zn_options(SolverOrOptions, Options),
-	pars_to_instancefile(ParMap, MznInstFile, Options),
-	mzn2fzn(MznFile, MznInstFile, Options, FznStream, PidOrFile),
+	( is_list(ParMapOrFile) ->
+	    pars_to_instancefile(ParMapOrFile, TmpMznInstFile, Options),
+	    mzn2fzn(MznFile, TmpMznInstFile, Options, FznStream, PidOrFile)
+	;
+	    mzn2fzn(MznFile, ParMapOrFile, Options, FznStream, PidOrFile)
+	),
 	fzn_init(Options, State),
 	( block(fzn_load_stream(FznStream, State), Tag,
-		(mzn_load_cleanup(PidOrFile, MznInstFile), exit_block(Tag)))
+		(mzn_load_cleanup(PidOrFile, TmpMznInstFile), exit_block(Tag)))
 	->
-	    mzn_load_cleanup(PidOrFile, MznInstFile)
+	    mzn_load_cleanup(PidOrFile, TmpMznInstFile)
 	;
-	    mzn_load_cleanup(PidOrFile, MznInstFile),
+	    mzn_load_cleanup(PidOrFile, TmpMznInstFile),
 	    fail
 	),
 	fzn_ids_to_ecl_vars(VarMap, State).
@@ -858,16 +865,20 @@ mzn2fzn(ModelFile0, DataFile0, zn_options{solver:Solver,fzn_tmp:OutFlag}, FznStr
 	os_file_name(EclZincSolverSpecificLib, EclZincSolverSpecificLibOS),
 	getval(minizinc_dir, MznDir),
 	getval(mzn2fzn_exe, Mzn2Fzn),
-	( MznDir == '' ->
-	    % Hope the exectuable knows its stdlib-dir
-	    Params = ["-I",EclZincSolverSpecificLibOS|Params0]
-	;
-	    % Assume we are calling the mzn2fzn-actual exectuable
+	(
+	    MznDir \== '',
+	    ( SubDir="lib" ; SubDir="share" ),
+	    concat_string([MznDir, SubDir, "/minizinc"], ZincDefaultLib),
+	    exists(ZincDefaultLib)
+	->
+	    % Assume we are calling the mzn2fzn exectuable
 	    % without any environment variable setting
-	    concat_string([MznDir, "lib/minizinc"], ZincDefaultLib),
 	    os_file_name(ZincDefaultLib, ZincDefaultLibOS),
 	    Params = ["-I",EclZincSolverSpecificLibOS,
 		      "--stdlib-dir",ZincDefaultLibOS|Params0]
+	;
+	    % Hope the exectuable knows its stdlib-dir
+	    Params = ["-I",EclZincSolverSpecificLibOS|Params0]
 	),
 	( OutFlag==file ->
 	    % use intermediate fzn file, and echo any stderr on error

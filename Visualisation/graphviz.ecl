@@ -22,7 +22,7 @@
 
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: graphviz.ecl,v 1.4 2009/07/17 15:51:33 kish_shen Exp $
+% Version:	$Id: graphviz.ecl,v 1.5 2016/07/24 19:34:45 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(graphviz).
@@ -30,22 +30,19 @@
 :- comment(categories, ["Interfacing","Visualisation"]).
 :- comment(summary, "Interface to Graphviz Graph Drawing Programs from AT&T").
 :- comment(author, "Andrew J Sadler and Joachim Schimpf, IC-Parc").
-:- comment(date, "$Id: graphviz.ecl,v 1.4 2009/07/17 15:51:33 kish_shen Exp $").
+:- comment(date, "$Id: graphviz.ecl,v 1.5 2016/07/24 19:34:45 jschimpf Exp $").
 :- comment(desc, html("
     This library provides an interface to the Graphviz Graph Drawing Programs
-    from AT&T. Graphviz is subject to the following notice:
+    from AT&T (<A HREF=\"http://www.graphviz.org\">www.graphviz.org</A>).
 <P>
-   This  product  contains  certain  software  code or other information
-   (\"AT&T  Software\")  proprietary  to  AT&T  Corp.  (\"AT&T\").  The  AT&T
-   Software  is  provided to you \"AS IS\". YOU ASSUME TOTAL RESPONSIBILITY
-   AND  RISK  FOR  USE  OF  THE  AT&T  SOFTWARE.  AT&T DOES NOT MAKE, AND
-   EXPRESSLY  DISCLAIMS,  ANY  EXPRESS  OR IMPLIED WARRANTIES OF ANY KIND
-   WHATSOEVER,  INCLUDING,  WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
-   MERCHANTABILITY  OR  FITNESS  FOR  A PARTICULAR PURPOSE, WARRANTIES OF
-   TITLE  OR  NON-INFRINGEMENT  OF  ANY INTELLECTUAL PROPERTY RIGHTS, ANY
-   WARRANTIES  ARISING  BY USAGE OF TRADE, COURSE OF DEALING OR COURSE OF
-   PERFORMANCE, OR ANY WARRANTY THAT THE AT&T SOFTWARE IS \"ERROR FREE\" OR
-   WILL MEET YOUR REQUIREMENTS.
+    Graphviz itself must be downloaded and installed separately.  It is
+    readily available for most operating systems, and subject to the
+    open-source <A HREF=\"http://www.graphviz.org/License.php\">Eclipse Public Licence</A>.
+<P>
+    The predicates in this library take graph data structures as defined by
+    library(graph_algorithms), invoke graphviz's layout tools, and output
+    the generated drawing in various file formats (which can then be viewed
+    in a browser of dedicated viewer), or invoke a simple viewer directly.
     ")).
 
 :- lib(module_options).
@@ -145,6 +142,8 @@ view_graph_(Graph,Module):-
     This predicate takes a graph, applies one of the graphviz layout routines
     to it, and displays the result in a viewer window.
     <P>
+    The viewer is an application called grappa, which requires Java.
+    <P>
     Possible options are:
     <DL>
     <DT>graph_attrs</DT>
@@ -229,7 +228,7 @@ view_graph_(Graph,Options,Module):-
     again with the same file name, the viewer will re-load the file
     WITHOUT creating a new window.<P>
 
-    This predicate can be very usefull for displaying graph structures
+    This predicate can be very useful for displaying graph structures
     which change over time.<P>
 
     NOTE: This predicate will sleep for one second to give the viewer
@@ -248,15 +247,21 @@ view_graph_(Graph,Options,File,Module):-
             % Use the filename given
             true
         ),
+	get_temp_filename(AuxFile),
         (exists(File) ->
             % do not start a new viewer
-            write_graph_valid(Graph,File,dot,ValidOptions, Module),
+            write_graph_valid(Graph,AuxFile,dot,ValidOptions, Module),
+	    fix_syntax_for_grappa(AuxFile, File),
+	    delete(AuxFile),
             sleep(1)
         ;
-            write_graph_valid(Graph,File,dot,ValidOptions, Module),
+            write_graph_valid(Graph,AuxFile,dot,ValidOptions, Module),
+	    fix_syntax_for_grappa(AuxFile, File),
+	    delete(AuxFile),
             start_viewer(File)
         ),
         true.
+
 
 :- comment(write_graph/2, [
     summary:"Write a picture of a graph as a postscript file",
@@ -288,9 +293,35 @@ write_graph_(Graph,File,Module):-
     args:[
 	"Graph":"A graph structure",
 	"File":"A file name",
-	"Format":"An atom (ps,dot,png,gif,...)"
+	"Format":"An atom (dot,gv,eps,gif,jpg,pdf,png,svg,...)"
     ],
     see_also:[write_graph/2,write_graph/4,view_graph/2,library(graph_algorithms)],
+    desc:html("
+    This predicate takes a graph, applies one of the graphviz layout routines
+    to it, and writes the result to a file is a given format.
+    <P>
+    Some possible formats are:
+    <DL>
+    <DT>dot,gv,xdot</DT><DD>
+        Graphviz own formats</DD>
+    <DT>eps</DT><DD>
+        Encapsulated Postscript</DD>
+    <DT>gif</DT><DD>
+        GIF bitmaps</DD>
+    <DT>jpg</DT><DD>
+        JPEG compressed images</DD>
+    <DT>pdf</DT><DD>
+        PDF Portable Document Format</DD>
+    <DT>plain</DT><DD>
+        A human-readable representation</DD>
+    <DT>png</DT><DD>
+	PNG (Portable Network Graphics)</DD>
+    <DT>svg</DT><DD>
+	SVG Scalable Vector Graphics</DD>
+    </DL>
+    Many of these formats can be displayed by web browsers or by dedicated
+    viewers.  See the graphviz documentation for details and additional formats.
+    "),
     eg:"
     ?- lib(graph_algorithms), lib(graphviz).
     Yes (1.17s cpu)
@@ -317,7 +348,7 @@ write_graph_(Graph,File,Format,Module):-
     args:[
 	"Graph":"A graph structure",
 	"File":"A file name",
-	"Format":"An atom (ps,dot,png,gif,...)",
+	"Format":"An atom (dot,gv,eps,gif,jpg,pdf,png,svg,...)",
 	"Options":"A list of Option:Value pairs"
 
     ],
@@ -328,8 +359,27 @@ write_graph_(Graph,File,Format,Module):-
     <P>
     Possible options are as specified in view_graph/2.
     <P>
-    Some possible formats are: ps, dot, png, gif, ...  See the graphviz
-    documentation for details.
+    Some possible formats are:
+    <DL>
+    <DT>dot,gv,xdot</DT><DD>
+        Graphviz own formats</DD>
+    <DT>eps</DT><DD>
+        Encapsulated Postscript</DD>
+    <DT>gif</DT><DD>
+        GIF bitmaps</DD>
+    <DT>jpg</DT><DD>
+        JPEG compressed images</DD>
+    <DT>pdf</DT><DD>
+        PDF Portable Document Format</DD>
+    <DT>plain</DT><DD>
+        A human-readable representation</DD>
+    <DT>png</DT><DD>
+	PNG (Portable Network Graphics)</DD>
+    <DT>svg</DT><DD>
+	SVG Scalable Vector Graphics</DD>
+    </DL>
+    Many of these formats can be displayed by web browsers or by dedicated
+    viewers.  See the graphviz documentation for details and additional formats.
     "),
     eg:"
     ?- lib(graph_algorithms), lib(graphviz).
@@ -358,16 +408,11 @@ write_graph_(Graph,File,Format,Options,Module):-
         write_graph_valid(Graph, File1, Format, ValidOptions, Module).
 
 
-get_layout_command(Layout,[Command,"-Geclipse"]):-
+get_layout_command(Layout,[Command]):-
         memberchk(Layout,[dot,neato,twopi]),
-        !,
-	get_flag(hostarch, ARCH),
-        ( (ARCH=="i386_nt" ; ARCH=="x86_64_nt") ->
-            atom_string(Layout,Command)
-        ;
-            get_flag(installation_directory, ECLIPSEDIR),
-            join_string([ECLIPSEDIR,lib,ARCH,Layout], "/", Command)
-        ).
+	!,
+	getval(cmd_prefix, CmdPrefix),
+	concat_string([CmdPrefix,Layout], Command).
 get_layout_command([Layout|Rest],Command):-
         !,
         get_layout_command(Layout,LayoutCommand),
@@ -483,7 +528,7 @@ write_graph_stream(Graph, S, ValidOptions, Module):-
 	    ),
 	    writeln_attrs(S, FromString->ToString, EAttrs)
 	),
-        writeln(S, "};").
+        writeln(S, "}").
 
 
 % default_node_label(+Graph, +Node, -LabelString)
@@ -585,6 +630,92 @@ get_java_command(MainClass, Args,
 
     % max size of the virtual machine in megabytes
     java_vm_size(256).
+
+
+
+% Find out how to call dot, and whether it is installed at all.
+% Store required path prefix in cmd_prefix.
+
+:- local initialization(find_graphviz_dir).
+:- local variable(cmd_prefix, "").
+
+find_graphviz_dir :-
+	(
+	    (
+		% first check in our own lib directory
+		get_flag(hostarch, ARCH),
+		get_flag(installation_directory, ECLIPSEDIR),
+		join_string([ECLIPSEDIR,lib,ARCH], "/", BinDir)
+	    ; 
+		% Try Windows install locations
+		( Att=[] ; Att=["ATT"] /*older*/ ),
+		( getenv("PROGRAMFILES",Dir) ; getenv("PROGRAMFILES(X86)",Dir) ),
+		join_string([Dir|Att], "/", ProgramDir),
+		exists(ProgramDir),
+		read_directory(ProgramDir, "", SubDirs, _),
+		member(SubDir, SubDirs),
+		substring(SubDir, "Graphviz", 1),
+		join_string([Dir,SubDir,bin], "/", BinDir)
+	    ),
+	    concat_strings(BinDir, "/", CmdPrefix),
+	    existing_file(CmdPrefix, ["dot","dot.exe"], [executable], Command)
+	;
+	    % rely on PATH
+	    CmdPrefix = "", Command = "dot"
+	),
+	catch(exec([Command,"-V"], [null,null,Err]), _, (
+		printf(warning_output, "Could not find GraphViz installation."
+		    "Please download from graphviz.org and install before continuing.", []),
+		    fail)),
+	setval(cmd_prefix, CmdPrefix),
+	read_string(Err, end_of_file, _, Msg),
+	writeln(log_output, Msg).
+		
+
+% Fix dot-file syntax by quoting all unquoted float attributes.
+% This workaround is needed because starting with about graphviz 2.30,
+% dot outputs unquoted floats, which grappa doesn't understand.
+% It would be better to fix grappa, but that isn't straightforward.
+
+fix_syntax_for_grappa(InFile, OutFile) :-
+	open(InFile, read, In),	
+	open(OutFile, write, Out),	
+	get(In, C),
+	repair_start(C, In, Out),
+	close(In),
+	close(Out).
+
+    repair_start(-1, _In, _Out) :- !.
+    repair_start(0'=, In, Out) :- !, put(Out, 0'=), get(In, C), repair_attr(C, In, Out).
+    repair_start(0'", In, Out) :- !, put(Out, 0'"), get(In, C), repair_quoted(C, In, Out).
+    repair_start(C, In, Out) :- put(Out, C), get(In, C1), repair_start(C1, In, Out).
+
+    repair_quoted(-1, _In, _Out) :- !.
+    repair_quoted(0'", In, Out) :- !, put(Out, 0'"), get(In, C), repair_start(C, In, Out).
+    repair_quoted(0'\, In, Out) :- !, put(Out, 0'\), get(In, C), repair_escaped(C, In, Out).
+    repair_quoted(C, In, Out) :- put(Out, C), get(In, C1), repair_quoted(C1, In, Out).
+    	
+    repair_escaped(-1, _In, _Out) :- !.
+    repair_escaped(EC, In, Out) :- put(Out, EC), get(In, C), repair_quoted(C, In, Out).
+    	
+    repair_attr(N, In, Out) :- 0'0 =< N, N =< 0'9, !, get(In, C), repair_number(C, In, Out, [N|Ns], Ns).
+    repair_attr(C, In, Out) :- repair_start(C, In, Out).
+
+    repair_number(-1, _In, Out, Ns, []) :- !, output_chars(Out, Ns).
+    repair_number(N,   In, Out, Ns, [N|Ns0]) :- 0'0 =< N, N =< 0'9, !, get(In, C), repair_number(C, In, Out, Ns, Ns0).
+    repair_number(0'., In, Out, Ns, [0'.|Ns0]) :- !, get(In, C), repair_float(C, In, Out, Ns, Ns0).
+    repair_number(C, In, Out, Ns, [C]) :- output_chars(Out, Ns), get(In, C1), repair_start(C1, In, Out).
+
+    repair_float(-1, _In, Out, Ns, []) :- !, output_quoted_chars(Out, Ns).
+    repair_float(N,   In, Out, Ns, [N|Ns0]) :- 0'0 =< N, N =< 0'9, !, get(In, C), repair_float(C, In, Out, Ns, Ns0).
+    repair_float(T,   In, Out, Ns, []) :- (T=0', ; T=0'; ; T=0']), !, output_quoted_chars(Out, Ns), put(Out, T), get(In, C), repair_start(C, In, Out).
+    repair_float(C, In, Out, Ns, [C]) :- output_chars(Out, Ns), get(In, C1), repair_start(C1, In, Out).
+
+    output_chars(_Out, []).
+    output_chars(Out, [C|Cs]) :- put(Out, C), output_chars(Out, Cs).
+
+    output_quoted_chars(Out, Cs) :- put(Out, 0'"), output_chars(Out, Cs), put(Out, 0'").
+
 
 
 /*

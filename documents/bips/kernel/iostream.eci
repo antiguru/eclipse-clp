@@ -1280,6 +1280,10 @@ Error:
                     when_lost,    - its stream handle becomes inaccessible
                     when_closed   - the stream is closed in any way
 
+    encoding        octet,        character encoding used by this stream
+                    iso_latin_1,
+                    ...
+
     end_of_line     lf, crlf      which end-of-line sequence to write
 
     eof_action      eof_code,     how to react to end-of-file

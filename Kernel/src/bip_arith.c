@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION    $Id: bip_arith.c,v 1.24 2015/04/02 03:35:08 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.25 2016/07/24 19:34:45 jschimpf Exp $
  */
 
 /*
@@ -623,6 +623,11 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 	    }
 	    cur_coeff = &cur_mono[OFF_CONST];
 	    Dereference_(cur_coeff);
+	    if (!IsNumber(cur_coeff->tag))
+	    {
+		err= IsRef(cur_coeff->tag) ? INSTANTIATION_FAULT : ARITH_TYPE_ERROR;
+		goto _error_;
+	    }
 	    cur_var = &cur_mono[OFF_VAR];
 	    Dereference_(cur_var);
 

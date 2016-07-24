@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: document.ecl,v 1.14 2015/04/04 22:07:15 jschimpf Exp $
+% Version:	$Id: document.ecl,v 1.15 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(document).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for generating documentation from ECLiPSe sources").
-:- comment(date, "$Date: 2015/04/04 22:07:15 $").
+:- comment(date, "$Date: 2016/07/24 19:34:44 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Kish Shen and Joachim Schimpf, IC-Parc").
 :- comment(status, stable).
@@ -777,13 +777,14 @@ gen_library_page_html(HtmlDir, LibName, LibTitle, LibPreds, LibStructs, OtherCom
 	    param(Stream)
 	do
 	    ( Tmpl0 = [_|_] -> join_string(Tmpl0, ", ", Tmpl) ; Tmpl = Tmpl0 ),
+	    htmlify_string(Tmpl, TmplH),
 	    ( var(File) ->
 		printf(Stream, "<DT><STRONG>%w</STRONG></DT>%n<DD>%w</DD>%n",
-		    [Tmpl,Summ])
+		    [TmplH,Summ])
 	    ;
 		printf(Stream,
 		    "<DT><A HREF=\"%w\"><STRONG>%w</STRONG></A></DT>%n<DD>%w</DD>%n",
-		    [File,Tmpl,Summ])
+		    [File,TmplH,Summ])
 	    )
 	    
 	),
@@ -999,13 +1000,14 @@ eci_stream_to_html(EciStream, HtmlDir, LibName, LibTitle, LibPreds, LibStructs, 
 	    fromto(OtherExports,OtherExports1,OtherExports0,[]),
 	    param(LibPreds2,LibStructs2,Hidden)
 	do
-	    ( Export = _/_ ->
+	    ( Export = Name/Arity ->
 		( memberchk(pred(Export,_Tmpl,_Summ,_File), LibPreds2) ->
 		    LibPreds4=LibPreds3
 		; memberchk(Export, Hidden) ->
 		    LibPreds4=LibPreds3
 		;
-		    default_template(Export, Tmpl),
+		    default_template(Export, Mode),
+		    construct_onepred_template(Name, Arity, [], Mode, Tmpl),
 		    LibPreds4=[pred(Export,Tmpl,"No description available",_)|LibPreds3]
 		),
 		LibStructs4 = LibStructs3,
@@ -1720,7 +1722,10 @@ gen_html_file(Header, HtmlDir, LibTitle, LibName, Page, HtmlFile) :-
 	chmod644(FullHtmlFile),
 %	writeln(log_output, making:FullHtmlFile),
 	printf(S, "<HTML><HEAD>", []),
-	printf(S, "<TITLE>%w</TITLE>%n", [Tmpl]),
+	( Tmpl = [Tmpl1|_] -> htmlify_string(Tmpl1, TmplH)
+	; htmlify_string(Tmpl, TmplH)
+	),
+	printf(S, "<TITLE>%w</TITLE>%n", [TmplH]),
 	printf(S, "</HEAD>", []),
 	printf(S, "<BODY>", []),
 	printf(S, "[ <A HREF=\"index.html\">%w</A> | %w ]%n", [LibTitle,Header]),
@@ -1741,10 +1746,12 @@ gen_html_body(S, LibName, pdoc{
 	    desc:Desc,chp:Chp,fail:Fail,exc:Exc,eg:Exmp,see:See,tool:Tool}) :-
 	( Temp = [_|_] ->
 	    ( foreach(T,Temp), param(S) do
-		printf(S, "<H1>%w</H1>%n", [T])
+		htmlify_string(T, TH),
+		printf(S, "<H1>%w</H1>%n", [TH])
 	    )
 	;
-	    printf(S, "<H1>%w</H1>%n", [Temp])
+	    htmlify_string(Temp, TempH),
+	    printf(S, "<H1>%w</H1>%n", [TempH])
 	),
 
 	html_write_par(S, Onel),
@@ -2036,15 +2043,15 @@ ascii_print_ref(S, Lib, bip(N, A, System, Group, _File)) ?-
 
 
 :- export htmlify_string/2.
-htmlify_string(In, Out) :-
-	string_list(In, InList),
-	htmlify_list(InList, OutList),
-	string_list(Out, OutList).
-
-htmlify_list([], []).
-htmlify_list([C|Cs], HtmlCs) :-
-	htmlify(C, HtmlCs, HtmlCs0),
-	htmlify_list(Cs, HtmlCs0).
+htmlify_string(In, Out) :- atom(In),
+	atom_string(In, InS),
+	htmlify_string(InS, Out).
+htmlify_string(In, Out) :- string(In),
+	( for(I,1,string_length(In)), fromto(Outs,Outs1,Outs2,[]), param(In) do
+	    string_code(I, In, C),
+	    htmlify(C, Outs1, Outs2)
+	),
+	string_list(Out, Outs).
 
 htmlify(0'>, [0'&,0'g,0't,0';|Cs], Cs) :- !.
 htmlify(0'<, [0'&,0'l,0't,0';|Cs], Cs) :- !.

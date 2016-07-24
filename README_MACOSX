@@ -11,7 +11,7 @@ need the binary files described here.
 
 Note that the PowerPC and Intel versions of Mac OS X are distinguished by
 ECLiPSe; the Power PC version is ppc_macosx, and the Intel version is 
-i386_macosx. (32 bit) and x86_64_macosx (64 bit).
+i386_macosx (32 bit) and x86_64_macosx (64 bit).
 
 Unpacking
 ---------
@@ -39,10 +39,11 @@ Optional:
                                 CLP and CBC
 
 Support:
-    tcltk.tgz			A matching Tcl/Tk release (8.5) 
-    				(you may have that already - but this version
-			        has X11 support, and Mac Tcl/Tk 8.5 prior to 
-				8.5.7 has a bug and does not work with ECLiPSe)
+    tcltk.tgz			A matching Tcl/Tk release (8.5).
+                                Tcl/Tk may already be installed on your
+                                Mac, but may be incompatible with this
+                                ECLiPSe binary. In addition, X11 support
+                                is provided in this version.
 				Needed for the tkeclipse development GUI.
     editors_eclipse_support.tgz Support for various editors for editing
                                 ECLiPSe code.       
@@ -116,6 +117,16 @@ If you use the ECLiPSe embeddable library, your may have to set
 DYLD_LIBRARY_PATH to include <eclipsedir>/lib/<arch> to enable
 the dynamic linker to find it.
 
+This binary is built with GNU GCC and its tool chain, and not the 
+current Xcode C compiler (clang). There have been reports of 
+incompatibilities if ECLiPSe try to load dynamic libraries built with
+the new Xcode. If you get an error message running ECLiPSe (in particular
+tkeclipse), it is probably due to this incompatibility. Note that the
+error message may be inaccurate as it can report a problem with the
+wrong library with an incorrect absolute path. If you have problems with
+running tkeclipse, make sure that you are using the matching Tcl/Tk package,
+rather than the system's Tcl/Tk, even if the error message is not about
+Tcl/Tk related libraries. 
 
 Further notes on installation
 -----------------------------

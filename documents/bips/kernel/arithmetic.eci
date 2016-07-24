@@ -1307,16 +1307,49 @@ with Result.
 </PRE>
     which should be preferred for portability.
 <P>
-   The result type of the division depends on the value of the global flag
-   prefer_rationals.  When it is off, the result is a float,
-   when it is on, the result is a rational.  In coroutining mode, if
-   Number1 or Number2 are uninstantiated, the call to //3 is delayed until
-   these variables are instantiated.
+   If both arguments are integers, then the result is of type float
+   by default (coinciding with ISO-Prolog).  This can be changed by
+   switching the global flag 'prefer_rationals' to 'on': the result
+   is then of rational type, and therefore precise.  In practice,
+   a better way to enforce a rational result is by explicitly
+   converting one or both arguments to a rational before dividing,
+   e.g. Z is rational(X)/Y.
+<P>
+   The following table details the behaviour on zero-division,
+   depending on the argument types.  The exact result depends on
+   the result's type ability to represent extreme values.
+<PRE>
+      -3 / 0                        -1.0Inf (negative infinity)
+       0 / 0                        arithmetic exception
+       3 / 0                         1.0Inf (positive infinity)
 
+      -3.0 / 0.0                    -1.0Inf (negative infinity)
+      -0.0 / 0.0                    arithmetic exception
+       0.0 / 0.0                    arithmetic exception
+       3.0 / 0.0                     1.0Inf (positive infinity)
+      -3.0 / -0.0                    1.0Inf (positive infinity)
+      -0.0 / -0.0                    arithmetic exception
+       0.0 / -0.0                    arithmetic exception
+       3.0 / -0.0                   -1.0Inf (negative infinity)
+
+      rational(-3) / rational(0)    representation error
+      rational( 0) / rational(0)    arithmetic exception
+      rational( 3) / rational(0)    representation error
+
+      breal(-3) / breal(0)          -1.0Inf__-1.0Inf (negative infinity)
+      breal( 0) / breal(0)          -1.0Inf__1.0Inf (undefined)
+      breal( 3) / breal(0)           1.0Inf__1.0Inf (positive infinity)
+</PRE>
+   Dividing infinity by infinity yields the same result as 0/0.
+<P>
+   In coroutining mode, if Number1 or Number2 are uninstantiated,
+   the call to //3 is delayed until these variables are instantiated.
 <P>
 "),
 	args:["Number1" : "A number.", "Number2" : "A number.", "Result" : "A variable or float (resp. rational)."],
-	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).", 24 : "Number1 or Number2 is not of a numeric type.", 20 : "Illegal arithmetic operation:  division by 0"],
+	exceptions:[4 : "Number1 or Number2 is not instantiated (non-coroutining mode    only).",
+		24 : "Number1 or Number2 is not of a numeric type.",
+		20 : "Illegal arithmetic operation:  0/0 or infinity/infinity"],
 	eg:"
 Success:
     /(10, 2, 5.0).

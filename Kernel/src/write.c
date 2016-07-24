@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.17 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.18 2016/07/24 19:34:45 jschimpf Exp $
  */
 
 /*
@@ -138,7 +138,6 @@ static int
 		    _int_to_string(value v, type t, char *buf, int quoted_or_base),
 		    _float_to_string(value v, type t, char *buf, int precise),
 		    _float_to_string_opt(value v, type t, char *buf, int precise, int options),
-		    _printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par),
 		    _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd),
 		    _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, register int flags),
 		    _is_proper_list(pword *list),
@@ -1963,6 +1962,134 @@ _handle_to_string(value v, type t, char *buf, int quoted_or_base)
  * when there was an error (Res != 0)
  */
 
+#define FMT_LEFTALIGN	1
+#define FMT_SIGNSPACE	2
+#define FMT_SIGNPLUS	4
+#define FMT_ZEROFILL	8
+#define FMT_UPCASE	16
+
+/*
+ * Auxiliary: Print a formatted integer (any type)
+ * - flags:     FMT_{LEFTALIGN|SIGNSPACE|SIGNPLUS|ZEROFILL|UPCASE}
+ * - radix:     2..36
+ * - width:     -1 (default) or 0..N (minimum total number of characters)
+ * - precision: -1 (default) or 0..N (number of digits printed)
+ */
+
+static int
+_printf_integer(stream_id nst, int flags, int radix, word width, word precision, value v, type t)
+{
+    int res, sign;
+    int i, print_len, pad, zero_fill;
+    int bufsize = 1 + tag_desc[TagType(t)].string_size(v, t, radix);
+    char *buf = (char *) hp_alloc_size(bufsize);
+    char *digits = buf;
+    int len = tag_desc[TagType(t)].to_string(v, t, buf, radix);
+
+    if (*digits == '-') {
+	sign = '-';
+	digits++;
+	len--;
+    } else {
+	sign = (flags & FMT_SIGNPLUS) ? '+' : (flags & FMT_SIGNSPACE) ? ' ': 0;
+    }
+
+    if (width < 0) width = 0;
+    if (flags & FMT_LEFTALIGN) {
+	zero_fill = (precision > len) ? precision-len : 0;
+	pad = width - (sign?1:0) - zero_fill - len;
+    } else {
+	if (precision >= 0) {
+	    zero_fill = (precision > len) ? precision-len : 0;
+	    pad = width - (sign?1:0) - zero_fill - len;
+	    while (pad-- > 0)
+		if ((res = ec_outfc(nst, ' ')) < 0) return res;
+	} else if (flags & FMT_ZEROFILL) {
+	    zero_fill = width - (sign?1:0) - len;
+	    pad = 0;
+	} else {
+	    zero_fill = 0;
+	    pad = width - (sign?1:0) - len;
+	    while (pad-- > 0)
+		if ((res = ec_outfc(nst, ' ')) < 0) return res;
+	}
+    }
+    if (sign) {
+	if ((res = ec_outfc(nst, sign)) < 0) return res;
+    }
+    while (zero_fill-- > 0) {
+	if ((res = ec_outfc(nst, '0')) < 0) return res;
+    }
+    if (flags & FMT_UPCASE) {
+	for (res=0,i=0; res==0 && i<len; ++i)
+	    res = ec_outfc(nst, toupper(digits[i]));
+    } else {
+	res = ec_outf(nst, digits, len);
+    }
+    if (res < 0) return res;
+    if (flags & FMT_LEFTALIGN) {
+	while (pad-- > 0)
+	    if ((res = ec_outfc(nst, ' ')) < 0) return res;
+    }
+    hp_free_size((generic_ptr) buf, bufsize);
+    return PSUCCEED;
+}
+
+
+/*
+ * Auxiliary: Print a formatted string or atom
+ * - flags:     FMT_{LEFTALIGN|UPCASE}
+ * - width:     -1 (default) or 0..N (minimum total number of characters)
+ * - precision: -1 (default) or 0..N (number of characters printed)
+ */
+
+static int
+_printf_string(stream_id nst, int flags, word width, word precision, value v, type t)
+{
+    word len, pad;
+    char *s;
+    int res;
+
+    if (IsString(t)) {
+	len = (int) StringLength(v);
+	s = StringStart(v);
+    } else if (IsAtom(t)) {
+	len = (int) DidLength(v.did);
+	s = DidName(v.did);
+    } else if (IsNil(t)) {
+	len = (int) DidLength(d_.nil);
+	s = DidName(d_.nil);
+    } else if (IsRef(t)) {
+	return INSTANTIATION_FAULT;
+    } else {
+	return TYPE_ERROR;
+    }
+    if (precision < 0 || len < precision)
+	precision = len;
+    pad = 0;
+    if (width < 0)
+	width = 0;
+    else if (width > precision)
+	pad = width - precision;
+
+    if (pad && !(flags & FMT_LEFTALIGN)) {
+	for (; width > precision; --width)
+	    if ((res = ec_outfc(nst, ' ')) < 0) return res;
+    }
+    if (flags & FMT_UPCASE) {
+	for (res=0, len=precision; res==0 && len--; ++s)
+	    if ((res = ec_outfc(nst, toupper(*s))) < 0) return res;
+    } else {
+	if ((res = ec_outf(nst, s, precision)) < 0) return res;
+    }
+    if (pad && (flags & FMT_LEFTALIGN)) {
+	for (; width > precision; --width)
+	    if ((res = ec_outfc(nst, ' ')) < 0) return res;
+    }
+    return PSUCCEED;
+}
+
+
 /*
  * CAUTION: p_printf5() uses a special error return mechanism in order to
  * deal better with errors that occur halfway through the format string.
@@ -1982,19 +2109,32 @@ static int
 p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, value vm, type tm, value vfc, type tfc, value vse, type tse, value vle, type tle, value verr, type terr)
 {
     char 	formstrt = vfc.nint;
-    char 	*format, *cpar, *npar, par[32];
+    char 	*format, *par;
     int 	success_code = PSUCCEED;
     int 	res;
     stream_id 	nst = get_stream_id(vs, ts, SWRITE, &res);
-    long 	asterisk, c, i;
-    int		radix;
+    word 	format_len;
     pword	my_list[2];
+    pword	*old_tg = TG;
     pword	*list;
     pword	*elem;
     char	*last_format = NULL;
     pword	*last_list;
 
-    Get_Name(strval, strtag, format);
+    if (IsString(strtag)) {
+	format = StringStart(strval);
+	format_len = StringLength(strval);
+    } else if (IsAtom(strtag)) {
+	format = DidName(strval.did);
+	format_len = DidLength(strval.did);
+    } else if (IsNil(strtag)) {
+	format = DidName(d_.nil);
+	format_len = DidLength(d_.nil);
+    } else if (IsRef(strtag)) {
+	Bip_Error(INSTANTIATION_FAULT)
+    } else {
+	Bip_Error(TYPE_ERROR)
+    }
     if (nst == NO_STREAM) {
 	Bip_Error(res)
     }
@@ -2017,8 +2157,10 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
     else
 	list = lval.ptr;
 
+    /* reserve a buffer big enough for copying the whole format string */
+    Push_Buffer(format_len+1);
+    par = (char*) BufferStart(old_tg);
     par[0] = '%';	/* here we build up the format string for C printf */
-    cpar = &par[0];
 
     last_list = list;
     last_format = format;
@@ -2027,114 +2169,221 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 
     for (; *format; last_format = ++format, last_list = list)
     {
-	if (*format == formstrt)
-	{                           /* within control sequence */
-	    asterisk = 0;
-	    while ((*(++cpar) = *(++format)))
-	    {
-		if (*cpar == formstrt)
-		{
-		    if (cpar != &par[1]) {
-			/* something between two %'s */
-			Printf_Error(BAD_FORMAT_STRING);
-		    } else if ((res = ec_outfc(nst, formstrt)) < 0) {
-			goto _return_res_;
-                    }
-		} else
-		switch (*cpar)
-		{
-/* 
- * free : hjyz BHJSYZ
- */
-		case ' ' :       /* flags and sizes */
-		case '+' :
-		case '-' :
-		case '.' :
-		case '#' :
-		case '0' :
-		case '1' :
-		case '2' :
-		case '3' :
-		case '4' :
-		case '5' :
-		case '6' :
-		case '7' :
-		case '8' :
-		case '9' :
-		case 'l' :
-		case 'm' :
-		case 'v' :
-		case 'C' :
-		case 'D' :
-		case 'F' :
-		case 'G' :
-		case 'I' :
-		case 'K' :
-		case 'L' :
-		case 'M' :
-		case 'N' :
-		case 'O' :
-		case 'P' :
-		case 'Q' :
-		case 'T' :
-		case 'U' :
-		case 'V' :
-		case '_' :
-		     continue;
+	if (*format != formstrt)
+        {
+	    if ((res = ec_outfc(nst, *format)) < 0)
+	        goto _return_res_;
+	}
+        else                    /* within control sequence */
+	{       
+	    int flags = 0;	/* flags characters in "-+0 #" */
+	    int asterisk = 0;	/* number of '*' in format string */
+	    int ells = 0;	/* number of 'l' */
+	    int mods = 0;	/* number of modifiers */
+	    word width = -1;	/* indicates default */
+	    word precision = -1; /* indicates default */
+	    int	radix;
+	    int ch;		/* last character parsed */
+	    int c;
+	    char *modifiers;	/* points behind last number */
+	    char *cpar = &par[0]; /* copy destination */
 
-		case '*' :
-		    if (++asterisk > 2) {
-			Printf_Error(BAD_FORMAT_STRING)
-		    }
+#define NextCh ch = *(++cpar) = *(++format)
+
+	    /* Now parse [flags][width][.precision][modifiers]<fmt> */
+
+	    /* flags */
+	    modifiers = cpar+1;
+	    for(NextCh;;NextCh)
+	    {
+		switch(ch) {
+		case '-': flags |= FMT_LEFTALIGN; continue;
+		case '+': flags |= FMT_SIGNPLUS;  continue;
+		case '0': flags |= FMT_ZEROFILL;  modifiers=cpar+1; continue;
+		case ' ': flags |= FMT_SIGNSPACE; continue;
+		case '#': continue;
+		}
+		break;
+	    }
+
+	    /* width */
+	    if (ch == '*') {
+		++asterisk;
+		Next_Element(elem, list, Printf_Error)
+		Check_Integer(elem->tag)
+		width = elem->val.nint;
+		NextCh;
+		modifiers = cpar;
+	    } else if ('0' <= ch && ch <= '9') {
+		width = 0;
+		for(; '0'<=ch && ch<='9'; NextCh)
+		    width = 10*width + (ch - '0');
+		modifiers = cpar;
+	    } else if (flags & FMT_ZEROFILL) {
+		width = 0;
+		flags &= ~FMT_ZEROFILL;
+	    }
+
+	    /* precision */
+	    if (ch == '.') {
+		precision = 0;	/* consider precision as given */
+		NextCh;
+		if (ch == '*') {
+		    ++asterisk;
+		    Next_Element(elem, list, Printf_Error)
+		    Check_Integer(elem->tag)
+		    precision = (int) elem->val.nint;
+		    NextCh;
+		    modifiers = cpar;
+		} else if ('0' <= ch && ch <= '9') {
+		    for(; '0'<=ch && ch<='9'; NextCh)
+			precision = 10*precision + (ch - '0');
+		    modifiers = cpar;
+		}
+	    }
+
+	    /* modifiers */
+	    for(;;NextCh) {
+		switch(ch) {
+		case 'm':
+		case 'v':
+		case 'C':
+		case 'D':
+		case 'F':
+		case 'G':
+		case 'I':
+		case 'K':
+		case 'L':
+		case 'M':
+		case 'N':
+		case 'O':
+		case 'P':
+		case 'Q':
+		case 'T':
+		case 'U':
+		case 'V':
+		case '_':
+		case '-':	/* caution: also the leftalign char */
+		case '.':	/* caution: also the precision intro! */
+		    mods++;
 		    continue;
 
-		case 'd' :        /* integers  */
+		case 'l' :
+		    ells++;
+		    continue;
+		}
+		break;
+	    }
+
+	    /* actual format character */
+	    if (ch == formstrt) {
+		if (cpar != &par[1]) {
+		    /* something between two %'s */
+		    Printf_Error(BAD_FORMAT_STRING);
+		} else if ((res = ec_outfc(nst, formstrt)) < 0) {
+		    goto _return_res_;
+		}
+	    } else {
+		switch (ch)
+		{
+/* 
+ * free : hjyz BHJSYZ (must be disjoint from flags and modifiers above)
+ */
+		case 'd' :        /* signed integers  */
+		    radix = 10;
+		_printf_integer_:
+		    /* for compatibility, accept one 'l', but ignore it */
+		    if (mods || ells > 1) {
+			Printf_Error(BAD_FORMAT_STRING);
+		    }
+		    Next_Element(elem, list, Printf_Error)
+		    Check_Integer_Or_Bignum(elem->tag);
+		    res = _printf_integer(nst, flags, radix, width, precision,
+		    			elem->val, elem->tag);
+		    if (res < 0) goto _return_res_;
+		    break;
+
+		case 'R':		/* radix printing */
+		    flags |= FMT_UPCASE;
+		    /*fall through*/
+		case 'r':		/* radix printing */
+		    if (precision >= 0) {	/* <width>.<radix> */
+			radix = precision;
+			precision = -1;
+		    } else if (width >= 0) {	/* <radix> */
+			radix = width;
+			width = -1;
+		    } else {			/* default */
+			radix = 8;
+		    }
+		    if (radix < 2 || radix > 'z' - 'a' + 11) {
+			Printf_Error(BAD_FORMAT_STRING)
+		    }
+		    goto _printf_integer_;
+
 		case 'o' :
 		case 'u' :
 		case 'x' :
 		case 'X' :
-		    *(++cpar) = '\0';
-		    res = _printf_asterisk(asterisk, &list, tint, nst, par);
-		    if (res < 0) {
-		        goto _return_res_;
+		    /* allow one 'l' */
+		    if (mods || ells > 1) {
+			Printf_Error(BAD_FORMAT_STRING);
 		    }
+		    Next_Element(elem, list, Printf_Error)
+		    Check_Integer(elem->tag);
+		    *(++cpar) = '\0';
+		    switch (asterisk) {
+			case 0: res = p_fprintf(nst, par, elem->val.nint); break;
+			case 1: res = p_fprintf(nst, par, width, elem->val.nint); break;
+			case 2: res = p_fprintf(nst, par, width, precision, elem->val.nint); break;
+			default: res = BAD_FORMAT_STRING;
+		    }
+		    if (res < 0) goto _return_res_;
 		    break;
 
 		case 'f' :        /*  floating numbers  */
 		case 'e' :
 		case 'E' :
 		case 'g' :
-		    *(++cpar) = '\0';
-		    res = _printf_asterisk(asterisk, &list, tag_desc[TDBL].tag, nst, par);
-		    if (res < 0) {
-		        goto _return_res_;
+		    if (mods) {
+			Printf_Error(BAD_FORMAT_STRING);
 		    }
+		    *(++cpar) = '\0';
+		    Next_Element(elem, list, Printf_Error)
+		    Check_Float(elem->tag);
+		    switch (asterisk) {
+			case 0: res = p_fprintf(nst, par, Dbl(elem->val)); break;
+			case 1: res = p_fprintf(nst, par, width, Dbl(elem->val)); break;
+			case 2: res = p_fprintf(nst, par, width, precision, Dbl(elem->val)); break;
+			default: res = BAD_FORMAT_STRING;
+		    }
+		    if (res < 0) goto _return_res_;
 		    break;
 
 		case 'n' :		/* newline */
 		case 't' :		/* tab */
-		case 'c' :		/*  single char  */
-		    if (asterisk > 1) {
+		case 'c' :		/* single char */
+		    if (flags || precision >= 0 || mods) {
 			Printf_Error(BAD_FORMAT_STRING)
 		    }
-		    else if (asterisk) {
-			Next_Element(elem, list, Printf_Error)
-			Check_Integer(elem->tag)
-			i = elem->val.nint;	/* character count */
-		    }
-		    else {
-			Get_Counter(par+1,npar,i);
-			if (i==0) i=1;
-		    }
-		    switch (*cpar)
+		    if (width<0) width = 1;
+		    c = '\t';
+		    switch (ch)
 		    {
 		    case 'c':
 			Next_Element(elem, list, Printf_Error)
 			Check_Integer(elem->tag)
 			c = elem->val.nint;
+			/*fall through*/
+		    case 't':
+			while(width--)
+			{
+			    if ((res = ec_outfc(nst, c) < 0))
+				goto _return_res_;
+			}
 			break;
 		    case 'n':
-			while (i)
+			while (width--)
 			{
 			    if ((res = ec_newline(nst)) < 0) {
 				if (res == YIELD_ON_FLUSH_REQ)
@@ -2142,99 +2391,44 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 				else
 				    goto _return_res_;
 			    }
-			    --i;
 			}
 			break;
-		    case 't':
-			c = '\t';
-			break;
-		    }
-		    while(i--)
-		    {
-			if ((res = ec_outfc(nst, (char) c) < 0))
-			    goto _return_res_;
 		    }
 		    break;
 
-		case 's' : 	  /*  string	   */
-		    if (cpar != &par[1])
-		    {
-			/* we don't have a simple %s, pass to C's printf ... */
-			*(++cpar) = '\0';
-			res = _printf_asterisk(asterisk, &list, tstrg, nst, par);
-			if (res < 0) {
-			    goto _return_res_;
-			}
-			break;
+		case 'A' :	/* write atom or string, upper case */
+		    flags |= FMT_UPCASE;
+		    /*fall through*/
+		case 'a' :	/* write atom or string */
+		case 's' :	/* string or atom */
+		    if ((flags & ~(FMT_UPCASE|FMT_LEFTALIGN)) || mods) {
+			Printf_Error(BAD_FORMAT_STRING)
 		    }
-		    /* else fall through and treat %s like %a
-		     * (because we cope better with long strings)
-		     */
-
-		case 'a' :	/* 'write' atom or string (may contain NUL) */
-		case 'A' :	/* same but map to upper case */
 		    Next_Element(elem, list, Printf_Error)
-		    if (cpar != &par[1])
-		    {
-			 Printf_Error(BAD_FORMAT_STRING)
-		    }
-		    if (IsString(elem->tag)) {
-			i = (int) StringLength(elem->val);
-			npar = StringStart(elem->val);
-		    } else if (IsAtom(elem->tag)) {
-			i = (int) DidLength(elem->val.did);
-			npar = DidName(elem->val.did);
-		    } else if (IsNil(elem->tag)) {
-			i = (int) DidLength(d_.nil);
-			npar = DidName(d_.nil);
-		    } else if (IsRef(elem->tag)) {
-			Printf_Error(INSTANTIATION_FAULT);
-		    } else {
-			Printf_Error(TYPE_ERROR);
-		    }
-		    if (*cpar == 'A') {
-			for (res=0; res==0 && i--; ++npar)
-			    res = ec_outfc(nst, toupper(*npar));
-		    } else {
-			res = ec_outf(nst, npar, i);
-		    }
-		    if (res < 0) {
-		       goto _return_res_;
-                    }
+		    res = _printf_string(nst, flags, width, precision, elem->val, elem->tag);
+		    if (res < 0) goto _return_res_;
 		    break;
 
                 case 'w' :        /* 'write' term (ignore stream defaults) */
                 case 'W' :        /* 'write' term (use stream defaults) */
 		{
-		    char form_char = *cpar;
 		    int mask_clr, mask_set;
-		    if (asterisk > 1) {
+
+		    if (precision > 0 || ells > 0) {
 			Printf_Error(BAD_FORMAT_STRING)
 		    }
-		    else if (asterisk) {
-			Next_Element(elem, list, Printf_Error)
-			Check_Integer(elem->tag)
-			i = elem->val.nint;	/* character count */
-			npar = par+2;
-		    }
-		    else {
-			Get_Counter(par+1,npar,i);
-		    }
-		    Next_Element(elem, list, Printf_Error)
+		    if (width<0) width = 0;
+		    *cpar = '\0';
+		    res = _get_mode_mask(modifiers, &mask_clr, &mask_set);
+		    if (res != PSUCCEED) goto _return_res_;
 
-		    *(cpar) = '\0';
-		    res = _get_mode_mask(npar, &mask_clr, &mask_set);
-		    if (res != PSUCCEED) {
-			goto _return_res_;
-		    }
-		    if (form_char == 'w')
+		    if (ch == 'w')
 		    	mask_clr = StreamOutputMode(nst);
 
+		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(mask_clr, mask_set, nst, elem->val, elem->tag,
-			1200, i, vm.did, tm);
-		    if (res < 0) {
-		       goto _return_res_;
-                    }
+			1200, width, vm.did, tm);
+		    if (res < 0) goto _return_res_;
 		    break;
 		}
 
@@ -2246,9 +2440,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(0, WRITE_OPTIONS_PRINT, nst,
 			    elem->val, elem->tag, 1200, 0, vm.did, tm);
-		    if (res < 0) {
-			goto _return_res_;
-                    }
+		    if (res < 0) goto _return_res_;
 		    break;
 
                 case 'q' :              /* 'writeq' term  */
@@ -2259,9 +2451,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(0, WRITE_OPTIONS_WRITEQ, nst,
 			    elem->val, elem->tag, 1200, 0, vm.did, tm);
-		    if (res < 0) {
-			goto _return_res_;
-                    }
+		    if (res < 0) goto _return_res_;
 		    break;
 
                 case 'k' :              /* 'display' term  */
@@ -2272,27 +2462,15 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(0, WRITE_OPTIONS_DISPLAY, nst,
 			    elem->val, elem->tag, 1200, 0, vm.did, tm);
-		    if (res < 0) {
-		       goto _return_res_;
-                    }
+		    if (res < 0) goto _return_res_;
 		    break;
 
                 case 'i' :              /* skip term */
-		    if (asterisk > 1) {
+		    if (flags || precision >= 0 || mods) {
 			Printf_Error(BAD_FORMAT_STRING)
 		    }
-		    else if (asterisk)
-		    {
-			Next_Element(elem, list, Printf_Error)
-			Check_Integer(elem->tag)
-			i = elem->val.nint;
-		    }
-		    else
-		    {
-			Get_Counter(par+1,npar,i);
-			if (i==0) i=1;
-		    }
-		    while (i--) {
+		    if (width<0) width = 1;
+		    while (width--) {
 			Next_Element(elem, list, Printf_Error)
 		    }
 		    break;
@@ -2310,72 +2488,18 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 		    }
 		    break;
 
-		case 'R':
-		case 'r':		/* radix printing */
-		    if (asterisk > 1) {
-			Printf_Error(BAD_FORMAT_STRING)
-		    }
-		    else if (asterisk)
-		    {
-			Next_Element(elem, list, Printf_Error)
-			Check_Integer(elem->tag)
-			radix = elem->val.nint;
-		    }
-		    else if (cpar == par + 1)
-			radix = 8;
-		    else
-		    {
-			Get_Counter(par+1,npar,radix);
-		    }
-		    if (radix < 2 || radix > 'z' - 'a' + 11) {
-			Printf_Error(BAD_FORMAT_STRING)
-		    }
-		    Next_Element(elem, list, Printf_Error)
-		    if (IsRef(elem->tag)) {
-			Printf_Error(INSTANTIATION_FAULT)
-		    } else if (IsInteger(elem->tag) || IsBignum(elem->tag)) {
-			int bufsize = 1 + tag_desc[TagType(elem->tag)].string_size(elem->val, elem->tag, radix);
-			char *buf = (char *) hp_alloc_size(bufsize);
-			int len = tag_desc[TagType(elem->tag)].to_string(elem->val, elem->tag, buf, radix);
-			if (*cpar == 'R') {
-			    for (res=0,i=0; res==0 && i<len; ++i)
-				res = ec_outfc(nst, toupper(buf[i]));
-			} else {
-			    res = ec_outf(nst, buf, len);
-			}
-			hp_free_size((generic_ptr) buf, bufsize);
-			if (res < 0) {
-			   goto _return_res_;
-			}
-		    } else {
-			Printf_Error(TYPE_ERROR)
-		    }
-		    break;
-
 		default:
 		    Printf_Error(BAD_FORMAT_STRING);
 		    break;
                 } 
-		cpar = &par[0];
-		break;
             }
         }
-        else
-        {
-	    if ((res = ec_outfc(nst, (char) *format)) < 0)
-	    {
-	        goto _return_res_;
-	    }
-	}
-    }
-    if (cpar != &par[0]) {
-	/* % without a control character */
-	Printf_Error(BAD_FORMAT_STRING)
     }
     if (list) {
 	Printf_Error(BAD_ARGUMENT_LIST)
     }
     Unlock_Stream(nst);
+    TG = old_tg;	/* pop buffer */
 _return_succ_:
     Return_Unify_Integer(verr, terr, success_code)
 
@@ -2384,6 +2508,7 @@ _return_res_:
 	value	fv;
 	Prepare_Requests;
 
+	TG = old_tg;	/* pop buffer */
 	if (last_format)
 	{
 	    /* stream was already locked, unlock it */
@@ -2405,6 +2530,8 @@ _return_res_:
 	    Request_Unify_Pw(vse, tse, strval, strtag);
 	    Request_Unify_Pw(vle, tle, lval, ltag);
 	}
+	/* override the error generated by Check_<type> macros */
+	if (res == ARITH_TYPE_ERROR) res = TYPE_ERROR;
 	Request_Unify_Integer(verr, terr, -res)
 	Return_Unify;
     }
@@ -2413,106 +2540,6 @@ _return_res_:
 /* define Bip_Error() back to Bip_Error_Fail() */
 #undef Bip_Error
 #define Bip_Error(N) Bip_Error_Fail(N)
-
-static int
-_printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par)
-{
-    pword	*elem;
-    pword	*elem2;
-    pword	*elem3;
-
-    if (asterisk == 0)
-    {
-	Next_Element(elem, (*list), return)
-	if (IsRef(elem->tag))
-	    return INSTANTIATION_FAULT;
-	if (!(SameType(elem->tag, arg_type) ||
-	    SameType(arg_type, tstrg) && (IsAtom(elem->tag)||IsNil(elem->tag))
-	))
-	    return(TYPE_ERROR);
-	switch (TagType(elem->tag))
-	{
-	case TSTRG:
-	    return p_fprintf(nst, par, StringStart(elem->val));
-	case TDICT:
-	    return p_fprintf(nst, par, DidName(elem->val.did));
-	case TNIL:
-	    return p_fprintf(nst, par, "[]");
-	case TDBL:
-	    return p_fprintf(nst, par, Dbl(elem->val));
-	case TINT:
-	    return p_fprintf(nst, par, elem->val.nint);
-	}
-    }
-    else if (asterisk == 1)
-    {
-	Next_Element(elem, (*list), return)
-	if (IsRef(elem->tag))
-	    return INSTANTIATION_FAULT;
-	else if (!IsInteger(elem->tag))
-	    return TYPE_ERROR;
-	Next_Element(elem2, (*list), return)
-	if (IsRef(elem2->tag))
-	    return INSTANTIATION_FAULT;
-	if (!(SameType(elem2->tag, arg_type) ||
-	    SameType(arg_type, tstrg) && (IsAtom(elem2->tag)||IsNil(elem2->tag))
-	))
-	    return(TYPE_ERROR);
-	switch (TagType(elem2->tag))
-	{
-	case TSTRG:
-	    return p_fprintf(nst, par, elem->val.nint, StringStart(elem2->val));
-	case TDICT:
-	    return p_fprintf(nst, par, elem->val.nint, DidName(elem2->val.did));
-	case TNIL:
-	    return p_fprintf(nst, par, elem->val.nint, "[]");
-	case TDBL:
-	    return p_fprintf(nst, par, elem->val.nint, Dbl(elem2->val));
-	case TINT:
-	    return p_fprintf(nst, par, elem->val.nint, elem2->val.nint);
-	}
-    }
-    else if (asterisk == 2)
-    {
-	Next_Element(elem, (*list), return)
-	if (IsRef(elem->tag))
-	    return INSTANTIATION_FAULT;
-	else if (!IsInteger(elem->tag))
-	    return TYPE_ERROR;
-	Next_Element(elem2, (*list), return)
-	if (IsRef(elem2->tag))
-	    return INSTANTIATION_FAULT;
-	else if (!IsInteger(elem2->tag))
-	    return TYPE_ERROR;
-	Next_Element(elem3, (*list), return)
-	if (IsRef(elem3->tag))
-	    return INSTANTIATION_FAULT;
-	if (!(SameType(elem3->tag, arg_type) ||
-	    SameType(arg_type, tstrg) && (IsAtom(elem3->tag)||IsNil(elem3->tag))
-	))
-	    return(TYPE_ERROR);
-	switch (TagType(elem3->tag))
-	{
-	case TSTRG:
-	    return p_fprintf(nst, par,
-		elem->val.nint, elem2->val.nint, StringStart(elem3->val));
-	case TDICT:
-	    return p_fprintf(nst, par,
-		elem->val.nint, elem2->val.nint, DidName(elem3->val.did));
-	case TNIL:
-	    return p_fprintf(nst, par,
-		elem->val.nint, elem2->val.nint, "[]");
-	case TDBL:
-	    return p_fprintf(nst, par,
-		elem->val.nint, elem2->val.nint, Dbl(elem3->val));
-	case TINT:
-	    return p_fprintf(nst, par,
-		elem->val.nint, elem2->val.nint, elem3->val.nint);
-	}
-    }
-
-    return(BAD_FORMAT_STRING);
-}
 
 
 /*

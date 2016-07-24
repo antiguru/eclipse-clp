@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.9 2016/03/14 21:26:59 kish_shen Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.10 2016/07/24 19:34:45 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -51,7 +51,7 @@
 :- comment(categories, ["Interfacing"]).
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2016/03/14 21:26:59 $").
+:- comment(date, "$Date: 2016/07/24 19:34:45 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -106,29 +106,49 @@
 :- pragma(expand).
 :- import symbol_address/2,get_cut/1,cut_to/1 from sepia_kernel.
 
-% load the dynamic MySQL library for Windows explicitly
+% pre-load the dynamic MySQL library for Windows explicitly
 % to avoid path problems
-load_dynamic_mysql("i386_nt", SUF) :- !,
-        concat_string(["i386_nt/libmysql.", SUF], F),
-        load(F).
-load_dynamic_mysql("x86_64_nt", SUF) :- !,
-        concat_string(["x86_64_nt/libmysql.", SUF], F),
-        load(F).
-load_dynamic_mysql(_, _).
+load_dynamic_mysql(Arch, SUF) :-
+	SUF = ".dll",
+	(
+	    % first try a local copy
+	    concat_string([Arch,"/libmysql",SUF], DLib)
+	;
+	    % check for ECLIPSEMYSQL registry entry or environment variable
+	    getenv("ECLIPSEMYSQL", MySQLConnectorDirOS),
+	    os_file_name(MySQLConnectorDir, MySQLConnectorDirOS),
+	    concat_string([MySQLConnectorDir,"/lib/libmysql",SUF], DLib)
+	;
+	    % check standard location of MySQL server
+	    getenv("PROGRAMFILES", PFOS),
+	    os_file_name(PF, PFOS),
+	    concat_strings(PF, "/MySQL", MySQLDir),
+	    exists(MySQLDir),
+	    read_directory(MySQLDir, "", Ds, _),
+	    member(D, Ds),
+	    substring(D, "MySQL Server", 1),
+	    concat_string([MySQLDir,"/",D,"/lib/libmysql",SUF], DLib)
+	),
+	existing_file(DLib, [""], [readable], _),
+	!,
+	load(DLib).
+load_dynamic_mysql(_, _).	% else rely on implicit loading via PATH
 
 :- symbol_address(p_dbi_init, _ ) -> true ;
-	get_flag(object_suffix,SUF),
+	get_flag(system_object_suffix,SUF),
         get_flag(hostarch, Arch),
         catch(load_dynamic_mysql(Arch, SUF), abort,
-              (printf(error, "Cannot find/load the dyanmic libmysql.%s"
-                             " library.%n", [SUF]),
-               writeln(error, "You can obtain this file as part of MySQL."),
-               printf(error, "Place the file into lib/%s directory of ECLiPSe"
-                            " to use Dbi.%n", [Arch]),
+              (printf(error, "Cannot find/load the dynamic libmysql%s"
+                             " library.%n"
+			     "You can obtain this file as part of MySQL.%n"
+			     "Place the file into ECLiPSe's lib/%s directory%n"
+			     "or into your PATH or LD_LIBRARY_PATH,%n"
+			     "or set ECLIPSEMYSQL in registry or environment.%n",
+			     [SUF,Arch]),
                fail
               )
         ),     
-        concat_string([Arch,/,"dbi_mysql.",SUF],F),
+        concat_string([Arch,/,"dbi_mysql",SUF],F),
 	load(F).
 
 
@@ -481,12 +501,20 @@ dbi_finalize :-
 </P><P>
  Currently, MySQL (version 5.0 or later) is supported by the library.
  Note that the MySQL client dynamic library (libmysqlclient.so on Unix
- systems, mysql.dll on Windows) is not included with the distribution, and
+ systems, libmysql.dll on Windows) is not included with the distribution, and
  if this file is not found by ECLiPSe on loading lib(dbi), there will be 
  an error. This file can be obtained by downloading MySQL, and placing the
- .so or .dll file into a place where ECLiPSe can find it, for example a 
- standard system library location, or in the ECLiPSe library location 
- (<eclipsedir>/lib/<arch>).
+ .so or .dll file into a place where ECLiPSe can find it, i.e. one of
+ the following:
+ <DL>
+ <LI>&lt;eclipsedir&gt;/lib/&lt;arch&gt;</LI>
+ <LI>ECLIPSEMYSQL/lib (ECLIPSEMYSQL can be either an environment variable, or
+ as registry entry under HKEY_LOCAL_MACHINE/SOFTWARE/IC-Parc/Eclipse/&lt;version&gt;)</LI>
+ <LI>PROGRAMFILES/MySQL/MySQL Server X.Y/lib</LI>
+ <LI>your PATH or LD_LIBRARY_PATH</LI>
+ </DL>
+ Note that this client library must correspond in word size (32/64) to the
+ word size of your ECLiPSe.  The word size of the MySQL server is irrelevant.
  
 </P><P>
  Data is exchanged with the DBMS via:

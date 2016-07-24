@@ -55,8 +55,8 @@ package provide tkinspect 1.0
 
 set tkinspectvalues(invocnum)  -1
 set tkinspectvalues(twinhdef)   3
-set tkinspectvalues(defaultheight) 12c
-set tkinspectvalues(defaultwidth)  14c
+#set tkinspectvalues(defaultheight) 12c
+#set tkinspectvalues(defaultwidth)  14c
 set tkinspectvalues(summary_truncate)	100
 
 
@@ -112,6 +112,11 @@ proc tkinspect:Inspect_term_init {source} {
     toplevel $iw
     wm title $iw "ECLiPSe Inspector"
 
+    # if we have saved a previous position and size, restore it
+    if [info exists tkinspectvalues($iw,geometry)] {
+    	wm geometry $iw $tkinspectvalues($iw,geometry)
+    }
+
 
 #-----------------------------------------------------------------------
 # Menu Bar setup
@@ -138,11 +143,6 @@ proc tkinspect:Inspect_term_init {source} {
 	    -paddepth 25 -padstack 6 -autoscrollbar 1 \
 	    -command tkinspect:MayCentre -background white \
 	    -selectbackground gray]
-
-    # if we have saved a previous position and size, restore it
-    if [info exists tkinspectvalues($iw,geometry)] {
-    	wm geometry $iw $tkinspectvalues($iw,geometry)
-    }
 
     set tf [frame $top.tf] 
     set bot [frame $iw.bot]
@@ -177,29 +177,29 @@ proc tkinspect:Inspect_term_init {source} {
 # Details
 #------------------------------------------------------------------------
 
-# text frame-----------------------------------------------------
-    set t [text $tf.t -setgrid true -relief sunken -height $tkinspectvalues(twinhdef)\
-	    -yscrollcommand "$tf.y set" -background white]
-#    set tkinspectvalues($t,twinheight) $tkinspectvalues(twinhdef)
-    scrollbar $tf.y -orient vert -command "$t yview"
-    pack $tf.y -side right -fill y
-    pack $t -side right -fill both -expand true
-     set tkinspectvalues($h,twin) $t
-    bind $t <Any-Key> {break}   ;# read only
-    switch $tcl_platform(platform) {
-	windows  { ;# strange fonts in windows!
-	  $t tag configure highlight -foreground blue -underline true 
-          $t tag configure phighlight -foreground darkgreen  
-        }
-	default {
-	  $t tag configure highlight -foreground blue -font tkecllabel
-          $t tag configure phighlight -foreground darkgreen \
-		  -font tkecllabel
-	}
-    }
-    $t tag configure truncated -background pink
-    bind $t <ButtonRelease-2> {break}   ;# disable paste
-
+## text frame-----------------------------------------------------
+#    set t [text $tf.t -setgrid true -relief sunken -height $tkinspectvalues(twinhdef)\
+#	    -yscrollcommand "$tf.y set" -background white]
+##    set tkinspectvalues($t,twinheight) $tkinspectvalues(twinhdef)
+#    scrollbar $tf.y -orient vert -command "$t yview"
+#    pack $tf.y -side right -fill y
+#    pack $t -side right -fill both -expand true
+#     set tkinspectvalues($h,twin) $t
+#    bind $t <Any-Key> {break}   ;# read only
+#    switch $tcl_platform(platform) {
+#	windows  { ;# strange fonts in windows!
+#	  $t tag configure highlight -foreground blue -underline true 
+#          $t tag configure phighlight -foreground darkgreen  
+#        }
+#	default {
+#	  $t tag configure highlight -foreground blue -font tkecllabel
+#          $t tag configure phighlight -foreground darkgreen \
+#		  -font tkecllabel
+#	}
+#    }
+#    $t tag configure truncated -background pink
+#    bind $t <ButtonRelease-2> {break}   ;# disable paste
+#
 
 # Menu bar-----------------------------------
 
@@ -444,7 +444,7 @@ proc tkinspect:Newselection {h cur_idx} {
     $h selection clear
     $h selection set $cur_idx 
     ;# $h see $cur_idx
-    tkinspect:Display $h $cur_idx $selected
+#    tkinspect:Display $h $cur_idx $selected
 }
 
 
@@ -711,58 +711,58 @@ proc tkinspect:MayCentre {h np isopen} {
     }
 }
 
-proc tkinspect:Display {h selected prevsel} {
-    global tkinspectvalues tkecl
-
-    set iw $tkinspectvalues($h,iw) 
-    ;# need to get iw (inspect window) this way because proc. may be called
-    ;# by hierarchy widget where iw is not one of the arguments.
-
-    if {[lsearch $prevsel $selected] != -1} {return 0} 
-    ;# return immediately if previously selected
-    set tw $tkinspectvalues($h,twin)
-    set current [tkinspect:CurrentSelection $h]
-
-    set wake 0
-    after 500 {set wake 1}
-    vwait wake
-    
-    if {![string match "" $current]} {
-	$h centreitem $current 0.05 0.9 0.1 0.8
-	foreach {subterm summary type arity } \
-		[tkinspect:info_command $iw $current] {break}
-	if {[string length $subterm] >= $tkecl(pref,text_truncate)} {
-	    set subterm [string range $subterm 0 $tkecl(pref,text_truncate)]
-	    set truncated 1
-	} else {
-	    set truncated 0
-	}
-
-	if {[string match *compound $type]} {
-	    if {[$h isopen $current]} {
-		set printedterm $subterm
-	    } else {
-		set printedterm $summary
-		set truncated 0
-	    }
-	} else {
-	    set printedterm $subterm
-	}
-	$tw tag remove highlight 1.0 end
-	$tw tag remove phighlight 1.0 end
-	$tw insert end "\n\n"
-	$tw insert end  $printedterm highlight
-	if $truncated {
-	    $tw insert end "..." truncated
-	}
-	$tw yview moveto 1.0
-
-	return 1
-    } else {
-	return 0
-    }
-
-}
+#proc tkinspect:Display {h selected prevsel} {
+#    global tkinspectvalues tkecl
+#
+#    set iw $tkinspectvalues($h,iw) 
+#    ;# need to get iw (inspect window) this way because proc. may be called
+#    ;# by hierarchy widget where iw is not one of the arguments.
+#
+#    if {[lsearch $prevsel $selected] != -1} {return 0} 
+#    ;# return immediately if previously selected
+#    set tw $tkinspectvalues($h,twin)
+#    set current [tkinspect:CurrentSelection $h]
+#
+#    set wake 0
+#    after 500 {set wake 1}
+#    vwait wake
+#    
+#    if {![string match "" $current]} {
+#	$h centreitem $current 0.05 0.9 0.1 0.8
+#	foreach {subterm summary type arity } \
+#		[tkinspect:info_command $iw $current] {break}
+#	if {[string length $subterm] >= $tkecl(pref,text_truncate)} {
+#	    set subterm [string range $subterm 0 $tkecl(pref,text_truncate)]
+#	    set truncated 1
+#	} else {
+#	    set truncated 0
+#	}
+#
+#	if {[string match *compound $type]} {
+#	    if {[$h isopen $current]} {
+#		set printedterm $subterm
+#	    } else {
+#		set printedterm $summary
+#		set truncated 0
+#	    }
+#	} else {
+#	    set printedterm $subterm
+#	}
+#	$tw tag remove highlight 1.0 end
+#	$tw tag remove phighlight 1.0 end
+#	$tw insert end "\n\n"
+#	$tw insert end  $printedterm highlight
+#	if $truncated {
+#	    $tw insert end "..." truncated
+#	}
+#	$tw yview moveto 1.0
+#
+#	return 1
+#    } else {
+#	return 0
+#    }
+#
+#}
 
 
 
@@ -796,33 +796,44 @@ proc tkinspect:center_over {child parent} {
     wm deiconify $child
 }
 
-
-proc tkinspect:EditDepth {iw type min max message typetext} {
-    global tkecl 
-
-    set w $iw.predit$type
-    if {[winfo exists $w]} {
-	tkinspect:RaiseWindow $w
-    } else {
-	set oldprdepth $tkecl(pref,inspect_$type)
-
-	toplevel $w
-	wm title $w "Change Inspector's $typetext"
-	tkinspect:center_over $w $iw
-	wm resizable $w 1 0
-	message $w.m -justify center -aspect 1000 -text $message
-	pack [frame $w.f] -expand 1 -fill both -side bottom
-	pack [frame $w.f.b] -side bottom -expand 1 -fill both
-	pack [label $w.f.label -text $typetext] -side left
-	pack [ventry $w.f.e -vcmd {regexp {^([1-9][0-9]*|[1-9]?)$} %P} -validate key -invalidcmd bell -relief sunken -width 4 -textvariable tkecl(pref,inspect_$type)] -side left
-	pack [scale $w.f.scale -from $min -to $max -orient horizontal \
-		-tickinterval 10 -length 60m -sliderlength 4m \
-		-variable tkecl(pref,inspect_$type)] -expand 1 -fill x
-	pack [button $w.f.b.exit -command "destroy $w" -text "Done"] -side left -expand 1 -fill both
-	pack [button $w.f.b.cancel -text "Cancel" -command "set tkecl(pref,inspect_$type) $oldprdepth ; destroy $w"] -side right -expand 1 -fill both
-	pack $w.m -side top -expand 1 -fill both 
-    }
+proc tkinspect:place_near_pointer {child parent} {
+    set x [winfo pointerx $parent]
+    set y [winfo pointery $parent]
+    if { $x < 0 } return
+    wm withdraw $child
+    update
+    wm geometry  $child +$x+$y
+    wm transient $child $parent
+    wm deiconify $child
 }
+
+
+#proc tkinspect:EditDepth {iw type min max message typetext} {
+#    global tkecl 
+#
+#    set w $iw.predit$type
+#    if {[winfo exists $w]} {
+#	tkinspect:RaiseWindow $w
+#    } else {
+#	set oldprdepth $tkecl(pref,inspect_$type)
+#
+#	toplevel $w
+#	wm title $w "Change Inspector's $typetext"
+#	tkinspect:place_near_pointer $w $iw
+#	wm resizable $w 1 0
+#	message $w.m -justify center -aspect 1000 -text $message
+#	pack [frame $w.f] -expand 1 -fill both -side bottom
+#	pack [frame $w.f.b] -side bottom -expand 1 -fill both
+#	pack [label $w.f.label -text $typetext] -side left
+#	pack [ventry $w.f.e -vcmd {regexp {^([1-9][0-9]*|[1-9]?)$} %P} -validate key -invalidcmd bell -relief sunken -width 4 -textvariable tkecl(pref,inspect_$type)] -side left
+#	pack [scale $w.f.scale -from $min -to $max -orient horizontal \
+#		-tickinterval 10 -length 60m -sliderlength 4m \
+#		-variable tkecl(pref,inspect_$type)] -expand 1 -fill x
+#	pack [button $w.f.b.exit -command "destroy $w" -text "Done"] -side left -expand 1 -fill both
+#	pack [button $w.f.b.cancel -text "Cancel" -command "set tkecl(pref,inspect_$type) $oldprdepth ; destroy $w"] -side right -expand 1 -fill both
+#	pack $w.m -side top -expand 1 -fill both 
+#    }
+#}
 
 
 proc tkinspect:Popnumentry {iw tvar default valname exclusive} {
@@ -842,7 +853,7 @@ proc tkinspect:Popnumentry {iw tvar default valname exclusive} {
     toplevel $popup
     wm title $popup "Change $valname"
 
-    tkinspect:center_over $popup $iw
+    tkinspect:place_near_pointer $popup $iw
 
     if {$exclusive == 1} {
 	tkwait visibility $popup
@@ -897,7 +908,7 @@ proc tkinspect:DisplayKey {iw} {
     }
     grid [button $keywin.exit -text "Dismiss" \
 	    -command "destroy $keywin"] -row $i -column 0 -columnspan 2 -sticky ew
-    tkinspect:center_over $iw.inspectkey $iw
+    tkinspect:place_near_pointer $iw.inspectkey $iw
 }
 
 
@@ -1020,6 +1031,7 @@ proc tkinspect:Deal_with_yscroll {ys iw h} {
         wm resizable $ys 0 0
         wm title $ys "Inspector YScroll Control Panel "
 	tkinspect:PackYS $iw $h $ys
+	tkinspect:place_near_pointer $ys $iw
     }
 }
 
@@ -1031,6 +1043,7 @@ proc tkinspect:helpinfo {iw topic filename key} {
 	return
     }
     toplevel $w
+    tkinspect:place_near_pointer $w $iw
     wm title $w "$topic Help"
     set t [text $w.t -relief groove -background lightgray -width 80 \
 	    -yscrollcommand "$w.y set"]

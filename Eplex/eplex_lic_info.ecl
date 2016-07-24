@@ -45,11 +45,8 @@
 % Hostname and Version may be left uninstantiated.
 %
 
-% Examples
-licence('breeze.icparc.ic.ac.uk', cplex, '90', '', 0).
-licence('morden.icparc.ic.ac.uk', xpress, '1427', default, 0).
-
-% Insert your hosts here
+% Insert any host-specific lines here
+%licence('hostname.where.com', cplex, '110', '', 0).
 
 % By default, use COIN/OR OSI solvers
 licence(_, osi, clpcbc, '', 0).
@@ -57,8 +54,6 @@ licence(_, osi, symclp, '', 0).
 licence(_, osi, glpk, '', 0).
 
 % Defaults for other solvers
-licence(_Default, gurobi, '50', '', 0).
-licence(_Default, cplex, '121', '', 0).
-licence(_Default, xpress, '2000', '/opt/xpressmp/bin', 0).
-licence(_Default, xpress, '1427icp', default, 0).
-licence(_Default, xpress, '1326icp', default, 0).
+licence(_AnyHost, gurobi, _AnyVersion, '', 0).
+licence(_AnyHost, cplex,  _AnyVersion, '', 0).
+licence(_AnyHost, xpress, _AnyVersion, default, 0).

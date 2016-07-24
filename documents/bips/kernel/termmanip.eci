@@ -582,7 +582,7 @@ L = []([](a,b), [](c), d, [](e))
 <P>
     Operation :   unification
 <P>
-    Handler :   handler(+Term, ?Attribute)
+    Handler :   handler(+Term, ?Attribute [, ?SuspendAttribute])
 <P>
     Description :   The handler for the usual unification.  Term is the
         term that was unified with the attributed variable, it is
@@ -762,16 +762,21 @@ but their use is not recommended:
 <P>
     Operation :   pre-unification notification (compatibility only)
 <P>
-    Handler :   handler(?AttrVar, +Term)
+    Handler :   handler(?AttrVar, +Term [,-Goals])
 <P>
     Description :  The handler is invoked before unification.  The
 	first argument is the attributed variable to be unified, the
 	second argument is the term it is going to be unified with. 
-	This handler is provided only for compatibility with SICStus
-	Prolog and its use is not recommended, because it is less
-	efficient than the <EM>unify</EM> handler and because its
-	semantics is somewhat unclear, there may be cases where
-	changes inside this handler may have unexpected effects.
+	The optional third argument can be used to return goals that
+	will be called after all pre-unify handlers for this variable
+	have finished, and the variable has been bound.
+	The handlers itself should not bind any variables.
+	If multiple attributed variables were bound in a single
+	unification, all these bindings are first undone, then the
+	handlers are called and the variables re-bound one by one.
+	This handler is provided for compatibility with SICStus
+	Prolog and its use is not recommended. It can be used together
+	with a <EM>unify</EM> handler, which is called afterwards.
 <P>
 </DL>
 <P>

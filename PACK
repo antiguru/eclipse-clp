@@ -133,7 +133,7 @@ NSIS_PACKAGES=" \
 
 pack_common=yes
 pack_archs=yes
-pack_rpm=yes
+pack_rpm=no
 pack_nsis_installer=maybe
 
 # This isn't used systematically yet
@@ -515,8 +515,11 @@ nsispack ()	# $1=name $2=selectedfiles $3=arch
 	    # Specify the files with Windoze path delimiters
 	    cat $NSIS_SELECTED_FILES | sed -e 's/\//\\/g' \
 			>> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi
-	    echo -e "  SetDetailsPrint both\nSectionEnd\n" \
-			>> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi
+	    cat >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$3.nsi <<EOF
+  SetDetailsPrint both
+SectionEnd
+
+EOF
 	    break
 	fi
 
@@ -545,8 +548,8 @@ nsisheader()	# $1=arch
 	    ;;
     esac
 
-    echo \
-";NSIS Setup Script for ECLiPSe Constraint Logic Programming System
+    cat > ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi <<EOF
+;NSIS Setup Script for ECLiPSe Constraint Logic Programming System
  
 !define VER_MAJOR $ECLIPSE_VERSION
 !define VER_MINOR $BUILD_NUMBER
@@ -557,17 +560,17 @@ nsisheader()	# $1=arch
 ;--------------------------------
 ;Configuration
  
-Name \"ECLiPSe \${VER_MAJOR}\"
-Caption \"ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) Setup\"
+Name "ECLiPSe \${VER_MAJOR}"
+Caption "ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) Setup"
 
-InstallDir \"\${MY_PROGRAMFILES}\\ECLiPSe \${VER_MAJOR}\\\"
+InstallDir "\${MY_PROGRAMFILES}\ECLiPSe \${VER_MAJOR}\"
 OutFile ECLiPSe_\${VER_MAJOR}_\${VER_MINOR}_\${ARCH}.exe
 SetCompressor /SOLID lzma
  
-InstType \"Typical\"
-InstType \"Reinstall\"
-InstType \"Full\"
-InstType \"Lite\"
+InstType "Typical"
+InstType "Reinstall"
+InstType "Full"
+InstType "Lite"
  
 ShowInstDetails show
 ShowUninstDetails show
@@ -576,34 +579,34 @@ SetDateSave on
 ;--------------------------------
 ; Header Files
  
-!include \"MUI.nsh\"
-!include \"LogicLib.nsh\"
-!include \"Sections.nsh\"
-!include \"x64.nsh\"
+!include "MUI.nsh"
+!include "LogicLib.nsh"
+!include "Sections.nsh"
+!include "x64.nsh"
 
 ;--------------------------------
 ; User Interface Configuration
 
 !define MUI_ABORTWARNING
 
-!define MUI_ICON \"\${NSISDIR}\\Contrib\\Graphics\\Icons\\modern-install-blue.ico\"
-!define MUI_UNICON \"\${NSISDIR}\\Contrib\\Graphics\\Icons\\modern-uninstall-blue.ico\"
+!define MUI_ICON "\${NSISDIR}\Contrib\Graphics\Icons\modern-install-blue.ico"
+!define MUI_UNICON "\${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall-blue.ico"
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP \"\${NSISDIR}\\Contrib\\Graphics\\Header\\orange.bmp\"
-!define MUI_HEADERIMAGE_UNBITMAP \"\${NSISDIR}\\Contrib\\Graphics\\Header\\orange-uninstall.bmp\"
-!define MUI_WELCOMEFINISHPAGE_BITMAP \"\${NSISDIR}\\Contrib\\Graphics\\Wizard\\orange.bmp\"
-!define MUI_UNWELCOMEFINISHPAGE_BITMAP \"\${NSISDIR}\\Contrib\\Graphics\\Wizard\\orange-uninstall.bmp\"
+!define MUI_HEADERIMAGE_BITMAP "\${NSISDIR}\Contrib\Graphics\Header\orange.bmp"
+!define MUI_HEADERIMAGE_UNBITMAP "\${NSISDIR}\Contrib\Graphics\Header\orange-uninstall.bmp"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "\${NSISDIR}\Contrib\Graphics\Wizard\orange.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "\${NSISDIR}\Contrib\Graphics\Wizard\orange-uninstall.bmp"
 
 !define MUI_BGCOLOR FFFFFF
 
 !define MUI_COMPONENTSPAGE_SMALLDESC
 
-!define MUI_WELCOMEPAGE_TITLE \"Welcome to the ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) Setup Wizard\"
+!define MUI_WELCOMEPAGE_TITLE "Welcome to the ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) Setup Wizard"
 
-!define MUI_WELCOMEPAGE_TEXT \"ECLiPSe is a software system for the cost-effective development and deployment of constraint programming applications. In addition, it is ideal for teaching most aspects of combinatorial problem solving, for example, problem modelling, constraint programming, mathematical programming, and search techniques.\\r\\n\\r\\nThe system contains several constraint solver libraries, a high-level modelling and control language, interfaces to third-party solvers, an integrated development environment and interfaces for embedding into host environments.\\r\\n\\r\\nThis wizard will guide you through the installation of ECLiPSe \${VER_MAJOR}.\\r\\n\\r\\n\$_CLICK\"
+!define MUI_WELCOMEPAGE_TEXT "ECLiPSe is a software system for the cost-effective development and deployment of constraint programming applications. In addition, it is ideal for teaching most aspects of combinatorial problem solving, for example, problem modelling, constraint programming, mathematical programming, and search techniques.\r\n\r\nThe system contains several constraint solver libraries, a high-level modelling and control language, interfaces to third-party solvers, an integrated development environment and interfaces for embedding into host environments.\r\n\r\nThis wizard will guide you through the installation of ECLiPSe \${VER_MAJOR}.\r\n\r\n\$_CLICK"
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE \"legal\\cmpl.txt\"
+!insertmacro MUI_PAGE_LICENSE "legal\cmpl.txt"
 !insertmacro MUI_PAGE_COMPONENTS
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW InstallDirectoryShow
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE InstallDirectoryLeave
@@ -613,9 +616,9 @@ SetDateSave on
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 
-!define MUI_FINISHPAGE_LINK \"Visit the ECLiPSe site for the latest news, FAQs and support\"
-!define MUI_FINISHPAGE_LINK_LOCATION \"http://eclipseclp.org\"
-!define MUI_FINISHPAGE_SHOWREADME \"\$8\\README_WIN.TXT\"
+!define MUI_FINISHPAGE_LINK "Visit the ECLiPSe site for the latest news, FAQs and support"
+!define MUI_FINISHPAGE_LINK_LOCATION "http://eclipseclp.org"
+!define MUI_FINISHPAGE_SHOWREADME "\$8\README_WIN.TXT"
 !define MUI_FINISHPAGE_NOREBOOTSUPPORT
 !insertmacro MUI_PAGE_FINISH
 
@@ -625,7 +628,7 @@ SetDateSave on
 ;--------------------------------
 ;Languages
 
-!insertmacro MUI_LANGUAGE \"English\" 
+!insertmacro MUI_LANGUAGE "English" 
   
 ;--------------------------------
 ;Reserve Files
@@ -635,13 +638,14 @@ SetDateSave on
 ;--------------------------------
 ;Data
  
-LicenseText \"ECLiPSe III Software Release Agreement\"
-LicenseData \"legal\\cmpl.txt\"
+LicenseText "ECLiPSe III Software Release Agreement"
+LicenseData "legal\cmpl.txt"
  
 ;--------------------------------
 ;Installer Sections 
 
-" > ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
+
+EOF
 }
 
 nsisfinish()	# $1=arch
@@ -650,11 +654,11 @@ nsisfinish()	# $1=arch
     	return 0
     fi
 
-    echo \
-"
-Section \"Install GraphViz\" SecGraphviz
+    cat >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi <<EOF
+
+Section "Install GraphViz" SecGraphviz
   SectionIn 1 3
-  DetailPrint \"Extracting Graphviz....\"
+  DetailPrint "Extracting Graphviz...."
   SetDetailsPrint textonly
   SetOutPath \$8
   File /nonfatal $NSIS_GRAPHVIZ_EXE
@@ -662,37 +666,37 @@ Section \"Install GraphViz\" SecGraphviz
 SectionEnd
 
 !ifndef NO_STARTMENUSHORTCUTS
-Section \"Start Menu + Desktop Shortcuts\" SecShortcuts
+Section "Start Menu + Desktop Shortcuts" SecShortcuts
 !else
-Section \"Desktop Shortcut\" SecShortcuts
+Section "Desktop Shortcut" SecShortcuts
 !endif
   SectionIn 1 2 3 4
   SetOutPath \$8
 !ifndef NO_STARTMENUSHORTCUTS
   SetShellVarContext all
-  CreateDirectory \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\"
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\Readme.lnk\" \"\$8\\README_WIN.TXT\"
+  CreateDirectory "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)"
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\Readme.lnk" "\$8\README_WIN.TXT"
 
-  WriteINIStr \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\ECLiPSe Homepage.url\" \"InternetShortcut\" \"URL\" \"http://eclipseclp.org\"
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\Uninstall ECLiPSe \${VER_MAJOR}.lnk\" \"\$8\\uninst-eclipse.exe\"
+  WriteINIStr "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\ECLiPSe Homepage.url" "InternetShortcut" "URL" "http://eclipseclp.org"
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\Uninstall ECLiPSe \${VER_MAJOR}.lnk" "\$8\uninst-eclipse.exe"
 
   SectionGetFlags \${SecDoc} \$R0
   IntOp \$R0 \$R0 & \${SF_SELECTED}
-  IntCmp \$R0 \${SF_SELECTED} \"\" lbl_no_online_doc lbl_no_online_doc
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\Documentation.lnk\" \"\$8\\doc\\index.html\"
+  IntCmp \$R0 \${SF_SELECTED} "" lbl_no_online_doc lbl_no_online_doc
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\Documentation.lnk" "\$8\doc\index.html"
 
   lbl_no_online_doc:
   SetOutPath \$7
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\DosEclipse.lnk\" \"\$8\\lib\\\${ARCH}\\eclipse.exe\"
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\DosEclipse.lnk" "\$8\lib\\\${ARCH}\eclipse.exe"
   ; If selected, use bundled Tcl/Tk, otherwise rely on installed one
   SectionGetFlags \${SecTclTk} \$R0
   IntOp \$R0 \$R0 & \${SF_SELECTED}
   IntCmp \$R0 \${SF_SELECTED} 0 +4 +4
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\TkEclipse.lnk\" \"\$8\\tcltk\\\${ARCH}\\bin\\wish85.exe\" '\"\$8\\lib_tcl\\tkeclipse.tcl\"'
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\TkRemoteTools.lnk\" \"\$8\\tcltk\\\${ARCH}\\bin\\wish85.exe\" '\"\$8\\lib_tcl\\tktools.tcl\"'
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\TkEclipse.lnk" "\$8\tcltk\\\${ARCH}\bin\wish85.exe" '"\$8\lib_tcl\tkeclipse.tcl"'
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\TkRemoteTools.lnk" "\$8\tcltk\\\${ARCH}\bin\wish85.exe" '"\$8\lib_tcl\tktools.tcl"'
   Goto +3
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\TkEclipse.lnk\" \"\$8\\lib_tcl\\tkeclipse.tcl\"
-  CreateShortCut \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\\TkRemoteTools.lnk\" \"\$8\\lib_tcl\\tktools.tcl\"
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\TkEclipse.lnk" "\$8\lib_tcl\tkeclipse.tcl"
+  CreateShortCut "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\TkRemoteTools.lnk" "\$8\lib_tcl\tktools.tcl"
 !endif
   
 SectionEnd
@@ -702,44 +706,44 @@ Section -post
   SetOutPath \$8
 
   SetRegView \${VER_WORDLEN}  
-  DeleteRegKey HKLM \"Software\\IC-Parc\\Eclipse\\\${VER_MAJOR}\"
-  WriteRegStr HKLM \"Software\\IC-Parc\\Eclipse\\\${VER_MAJOR}\" ECLIPSEDIR \"\$8\"
-  DeleteRegKey HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\"
-  WriteRegExpandStr HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\" \"UninstallString\" \"\$8\\uninst-eclipse.exe\"
-  WriteRegExpandStr HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\" \"InstallLocation\" \"\$8\"
-  WriteRegStr HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\" \"DisplayName\" \"ECLiPSe Constraint Logic Programming System Version \${VER_MAJOR} (\${VER_WORDLEN} bit)\"
-  WriteRegStr HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\" \"DisplayIcon\" \"\$8\\lib\\\${ARCH}\\eclipse.exe,0\"
-  WriteRegStr HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\" \"DisplayVersion\" \"\${VER_MAJOR} #\${VER_MINOR}\"
-  WriteRegDWORD HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\" \"NoModify\" \"1\"
-  WriteRegDWORD HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\" \"NoRepair\" \"1\"
+  DeleteRegKey HKLM "Software\IC-Parc\Eclipse\\\${VER_MAJOR}"
+  WriteRegStr HKLM "Software\IC-Parc\Eclipse\\\${VER_MAJOR}" ECLIPSEDIR "\$8"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)"
+  WriteRegExpandStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)" "UninstallString" "\$8\uninst-eclipse.exe"
+  WriteRegExpandStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)" "InstallLocation" "\$8"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)" "DisplayName" "ECLiPSe Constraint Logic Programming System Version \${VER_MAJOR} (\${VER_WORDLEN} bit)"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)" "DisplayIcon" "\$8\lib\\\${ARCH}\eclipse.exe,0"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)" "DisplayVersion" "\${VER_MAJOR} #\${VER_MINOR}"
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)" "NoModify" "1"
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)" "NoRepair" "1"
 
   ; make the registry entries for the .ecl file class
   DeleteRegKey HKCR .ecl
   DeleteRegKey HKCR ECLiPSeSource
-  WriteRegStr HKCR .ecl \"\" \"ECLiPSeSource\"
-  WriteRegStr HKCR ECLiPSeSource \"\" \"ECLiPSe Source\"
-  WriteRegStr HKCR ECLiPSeSource\\shell\\Edit\\command \"\" \"notepad %1\"
-  WriteRegStr HKCR ECLiPSeSource\\shell\\Compile\\command \"\" \"\$8\\lib\\\${ARCH}\\eclipse.exe -b %1\"
+  WriteRegStr HKCR .ecl "" "ECLiPSeSource"
+  WriteRegStr HKCR ECLiPSeSource "" "ECLiPSe Source"
+  WriteRegStr HKCR ECLiPSeSource\shell\Edit\command "" "notepad %1"
+  WriteRegStr HKCR ECLiPSeSource\shell\Compile\command "" "\$8\lib\\\${ARCH}\eclipse.exe -b %1"
 
   ; delete obsolete preferences to avoid warnings
-  DeleteRegValue HKCU Software\\IC-Parc\\ECLiPSe\\tkeclipserc sharedsize
+  DeleteRegValue HKCU Software\IC-Parc\ECLiPSe\tkeclipserc sharedsize
 
   ; Set JRE_HOME
-  StrCpy \$R3 \"Software\\JavaSoft\\Java Runtime Environment\"
+  StrCpy \$R3 "Software\JavaSoft\Java Runtime Environment"
   ReadRegStr \$R0 HKLM \$R3 CurrentVersion
  
-  StrCmp \$R0 \"\" lbl_try_jdk
+  StrCmp \$R0 "" lbl_try_jdk
 
-  StrCpy \$R4 \"\"
+  StrCpy \$R4 ""
   Goto lbl_chk_jre
 
   lbl_try_jdk:
 
-  StrCpy \$R3 \"Software\\JavaSoft\\Java Development Kit\"
+  StrCpy \$R3 "Software\JavaSoft\Java Development Kit"
   ReadRegStr \$R0 HKLM \$R3 CurrentVersion
  
-  StrCmp \$R0 \"\" lbl_no_jre
-  StrCpy \$R4 \"jre\\\"
+  StrCmp \$R0 "" lbl_no_jre
+  StrCpy \$R4 "jre\"
 
   lbl_chk_jre:
  
@@ -760,8 +764,8 @@ Section -post
   IntCmp \$R1 2 lbl_set_jre_home lbl_no_jre lbl_set_jre_home
  
   lbl_set_jre_home:
-  ReadRegStr \$R1 HKLM \"\$R3\\\$R0\" JavaHome
-  WriteRegStr HKLM \"Software\\IC-Parc\\Eclipse\\\${VER_MAJOR}\" JRE_HOME \$R1\$R4
+  ReadRegStr \$R1 HKLM "\$R3\\\$R0" JavaHome
+  WriteRegStr HKLM "Software\IC-Parc\Eclipse\\\${VER_MAJOR}" JRE_HOME \$R1\$R4
  
   lbl_no_jre:
   ; create working directory
@@ -769,14 +773,14 @@ Section -post
 
   SetDetailsPrint lastused
  
-  Delete \$8\\uninst-eclipse.exe
-  WriteUninstaller \$8\\uninst-eclipse.exe
+  Delete \$8\uninst-eclipse.exe
+  WriteUninstaller \$8\uninst-eclipse.exe
 
   SectionGetFlags \${SecGraphviz} \$R0
   IntOp \$R0 \$R0 & \${SF_SELECTED}
-  IntCmp \$R0 \${SF_SELECTED} \"\" lbl_no_graphviz
+  IntCmp \$R0 \${SF_SELECTED} "" lbl_no_graphviz
 
-  Exec \"\$8\\$NSIS_GRAPHVIZ_EXE\"
+  Exec "\$8\\$NSIS_GRAPHVIZ_EXE"
 
   lbl_no_graphviz:
  
@@ -786,22 +790,22 @@ SectionEnd
 ;Uninstaller Section
  
 Section Uninstall
-  IfFileExists \$INSTDIR\\lib\\\${ARCH}\\eclipse.exe skip_confirmation
-    MessageBox MB_YESNO \"It does not appear that ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) is installed in the directory '\$INSTDIR'.\$\\r\$\\nContinue anyway (not recommended)\" IDYES skip_confirmation
-    Abort \"Uninstall aborted by user\"
+  IfFileExists \$INSTDIR\lib\\\${ARCH}\eclipse.exe skip_confirmation
+    MessageBox MB_YESNO "It does not appear that ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) is installed in the directory '\$INSTDIR'.\$\r\$\nContinue anyway (not recommended)" IDYES skip_confirmation
+    Abort "Uninstall aborted by user"
   skip_confirmation:
   SetRegView \${VER_WORDLEN}  
-  DeleteRegKey HKLM \"Software\\IC-Parc\\Eclipse\\\${VER_MAJOR}\"
-  DeleteRegKey HKLM \"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\ECLiPSe \${VER_MAJOR}\"
-  DeleteRegKey /ifempty HKLM \"Software\\IC-Parc\\Eclipse\"
+  DeleteRegKey HKLM "Software\IC-Parc\Eclipse\\\${VER_MAJOR}"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ECLiPSe \${VER_MAJOR}"
+  DeleteRegKey /ifempty HKLM "Software\IC-Parc\Eclipse"
   IfErrors lbl_other_versions_exist
-  DeleteRegKey HKCR \".ecl\"
+  DeleteRegKey HKCR ".ecl"
   DeleteRegKey HKCR ECLiPSeSource
   lbl_other_versions_exist:
   SetShellVarContext all
-  RMDir /r \"\$SMPROGRAMS\\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)\"
-  MessageBox MB_YESNO \"Delete directory '\$INSTDIR'.\$\\r\$\\nPlease ensure you have no source files you wish to retain!\" IDYES lbl_delete_instdir
-    Abort \"Uninstall aborted by user\"
+  RMDir /r "\$SMPROGRAMS\ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit)"
+  MessageBox MB_YESNO "Delete directory '\$INSTDIR'.\$\r\$\nPlease ensure you have no source files you wish to retain!" IDYES lbl_delete_instdir
+    Abort "Uninstall aborted by user"
   lbl_delete_instdir:
   RMDir /r \$INSTDIR
 
@@ -811,9 +815,9 @@ SectionEnd
 ;Installer Functions
 
 Function InstallDirectoryShow
-  !insertmacro MUI_INNERDIALOG_TEXT 1041 \"Destination Folder\"
-  !insertmacro MUI_INNERDIALOG_TEXT 1019 \"\${MY_PROGRAMFILES}\\ECLiPSe \${VER_MAJOR}\\\"
-  !insertmacro MUI_INNERDIALOG_TEXT 1006 \"Setup will install ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) in the following folder.\$\\r\$\\n\$\\r\$\\nTo install in a different folder, click Browse and select another folder.\$\\r\$\\n\$\\r\$\\nClick Next to continue.\"
+  !insertmacro MUI_INNERDIALOG_TEXT 1041 "Destination Folder"
+  !insertmacro MUI_INNERDIALOG_TEXT 1019 "\${MY_PROGRAMFILES}\ECLiPSe \${VER_MAJOR}\"
+  !insertmacro MUI_INNERDIALOG_TEXT 1006 "Setup will install ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) in the following folder.\$\r\$\n\$\r\$\nTo install in a different folder, click Browse and select another folder.\$\r\$\n\$\r\$\nClick Next to continue."
 FunctionEnd
 
 Function InstallDirectoryLeave
@@ -821,54 +825,54 @@ Function InstallDirectoryLeave
 FunctionEnd
 
 Function WorkDirectoryShow
-  !insertmacro MUI_HEADER_TEXT \"Choose Working Folder Location\" \"Choose the working folder for when ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) starts up.\"
-  !insertmacro MUI_INNERDIALOG_TEXT 1041 \"Working Folder\"
+  !insertmacro MUI_HEADER_TEXT "Choose Working Folder Location" "Choose the working folder for when ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) starts up."
+  !insertmacro MUI_INNERDIALOG_TEXT 1041 "Working Folder"
   IfFileExists \$DOCUMENTS lbl_doc_exists lbl_doc_no_exists
   lbl_doc_exists:
-  !insertmacro MUI_INNERDIALOG_TEXT 1019 \"\$DOCUMENTS\"
+  !insertmacro MUI_INNERDIALOG_TEXT 1019 "\$DOCUMENTS"
   Goto +2
   lbl_doc_no_exists:
-  !insertmacro MUI_INNERDIALOG_TEXT 1019 \"\$TEMP\"
-  !insertmacro MUI_INNERDIALOG_TEXT 1006 \"Setup will configure the following folder as the working directory for ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) start up.\$\\r\$\\n\$\\r\$\\nTo configure an alternative folder, click Browse and select another folder.\$\\r\$\\n\$\\r\$\\nClick Install to start the installation.\"
+  !insertmacro MUI_INNERDIALOG_TEXT 1019 "\$TEMP"
+  !insertmacro MUI_INNERDIALOG_TEXT 1006 "Setup will configure the following folder as the working directory for ECLiPSe \${VER_MAJOR} (\${VER_WORDLEN} bit) start up.\$\r\$\n\$\r\$\nTo configure an alternative folder, click Browse and select another folder.\$\r\$\n\$\r\$\nClick Install to start the installation."
 FunctionEnd
 
 Function WorkDirectoryLeave
   StrCpy \$7 \$INSTDIR
 FunctionEnd
-" >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
+EOF
 
 # x86_64_nt's initialisation checks that it is not running on Win32
     if [ "$1" = x86_64_nt ] ; then 
-	echo \
-"
+	cat >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi <<EOF
+
 Function .onInit
  ; Only allow a single instance of the installer
- System::Call 'kernel32::CreateMutexA(i 0, i 0, t \"ECLiPSeInstallMutex\") i .r1 ?e'
+ System::Call 'kernel32::CreateMutexA(i 0, i 0, t "ECLiPSeInstallMutex") i .r1 ?e'
  Pop \$R0
 
  StrCmp \$R0 0 +3
-   MessageBox MB_OK|MB_ICONEXCLAMATION \"The ECLiPSe installer is already running.\"
+   MessageBox MB_OK|MB_ICONEXCLAMATION "The ECLiPSe installer is already running."
    Abort
 \${IfNot} \${RunningX64}
-   MessageBox MB_OK|MB_ICONEXCLAMATION \"You appear to be running a 32 bit Windows. This ECLiPSe is for 64 bit Windows only.\"
+   MessageBox MB_OK|MB_ICONEXCLAMATION "You appear to be running a 32 bit Windows. This ECLiPSe is for 64 bit Windows only."
      Abort 
 \${EndIf}
 FunctionEnd
-" >>  ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
+EOF
 
     else
-	echo \
-"
+	cat >> ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi <<EOF
+
 Function .onInit
  ; Only allow a single instance of the installer
- System::Call 'kernel32::CreateMutexA(i 0, i 0, t \"ECLiPSeInstallMutex\") i .r1 ?e'
+ System::Call 'kernel32::CreateMutexA(i 0, i 0, t "ECLiPSeInstallMutex") i .r1 ?e'
  Pop \$R0
 
  StrCmp \$R0 0 +3
-   MessageBox MB_OK|MB_ICONEXCLAMATION \"The ECLiPSe installer is already running.\"
+   MessageBox MB_OK|MB_ICONEXCLAMATION "The ECLiPSe installer is already running."
    Abort
 FunctionEnd
-" >>  ECLiPSe_${ECLIPSE_VERSION}_${BUILD_NUMBER}_$1.nsi
+EOF
 
     fi
 }
@@ -964,7 +968,7 @@ if [ "$pack_archs" = yes ] ; then
 	for SOLVER in $EPLEX_SOLVERS; do
 	    if test -r lib/$arch/se${SOLVER}.*; then
 		# Note: the solver auxiliary files in $arch/e$SOLVER/ are not packed (not ours!)
-		packarch $arch if_${SOLVER} "" "lib/*eplex* lib/$arch/e${SOLVER}.* lib/$arch/se${SOLVER}.*" "$PRIVATE_FILES"
+		packarch $arch if_${SOLVER} "" "lib/*eplex* lib/$arch/se${SOLVER}.*" "$PRIVATE_FILES"
 	    fi
 	done
 
@@ -979,7 +983,7 @@ if [ "$pack_archs" = yes ] ; then
 	for SOLVER in $EPLEX_SOLVERS_PT; do
 	    if test -r lib/$arch/se${SOLVER}.*; then
 		# Note: find is used to find a related subdirectory with aux files, if any
-		packarch $arch if_${SOLVER} private "lib/*eplex* lib/$arch/e${SOLVER}.* lib/$arch/se${SOLVER}.* lib/$arch/${SOLVER}.* `find lib/$arch -name e${SOLVER}`" "lib/eplex_lic_info.ecl $PRIVATE_FILES"
+		packarch $arch if_${SOLVER} private "lib/*eplex* lib/$arch/se${SOLVER}.* lib/$arch/${SOLVER}.* `find lib/$arch -name e${SOLVER}`" "lib/eplex_lic_info.ecl $PRIVATE_FILES"
 	    fi
 	done
 

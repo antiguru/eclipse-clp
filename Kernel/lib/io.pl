@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.19 2015/05/19 22:16:32 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.20 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -90,20 +90,11 @@
 % if used for testing, a stream name is accepted as well.
 
 current_stream(Stream) :- var(Stream), !,
-	get_stream(stdin, StdIn),	% stream 1
-	gen_open_stream(StdIn, Stream).
+	gen_open_stream(0, Stream).
 current_stream(Stream) :- check_stream_spec(Stream), !,
 	is_open_stream(Stream).
 current_stream(Stream) :-
 	bip_error(current_stream(Stream)).
-
-    % This could be a backtacking external
-    gen_open_stream(Prev, Stream) :-
-	( next_open_stream(Prev, Next) ->
-	    ( Stream = Prev ; gen_open_stream(Next, Stream) )
-	;
-	    Stream = Prev
-	).
 
 
 % current_stream(?File, ?Mode, ?Stream) - DEPRECATED
@@ -114,8 +105,7 @@ current_stream(File, Mode, Stream) :-
 	    check_var_or_stream_spec(Stream)
 	->
 		( var(Stream) ->
-		    get_stream(stdin, StdIn),
-		    gen_open_stream(StdIn, Stream)
+		    gen_open_stream(0, Stream)
 		;
 		    is_open_stream(Stream)	% else fail
 		),
@@ -939,7 +929,7 @@ do_get_file_info(File, compiled_time, Time) :-
 % Remote Socket Interface
 %
 % Recorded information:
-%      recorded_list(peer_info, PeerInfos) - Infotmation on all the peers
+%      recorded_list(peer_info, PeerInfos) - Information on all the peers
 %
 %  Each PeerInfos is a structure:
 %
@@ -993,6 +983,21 @@ do_get_file_info(File, compiled_time, Time) :-
 %
 % The above information is used to clean up a remote side when it is 
 % disconnected
+%
+% Embedded peer queues:
+%	
+%    Direction	Event	Device
+%    fromec	ignored	queue(yield)	yields to C on flush/1
+%    toec	''	queue(yield)	yields to C on empty input
+%    toec	event	queue(event)	sync event when data available
+%
+% Remote peer queues:
+%	
+%    Direction	Event	Device
+%    fromec	ignored	queue(yield)+sock  flush/1->remote_output/3
+%    toec	''	queue(yield)+sock  read*/2->remote_input/2->copy(sock,queue)
+%    toec	event	queue(event)+sock  rem_flushio->copy(sock,queue)->event
+%
 %
 % Dealing with events:
 % To ensure that the remote interface protocol is followed at all times,
@@ -1281,10 +1286,27 @@ peer_queue_close(Queue) :-
 
     close_remote_queue_eclipseside(Control, StreamNum, QType) :-
 	deregister_queue(StreamNum, Control),
-	close_remote_physical_streams(QType, StreamNum).
+	% If the queue to close is the target of stdin/stdout/stderr,
+	% then redirect those to null, so the queue can be safely closed.
+	% This should only happen in a remote/out_of_process eclipse.
+	( default_stream(Default,Fixed), get_stream(StreamNum, Fixed) ->
+	    set_stream(Default, null), set_stream(Fixed, null)
+	;
+	    true
+	),
+	close_remote_physical_streams(QType, StreamNum),
+	true.
+
+    sstream(stdin).
+    sstream(stdout).
+    sstream(stderr).
 
     close_remote_physical_streams(sync(Socket), StreamNum) :-
-	(current_stream(StreamNum) -> close(StreamNum) ; true),
+	(current_stream(StreamNum) ->
+	    % disable queue yield to prevent unexpected effects during flush-on-close
+	    set_stream_property(StreamNum, yield, off), 
+	    close(StreamNum)
+	; true),
 	(current_stream(Socket) -> close(Socket) ; true).
     close_remote_physical_streams(async, StreamNum) :-
 	(current_stream(StreamNum) -> close(StreamNum) ; true).
@@ -1326,7 +1348,7 @@ peer_queue_create1(Name, Control, Sync, Direction, Event) :-
 	; 
 	 ResumeMessage = socket_connect(Name,Status) ->
 	    connect_remote_queue(Status, Soc, Name, Control, Sync, Direction, Event, TimeOut, PeerHost, Return),
-	 Return \== fail % fails if connection failed
+	    Return \== fail % fails if connection failed
 	;
 	 printf(error, "Unexpected control message %w while creating peer queue %w on remote side %w; disconnecting.%n", [ResumeMessage, Name, Control]),
          close(Soc), 

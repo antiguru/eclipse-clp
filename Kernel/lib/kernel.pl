@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.56 2015/05/01 00:11:40 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.57 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -6182,21 +6182,28 @@ flatten_array(Array, List) :-
 %----------------------------------------------------------------
 
 t_bips(T =.. [F|Args], Goal, _) :- -?->			% =.. /2
-	atom(F), proper_list(Args), !,
+	atom(F), is_list(Args), !,
 	Term =.. [F|Args],
 	Goal = (T=Term).
 t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
-	Path = [_|_],
 	proper_path(Path,AB,C), !,
 	( AB=[] -> Goal = setarg(C,T,X)
 	; Goal = (arg(AB,T,S),setarg(C,S,X))
 	).
+t_bips(arg(Is,T0,X), Gs, _) :- -?->			% arg/3
+	is_list(Is), !,
+	% The point of this expansion is to avoid the construction
+	% of the auxiliary list Is at runtime (time and garbage).
+	(
+	    fromto(T0,T1,T2,T3),
+	    fromto(Is,[I|Is1],Is1,[I0]),
+	    fromto(Gs,(arg(I,T1,T2),Gs1),Gs1,arg(I0,T3,X))
+	do
+	    true
+	).
 
 
     % Auxiliaries
-
-    proper_list([]) :- -?-> true.
-    proper_list([_|L]) :- -?-> proper_list(L).
 
     proper_path([A],AB,C) :- -?-> !,
 	AB=[], C=A.
@@ -6209,6 +6216,7 @@ t_bips(setarg(Path,T,X), Goal, _) :- -?->		% setarg/3
 % to avoid attempted inlining of the calls inside t_bips/3
 
 :- inline((=..)/2, t_bips/3).
+:- inline(arg/3, t_bips/3).
 :- inline(setarg/3, t_bips/3).
 :- inline(call_priority/2, inline_calls/3).
 :- inline(subcall/2, inline_calls/3).
@@ -7154,18 +7162,20 @@ tr_C('C'(XXs,X,Xs), XXs=[X|Xs]).
 trdcg((Head --> Body), Clause, AnnDCG, AnnClause, Module) :-
         check_head(Head),
         same_annotation((AnnHead --> AnnBody), AnnDCG, 
-                        (AnnNewHead :- AnnNewBody), AnnClause),
+                        (AnnNewHead :- AnnNewBody), AnnClause0),
         head(Head, NewHead, AnnHead, AnnNewHead, Pushback, AnnPushback, S0, _, S1, Module),
 	body(Body, NewBody, AnnBody, AnnNewBody0, S0, S1, Module),
         (Pushback = true
 	    ->
-                Clause = (NewHead :- NewBody),
+                Clause0 = (NewHead :- NewBody),
                 AnnNewBody = AnnNewBody0 
 	     ;	
-		Clause = (NewHead :- NewBody, Pushback),
+		Clause0 = (NewHead :- NewBody, Pushback),
                 inherit_annotation((AnnNewBody0,AnnPushback), AnnNewBody0, AnnNewBody)
 
-	).
+	),
+	% clause-expand resulting clause
+	expand_clause_annotated_(Clause0, AnnClause0, Clause, AnnClause, Module).
 
 check_head(H) :-
 	non_terminal(H, -126),

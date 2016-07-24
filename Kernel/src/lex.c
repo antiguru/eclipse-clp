@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.17 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.18 2016/07/24 19:34:45 jschimpf Exp $
  */
 
 /*
@@ -717,9 +717,12 @@ _symbol_:
 
     case N:
 	pligne = string_to_number((char *) pligne - 1, &token->term, nst, sd);
-	tok = token->term.tag.kernel == TEND ? BAD_NUMERIC_CONSTANT :
-		tok == BLANK_SPACE ? SPACE_NUMBER :
-		NUMBER;
+	if (token->term.tag.kernel == TEND) {
+	    Set_TokenString(StreamLexAux(nst), token->term.val.nint);
+	    tok = BAD_NUMERIC_CONSTANT;
+	} else {
+	    tok = (tok == BLANK_SPACE) ? SPACE_NUMBER : NUMBER;
+	}
 	goto _return_tok_;
 
 

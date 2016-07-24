@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Andrew Eremin, IC-Parc
-% Version:      $Id: bfs.ecl,v 1.1 2012/07/31 02:17:06 jschimpf Exp $
+% Version:      $Id: bfs.ecl,v 1.2 2016/07/24 19:34:43 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -925,9 +925,9 @@ bfs_get1(What, Val, Pool) :-
 bfs_next_node(Handle, Node) :-
         Handle = bfs_tree{
                           root_node:Root,
-                          best_bound:Bound,
-                          node_select:Method,
-                          integral_obj:IntObj
+%                          best_bound:Bound,
+                          node_select:Method
+%                          integral_obj:IntObj
                          },
         ( Method == depth_first ->
             n_trees:next(dfs, Root, Node0)
@@ -1096,7 +1096,7 @@ bfs_solver_setup_body(Handle, Sense, Solver, OptionList, Pool, Module) :-
               % they must be user-supplied
               %( Item = prob with [vars:VarArr, objcoeffs:Expr] ->
               ( functor(Item, prob, _) ->
-                    Solver:eplex_get(vars, VarArr),
+%                    Solver:eplex_get(vars, VarArr),
                     Solver:eplex_get(objective, Objective),
                     Objective =.. [Sense, Expr],
                     Solve = bfs_minimize_eplex_node(Handle, Item),
@@ -1125,7 +1125,7 @@ bfs_solver_setup_body(Handle, Sense, Solver, OptionList, Pool, Module) :-
               )
         %; Solver = prob with [vars:VarArr, objcoeffs:Expr] ->
         ; functor(Solver, prob, _) ->
-              lp_get(Solver, vars, VarArr),
+%              lp_get(Solver, vars, VarArr),
               lp_get(Solver, objective, Objective),
               Objective =.. [Sense, Expr],
               Solve = bfs_minimize_eplex_node(Handle, Solver),
@@ -1148,6 +1148,7 @@ bfs_solver_setup_body(Handle, Sense, Solver, OptionList, Pool, Module) :-
               Solve = Solver,
               % process option list and fill in default values
               process_options(OptionList, Handle, Separation),
+              DefaultSeparation = bfs_deg_est(Handle, eplex(Solver)),
               fill_in_defaults(Handle, DefaultSeparation, Separation)
         ),
         Handle = bfs_tree with node_select:NodeSelect,
@@ -1542,11 +1543,11 @@ bfs_body(Handle, Solve, Separation, Pool) :-
                     % update incumbent and prune nodes
                     set_var_bounds(Cost, -1.0Inf, NodeCost),
                     ( IntObj == yes ->
-                          NewBound is fix(NodeCost),
-                          PruneBound is NodeCost - 1
+                          NewBound is fix(NodeCost)
+%                          PruneBound is NodeCost - 1
                     ;
-                          NewBound = NodeCost,
-                          PruneBound = NodeCost
+                          NewBound = NodeCost
+%                          PruneBound = NodeCost
                     ),
                     setarg(best_bound of bfs_tree, Handle, NewBound),
                     n_trees:n_tree_fathom(SubTree),
@@ -1686,10 +1687,10 @@ bfs_body(Handle, Solve, Separation, Pool) :-
                               % Note to AE: this may not give the correct
                               % estimates with gub branching?
                               ( Sense = min ->
-                                    Order = (@<),
+%                                    Order = (@<),
                                     Functor = (+)
                               ; % Sense = max
-                                    Order = (@>),
+%                                    Order = (@>),
                                     Functor = (-)
                               ),
                               PCStruct = pseudocost with [pcd:PCD, pcu:PCU],
@@ -3224,7 +3225,7 @@ get_pool_handle(Handle, Pool) :-
 :- comment(summary, "Best-first search library").
 :- comment(author, "Andrew Eremin").
 :- comment(copyright, "Cisco Systems, Inc.").
-:- comment(date, "$Date: 2012/07/31 02:17:06 $").
+:- comment(date, "$Date: 2016/07/24 19:34:43 $").
 :- comment(status, prototype).
 
 :- comment(include, bfs_comments).

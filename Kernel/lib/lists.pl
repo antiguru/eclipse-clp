@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.9 2015/04/30 23:40:47 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.10 2016/07/24 19:34:44 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -44,7 +44,6 @@
  *	intersection/3,
  *	subtract/3,
  *	union/3,
- *	list_check/3,
  *	length/2.
  *
  */
@@ -55,7 +54,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2015/04/30 23:40:47 $").
+:- comment(date, "$Date: 2016/07/24 19:34:44 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -136,6 +135,7 @@ union([Head|L1tail], L2, L3) :-
 union([Head|L1tail], L2, [Head|L3tail]) :-
 	union(L1tail, L2, L3tail).
 
+
 % subset(Subset, S)
 
 subset([],[]).
@@ -145,34 +145,26 @@ subset(L, [_|S]) :-
     subset(L,S).
 
 
-% list_check(List, 0, Length)
-% succeeds iff List is a proper list and Length is its length
-
-list_check(L, _, _) :-
-	var(L),
-	!,
-	fail.
-list_check([], N, N).
-list_check([_|T], SoFar, Res) :-
-	New is SoFar+1,
-	list_check(T, New, Res).
-
-
 maplist_body(_, [], [], _).
 maplist_body(Pred, [H1|T1], [H2|T2], M) :-
-	Pred =.. PL,
-	append(PL, [H1, H2], NewPred),
-	Call =.. NewPred,
-	call(Call)@M,
+	call(Pred, H1, H2)@M,
 	maplist_body(Pred, T1, T2, M).
+
+
+:- export maplist/2.
+:- tool(maplist/2, maplist_body/3).
+:- meta_predicate(maplist(2,*)).
+maplist_body(_, [], _).
+maplist_body(Pred, [Head|Tail], M) :-
+	call(Pred, Head)@M,
+	maplist_body(Pred, Tail, M).
+
 
 checklist_body(_, [], _).
 checklist_body(Pred, [Head|Tail], M) :-
-	Pred =.. PL,
-	append(PL, [Head], NewPred),
-	Call =.. NewPred,
-	call(Call)@M,
+	call(Pred, Head)@M,
 	checklist_body(Pred, Tail, M).
+
 
 flatten(List, Flat) :-
 	flatten_aux(List, Flat, []).
@@ -184,6 +176,7 @@ flatten_aux([Head|Tail], Res, Cont) :-
 	flatten_aux(Head, Res, Cont1),
 	flatten_aux(Tail, Cont1, Cont).
 flatten_aux(Term, [Term|Cont], Cont).
+
 
     % Depth-limited flatten.
 flatten(Depth, List, Flat) :-
@@ -280,6 +273,17 @@ subscript(Mat, Index, X, M) :-
 	eval(IExpr, I)@M,
 	arg(I, Mat, Row),
 	subscript(Row, IExprs, X, M).
+
+
+:- export append/2.
+append(Ls, Xs) :-
+	append_lists(Ls, Xs, []).
+
+    delay append_lists(L,_,_) if var(L).
+    append_lists([], Xs, Xs).
+    append_lists([L|Ls], Xs, Xs0) :-
+    	append(L, Xs1, Xs),
+	append_lists(Ls, Xs1, Xs0).
 
 
 :- comment(collection_to_list/2, [
@@ -995,10 +999,7 @@ append([X|L1],L2,[X|L3]):-
 
 checklist_body(_, [], _).
 checklist_body(Pred, [Head|Tail], M) :-
-    Pred =.. PL,
-    append(PL, [Head], NewPred),
-    Call =.. NewPred,
-    call(Call)@M,
+    call(Pred, Head)@M,
     checklist_body(Pred, Tail, M).
 </PRE>
    This predicate does not perform any type testing functions.
@@ -1095,10 +1096,7 @@ flatten_aux(Term, [Term|Cont], Cont).
 
 maplist_body(_, [], [], _).
 maplist_body(Pred, [H1|T1], [H2|T2], M) :-
-    Pred =.. PL,
-    append(PL, [H1, H2], NewPred),
-    Call =.. NewPred,
-    call(Call)@M,
+    call(Pred, H1, H2)@M,
     maplist_body(Pred, T1, T2, M).
 </PRE>
    This predicate does not perform any type testing functions.
