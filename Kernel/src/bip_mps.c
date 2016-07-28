@@ -139,7 +139,7 @@ static char *pds_error_string = (char *) 0;
 ***********************************************************************/
 
 int
-p_mps_error(value v, type t)
+p_mps_error(value v, type t, ec_eng_t *ec_eng)
 {
     value vstr;
     if (!pds_error_string)
@@ -154,7 +154,7 @@ p_mps_error(value v, type t)
 ***********************************************************************/
 
 int
-p_mps_ping_1(value v_hostname, type t_hostname)
+p_mps_ping_1(value v_hostname, type t_hostname, ec_eng_t *ec_eng)
 {
     unsigned portnumber;
     char * hostname;
@@ -181,7 +181,7 @@ p_mps_ping_1(value v_hostname, type t_hostname)
 
 
 int
-p_mps_ping_2(value v_hostname, type t_hostname, value v_portnumber, type t_portnumber)
+p_mps_ping_2(value v_hostname, type t_hostname, value v_portnumber, type t_portnumber, ec_eng_t *ec_eng)
 {
     unsigned portnumber;
     char * hostname;
@@ -212,7 +212,7 @@ p_mps_ping_2(value v_hostname, type t_hostname, value v_portnumber, type t_portn
 
 
 int
-p_mps_port_register_4(value v_key, type t_key, value v_name, type t_name, value v_signature, type t_signature, value v_port, type t_port)
+p_mps_port_register_4(value v_key, type t_key, value v_name, type t_name, value v_signature, type t_signature, value v_port, type t_port, ec_eng_t *ec_eng)
 {
     char * key;
     char * name;
@@ -241,7 +241,7 @@ p_mps_port_register_4(value v_key, type t_key, value v_name, type t_name, value 
 
 
 int
-p_mps_port_lookup_3(value v_key, type t_key, value v_name, type t_name, value v_port, type t_port)
+p_mps_port_lookup_3(value v_key, type t_key, value v_name, type t_name, value v_port, type t_port, ec_eng_t *ec_eng)
 {
     char * key;
     char * name;
@@ -270,7 +270,7 @@ p_mps_port_lookup_3(value v_key, type t_key, value v_name, type t_name, value v_
 
 
 int
-p_mps_port_deregister_3(value v_key, type t_key, value v_name, type t_name, value v_signature, type t_signature)
+p_mps_port_deregister_3(value v_key, type t_key, value v_name, type t_name, value v_signature, type t_signature, ec_eng_t *ec_eng)
 {
     char * key;
     char * name;
@@ -327,7 +327,7 @@ exit_mps(void)
 
 
 int
-p_mps_exit_0(void)
+p_mps_exit_0(ec_eng_t *ec_eng)
 {
     exit_mps();
 
@@ -336,7 +336,7 @@ p_mps_exit_0(void)
 
 
 int
-p_mps_init_2(value v_hostname, type t_hostname, value v_portnumber, type t_portnumber)
+p_mps_init_2(value v_hostname, type t_hostname, value v_portnumber, type t_portnumber, ec_eng_t *ec_eng)
 {
     char localhostname[HOST_NAMELEN+1];
     char * hostname;
@@ -495,17 +495,18 @@ port_notifier(aport_id_t port_id)
     p[2].val.nint = (long) port_id;
     mod.did = proc->module_def;	/* call from the lookup module */
 
-    (void) query_emulc(p->val, p->tag, mod, tdict);
+    (void) sub_emulc_opt(ec_eng /*TODO*/ /*PRELIMIARY*/, p->val, p->tag, mod, tdict, GOAL_NOTNOT);
 }
 
 int
-p_mps_port_allocate_3(value v_notifier, type t_notifier, value v_portid, type t_portid, value vmod, type tmod)
+p_mps_port_allocate_3(value v_notifier, type t_notifier, value v_portid, type t_portid, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     aport_id_t portid;
     dident	functor;
     pri		*proc;
     void 	(*notifier)();
     amsg_ret_t aret;
+    int		err;
 
     if (!mps_initialised)
 	Bip_Error(MPS_ERROR);
@@ -513,7 +514,7 @@ p_mps_port_allocate_3(value v_notifier, type t_notifier, value v_portid, type t_
     Check_Output_Integer(t_portid);
     Get_Proc_Did(v_notifier, t_notifier, functor);
 
-    proc = visible_procedure(functor, vmod.did, tmod, PRI_CREATE|PRI_REFER);
+    proc = visible_procedure(functor, vmod.did, tmod, PRI_CREATE|PRI_REFER, &err);
     if (proc == 0) {
 	Bip_Error(NOENTRY)
     }
@@ -536,7 +537,7 @@ p_mps_port_allocate_3(value v_notifier, type t_notifier, value v_portid, type t_
 
 
 int
-p_mps_port_deallocate_1(value v_portid, type t_portid)
+p_mps_port_deallocate_1(value v_portid, type t_portid, ec_eng_t *ec_eng)
 {
     if (!mps_initialised)
 	Bip_Error(MPS_ERROR);
@@ -553,7 +554,7 @@ p_mps_port_deallocate_1(value v_portid, type t_portid)
 ***********************************************************************/
 
 int
-p_mps_str_send_2(value v_portid, type t_portid, value v_str, type t_str)
+p_mps_str_send_2(value v_portid, type t_portid, value v_str, type t_str, ec_eng_t *ec_eng)
 {
     bport_t peer;
     aport_id_t portid;
@@ -604,7 +605,7 @@ p_mps_str_send_2(value v_portid, type t_portid, value v_str, type t_str)
 
 
 int
-p_mps_str_receive_2(value v_portid, type t_portid, value v_str, type t_str)
+p_mps_str_receive_2(value v_portid, type t_portid, value v_str, type t_str, ec_eng_t *ec_eng)
 {
     amsg_t msg;
     amsg_data_t * msg_data;

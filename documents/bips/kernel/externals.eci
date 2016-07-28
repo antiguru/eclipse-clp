@@ -25,41 +25,36 @@
 :- comment(desc, html("For more information, see the Embedding and Interfacing Manual")).
 :- comment(categories, ["Built-In Predicates","Interfacing"]).
 
-:- tool(b_external / 1).
-:- tool(b_external / 2).
 :- tool(external / 1).
 :- tool(external / 2).
 :- tool(remote_connect / 3).
 :- tool(remote_connect_accept / 6).
 
 :- comment(external / 2, [
-	summary:"Defines PredSpec to be a deterministic external predicate linked to the C
-function whose system name is CName.
-
-",
+	summary:"Defines PredSpec to be an external predicate linked to the C
+function CName",
 	amode:(external(++, +) is det),
-	desc:html("   Declares PredSpec to be a deterministic external predicate (in the
-   caller module) linked to the ``C'' function whose system name is CName.
-
+	desc:html("
+   Declares PredSpec to be an external predicate (in the caller module)
+   linked to the external fucntion (usually in ``C'' or ``C++``) with
+   name CName.
 <P>
    If the visibility of PredSpec is not declared, it is set to local.
-
 <P>
    If necessary, an underscore is prepended to CName to get its form as
    used by the C compiler.
-
 <P>
-   If a call to PredSpec has already been compiled as a Prolog call or a
-   non-deterministic external call, error 62 is raised (``inconsistent
-   procedure redefinition'').  This can be prevented by defining the
-   external before compiling any call to it or by using the declaration
-   predicate external/1.
-
+   An alternative to this predicate is to use the ec_external() function
+   from the C/C++ interface to perform this operation, e.g. in an
+   initialization or constructor function.
 <P>
 "),
 	args:["PredSpec" : "Of the form Atom/Integer (predicate name/arity).",
 		"CName" : "Atom or string."],
-	exceptions:[4 : "Either PredSpec or CName is not instantiated.", 5 : "PredSpec is not of the form Atom/Integer.", 5 : "CName is not an atom or a string.", 62 : "A call to PredSpec has already been compiled as a Prolog    call or a non-deterministic external call.", 211 : "External function does not exist."],
+	exceptions:[4 : "Either PredSpec or CName is not instantiated.",
+	    5 : "PredSpec is not of the form Atom/Integer.",
+	    5 : "CName is not an atom or a string.",
+	    211 : "External function does not exist."],
 	eg:"
 Assume we have the C++ file eg_cc_external.cc:
 
@@ -138,22 +133,9 @@ Errors:
    load/1 must be a .dll file.
 
 <P>
-   For old BSD systems, File specifies one or more object files, libraries
-   and/or options in the form accepted by the UNIX linker ld(1).  The
-   argument is passed literally to the loader; the command executed is
-
-<P>
-<PRE>
-   bin/ld -N -A &lt;binary&gt; -T &lt;addr&gt; -o /tmp/eclipse.&lt;pid&gt;.N &lt;File&gt; -lc 1&gt;&amp;2
-   2&gt;&amp;2
-</PRE>
-   where &lt;pid&gt; is the process ID of the ECLiPSe process and N is an integer
-   that starts as zero and that is incremented after each dynamic loading.
-
-<P>
    To write portable programs, it is possible to query the value of the
    flag object_suffix. It gives the correct file extensions for the loadable
-   objects on the current platform (e.g. \"o\", \"so\", \"dll\").
+   objects on the current platform (e.g. \"so\", \"dll\").
 
 <P>
 "),
@@ -206,13 +188,10 @@ Error:
 	see_also:[call_c / 2, external/1, external / 2, get_flag / 2]]).
 
 :- comment(external / 1, [
-	summary:"Declares PredSpec to be a deterministic external predicate.
-
-",
+	summary:"Declares PredSpec to be an external predicate",
 	amode:(external(++) is det),
-	desc:html("   Declares the (may be not yet visible) predicate PredSpec to be a
-   deterministic external predicate.
-
+	desc:html("   Declares the (may be not yet visible) predicate PredSpec to be an
+   external predicate.
 <P>
    This declaration is needed to compile calls to an external predicate
    before it is actually defined with external/2.
@@ -220,7 +199,8 @@ Error:
 <P>
 "),
 	args:["PredSpec" : "Of the form Atom/Integer (predicate name/arity)."],
-	exceptions:[4 : "PredSpec is not instantiated.", 5 : "PredSpec is not of the form Atom/Integer.", 62 : "A call to PredSpec has already been compiled as a Prolog    call or a non-deterministic external call."],
+	exceptions:[4 : "PredSpec is not instantiated.",
+		5 : "PredSpec is not of the form Atom/Integer."],
 	eg:"
 Success:
 
@@ -236,7 +216,7 @@ Success:
    % thanks to the proper declaration above.
       [eclipse]: sh(\"cat msg_lib.pl\").
       :- module(msg_lib).
-      :- load('msg.o', \"-lm\"). % see example in external/2
+      :- load('msg.so'). % see example in external/2
       :- external(prmsg/1, p_prmsg).
       :- export prmsg/1.
 
@@ -511,68 +491,6 @@ Error:
 
 ",
 	see_also:[xget / 3, subscript / 3]]).
-
-:- comment(yield / 2, [
-	summary:"Yield control to the C/C++ main program that has invoked ECLiPSe.
-The arguments are used for passing data in and out.
-
-",
-	amode:(yield(+, -) is det),
-	desc:html("   When ECLiPSe is used as an embedded component within an application
-   written in C/C++, the ECLiPSe execution is conceptually a thread.
-   Therefore, a yield-resume control flow model is used.
-   On the C/C++ side, the ec_resume()/EC_resume() functions pass
-   control to the ECLiPSe thread, while on the ECLiPSe side, the
-   yield/2 predicate is used to pass control back.
-   Data can be passed both ways: the ToC argument of yield/2 is passed
-   to C/C++ via the second argument of ec_resume()/EC_resume() when it
-   returns. Similarly a ec_resume()/EC_resume() first argument is
-   passed to ECLiPSe as the FromC argument of yield/2.
-
-<P>
-   This mechanism is supposed to be used such that an ECLiPSe server
-   loop is set up, and the host program resumes ECLiPSe repeatedly
-   to have a request served.
-
-<P>
-   Note that, by default, ECLiPSe is set up as a server which calls
-   posted goals. This is such a general mechanism that it is often
-   not necessary to write a special-purpose server loop.
-
-<P>
-"),
-	args:["ToC" : "A term.", "FromC" : "A variable."],
-	eg:"
-    % ECLiPSe server code
-    start_server :-
-        eclipse_server(dummy).
-
-    eclipse_server(PrevResult) :-
-        yield(PrevResult, Request),
-        process_request(Request, NewResult),
-        eclipse_server(NewResult).
-
-
-    // C++ client code
-    ec_init();
-    post_goal(\"start_server\");
-    if (EC_resume() == EC_yield)
-    {
-        for(;;)
-        {
-\t    // create a request
-            ...
-            if (EC_resume(request, result) != EC_yield);
-                break;
-            ...
-            // use the result
-        }
-    }
-
-
-
-",
-	see_also:[xget / 3, xset / 3]]).
 
 :- comment(remote_connect/3, [
      args: ["Address": "Address for remote connection (Host/Port or variable)",

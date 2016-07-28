@@ -630,7 +630,73 @@ Fail:
     No (0.00s cpu)
 
 ",
-	see_also:[is_event/1,type_of/2,xget/3,xset/3]]).
+	see_also:[is_handle/2,is_event/1,type_of/2,xget/3,xset/3]]).
+
+:- comment(is_handle / 2, [
+	summary:"Succeeds if Term is an object handle of kind Kind",
+	amode:(is_handle(?,-) is semidet),
+	desc:html("\
+   Used to test whether Term is an object handle, and of what kind.
+   Object handles are anonymous and are distinct from from the regular
+   Prolog-style data types (number, atom, compound).  They support
+   only a limited number of operations, and are mostly used in
+   relation to ECLiPSe's non-logical features.
+<P>
+   The following kinds of object are defined by ECLiPSe itself:
+<DL>
+    <DT>bag</DT><DD>
+        A bag object, as created by bag_create/1.
+    </DD>
+    <DT>engine</DT><DD>
+        An engine object, as created by engine_create/2.
+    </DD>
+    <DT>record</DT><DD>
+        A record object, as created by record_create/1.
+    </DD>
+    <DT>shelf</DT><DD>
+        A shelf object, as created by shelf_create/2,3.
+    </DD>
+    <DT>store</DT><DD>
+        A store object, as created by store_create/1.
+    </DD>
+    <DT>stream</DT><DD>
+        A stream object, as created by open/3,4, socket/3, etc.
+    </DD>
+</DL>
+<P>
+   Handles can be also be created by external predicates using the
+   ECLiPSe C or C++ API.  The kind of such a handle is determined by
+   the atomic name returned by the user-defined kind() method.
+<P>
+"),
+	args:["Term" : "Prolog term.",
+	      "Kind" : "Atom or variable"],
+	fail_if:"Fails if Term is not an external data handle",
+	eg:"
+
+    ?- bag_create(B), is_handle(B, Kind).
+    B = 'BAG'(16'edc90b18)
+    Kind = bag
+    Yes (0.00s cpu)
+
+    ?- engine_self(E), is_handle(E, Kind).
+    E = 'ENGINE'(16'0000022e)
+    Kind = engine
+    No (0.00s cpu)
+
+    ?- get_stream(output, S), is_handle(S, Kind).
+    S = $&(stream(1))
+    Kind = stream
+    No (0.00s cpu)
+
+    ?- is_handle(42).
+    No (0.00s cpu)
+
+    ?- is_handle(output).
+    No (0.00s cpu)
+",
+	see_also:[is_handle/1,type_of/2,xget/3,xset/3]]).
+
 
 :- comment(is_event / 1, [
 	summary:"Succeeds if Term is an event name or handle",
@@ -659,7 +725,7 @@ Fail:
     ?- is_event(42).
     No (0.00s cpu)
 ",
-	see_also:[event/1,atom/1,is_handle/1,event_create/3,type_of/2]]).
+	see_also:[event/1,atom/1,is_handle/1,is_handle/2,event_create/3,type_of/2]]).
 
 :- comment(is_suspension / 1, [
 	summary:"Succeeds if Term is a sleeping suspension.

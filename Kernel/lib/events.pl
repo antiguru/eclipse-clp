@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.31 2016/07/24 19:34:44 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.32 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -142,11 +142,14 @@ call_handler(_, Where, CM, _) :-
 :- pragma(nodebug).
 :- unskipped autoload_handler/4.
 :- untraceable autoload_handler/4.
-autoload_handler(_, Goal, CM, LM) :-
+?- local variable(autoload_lock).
+?- bag_create(Mutex), setval(autoload_lock,Mutex).
+autoload_handler(_N, Goal, CM, LM) :-
 	atom(CM),		% The context module is not checked yet,
 	is_a_module(CM),	% since this is normally done by the callee!
 	!,
-        ( try_create_pred(Goal, LM) ->
+	getval(autoload_lock,Mutex),
+        ( with_mutex(Mutex,try_create_pred(Goal, LM)) ->
             ( LM==CM ->
                 call(Goal)@CM
             ;
@@ -161,8 +164,13 @@ autoload_handler(_, Goal, CM, _) :-
 
 try_create_pred(Goal, LM) :-
         functor(Goal, Name, Arity),
-	( is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) ->
+	Pred = Name/Arity,
+	( get_flag(Pred, defined, on)@LM ->
+	    % already created since the error was raised (e.g. other thread)
+	    get_flag(Pred, visibility, V)@LM,
+	    (V==exported;V==reexported)
 
+	; is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) ->
 	    % Create the body, unless it exists already
 	    ( get_flag(Body, defined, on) ->
 		true
@@ -187,9 +195,9 @@ try_create_pred(Goal, LM) :-
 	    )
 
 	; % Autoloading
-	    get_flag(Name/Arity, autoload, on)@LM,	% may fail
-	    get_unqualified_goal(Goal, UnQualGoal),
-	    mutex_lib(UnQualGoal, LM)
+	    get_flag(Pred, autoload, on)@LM,	% may fail
+	    get_flag(Pred, definition_module, HomeModule)@LM,
+	    ensure_loaded_skip(library(HomeModule), HomeModule)
 	).
 
 is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) :-
@@ -201,25 +209,8 @@ is_lazy_pred(LM, Name, Arity, Tool, Body, Proto) :-
 
 multi_arity_pred(call,  N,  call/N, call_/N1, call/1) :- N1 is N+1, N>1.
 multi_arity_pred(call_, N1, call/N, call_/N1, call/1) :- N is N1-1, N>1.
-multi_arity_pred((:),   N,  (:)/N,  (:@)/N1,  (:)/2)  :- N1 is N+1, N>2.
-multi_arity_pred((:@),  N1, (:)/N,  (:@)/N1,  (:)/2)  :- N is N1-1, N>2.
-
-
-?- local variable(autoload_lock).
-?- mutex_init(autoload_lock).
-mutex_lib(Goal, CallerModule) :-
-	mutex(autoload_lock, (
-	    get_autoload_info(Goal, CallerModule, File, HomeModule) ->
-		ensure_loaded_skip(library(File), HomeModule)
-	    ;
-		true	% already loaded (maybe by other worker)
-	)).
-
-% fails if predicate is defined in the meantime
-get_autoload_info(Goal, CallerModule, HomeModule, HomeModule) :-
-	functor(Goal, N, A),
-	proc_flags(N/A, 14, off, CallerModule),	% get_flag(N/A, defined, off)
-	proc_flags(N/A, 0, HomeModule, CallerModule).
+%multi_arity_pred((:),   N,  (:)/N,  (:@)/N1,  (:)/2)  :- N1 is N+1, N>2.
+%multi_arity_pred((:@),  N1, (:)/N,  (:@)/N1,  (:)/2)  :- N is N1-1, N>2.
 
 
 % Some hacking here to suppress tracing of metacalls during ensure_loaded
@@ -333,28 +324,29 @@ undef_array_handler(N, Goal, Module) :-
 	error_handler(N, Goal, Module).
 
 
+% repeated array declaration
 make_array_handler(42, Culprit, Module, LM) :-
-	!,
 	make_array_args(Culprit, Array, Type, Visibility),
+	!,
 	( current_array(Array, [Type,Visibility])@Module ->
 	    true	% it's the same
 	;
 	    warning_handler(42, Culprit),
 	    functor(Array, N, A),
-	    erase_array_(N/A, visible, Module),
+	    erase_array_body(N/A, Module),
 	    :@(LM,Culprit,Module)
 	).
 make_array_handler(N, Culprit, Module, LM) :-
-	error_handler(default(N), Culprit, Module, LM).
+	error_handler(N, Culprit, Module, LM).
 
     make_array_args(make_array(Array, Type), Array, Type, global).
     make_array_args(make_local_array(Array, Type), Array, Type, local).
     make_array_args(local(variable(Array)), Array, prolog, local) :- !.
     make_array_args(local(variable(Array,_)), Array, prolog, local) :- !.
     make_array_args(global(variable(Array)), Array, prolog, global) :- !.
-    make_array_args(local(reference(Array)), Array, reference, local) :- !.
-    make_array_args(global(reference(Array)), Array, reference, global) :- !.
-    make_array_args(local(reference(Array,_)), Array, reference, local) :- !.
+%    make_array_args(local(reference(Array)), Array, reference, local) :- !.
+%    make_array_args(global(reference(Array)), Array, reference, global) :- !.
+%    make_array_args(local(reference(Array,_)), Array, reference, local) :- !.
     make_array_args(local(array(Array, Type)), Array, Type, local) :- !.
     make_array_args(local(array(Array)), Array, prolog, local) :- !.
     make_array_args(global(array(Array, Type)), Array, Type, global) :- !.
@@ -381,6 +373,7 @@ undef_record_handler(N, Culprit) :-
     extract_record_key(recordz_body(Key,_,M), Key, M).
     extract_record_key(recorda_body(Key,_,_,M), Key, M).
     extract_record_key(recordz_body(Key,_,_,M), Key, M).
+    extract_record_key(record_handle_(Key,_,M), Key, M).
 
 
 %-------------------------------------
@@ -1219,7 +1212,7 @@ cost_handler(_, no(Cost, _)) :-
 % Symbolic waking triggers
 %-------------------------------------
 
-?- make_array_(trigger_suspensions, global_reference, local, sepia_kernel).
+?- makeref_(trigger_suspensions, [], sepia_kernel).
 
 % The postponed list is separate because it is also accessed from C
 % Moreover, the postponed list is emptied on waking. This makes a difference
@@ -1359,14 +1352,6 @@ postpone_suspensions(Susp) :-
 	error(5, attach_suspensions(postponed, Susp)).
 
 
-%-------------------------------------
-% Dictionary GC
-%-------------------------------------
-
-garbage_collect_stacks_and_dictionary :-
-	garbage_collect,	% cleanup stacks before dictionary marking
-	garbage_collect_dictionary.
-
 
 %-------------------------------------
 % default error handler definitions
@@ -1374,6 +1359,7 @@ garbage_collect_stacks_and_dictionary :-
 
 ?- set_default_error_handler_(1, error_handler/2, sepia_kernel),
    set_default_error_handler_(2, error_handler/2, sepia_kernel),
+   set_default_error_handler_(3, error_handler/2, sepia_kernel),
    set_default_error_handler_(4, error_handler/4, sepia_kernel),
    set_default_error_handler_(5, error_handler/4, sepia_kernel),
    set_default_error_handler_(6, error_handler/4, sepia_kernel),
@@ -1494,6 +1480,11 @@ garbage_collect_stacks_and_dictionary :-
    set_default_error_handler_(175, error_handler/2, sepia_kernel),
    set_default_error_handler_(176, error_handler/2, sepia_kernel),
    set_default_error_handler_(177, error_handler/2, sepia_kernel),
+   set_default_error_handler_(180, error_handler/2, sepia_kernel),
+   set_default_error_handler_(181, error_handler/2, sepia_kernel),
+   set_default_error_handler_(182, error_handler/2, sepia_kernel),
+   set_default_error_handler_(183, error_handler/2, sepia_kernel),
+   set_default_error_handler_(184, error_handler/2, sepia_kernel),
    set_default_error_handler_(190, eof_handler/4, sepia_kernel),
    set_default_error_handler_(191, output_error_handler/4, sepia_kernel),
    set_default_error_handler_(192, error_handler/2, sepia_kernel),
@@ -1506,7 +1497,6 @@ garbage_collect_stacks_and_dictionary :-
    set_default_error_handler_(210, error_handler/2, sepia_kernel),
    set_default_error_handler_(211, error_handler/2, sepia_kernel),
    set_default_error_handler_(212, error_handler/2, sepia_kernel),
-   set_default_error_handler_(213, error_handler/2, sepia_kernel),
    set_default_error_handler_(214, error_handler/2, sepia_kernel),
    set_default_error_handler_(230, error_handler/2, sepia_kernel),
    set_default_error_handler_(231, fail/0, sepia_kernel),
@@ -1531,7 +1521,6 @@ garbage_collect_stacks_and_dictionary :-
    set_default_error_handler_(270, error_handler/2, sepia_kernel),
    set_default_error_handler_(271, error_handler/2, sepia_kernel),
    set_default_error_handler_(272, warning_handler/2, sepia_kernel),
-   set_default_error_handler_(274, error_handler/2, sepia_kernel),
    set_default_error_handler_(280, cost_handler/2, sepia_kernel).
 
 /* default error handler for MegaLog errors */
@@ -1566,8 +1555,7 @@ garbage_collect_stacks_and_dictionary :-
 
 ?- set_event_handler(postponed, trigger/1),
    set_event_handler(requested_fail_event, trigger/1),
-%   set_event_handler(garbage_collect_dictionary, garbage_collect_dictionary/0),
-   set_event_handler(garbage_collect_dictionary, garbage_collect_stacks_and_dictionary/0),
+   set_event_handler(garbage_collect_dictionary, garbage_collect_dictionary/0),
    set_event_handler(abort, throw/1).
 
 reset_error_handlers :-
@@ -1649,7 +1637,10 @@ io_event_handler :-
 :- export post_events_from_stream/1.
 
 post_events_from_stream(Stream) :-
-	( stream_select([Stream], 0, [_]), read_exdr(Stream, EventName) ->
+	( current_stream(Stream),
+	  stream_select([Stream], 0, [_]),
+	  read_exdr(Stream, EventName)
+	->
 	    ( atom(EventName) ->
 		event(EventName)
 	    ; string(EventName) ->
@@ -1668,252 +1659,252 @@ post_events_from_stream(Stream) :-
 
 
 %----------------------------------------------------------------------
-% postpone_exit(+Tag) is called when a throw was requested inside
-% an interrupt, but the throw protection is active (e.g. we were
-% interrupting a garbage collection). The throw is postponed by
-% saving the Tag and setting the WAS_EXIT flag.
-%----------------------------------------------------------------------
-
-?- make_array_(postpone_exit, prolog, local, sepia_kernel).
-
-postpone_exit(Tag) :-
-	setval(postpone_exit, Tag),
-	vm_flags(0, 16'08000000, _),	% set the WAS_EXIT flag
-	sys_return(0).
-
-% exit_postponed/0 is called when the throw protection
-% is dropped and the WAS_EXIT flag is set.
-
-exit_postponed :-
-	getval(postpone_exit, Tag),
-	vm_flags(16'0c000000, 0, _),	% clear NO_EXIT and WAS_EXIT
-	throw(Tag).
-
-%----------------------------------------------------------------------
-% after
-%----------------------------------------------------------------------
-
-% Ordered list of pending events, containing structures of the form:
+% after events
 %
-%	ev(PostTime, EventName)
-%	ev(every(Interval), EventName)
+% Implemented via a dedicated asynchronous engine, running after_loop.
+% It accepts requests from other engines via the after_requests queue,
+% and posts events to the requesting engine at the appropriate time.
+% Timing is ultimately done via the timeouts provided by the operating
+% system's primitive for waiting on a condition variable.
+%----------------------------------------------------------------------
+
+% The after_requests queue for requesting services from the timer engine.
+% See serve_request/3.
+?- local(record(after_requests)).
+
+
 %
-% Only modify this variable while event handling is deferred!
-% After modifying the variable, call adjust_after_timer/1
-% to make sure the next alarm occurs in time for the next event.
-:- local variable(after_events).
-?- setval(after_events, []).
+% The main loop executed by the timer-engine (in its own thread).
+% The central data structure is a queue TEQ of pending events,
+% sorted by due time, with entries of the form:
+%
+%	NextDueTime - after(FirstDue, Interval, Event, Engine)
 
-% The physical timer used for after events: 'real' or 'virtual'
-:- local variable(after_event_timer).
+% This is now done in C, so that the engine is hidden:
+%:- local initialization(after_init).
+%after_init :-
+%	engine_create([async,detached], E),
+%	engine_resume_async(E, after_loop).
 
+after_loop :-
+	repeat,
+	catch((after_loop([]) -> R=true ; R=fail), B, R=throw(B)),
+	printf(warning_output, "Timer engine stopped (%w), restarting%n", [R]),
+	fail.
 
-current_after_event(E) :-
-	(is_event(E) ->
-	    !,
-	    getval(after_events, EQ),	% atomic read, no need to defer events
-	    memberchk(ev(_,E)-_, EQ)
-
-	; var(E) ->
-	    !,
-	    getval(after_events, EQ),	% atomic read, no need to defer events
-	    findall(X, member(ev(_,X)-_, EQ), E)
-
-	; set_bip_error(5)
-        ).
-current_after_event(E) :-
-	get_bip_error(Err),
-	error(Err, current_after_event(E)).
-
-current_after_events(DueEvents) :-
-	getval(after_events, Events),	% atomic read, no need to defer events
-	get_due_event_list(Events, DueEvents).
-
-get_due_event_list([], []).
-get_due_event_list([Event | Events], [DueEvent | DueEvents]) :-
-	Event = ev(Type, Name)-DueTime,
-	DueEvent = due(Name-Type, DueTime),
-	get_due_event_list(Events, DueEvents).
-
-
-% (Synchronous) handler when after-timer expires
-% This handler is called with events deferred, and must invoke events_nodefer
-% at the end! It must therefore not fail or throw.
-% The handler must not contain any calls to wake/0 (however embedded,
-% e.g. inside call_priority/2) because that would interfere with
-% the environment's waking state.
-
-after_handler :-
-	current_after_time(CurrentTime),
-
-	getval(after_events, EQ0),
-	ready_events(EQ0, CurrentTime, RepeatEvents, DuedEvents, EQ1),
-	sort(2, =<, RepeatEvents, SortedRepeatEvents),
-	merge(2, =<, SortedRepeatEvents, EQ1, EQ2),
-	setval(after_events, EQ2),
-
-        event(DuedEvents),	% events are deferred at this point!
-
-	adjust_after_timer(EQ2),
-
-	events_nodefer.
-
-
-% Default timer is real. 
-
-?-  
-    set_interrupt_handler(alrm, event/1),
-    setval(after_event_timer, real),
-    set_event_handler(alrm, defers(after_handler/0)).
-
-% Stop timer events before exiting eclipse
-?- local finalization((
-	get_flag(after_event_timer, Timer),
-	stop_timer(Timer, _, _)
-    )).
-
-signal_timer(vtalrm, virtual).
-signal_timer(alrm, real).
-
-try_set_after_timer(Timer) :-
-	% assume here that we can always set timer to 'real'
-        % alrm/vtalrm signals both do not exist on Windows!
-	signal_timer(Signal, Timer),
-	((Signal == alrm ; current_interrupt(_, Signal)) ->
-	    get_flag(after_event_timer, Timer0),
-	    % reinitialise after_events
-	    stop_timer(Timer0, Remain, Interv),  	% stop old timer
-	    (catch(stop_timer(Timer, _, _), _, fail) ->
-		true 
-	    ; 
-		printf(error, "%w not available on this configuration.%n", [Timer]),
-		start_timer(Timer0, Remain, Interv),	% restart old timer
-		fail
-	    ),
-	    signal_timer(Signal0, Timer0),
-	    setval(after_events, []),
-	    (Signal0 == Signal ->
-		true
+    after_loop(TEQ) :-
+	% Post events that are due now.
+	% Build list of remaining events, plus every-events that need repeating.
+	statistics(event_time, CurrentTime),
+	(
+	    foreach(TE,TEQ),
+	    fromto(TEQ1,RE1,RE2,[]),
+	    param(CurrentTime)
+	do
+	    DueTime-Desc = TE,
+	    ( DueTime =< CurrentTime ->
+		after(_Delay, Interval, Event, Engine) = Desc,
+		engine_post_event(Engine, Event),
+		( Interval > 0 ->
+		    NextDue is CurrentTime+Interval,
+		    RE1 = [NextDue-Desc|RE2]
+		;
+		    RE1 = RE2
+		)
 	    ;
-		set_interrupt_handler(Signal, event/1),
-		set_event_handler(Signal, defers(after_handler/0)),
-		setval(after_event_timer, Timer)
+		RE1 = [TE|RE2]
 	    )
+	),
+	% Order the new queue, compute SleepTime until soonest due time
+	sort(1, =<, TEQ1, TEQ2),
+	( TEQ2 = [NextDueTime-_|_] ->
+	    SleepTime is NextDueTime-CurrentTime
 	;
-
-	    printf(error, "%w not available on this platform%n", [Timer]),
-	    fail
+	    SleepTime = block	% block indefinitely
+	),
+	% Wait for new requests or for next event's due time
+	( record_remove(after_requests, Request, SleepTime) ->
+	    % incorporate new requests into queue
+	    %writeln(serve_request(Request, TEQ2, TEQ3)),
+	    serve_request(Request, TEQ2, TEQ3),
+	    after_loop(TEQ3)
+	;
+	    % timeout, i.e. next event is due
+	    after_loop(TEQ2)
 	).
 
 
-% To be called whenever after_events has changed, in order to ajust
-% the timer. The argument is the current value of variable(after_events)
-% This must be called with events being deferred!
+    serve_request([], TEQ0, TEQ) :- !, TEQ=TEQ0.
+    serve_request(Request, TEQ0, TEQ) :- Request = [_|_], !,
+	% Incorporate a list of new after-events
+	( foreach(Desc,Request), foreach(FirstDue-Desc,NewTEs) do
+	    after(FirstDue,_,_,_) = Desc
+	),
+	sort(1, =<, NewTEs, SortedNewTEs),
+	% make sure old events remain first in case of equal due time
+	merge(1, =<, TEQ0, SortedNewTEs, TEQ).
 
-adjust_after_timer(CurrentAfterEventQueue) :-
-	get_flag(after_event_timer, Timer),
-	stop_timer(Timer, _Remain, _),
-	current_after_time(CurrentTime),
-	( CurrentAfterEventQueue = [_-NextTime|_] ->
-	     Interval is NextTime - CurrentTime,
-	     (Interval > 0 ->
-		  start_timer(Timer, Interval, 0)
-	     ;
-		  signal_timer(Signal, Timer),
-		  event([Signal])   % events are due, handle them immediately
-	     )
-	;
-	    true
-	).
+    serve_request(Request, TEQ0, TEQ) :- Request = after(FirstDue,_,_,_), !,
+	% Incorporate a single new after-event
+	% make sure old events remain first in case of equal due time
+	merge(1, =<, TEQ0, [FirstDue-Request], TEQ).
+
+    serve_request(Request, TEQ0, TEQ) :- Request = cancel(Event,Engine,AnswerShelf), !,
+	% Cancel all after events that match the event id
+	statistics(event_time, Now),
+	(
+	    foreach(TE,TEQ0),
+	    fromto(TEQ,TEQ1,TEQ2,[]),
+	    fromto(Cancelled,CEs1,CEs2,[]),
+	    param(Event,Engine,Now)
+	do
+	    ( _-after(FirstDue,Interval,Event,Engine) = TE ->
+		( Interval > 0 ->
+		    CEs1 = [Event-every(Interval)|CEs2]
+		;
+		    CEs1 = [Event-Delay|CEs2],
+		    Delay is max(0,FirstDue-Now)
+		),
+		TEQ1 = TEQ2
+	    ;
+	    	CEs1 = CEs2,
+	    	TEQ1 = [TE|TEQ2]
+	    )
+	),
+	shelf_set(AnswerShelf, 1, Cancelled),
+	handle_proceed(AnswerShelf, all).
+
+    serve_request(Request, TEQ0, TEQ) :- Request = current(Engine,AnswerShelf), !,
+	TEQ = TEQ0,
+	statistics(event_time, Now),
+	(
+	    foreach(TE,TEQ0),
+	    fromto(Currents,Cs1,Cs2,[]),
+	    param(Engine,Now)
+	do
+	    ( Due-after(_FirstDue,Interval,Event,Engine) = TE ->
+		( Interval > 0 ->
+		    Cs1 = [due(Event-every(Interval),Due)|Cs2]
+		;
+		    % We use Now instead of the PostTime as in pre-7.0
+		    Cs1 = [due(Event-Now,Due)|Cs2]
+		)
+	    ;
+		Cs2 = Cs1
+	    )
+	    
+	),
+	shelf_set(AnswerShelf, 1, Currents),
+	handle_proceed(AnswerShelf, all).
+
+    serve_request(finalize(AnswerShelf), _TEQ0, _TEQ) :- !,
+	engine_self(Engine),
+	with_mutex(AnswerShelf, (
+	    shelf_set(AnswerShelf, 1, Engine),
+	    handle_proceed(AnswerShelf, all)
+	)),
+	exit(0).	% exit the engine/thread
+
+    serve_request(Request, TEQ, TEQ) :-
+	printf(warning_output, "Timer thread ignoring request: %w", [Request]).
+
+
+event_after(Event, Delay) :-
+	event_after(Event, Delay, _DueTime).
+
+event_after(Event, Delay, DueTime) :-
+	check_event(Event),
+	check_interval(single, Delay),
+	!,
+	DueTime is statistics(event_time)+Delay,
+	engine_self(Engine),
+	record_add(after_requests, after(DueTime,0,Event,Engine), block, 20).
+event_after(Event, Delay, DueTime) :-
+	bip_error(event_after(Event, Delay, DueTime)).
 	
 
-%
-% event_after(+Event, Interval)
-% event_after(+Event, Interval, DueTime)
-% event_after_every(+Event, Interval)
-% events_after(+List)
+event_after_every(Event, Interval) :-
+	check_event(Event),
+	check_interval(every, Interval),
+	!,
+	FirstDue is statistics(event_time)+Interval,
+	engine_self(Engine),
+	record_add(after_requests, after(FirstDue,Interval,Event,Engine), block, 20).
+event_after_every(Event, Interval) :-
+	bip_error(event_after_every(Event, Interval)).
 
-event_after(E, Int) :-
-	event_after(E, Int, _).
 
-
-event_after(E, Int, DueTime) :-
-	(
-	    check_event(E),
-	    check_interval(single, Int)
-	->
-	    current_after_time(CurrentTime),
-	    ( events_defer ->
-		unchecked_add_after_event(CurrentTime, CurrentTime, E, Int, DueTime),
-		events_nodefer
+events_after(Specs) :-
+	engine_self(Engine),
+	statistics(event_time, Now),
+	check_proper_list(Specs),
+	( foreach(Spec,Specs), foreach(Request,Requests), param(Now,Engine) do
+	    check_nonvar(Spec),
+	    ( Spec = Event-Delay ->
+		check_event(Event),
+		check_nonvar(Delay),
+		( Delay = every(Interval) ->
+		    check_interval(every, Interval),
+		    Due is Now+Interval,
+		    Request = after(Due,Interval,Event,Engine)
+		;
+		    check_interval(single, Delay),
+		    Due is Now+Delay,
+		    Request = after(Due,0,Event,Engine)
+		)
 	    ;
-		unchecked_add_after_event(CurrentTime, CurrentTime, E, Int, DueTime)
+		set_bip_error(5)
 	    )
+	),
+	!,
+	record_add(after_requests, Requests, block, 20).
+events_after(Specs) :-
+	bip_error(events_after(Specs)).
+
+
+cancel_after_event(Event, Cancelled) :-
+	check_event(Event),
+	!,
+	engine_self(Engine),
+	shelf_create(answer(none), Shelf),
+	record_add(after_requests, cancel(Event,Engine,Shelf), block, 20),
+	with_mutex(Shelf, await_answer(Shelf, Cancelled)).
+cancel_after_event(Event, Cancelled) :-
+	bip_error(cancel_after_event(Event, Cancelled)).
+
+
+current_after_events(Currents) :-
+	engine_self(Engine),
+	shelf_create(answer(none), Shelf),
+	record_add(after_requests, current(Engine,Shelf), block, 20),
+	with_mutex(Shelf, await_answer(Shelf, Currents)).
+
+    await_answer(Shelf, Answer) :-
+	shelf_get(Shelf, 1, Term),
+	( Term==none ->
+	    handle_wait(Shelf, block),
+	    await_answer(Shelf, Answer)
 	;
-	    get_bip_error(Id),
-	    error(Id, event_after(E, Int))
-	).
-
-event_after_every(E, Int) :-
-	(
-	    check_event(E),
-	    check_interval(every, Int)
-	->
-	    current_after_time(CurrentTime),
-	    ( events_defer ->
-		unchecked_add_after_event(every(Int), CurrentTime, E, Int, _DueTime),
-		events_nodefer
-	    ;
-		unchecked_add_after_event(every(Int), CurrentTime, E, Int, _DueTime)
-	    )
-	;
-	    get_bip_error(Id),
-	    error(Id, event_after_every(E, Int))
-	).
-
-events_after(Es) :-
-	(
-	    check_after_events(Es, Names, Ints, Types)
-	->
-	    current_after_time(CurrentTime),
-	    ( events_defer ->
-		unchecked_add_after_events(Names, Ints, Types, CurrentTime),
-		events_nodefer
-	    ;
-		unchecked_add_after_events(Names, Ints, Types, CurrentTime)
-	    )
-	;    
-	    get_bip_error(Id),
-	    error(Id, events_after(Es))
+	    Answer = Term
 	).
 
 
-% may fail with set_bip_error
-:- mode check_after_events(?,-,-,-).
-check_after_events(X, _, _, _) :- var(X), !,
-	set_bip_error(4).
-check_after_events([], [], [], []) :- !.
-check_after_events([E|Es], [Name|Names], [Int|Ints], [Type|Types]) :- !,
-	check_event_spec(E, Name, Type, Int),
-	check_after_events(Es, Names, Ints, Types).
-check_after_events(_, _, _, _) :-
-	set_bip_error(5).
+timer_engine_cleanup :-
+	shelf_create(answer(none), Shelf),
+	record_add(after_requests, finalize(Shelf), 10, 20),
+	with_mutex(Shelf, await_answer(Shelf, TimerEngine)),
+	( engine_join(TimerEngine, 3, exited(0)) -> true ;
+	    writeln(warning_output, "Warning: Timer engine did no exit normally!")
+	).
 
-    check_event_spec(Spec, _Name, _Type, _Interval) :- var(Spec), !,
-	set_bip_error(4).
-    check_event_spec(Name-Type, Name, Type, Interval) :- !,
-	check_event(Name),
-	check_event_type(Type, Interval).
-    check_event_spec(_Spec, _Name, _Type, _Interval) :-
-	set_bip_error(5).
 
-    :- mode check_event_type(?,-).
-    check_event_type(Spec, _Interval) :- var(Spec), !,
-	set_bip_error(4).
-    check_event_type(every(Interval), Interval) :- !,
-	check_interval(every, Interval).
-    check_event_type(Interval, Interval) :-
-	check_interval(single, Interval).
+current_after_event(_) :- fail.	% obsolete
+
+
+cancel_after_event(Event) :-	% obsolete
+	cancel_after_event(Event, Cancelled),
+	Cancelled = [_|_].
+
 
     % check_interval(+Type, ?Interval)
     :- mode check_interval(+,?).
@@ -1925,150 +1916,17 @@ check_after_events(_, _, _, _) :-
 	( Interval >= 0 -> true ; set_bip_error(6) ).
 	
     check_time_type(X) :- var(X), !, set_bip_error(4).
-    check_time_type(X) :- number(X), \+ breal(X), !.
+    check_time_type(X) :- integer(X), !.
+    check_time_type(X) :- float(X), !.
+    check_time_type(X) :- rational(X), !.
     check_time_type(_) :- set_bip_error(5).
 
-
-% Called with events deferred. Must not fail/throw!
-unchecked_add_after_events([], [], [], _) :-
-	getval(after_events, List),
-	adjust_after_timer(List).
-unchecked_add_after_events([Name|Names], [Int|Ints], [Type|Types], CurrentTime) :-
-	unchecked_add_after_event(Type, CurrentTime, Name, Int, _),
-	unchecked_add_after_events(Names, Ints, Types, CurrentTime).
-	    
-
-unchecked_add_after_event(Type, CurrentTime, E, Int, NewEventTime) :-
-	NewEventTime is CurrentTime + Int,
-	getval(after_events, EQ0),
-	%sort(2, =<, [ev(Type,E)-NewEventTime|EQ0], EQ1),	
-	insert_into_after_event_queue(EQ0, NewEventTime, ev(Type,E), EQ1),
-	setval(after_events, EQ1),
-	adjust_after_timer(EQ1).
-
-
-insert_into_after_event_queue([], NTime, NEvent, EQ) :- EQ = [NEvent-NTime].
-insert_into_after_event_queue([Event-Time|EQ0], NewTime, NewEvent, EQ) :-
-	(NewTime < Time ->
-	     EQ = [NewEvent-NewTime,Event-Time|EQ0]
-	;    EQ = [Event-Time|EQ1],
-	     insert_into_after_event_queue(EQ0, NewTime, NewEvent, EQ1)
-	).
-
-
-ready_events([], _CurrentTime, [], [], []).
-ready_events(EQ0, CurrentTime, Repeats0, Dued0, EQ) :-
-	EQ0 = [EventInfo-EventTime|EQ1],
-	( CurrentTime >= EventTime ->
-	    EventInfo = ev(Type,Event),
-	    Dued0 = [Event|Dued1],
-            ( Type = every(Interval) ->
-		RepeatTime is CurrentTime + Interval,
-		Repeats0 = [EventInfo-RepeatTime|Repeats1]
-	    ;
-		Repeats0 = Repeats1
-	    ),
-            ready_events(EQ1, CurrentTime, Repeats1, Dued1, EQ)
-	;
-	    EQ = EQ0, Dued0 = [], Repeats0 = []
-	).
-
-
-cancel_after_event(Event) :-
-	is_event(Event),
-	!,
-	( events_defer ->
-	    cancel_after_event1(Event, Found),
-	    events_nodefer
-	;
-	    cancel_after_event1(Event, Found)
-	),
-	Found = true.
-cancel_after_event(Event) :-
-	error(5, cancel_after_event(Event)).
-
-    :-mode cancel_after_event1(+,-).
-    cancel_after_event1(Event, Found) :-
-	getval(after_events, EQ0),
-	subtract_template(EQ0, ev(_,Event)-_, EQ1),
-	( EQ1 == EQ0 ->
-	    Found = false
-	;
-	    Found = true,
-	    setval(after_events, EQ1)
-	),
-	adjust_after_timer(EQ1).
-
-cancel_after_event(Event, CancelledEvents) :-
-	is_event(Event),
-	!,
-	( events_defer ->
-	    cancel_after_event2(Event, CancelledEvents0),
-	    events_nodefer
-	;
-	    cancel_after_event2(Event, CancelledEvents0)
-	),
-	CancelledEvents = CancelledEvents0.
-cancel_after_event(Event, CancelledEvents) :-
-	error(5, cancel_after_event(Event, CancelledEvents)).
-
-    :-mode cancel_after_event2(+,-).
-    cancel_after_event2(Event, CancelledEvents) :-
-	current_after_time(CurrentTime),
-	getval(after_events, EQ0),
-	extract_and_subtract_cancelled_events(EQ0, Event, CurrentTime, 
-					      EQ1, CancelledEvents),
-	(EQ1 == EQ0 ->
-	    true
-	;   
-	    setval(after_events, EQ1)
-	),
-	adjust_after_timer(EQ1).
-
-
-% subtract all occurrences of elements matching the template from list
-subtract_template([], _, []).
-subtract_template([H|T], Template, Subtracted) :-
-	(\+(\+(Template = H)) ->
-	    Subtracted = Subtracted0 ; Subtracted = [H|Subtracted0]
-        ),
-	subtract_template(T, Template, Subtracted0).
-
-% subtract all occurrences of elements matching the template from list
-% and extract the specified data from the first match
-extract_and_subtract_cancelled_events([], _, _, [], []).
-extract_and_subtract_cancelled_events([H|T], Event, CurrentTime, 
-				      Subtracted, Extracted) :-
-	( H = ev(Type, Event)-DueTime ->
-	    Subtracted = Subtracted0,
-	    ( number(Type) ->
-		RemainingTime is max(0.0, DueTime - CurrentTime),
-		CancelledEvent = Event-RemainingTime
-	    ;
-		CancelledEvent = Event-Type
-	    ),
-	    Extracted = [CancelledEvent|Extracted0]
-	; 
-	    Subtracted = [H|Subtracted0],
-	    Extracted = Extracted0
-        ),
-	extract_and_subtract_cancelled_events(T, Event, CurrentTime, 
-					      Subtracted0, Extracted0).
-	
-
-
-% Get the current time from the clock corresponding to the after-timer in use
-current_after_time(T) :-
-	get_flag(after_event_timer, Timer),
-	(Timer == virtual -> T is cputime ; T is statistics(session_time)).
-
+    check_event(E) :- var(E), !, set_bip_error(4).
+    check_event(E) :- is_event(E), !.
+    check_event(_) :- set_bip_error(5).
 
 
 %-------------------------------------
-
-check_event(E) :- var(E), !, set_bip_error(4).
-check_event(E) :- is_event(E), !.
-check_event(_) :- set_bip_error(5).
 
 error_(N, G, LM) :-
 	error_(N, G, LM, LM).    % the context module for normal errors is not significant

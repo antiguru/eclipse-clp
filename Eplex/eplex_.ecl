@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.18 2016/07/24 19:34:43 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.19 2016/07/28 03:34:35 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -375,92 +375,92 @@ load_external_solver(_, _, _, _).
 	    writeln(log_output, done)
 	)
     ->
-	external(lp_get_license_challenge/1, p_cpx_challenge),
-	external(cplex_init/3, p_cpx_init),
-	external(cplex_exit/0, p_cpx_exit),
-	external(cplex_prob_init/8, p_cpx_prob_init),
-	external(cplex_lo_hi/2, p_cpx_lo_hi),
-	external(cplex_set_rhs_coeff/4, p_cpx_set_rhs_coeff),
-	external(cplex_set_obj_coeff/3, p_cpx_set_obj_coeff),
-	external(cplex_set_qobj_coeff/4, p_cpx_set_qobj_coeff),
-	external(cplex_init_type/3, p_cpx_init_type),
-	external(cplex_init_bound/4, p_cpx_init_bound),
-	external(cplex_new_obj_coeff/3, p_cpx_new_obj_coeff),
-	external(cplex_new_qobj_coeff/4, p_cpx_new_qobj_coeff),
-	external(cplex_flush_obj/1, p_cpx_flush_obj),
-	external(cplex_get_param/3, p_cpx_get_param),
-	external(cplex_get_prob_param/3, p_cpx_get_prob_param),
-	external(cplex_set_param/3, p_cpx_set_param),
-	external(cplex_set_matbeg/4, p_cpx_set_matbeg),
-	external(cplex_set_matval/4, p_cpx_set_matval),
-	external(cplex_get_row/4, p_cpx_get_row),
-	external(cplex_get_col_coef/5, p_cpx_get_col_coef),
-	external(cplex_get_obj_coef/3, p_cpx_get_obj_coef),
-	external(cplex_get_rhs/5, p_cpx_get_rhs),
-	external(cplex_loadprob/1, p_cpx_loadprob),
-	external(cplex_loadbase/3, p_cpx_loadbase),
-	external(cplex_loadorder/3, p_cpx_loadorder),
-	external(cplex_add_new_sos/4, p_cpx_add_new_sos),
-	external(cplex_flush_sos/1, p_cpx_flush_sos),
-	external(cplex_optimise/10, p_cpx_optimise),
-	external(cplex_get_objval/2, p_cpx_get_objval),
-	external(cplex_cleanup/1, p_cpx_cleanup),
-	external(cplex_lpwrite/3, p_cpx_lpwrite),
-	external(cplex_lpread/4, p_cpx_lpread),
-	external(cplex_output_stream/3, p_cpx_output_stream),
-	external(cplex_add_coeff/4, p_cpx_add_coeff),
-	external(cplex_flush_new_rowcols/2, p_cpx_flush_new_rowcols),
-	external(cplex_load_varname/3, p_cpx_load_varname),
-	external(cplex_change_col_type/3, p_cpx_change_col_type),	% bt
-	external(cplex_change_lp_to_mip/1, p_cpx_change_lp_to_mip),	% bt
-        external(cplex_change_obj_sense/2, p_cpx_change_obj_sense),
-        external(cplex_change_rhs/4, p_cpx_change_rhs),
-        external(cplex_change_cols_bounds/5, p_cpx_change_cols_bounds),
-        external(cplex_set_problem_type/3, p_cpx_set_problem_type),
+	external(lp_get_license_challenge/1, p_cpx_challenge(args)),
+	external(cplex_init/3, p_cpx_init(args)),
+	external(cplex_exit/0, p_cpx_exit(args)),
+	external(cplex_prob_init/8, p_cpx_prob_init(args)),
+	external(cplex_lo_hi/2, p_cpx_lo_hi(args)),
+	external(cplex_set_rhs_coeff/4, p_cpx_set_rhs_coeff(args)),
+	external(cplex_set_obj_coeff/3, p_cpx_set_obj_coeff(args)),
+	external(cplex_set_qobj_coeff/4, p_cpx_set_qobj_coeff(args)),
+	external(cplex_init_type/3, p_cpx_init_type(args)),
+	external(cplex_init_bound/4, p_cpx_init_bound(args)),
+	external(cplex_new_obj_coeff/3, p_cpx_new_obj_coeff(args)),
+	external(cplex_new_qobj_coeff/4, p_cpx_new_qobj_coeff(args)),
+	external(cplex_flush_obj/1, p_cpx_flush_obj(args)),
+	external(cplex_get_param/3, p_cpx_get_param(args)),
+	external(cplex_get_prob_param/3, p_cpx_get_prob_param(args)),
+	external(cplex_set_param/3, p_cpx_set_param(args)),
+	external(cplex_set_matbeg/4, p_cpx_set_matbeg(args)),
+	external(cplex_set_matval/4, p_cpx_set_matval(args)),
+	external(cplex_get_row/4, p_cpx_get_row(args)),
+	external(cplex_get_col_coef/5, p_cpx_get_col_coef(args)),
+	external(cplex_get_obj_coef/3, p_cpx_get_obj_coef(args)),
+	external(cplex_get_rhs/5, p_cpx_get_rhs(args)),
+	external(cplex_loadprob/1, p_cpx_loadprob(args)),
+	external(cplex_loadbase/3, p_cpx_loadbase(args)),
+	external(cplex_loadorder/3, p_cpx_loadorder(args)),
+	external(cplex_add_new_sos/4, p_cpx_add_new_sos(args)),
+	external(cplex_flush_sos/1, p_cpx_flush_sos(args)),
+	external(cplex_optimise/10, p_cpx_optimise(args)),
+	external(cplex_get_objval/2, p_cpx_get_objval(args)),
+	external(cplex_cleanup/1, p_cpx_cleanup(args)),
+	external(cplex_lpwrite/3, p_cpx_lpwrite(args)),
+	external(cplex_lpread/4, p_cpx_lpread(args)),
+	external(cplex_output_stream/3, p_cpx_output_stream(args)),
+	external(cplex_add_coeff/4, p_cpx_add_coeff(args)),
+	external(cplex_flush_new_rowcols/2, p_cpx_flush_new_rowcols(args)),
+	external(cplex_load_varname/3, p_cpx_load_varname(args)),
+	external(cplex_change_col_type/3, p_cpx_change_col_type(args)),	% bt
+	external(cplex_change_lp_to_mip/1, p_cpx_change_lp_to_mip(args)),	% bt
+        external(cplex_change_obj_sense/2, p_cpx_change_obj_sense(args)),
+        external(cplex_change_rhs/4, p_cpx_change_rhs(args)),
+        external(cplex_change_cols_bounds/5, p_cpx_change_cols_bounds(args)),
+        external(cplex_set_problem_type/3, p_cpx_set_problem_type(args)),
 
-	external(create_darray/2, p_create_darray),
-	external(darray_size/2, p_darray_size),
-	external(get_darray_element/3, p_get_darray_element),
-	external(set_darray_element/3, p_set_darray_element),
-	external(darray_list/3, p_darray_list),
+	external(create_darray/2, p_create_darray(args)),
+	external(darray_size/2, p_darray_size(args)),
+	external(get_darray_element/3, p_get_darray_element(args)),
+	external(set_darray_element/3, p_set_darray_element(args)),
+	external(darray_list/3, p_darray_list(args)),
 
         % column generation (adapted from AE 25/10/02)
-	external(cplex_new_row/5, p_cpx_new_row),
+	external(cplex_new_row/5, p_cpx_new_row(args)),
 
-	external(cplex_new_row_idc/5, p_cpx_new_row_idc),
-	external(cplex_flush_idcs/1, p_cpx_flush_idcs),
+	external(cplex_new_row_idc/5, p_cpx_new_row_idc(args)),
+	external(cplex_flush_idcs/1, p_cpx_flush_idcs(args)),
 
-        external(create_extended_iarray/3, p_create_extended_iarray),
-        external(create_extended_darray/3, p_create_extended_darray),
-        external(copy_extended_column_basis/4, p_copy_extended_column_basis),
-        external(copy_extended_arrays/6, p_copy_extended_arrays),
-        external(decode_basis/2, p_decode_basis),
+        external(create_extended_iarray/3, p_create_extended_iarray(args)),
+        external(create_extended_darray/3, p_create_extended_darray(args)),
+        external(copy_extended_column_basis/4, p_copy_extended_column_basis(args)),
+        external(copy_extended_arrays/6, p_copy_extended_arrays(args)),
+        external(decode_basis/2, p_decode_basis(args)),
         
-        % external(cplex_get_feas_result_array/3, p_cpx_get_feas_result_array),
-        external(create_iarray/2, p_create_iarray),
-        external(iarray_size/2, p_iarray_size),
-        external(get_iarray_element/3, p_get_iarray_element),
-        external(set_iarray_element/3, p_set_iarray_element),
-        external(iarray_list/2, p_iarray_list),
+        % external(cplex_get_feas_result_array/3, p_cpx_get_feas_result_array(args)),
+        external(create_iarray/2, p_create_iarray(args)),
+        external(iarray_size/2, p_iarray_size(args)),
+        external(get_iarray_element/3, p_get_iarray_element(args)),
+        external(set_iarray_element/3, p_set_iarray_element(args)),
+        external(iarray_list/2, p_iarray_list(args)),
 
         % standalone eplex
-        external(cplex_matrix_base/1, p_cpx_matrix_base),
-        external(cplex_matrix_offset/1, p_cpx_matrix_offset),
-	external(cplex_get_col_type/3, p_cpx_get_col_type),
-	external(cplex_impose_col_lwb/5, p_cpx_impose_col_lwb),		% bt
-	external(cplex_impose_col_upb/5, p_cpx_impose_col_upb),		% bt
-	external(cplex_impose_col_bounds/7, p_cpx_impose_col_bounds),	% bt
-	external(cplex_get_col_bounds/4, p_cpx_get_col_bounds),
-        external(cplex_set_new_cols/6, p_cpx_set_new_cols),
+        external(cplex_matrix_base/1, p_cpx_matrix_base(args)),
+        external(cplex_matrix_offset/1, p_cpx_matrix_offset(args)),
+	external(cplex_get_col_type/3, p_cpx_get_col_type(args)),
+	external(cplex_impose_col_lwb/5, p_cpx_impose_col_lwb(args)),		% bt
+	external(cplex_impose_col_upb/5, p_cpx_impose_col_upb(args)),		% bt
+	external(cplex_impose_col_bounds/7, p_cpx_impose_col_bounds(args)),	% bt
+	external(cplex_get_col_bounds/4, p_cpx_get_col_bounds(args)),
+        external(cplex_set_new_cols/6, p_cpx_set_new_cols(args)),
 
         % global constraint pools
-        external(cplex_get_cutpool_size/3, p_cpx_get_cutpool_size),
-        external(cplex_reset_cutpool_size/3, p_cpx_reset_cutpool_size),
-        external(cplex_init_cpcstr/5, p_cpx_init_cpcstr),
-        external(cplex_get_named_cp_index/4, p_cpx_get_named_cp_index),
-        external(cplex_get_named_cpcstr_indices/3, p_cpx_get_named_cpcstr_indices),
-        external(cplex_get_cpcstr_info/4, p_cpx_get_cpcstr_info),
-        external(cplex_set_cpcstr_cond/4, p_cpx_set_cpcstr_cond),
+        external(cplex_get_cutpool_size/3, p_cpx_get_cutpool_size(args)),
+        external(cplex_reset_cutpool_size/3, p_cpx_reset_cutpool_size(args)),
+        external(cplex_init_cpcstr/5, p_cpx_init_cpcstr(args)),
+        external(cplex_get_named_cp_index/4, p_cpx_get_named_cp_index(args)),
+        external(cplex_get_named_cpcstr_indices/3, p_cpx_get_named_cpcstr_indices(args)),
+        external(cplex_get_cpcstr_info/4, p_cpx_get_cpcstr_info(args)),
+        external(cplex_set_cpcstr_cond/4, p_cpx_set_cpcstr_cond(args)),
         
         setval(loaded_solver, loaded(Solver,Version))
     ;

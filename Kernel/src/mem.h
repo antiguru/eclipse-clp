@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: mem.h,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: mem.h,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  *
  * IDENTIFICATION	mem.h
  *
@@ -193,8 +193,33 @@ extern uword	*buffer_next ARGS((unbounded_buffer *bd, uword *ptr));
 
 
 /*---------------------------------------------------------------------
+ * Variable length C arrays
+ *---------------------------------------------------------------------*/
+
+#ifdef HAVE_C_VARARRAYS
+#define New_Array(type, name, size) type name[size]
+#define Delete_Array(type, name, size)
+#else
+#define New_Array(type, name, size) type *name = (type*)hp_alloc_size(size*sizeof(type))
+#define Delete_Array(type, name, size) hp_free_size((generic_ptr)(name), size*sizeof(type))
+#endif
+
+
+/*---------------------------------------------------------------------
  * Simplified shared heap interface
  *---------------------------------------------------------------------*/
+
+/* map former private heap to shared one */
+#define private_heap			global_heap
+#define private_mem_init(f)
+#define private_mem_release()
+#define hp_alloc_size(s)		hg_alloc_size(s)
+#define	hp_free_size(p,s)		hg_free_size(p,s)
+#define	hp_realloc_size(p,s,t)		hg_realloc_size(p,s,t)
+#define	hp_alloc(s)			hg_alloc(s)
+#define	hp_free(p)			hg_free(p)
+#define	hp_resize(p,s)			hg_resize(p,s)
+#define	hp_statistics(what)		0
 
 extern struct heap_descriptor global_heap;
 

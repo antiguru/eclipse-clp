@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_store.c,v 1.2 2010/03/19 05:52:16 jschimpf Exp $
+ * Version:	$Id: bip_store.c,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
  *
  * Contents:	Built-ins for the store-primitives
  *
@@ -36,7 +36,9 @@
 #include        "error.h"
 #include        "mem.h"
 #include        "dict.h"
+#include	"emu_export.h"
 #include        "property.h"
+#include	"os_support.h"
 
 #include        <stdio.h>	/* for sprintf() */
 
@@ -120,6 +122,32 @@ static void _mark_heap_htable(t_heap_htable *obj);
 static int _tostr_heap_htable(t_heap_htable *obj, char *buf, int quoted);
 static int _strsz_heap_htable(t_heap_htable *obj, int quoted);
 
+static dident d_store_;
+
+static int
+_lock_store(t_heap_htable *obj)
+{
+    return mt_mutex_lock(&obj->lock);
+}
+
+static int
+_trylock_store(t_heap_htable *obj)
+{
+    return mt_mutex_trylock(&obj->lock);
+}
+
+static int
+_unlock_store(t_heap_htable *obj)
+{
+    return mt_mutex_unlock(&obj->lock);
+}
+
+
+static dident
+_kind_store()
+{
+    return d_store_;
+}
 
 /* CLASS DESCRIPTOR (method table) */
 
@@ -132,7 +160,11 @@ t_ext_type heap_htable_tid = {
     0,	/* equal */
     (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_htable,
     0,	/* get */
-    0	/* set */
+    0,	/* set */
+    _kind_store,	/* kind */
+    (int (*)(t_ext_ptr)) _lock_store,	/* lock */
+    (int (*)(t_ext_ptr)) _trylock_store,	/* trylock */
+    (int (*)(t_ext_ptr)) _unlock_store	/* unlock */
 };
 
 
@@ -150,11 +182,11 @@ t_ext_type heap_htable_tid = {
 	    int err;							\
 	    pword *prop;						\
 	    Get_Key_Did(name_did, vhandle, thandle);			\
-	    prop = get_modular_property(name_did, HTABLE_PROP, vmod.did, tmod, LOCAL_PROP, &err); \
-	    if (!prop) {						\
+	    err = get_visible_property_handle(name_did, HTABLE_PROP, vmod.did, tmod, &heap_htable_tid, (t_ext_ptr*)&obj); \
+	    if (err < 0) {						\
 		Bip_Error(err == PERROR ? NO_LOCAL_REC : err);		\
 	    }								\
-	    obj = (t_heap_htable *) prop->val.wptr;			\
+	    Hold_Object_Until_Done(&heap_htable_tid,obj)		\
 	}
 
 
@@ -185,64 +217,67 @@ htable_new(int internal)
     {
 	obj->htable[i] = NULL;
     }
+    mt_mutex_init_recursive(&obj->lock);
     return obj;
 }
 
 
 static int
-p_is_store(value vhandle, type thandle, value vmod, type tmod)
+p_is_store(value vhandle, type thandle, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     int err;
-    pword *prop;
+    pword ignore;
     dident name_did;
 
     Get_Key_Did(name_did, vhandle, thandle);
-    prop = get_modular_property(name_did, HTABLE_PROP, vmod.did, tmod, LOCAL_PROP, &err);
-    Succeed_If(prop);
+    err = get_visible_property(name_did, HTABLE_PROP, vmod.did, tmod, &ignore);
+    if (err == PERROR) { Fail_; }
+    if (err < 0) { Bip_Error(err); }
+    Succeed_;
 }
 
 
 static int
-p_store_create(value vhtable, type thtable)
+p_store_create(value vhtable, type thtable, ec_eng_t *ec_eng)
 {
     pword htable;
 
     Check_Ref(thtable);
-    htable = ec_handle(&heap_htable_tid, (t_ext_ptr) htable_new(0));
+    htable = ecl_handle(ec_eng, &heap_htable_tid, (t_ext_ptr) htable_new(0));
     Return_Unify_Pw(vhtable, thtable, htable.val, htable.tag);
 }
 
 
 static int
-p_store_create_named(value vhtable, type thtable, value vmod, type tmod)
+p_store_create_named(value vhtable, type thtable, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     pword *prop;
     dident name_did;
     int err;
 
     Get_Functor_Did(vhtable, thtable, name_did);
-    prop = set_modular_property(name_did, HTABLE_PROP, vmod.did, tmod,
-				LOCAL_PROP, &err);
-    if (prop)
-    {
-	prop->tag.kernel = TPTR;
-	prop->val.wptr = (uword *) htable_new(0);
-	Succeed_;
-    }
-    else if (err == PERROR)
-    {
-	Succeed_;
-    }
-    else
-    {
+
+    mt_mutex_lock(&PropertyLock);
+    err = get_property_ref(name_did, HTABLE_PROP, vmod.did, tmod,
+				LOCAL_PROP, &prop);
+    if (err < 0) {
+	mt_mutex_unlock(&PropertyLock);
 	Bip_Error(err);
     }
-
+    if (!(err & NEW_PROP)) {
+	assert(prop->tag.kernel == TPTR);
+	htable_free((t_heap_htable*) prop->val.wptr);
+    }
+    prop->tag.kernel = TPTR;
+    prop->val.wptr = (uword *) htable_new(0);
+    mt_mutex_unlock(&PropertyLock);
+    Succeed_;
 }
 
 
 /*
  * Grow the hash table by HTABLE_EXPAND_FACTOR
+ * Should be called under mutex_lock.
  */
 
 static void
@@ -297,6 +332,7 @@ _htable_expand(t_heap_htable *obj)
 
 /*
  * Auxiliary function to look up vkey/tkey with hash value hash
+ * Should be called under mutex_lock.
  */
 
 static t_htable_elem *
@@ -329,7 +365,7 @@ _htable_find(t_heap_htable *obj, uword hash, value vkey, type tkey, t_htable_ele
  */
 
 static int
-p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod)
+p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     uword hash;
@@ -345,11 +381,12 @@ p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type
 	Bip_Error(res);
     }
 
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     pelem = _htable_find(obj, hash, vkey, tkey, &pslot);
     if (pelem)		/* an entry for key exists already */
     {
 	pword copy_value;
-	if ((res = create_heapterm(&copy_value, vval, tval)) != PSUCCEED)
+	if ((res = create_heapterm(ec_eng, &copy_value, vval, tval)) != PSUCCEED)
 	{
 	    Bip_Error(res);
 	}
@@ -360,12 +397,12 @@ p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type
     {
 	pelem = (t_htable_elem *) hg_alloc_size(sizeof(t_htable_elem));
 	pelem->hash = hash;
-	if ((res = create_heapterm(&pelem->key, vkey, tkey)) != PSUCCEED)
+	if ((res = create_heapterm(ec_eng, &pelem->key, vkey, tkey)) != PSUCCEED)
 	{
 	    hg_free_size(pelem, sizeof(t_htable_elem));
 	    Bip_Error(res);
 	}
-	if ((res = create_heapterm(&pelem->value, vval, tval)) != PSUCCEED)
+	if ((res = create_heapterm(ec_eng, &pelem->value, vval, tval)) != PSUCCEED)
 	{
 	    free_heapterm(&pelem->key);
 	    hg_free_size(pelem, sizeof(t_htable_elem));
@@ -386,7 +423,7 @@ p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type
 
 
 static int
-p_store_inc(value vhandle, type thandle, value vkey, type tkey, value vmod, type tmod)
+p_store_inc(value vhandle, type thandle, value vkey, type tkey, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     uword hash;
@@ -402,6 +439,7 @@ p_store_inc(value vhandle, type thandle, value vkey, type tkey, value vmod, type
 	Bip_Error(res);
     }
 
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     pelem = _htable_find(obj, hash, vkey, tkey, &pslot);
     if (pelem)		/* an entry for key exists already */
     {
@@ -416,7 +454,7 @@ p_store_inc(value vhandle, type thandle, value vkey, type tkey, value vmod, type
     {
 	pelem = (t_htable_elem *) hg_alloc_size(sizeof(t_htable_elem));
 	pelem->hash = hash;
-	if ((res = create_heapterm(&pelem->key, vkey, tkey)) != PSUCCEED)
+	if ((res = create_heapterm(ec_eng, &pelem->key, vkey, tkey)) != PSUCCEED)
 	{
 	    hg_free_size(pelem, sizeof(t_htable_elem));
 	    Bip_Error(res);
@@ -437,7 +475,7 @@ p_store_inc(value vhandle, type thandle, value vkey, type tkey, value vmod, type
 
 
 static int
-p_store_contains(value vhandle, type thandle, value vkey, type tkey, value vmod, type tmod)
+p_store_contains(value vhandle, type thandle, value vkey, type tkey, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     t_htable_elem *pelem;
@@ -451,12 +489,14 @@ p_store_contains(value vhandle, type thandle, value vkey, type tkey, value vmod,
     {
 	Bip_Error(res);
     }
-    Succeed_If(_htable_find(obj, hash, vkey, tkey, &pslot));
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
+    pelem = _htable_find(obj, hash, vkey, tkey, &pslot);
+    Succeed_If(pelem);
 }
 
 
 static int
-p_store_get(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod)
+p_store_get(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     t_htable_elem *pelem;
@@ -471,12 +511,13 @@ p_store_get(value vhandle, type thandle, value vkey, type tkey, value vval, type
     {
 	Bip_Error(res);
     }
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     pelem = _htable_find(obj, hash, vkey, tkey, &pslot);
     if (!pelem)
     {
 	Fail_;
     }
-    get_heapterm(&pelem->value, &elem_value);
+    get_heapterm(ec_eng, &pelem->value, &elem_value);
     if (IsRef(elem_value.tag) && elem_value.val.ptr == &elem_value)
     {
 	Succeed_;
@@ -486,7 +527,7 @@ p_store_get(value vhandle, type thandle, value vkey, type tkey, value vval, type
 
 
 static int
-p_store_delete(value vhandle, type thandle, value vkey, type tkey, value vmod, type tmod)
+p_store_delete(value vhandle, type thandle, value vkey, type tkey, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     t_htable_elem *pelem;
@@ -500,6 +541,7 @@ p_store_delete(value vhandle, type thandle, value vkey, type tkey, value vmod, t
     {
 	Bip_Error(res);
     }
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     pelem = _htable_find(obj, hash, vkey, tkey, &pslot);
     if (pelem)
     {
@@ -514,16 +556,17 @@ p_store_delete(value vhandle, type thandle, value vkey, type tkey, value vmod, t
 
 
 static int
-p_store_count(value vhandle, type thandle, value vn, type tn, value vmod, type tmod)
+p_store_count(value vhandle, type thandle, value vn, type tn, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     Get_Heap_Htable(vhandle, thandle, vmod, tmod, obj);
+    /* assume atomic load, no locking */
     Return_Unify_Integer(vn, tn, obj->nentries);
 }
 
 
 static int
-p_store_info(value vhandle, type thandle, value vmod, type tmod)
+p_store_info(value vhandle, type thandle, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     uword entry_count = 0;
@@ -533,6 +576,7 @@ p_store_info(value vhandle, type thandle, value vmod, type tmod)
 
     Get_Heap_Htable(vhandle, thandle, vmod, tmod, obj);
 
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     for(i = 0; i < obj->size; ++i)
     {
 	uword chain_length = 0;
@@ -561,7 +605,7 @@ p_store_info(value vhandle, type thandle, value vmod, type tmod)
 
 
 static int
-p_stored_keys(value vhandle, type thandle, value vresult, type tresult, value vmod, type tmod)
+p_stored_keys(value vhandle, type thandle, value vresult, type tresult, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     t_htable_elem *pelem;
@@ -569,6 +613,7 @@ p_stored_keys(value vhandle, type thandle, value vresult, type tresult, value vm
     pword result, *ptail;
 
     Get_Heap_Htable(vhandle, thandle, vmod, tmod, obj);
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     ptail = &result;
     for(i = 0; i < obj->size; ++i)
     {
@@ -578,7 +623,7 @@ p_stored_keys(value vhandle, type thandle, value vresult, type tresult, value vm
 	    Make_List(ptail, pw);
 	    Push_List_Frame();
 	    ptail = pw+1;
-	    get_heapterm(&pelem->key, pw);
+	    get_heapterm(ec_eng, &pelem->key, pw);
 	}
     }
     Make_Nil(ptail);
@@ -587,7 +632,7 @@ p_stored_keys(value vhandle, type thandle, value vresult, type tresult, value vm
 
 
 static int
-p_stored_keys_and_values(value vhandle, type thandle, value vresult, type tresult, value vmod, type tmod)
+p_stored_keys_and_values(value vhandle, type thandle, value vresult, type tresult, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
     t_htable_elem *pelem;
@@ -595,6 +640,7 @@ p_stored_keys_and_values(value vhandle, type thandle, value vresult, type tresul
     pword result, *ptail;
 
     Get_Heap_Htable(vhandle, thandle, vmod, tmod, obj);
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     ptail = &result;
     for(i = 0; i < obj->size; ++i)
     {
@@ -607,14 +653,16 @@ p_stored_keys_and_values(value vhandle, type thandle, value vresult, type tresul
 	    Make_Struct(pw, TG);
 	    pw = TG;
 	    Push_Struct_Frame(d_.minus);
-	    get_heapterm(&pelem->key, pw+1);
-	    get_heapterm(&pelem->value, pw+2);
+	    get_heapterm(ec_eng, &pelem->key, pw+1);
+	    get_heapterm(ec_eng, &pelem->value, pw+2);
 	}
     }
     Make_Nil(ptail);
     Return_Unify_Pw(vresult, tresult, result.val, result.tag);
 }
 
+
+/* Erase the hash table content.  Must be called under lock. */
 
 static void
 _htable_erase(t_heap_htable *obj)
@@ -648,11 +696,12 @@ _htable_erase(t_heap_htable *obj)
 
 
 static int
-p_store_erase(value vhandle, type thandle, value vmod, type tmod)
+p_store_erase(value vhandle, type thandle, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     t_heap_htable *obj;
 
     Get_Heap_Htable(vhandle, thandle, vmod, tmod, obj);
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     _htable_erase(obj);
     Succeed_;
 }
@@ -665,8 +714,10 @@ htable_free(t_heap_htable *obj)	/* obj != NULL */
     p_fprintf(current_err_, "\nlosing reference to htable(0x%x)", obj);
     ec_flush(current_err_);
 #endif
-    if (--obj->ref_ctr <= 0)
+    int rem = atomic_add(&obj->ref_ctr, -1);
+    if (rem <= 0)
     {
+	assert(rem==0);
 	_htable_erase(obj);
 	if (obj->internal) {
 	    hp_free_size(obj->htable, obj->size * sizeof(t_htable_elem *));
@@ -675,6 +726,7 @@ htable_free(t_heap_htable *obj)	/* obj != NULL */
 	    hg_free_size(obj->htable, obj->size * sizeof(t_htable_elem *));
 	    hg_free_size(obj, sizeof(t_heap_htable));
 	}
+	mt_mutex_destroy(&obj->lock);
 #ifdef DEBUG_RECORD
 	p_fprintf(current_err_, "\nhtable_free(0x%x)", obj);
 	ec_flush(current_err_);
@@ -686,7 +738,7 @@ htable_free(t_heap_htable *obj)	/* obj != NULL */
 static t_heap_htable *
 _copy_heap_htable(t_heap_htable *obj)	/* obj != NULL */
 {
-    ++obj->ref_ctr;
+    atomic_add(&obj->ref_ctr, 1);
     return obj;
 }
 
@@ -806,7 +858,7 @@ store_get(t_heap_htable *obj, value vkey, type tkey, pword *valpw)
     Fail_;
 }
 
-/* Fail_ is not found but successfully entered in table! */
+
 /*
  * store_get_else_set(obj, vkey, tkey, valpw)
  *	Return a pword reference 'valpw' to the element referenced by
@@ -822,7 +874,6 @@ store_get(t_heap_htable *obj, value vkey, type tkey, pword *valpw)
  *	- it is assumed suitable allocation has already been performed.
  *	In this case, the entry is created and the routine returns 'PFAIL'.
  */
-
 
 int
 store_get_else_set(t_heap_htable *obj, value vkey, type tkey, pword *valpw)
@@ -867,6 +918,8 @@ store_get_else_set(t_heap_htable *obj, value vkey, type tkey, pword *valpw)
 void
 bip_store_init(int flags)
 {
+    d_store_ = in_dict("store", 0);
+
     if (flags & INIT_SHARED)
     {
 	(void) built_in(in_dict("store_create", 1), p_store_create, B_SAFE|U_SIMPLE);

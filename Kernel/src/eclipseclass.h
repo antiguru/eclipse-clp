@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eclipseclass.h,v 1.2 2012/02/25 13:36:44 jschimpf Exp $
+ * $Id: eclipseclass.h,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	eclipseclass.h
@@ -35,19 +35,6 @@
  *
  */
 
-
-#ifdef _WIN32
-
-#include <windows.h>
-#define Winapi WINAPI
-#define DLLEXP __declspec(dllimport)
-
-#else	/* UNIX */
-
-#define Winapi
-#define DLLEXP
-
-#endif
 
 #include "eclipse_cc.h"
 

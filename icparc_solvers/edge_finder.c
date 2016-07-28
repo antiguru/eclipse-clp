@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: edge_finder.c,v 1.1 2006/09/23 01:53:26 snovello Exp $
+* Version:	$Id: edge_finder.c,v 1.2 2016/07/28 03:34:37 jschimpf Exp $
 *----------------------------------------------------------------------*/
 
 /*
@@ -85,23 +85,9 @@ typedef struct {
 #define DELTA	ECT
 #define TaskNr(t)	((t)-ef->tasks)
 
-static void _ef_desc_free();
-static t_ext_ptr _ef_desc_copy();
-static pword _ef_desc_get();
-
-static t_ext_type ef_desc = {
-    _ef_desc_free,
-    _ef_desc_copy,
-    NULL,NULL,NULL,NULL,
-    _ef_desc_copy,
-    _ef_desc_get,
-    NULL
-};
-
 
 static void
-_ef_desc_free(obj)
-t_ext_ptr obj;
+_ef_desc_free(t_ext_ptr obj)
 {
     ef_t *ef = (ef_t *)obj;
     if (--ef->refcnt == 0)
@@ -118,17 +104,14 @@ t_ext_ptr obj;
 }
 
 static t_ext_ptr
-_ef_desc_copy(obj)
-t_ext_ptr obj;
+_ef_desc_copy(t_ext_ptr obj)
 {
     ((ef_t *)obj)->refcnt++;
     return obj;
 }
 
 static pword
-_ef_desc_get(obj, i)
-t_ext_ptr obj;
-int i;
+_ef_desc_get(t_ext_ptr obj, int i, ec_eng_t *ec_eng)
 {
     return ec_term(ec_did("task",2),
 /*
@@ -146,8 +129,19 @@ int i;
     );
 }
 
+
+static t_ext_type ef_desc = {
+    _ef_desc_free,
+    _ef_desc_copy,
+    NULL,NULL,NULL,NULL,
+    _ef_desc_copy,
+    _ef_desc_get,
+    NULL
+};
+
+
 int
-ec_init_ef( /* +N, +Capacity, +Option, -EfHandle */ )
+ec_init_ef(ec_eng_t *ec_eng /* +N, +Capacity, +Option, -EfHandle */ )
 {
     ef_t *ef;
     long i,n,cap,opt;
@@ -184,7 +178,7 @@ ec_init_ef( /* +N, +Capacity, +Option, -EfHandle */ )
 }
 
 int
-ec_init_task( /*EfHandle,I,Est,Lst,Ect,Lct,Sz,Dur,Area*/ )
+ec_init_task(ec_eng_t *ec_eng /*EfHandle,I,Est,Lst,Ect,Lct,Sz,Dur,Area*/ )
 {
     ef_t *ef;
     long i, size;
@@ -214,8 +208,7 @@ ec_init_task( /*EfHandle,I,Est,Lst,Ect,Lct,Sz,Dur,Area*/ )
 }
 
 static void
-_construct_size_table(ef)
-ef_t *ef;
+_construct_size_table(ef_t *ef)
 {
     long i;
     ef->nsizes = 0;
@@ -245,15 +238,13 @@ ef_t *ef;
 }
 
 static int
-_asc_lct(t1, t2)
-task_t **t1, **t2;
+_asc_lct(task_t **t1, task_t **t2)
 {
     return (*t1)->lct > (*t2)->lct ? 1 : (*t1)->lct < (*t2)->lct ? -1 : 0;
 }
 
 static int
-_asc_est(t1, t2)
-task_t **t1, **t2;
+_asc_est(task_t **t1, task_t **t2)
 {
     return (*t1)->est > (*t2)->est ? 1 : (*t1)->est < (*t2)->est ? -1 : 0;
 }
@@ -279,7 +270,7 @@ task_t **t1, **t2;
 }
 
 #define Before(ti,tj) {\
-	int err = _before(ef, bools, ti, tj);\
+	int err = _before(ec_eng, ef, bools, ti, tj);\
 	if (err != PSUCCEED) return err;\
 }
 
@@ -287,10 +278,7 @@ task_t **t1, **t2;
 /* Set boolean such that Ti is before tj */
 
 static int
-_before(ef, bools, ti, tj)
-ef_t *ef;
-pword bools;
-task_t *ti, *tj;
+_before(ec_eng_t *ec_eng, ef_t *ef, pword bools, task_t *ti, task_t *tj)
 {
     int err, idx;
     long zero_one;
@@ -307,7 +295,7 @@ task_t *ti, *tj;
 }
 
 int
-ec_ef_disj( /* EfHandle */ )
+ec_ef_disj(ec_eng_t *ec_eng /* EfHandle */ )
 {
     ef_t *ef;
     int y, x, i;
@@ -325,8 +313,10 @@ ec_ef_disj( /* EfHandle */ )
     if (ef->some_size_changed)
 	_construct_size_table(ef);
 
-    qsort((void*) (ef->asc_lct), ef->ntasks, sizeof(task_t*), _asc_lct);
-    qsort((void*) (ef->asc_est), ef->ntasks, sizeof(task_t*), _asc_est);
+    qsort((void*) (ef->asc_lct), ef->ntasks, sizeof(task_t*),
+    	(int (*)(const void*, const void*)) _asc_lct);
+    qsort((void*) (ef->asc_est), ef->ntasks, sizeof(task_t*),
+    	(int (*)(const void*, const void*)) _asc_est);
 
     Y = ef->asc_lct;
     X = ef->asc_est;
@@ -525,7 +515,7 @@ ec_ef_disj( /* EfHandle */ )
 }
 
 int
-ec_ef_cum( /* EfHandle */ )
+ec_ef_cum(ec_eng_t *ec_eng /* EfHandle */ )
 {
     ef_t *ef;
     int y, x, i, j;
@@ -542,8 +532,10 @@ ec_ef_cum( /* EfHandle */ )
 
     cap = ef->capacity;
 
-    qsort((void*) (ef->asc_lct), ef->ntasks, sizeof(task_t*), _asc_lct);
-    qsort((void*) (ef->asc_est), ef->ntasks, sizeof(task_t*), _asc_est);
+    qsort((void*) (ef->asc_lct), ef->ntasks, sizeof(task_t*),
+    	(int (*)(const void*, const void*)) _asc_lct);
+    qsort((void*) (ef->asc_est), ef->ntasks, sizeof(task_t*),
+    	(int (*)(const void*, const void*)) _asc_est);
 
     Y = ef->asc_lct;
     X = ef->asc_est;
@@ -812,7 +804,7 @@ ec_ef_cum( /* EfHandle */ )
 
 
 int
-ec_ef_quad( /* EfHandle */ )
+ec_ef_quad(ec_eng_t *ec_eng /* EfHandle */ )
 {
     ef_t *ef;
     int i, j, k;
@@ -824,7 +816,8 @@ ec_ef_quad( /* EfHandle */ )
     if (ec_get_handle(ec_arg(1), &ef_desc, (t_ext_ptr*)&ef) != PSUCCEED)
     	return TYPE_ERROR;
 
-    qsort((void*) (ef->asc_lct), ef->ntasks, sizeof(task_t*), _asc_lct);
+    qsort((void*) (ef->asc_lct), ef->ntasks, sizeof(task_t*),
+    	(int (*)(const void*, const void*)) _asc_lct);
 
     Y = ef->asc_lct;
     for (j = 0; j < ef->ntasks; ++j)		/* asc lct */
@@ -863,7 +856,8 @@ ec_ef_quad( /* EfHandle */ )
     }
 
 #if 0
-    qsort((void*) (ef->asc_est), ef->ntasks, sizeof(task_t*), _asc_est);
+    qsort((void*) (ef->asc_est), ef->ntasks, sizeof(task_t*),
+    	(int (*)(const void*, const void*)) _asc_est);
 
     Y = ef->asc_est;
     for (y = ef->ntasks-1; y >= 0; --y)		/* desc est */

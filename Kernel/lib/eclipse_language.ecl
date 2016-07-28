@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.15 2015/05/20 23:57:28 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.16 2016/07/28 03:34:35 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -216,6 +216,16 @@
 :- reexport (div) / 3 from sepia_kernel.
 :- reexport (do) / 2 from sepia_kernel.
 :- reexport (dynamic) / 1 from sepia_kernel.
+:- reexport engine_create / 2 from sepia_kernel.
+:- reexport engine_exit / 2 from sepia_kernel.
+:- reexport engine_resume / 3 from sepia_kernel.
+:- reexport engine_resume_thread / 2 from sepia_kernel.
+:- reexport engine_join / 2 from sepia_kernel.
+:- reexport engine_join / 3 from sepia_kernel.
+:- reexport engine_post_event / 2 from sepia_kernel.
+:- reexport engine_properties / 2 from sepia_kernel.
+:- reexport engine_self / 1 from sepia_kernel.
+:- reexport engine_status / 2 from sepia_kernel.
 :- reexport ensure_loaded / 1 from sepia_kernel.
 :- reexport enter_suspension_list / 3 from sepia_kernel.
 :- reexport env / 0 from sepia_kernel.
@@ -301,11 +311,15 @@
 :- reexport getbit / 3 from sepia_kernel.
 :- reexport getcwd / 1 from sepia_kernel.
 :- reexport getenv / 2 from sepia_kernel.
+:- reexport getref / 2 from sepia_kernel.
 :- reexport getval / 2 from sepia_kernel.
 :- reexport (global) / 1 from sepia_kernel.
 :- reexport global_op / 3 from sepia_kernel.
 :- reexport ground / 1 from sepia_kernel.
 :- reexport halt / 0 from sepia_kernel.
+:- reexport handle_abolish / 1 from sepia_kernel.
+:- reexport handle_proceed / 2 from sepia_kernel.
+:- reexport handle_wait / 2 from sepia_kernel.
 :- reexport (help) / 0 from sepia_kernel.
 :- reexport (help) / 1 from sepia_kernel.
 :- reexport (import) / 1 from sepia_kernel.
@@ -324,6 +338,7 @@
 :- reexport is_dynamic / 1 from sepia_kernel.
 :- reexport is_event / 1 from sepia_kernel.
 :- reexport is_handle / 1 from sepia_kernel.
+:- reexport is_handle / 2 from sepia_kernel.
 :- reexport is_list / 1 from sepia_kernel.
 :- reexport is_locked / 1 from sepia_kernel.
 :- reexport is_predicate / 1 from sepia_kernel.
@@ -453,10 +468,14 @@
 :- reexport real / 1 from sepia_kernel.
 :- reexport record / 2 from sepia_kernel.
 :- reexport record_create / 1 from sepia_kernel.
+:- reexport record_handle / 2 from sepia_kernel.
+:- reexport record_add / 4 from sepia_kernel.
+:- reexport record_remove / 3 from sepia_kernel.
 :- reexport recorda / 2 from sepia_kernel.
 :- reexport recorda / 3 from sepia_kernel.
 :- reexport recorded / 2 from sepia_kernel.
 :- reexport recorded / 3 from sepia_kernel.
+:- reexport recorded_count / 2 from sepia_kernel.
 :- reexport recorded_list / 2 from sepia_kernel.
 :- reexport recordz / 2 from sepia_kernel.
 :- reexport recordz / 3 from sepia_kernel.
@@ -503,6 +522,7 @@
 :- reexport setbit / 3 from sepia_kernel.
 :- reexport setenv / 2 from sepia_kernel.
 :- reexport setof / 3 from sepia_kernel.
+:- reexport setref / 2 from sepia_kernel.
 :- reexport setval / 2 from sepia_kernel.
 :- reexport sgn / 2 from sepia_kernel.
 :- reexport sh / 1 from sepia_kernel.
@@ -510,9 +530,12 @@
 :- reexport shelf_create / 2 from sepia_kernel.
 :- reexport shelf_create / 3 from sepia_kernel.
 :- reexport shelf_dec / 2 from sepia_kernel.
+:- reexport shelf_get_and_dec / 3 from sepia_kernel.
 :- reexport shelf_get / 3 from sepia_kernel.
 :- reexport shelf_inc / 2 from sepia_kernel.
+:- reexport shelf_inc_and_get / 3 from sepia_kernel.
 :- reexport shelf_set / 3 from sepia_kernel.
+:- reexport shelf_test_and_set / 4 from sepia_kernel.
 :- reexport sin / 2 from sepia_kernel.
 :- reexport (skipped) / 1 from sepia_kernel.
 :- reexport sleep / 1 from sepia_kernel.
@@ -608,6 +631,7 @@
 :- reexport wait / 2 from sepia_kernel.
 :- reexport wait / 3 from sepia_kernel.
 :- reexport wake / 0 from sepia_kernel.
+:- reexport with_mutex / 2 from sepia_kernel.
 :- reexport write / 1 from sepia_kernel.
 :- reexport write / 2 from sepia_kernel.
 :- reexport write_canonical / 1 from sepia_kernel.

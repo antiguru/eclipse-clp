@@ -33,15 +33,12 @@
 :- tool((;) / 2).
 :- tool((@) / 2).
 :- tool((\+) / 1).
-:- tool(block / 3).
 :- tool(call / 1).
 :- tool(catch / 3).
 :- tool((do) / 2).
 :- tool(fail_if / 1).
 :- tool((not) / 1).
 :- tool((once) / 1).
-:- tool(mutex / 2).
-:- tool(mutex_init / 1).
 :- tool(phrase / 2).
 :- tool(phrase / 3).
 
@@ -633,8 +630,7 @@ Fail:
     [eclipse 1]: [user].
      :- tool(where/0, where/1).
      where(Module) :-
-        printf(\"where/0 was called from module %w\\n\",
-         [Module]).
+        printf(\"where/0 was called from module %w\\n\", [Module]).
     ^D
     [eclipse 2]: where.
     where/0 was called from module eclipse
@@ -644,6 +640,7 @@ Fail:
     yes.
     [eclipse 4]: call(where) @ m.
     calling an undefined procedure where in module m
+
     [eclipse 1]: [user].
      :- tool(print_local_preds/0, print_local_preds/1).
      print_local_preds(Module) :-
@@ -672,10 +669,11 @@ Fail:
    definition (local or imported) in the caller module.  This primitive
    on the other hand allows to specify a different lookup module.
 <P>
-   Two conditions must be satisfied for the lookup to succeed:
+   One of two conditions must be satisfied for the lookup to succeed:
 <UL>
-   <LI>the definition wanted must be visible in the lookup module
-   <LI>the definition wanted must be exported from its home module
+   <LI>the predicate must be exported or reexported from the lookup module, or
+   <LI>the predicate is visible in the lookup module, and the LookupModule
+       argument originates from a tool-call within LookupModule
 </UL>
    The purpose of this is to allow calling procedures whose definition is
    not visible in the caller module.  The two main uses of this facility are:
@@ -686,7 +684,7 @@ Fail:
       another procedure of the same name (but from a different module),
      :/2 can be used to call that one instead of the locally defined one.
 </OL>
-   Note that :/2 does not affect the caller (context) module.
+   Note that :/2 does not affect the caller (context) module of the call.
    The following table summarises the different idioms:
 <PRE>
 	Call within module(m)         lookup module    caller module
@@ -698,9 +696,6 @@ Fail:
 	..., call(twice(X)) @ cm, ...   cm              cm
 </PRE>
 <P>
-   Note: In earlier versions of Eclipse the left hand side argument of
-   :/2 was required to be the module where the procedure was defined,
-   rather than just visible.
 "),
 	args:["Goal" : "Callable term (atom or compound).", "LookupModule" : "Atom."],
 	resat:"Resatisfiable if Goal is resatisfiable",
@@ -1248,71 +1243,6 @@ be unified with the caller, one-way matching will be used instead.
 	args:["Body" : "Callable term or a variable."]
 	]).
 
-:- comment(mutex_init / 1, [
-	summary:"Initialise the mutual exclusion lock MutexId",
-	amode:(mutex_init(+) is det),
-	desc:html("\
-   This built-in is used in parallel programs in connection with mutex/2
-   to implement mutual exclusion between parallel workers.
-    "),
-	args:["MutexId" : "Atom."],
-	exceptions:[4 : "MutexId is not instantiated",
-		5 : "MutexId is not an atom"],
-	see_also:[mutex/ 2]]).
-
-
-:- comment(mutex / 2, [
-	summary:"Equivalent to once(Goal) but with mutual exclusion among parallel workers.
-
-",
-	amode:(mutex(+,+) is det),
-	desc:html("   This built-in can be used in parallel programs to implement mutual
-   exclusion between parallel workers.  A Goal that is called via mutex/2
-   can be sure that no parallel worker is executing at the same time any
-   goal that is protected by a mutex/2 with the same MutexId.
-
-<P>
-   Note that in a side effect free program there is no need ever to worry
-   about mutual exclusion.  Only when side effects are involved (e.g.
-   read/1,2 and write/1,2, assert/1, setval/2, record/2 etc.)  it may be
-   necessary to acquire exclusive access to the common resource by using
-   mutex/2.
-
-<P>
-"),
-	args:["MutexId" : "Atom.", "Goal" : "Atom or compound term."],
-	fail_if:"Fails if Goal fails",
-	exceptions:[4 : "Goal is not instantiated.", 5 : "Goal is not an atom or a compound term."],
-	eg:"
-    :- mutex_init(my_lock).
-
-    atomic_write_list(List) :-
-        % make sure the list is printed in one chunk
-        mutex(my_lock, write_list(List)).
-
-    write_list([]) :- nl.
-    write_list([X|Xs]) :- writeln(X), write_list(Xs).
-
-    [eclipse]: generate_lists_in_parallel(L),
-               atomic_write_list(L), fail.
-
-
-
-",
-	see_also:[mutex_init / 1, (once) / 1]]).
-
-:- comment(block / 3, [
-	summary:"Equivalent to call(Goal) if Goal succeeds or fails.
-If Goal throws an exception that unifies with Catcher, Recovery is executed",
-	args:["Goal" : "A callable term.",
-		"Catcher" : "Any term.",
-		"Recovery" : "A callable term."],
-	desc:"This is a deprecated alias for catch/3 - see there.",
-	resat:"Resatisfiable if Goal is resatisfiable, or Goal exits and Recovery is resatisfiable",
-	fail_if:"Fail if Goal fails, or if Goal exits and Recovery fails",
-	see_also:[catch/3, throw/1, exit_block/1]]).
-
-
 :- comment(catch / 3, [
 	summary:"Equivalent to call(Goal) if Goal succeeds or fails.
 If Goal throws an exception that unifies with Catcher, Recovery is executed",
@@ -1436,20 +1366,9 @@ refer to bagof/3 for examples.
 	see_also:[call / 1, bagof / 3, setof / 3, coverof / 3]]).
 
 
-:- comment(exit_block / 1, [
-	summary:"Throw an exception described by Ball. Continue execution
-at the recovery procedure of a matching ancestestor catch/3 or block/3",
-	desc:"This is a deprecated alias for throw/1 - see there.",
-	amode:(exit_block(+) is erroneous),
-	args:["Ball" : "Any term, but no variable"],
-	exceptions:[
-	    4 : "Ball is uninstantiated.",
-	    230 : "Ball does not unify with a Catcher of any uncompleted call of catch/3 or block/3."],
-	see_also:[throw/1, catch/3, block/3]]).
-
 :- comment(throw / 1, [
 	summary:"Throw an exception described by Ball. Continue execution
-at the recovery procedure of a matching ancestestor catch/3",
+at the recovery procedure of a matching ancestor catch/3",
 	desc:html("\
    This predicate neither succeeds nor fails, but raises (or \"throws\")
    an exception identified by the term Ball.  Execution will then continue

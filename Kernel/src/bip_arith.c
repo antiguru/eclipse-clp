@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION    $Id: bip_arith.c,v 1.25 2016/07/24 19:34:45 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.26 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /*
@@ -109,9 +109,6 @@
 
 #define BITS_PER_WORD (8*SIZEOF_WORD)
 
-static int
-	_reverse_times(word x, word y, value zval, type ztag);
-
 
 #if defined(i386) && defined(__GNUC__)
 double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
@@ -124,7 +121,7 @@ double (*pow_ptr_to_avoid_buggy_inlining)(double,double) = pow;
  *-----------------------------------------------------------------------*/
 
 static int
-p_succ(value x, type tx, value y, type ty)
+p_succ(value x, type tx, value y, type ty, ec_eng_t *ec_eng)
 {
     pword result;
 
@@ -156,15 +153,15 @@ p_succ(value x, type tx, value y, type ty)
 	} else if (IsRef(ty)) {
 	    return PDELAY_1_2;
 	}
-	return unary_arith_op(y, ty, x, tx, ARITH_PREV, TINT);
+	return unary_arith_op(y, ty, x, tx, ec_eng, ARITH_PREV, TINT);
     }
     else 
-	return unary_arith_op(x, tx, y, ty, ARITH_NEXT, TINT);
+	return unary_arith_op(x, tx, y, ty, ec_eng, ARITH_NEXT, TINT);
 }
 
 
 static int
-p_plus(value x, type tx, value y, type ty, value z, type tz)
+p_plus(value x, type tx, value y, type ty, value z, type tz, ec_eng_t *ec_eng)
 {
     if (IsRef(tx))
     {
@@ -211,8 +208,41 @@ p_plus(value x, type tx, value y, type ty, value z, type tz)
 }
 
 
+/* 
+ * _reverse_times is an auxiliary function for times
+ * used when times(INT,VAR,INT) or times(VAR,INT,INT) are called.
+ * receives two integers x,y 
+ * returns_unifies z= x/y if this is an integer otherwise fails
+ * for times(X, 0, 0) we delay since this may be true (X=0) or false
+ */
+
 static int
-p_times(value x, type tx, value y, type ty, value z, type tz)
+_reverse_times(word x, word y, value zval, type ztag, ec_eng_t *ec_eng)
+{
+    if (y == 0) 
+        if (x == 0) 
+	{
+	    Push_var_delay(zval.ptr, ztag.all);
+	    return PDELAY;
+	} 
+	else
+	{
+	    Fail_
+	}
+    else if (x % y != 0) 
+    {
+	Fail_;
+    }
+    else
+    {
+	Kill_DE;
+	Return_Unify_Integer(zval,ztag, x/y);
+    } 
+}
+  
+
+static int
+p_times(value x, type tx, value y, type ty, value z, type tz, ec_eng_t *ec_eng)
 {
     if ((IsRef(tx) || IsInteger(tx)) &&
 	(IsRef(ty) || IsInteger(ty)) &&
@@ -244,7 +274,7 @@ p_times(value x, type tx, value y, type ty, value z, type tz)
 		return PDELAY_1_3;
 	    }
 	    else
-		return _reverse_times(z.nint, y.nint, x, tx);
+		return _reverse_times(z.nint, y.nint, x, tx, ec_eng);
 	}
 	else if (x.nint == 0)
 	{
@@ -269,7 +299,7 @@ p_times(value x, type tx, value y, type ty, value z, type tz)
 		return PDELAY_2_3;
 	    }
 	    else
-		return _reverse_times(z.nint, x.nint, y, ty);
+		return _reverse_times(z.nint, x.nint, y, ty, ec_eng);
 	}
 	else
 	{
@@ -288,39 +318,6 @@ p_times(value x, type tx, value y, type ty, value z, type tz)
 }
 
 
-/* 
- * _reverse_times is an auxiliary function for times
- * used when times(INT,VAR,INT) or times(VAR,INT,INT) are called.
- * receives two integers x,y 
- * returns_unifies z= x/y if this is an integer otherwise fails
- * for times(X, 0, 0) we delay since this may be true (X=0) or false
- */
-
-static int
-_reverse_times(word x, word y, value zval, type ztag)
-{
-    if (y == 0) 
-        if (x == 0) 
-	{
-	    Push_var_delay(zval.ptr, ztag.all);
-	    return PDELAY;
-	} 
-	else
-	{
-	    Fail_
-	}
-    else if (x % y != 0) 
-    {
-	Fail_;
-    }
-    else
-    {
-	Kill_DE;
-	Return_Unify_Integer(zval,ztag, x/y);
-    } 
-}
-  
-
 /*------------------------------------------------------------------------
  * Other arithmetic-related built-ins
  *------------------------------------------------------------------------ */
@@ -329,7 +326,7 @@ _reverse_times(word x, word y, value zval, type ztag)
  * between(Min, Max, Step, Index)
  */
 static int
-p_between(value vmi, type tmi, value vma, type tma, value vs, type ts, value vi, type ti)
+p_between(value vmi, type tmi, value vma, type tma, value vs, type ts, value vi, type ti, ec_eng_t *ec_eng)
 {
     value	v;
 
@@ -384,10 +381,10 @@ p_between(value vmi, type tmi, value vma, type tma, value vs, type ts, value vi,
  */
 
 static int
-p_is_zero(value v, type t)
+p_is_zero(value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
-    Succeed_If(tag_desc[TagType(t)].arith_op[ARITH_SGN](v, &result) == PSUCCEED
+    Succeed_If(tag_desc[TagType(t)].arith_op[ARITH_SGN](ec_eng, v, &result) == PSUCCEED
 	    && result.val.nint == 0);
 }
 
@@ -401,7 +398,7 @@ p_is_zero(value v, type t)
 #define OFF_V	1
 
 static int
-p_collect(value vin, type tin, value vout, type tout, value vzero, type tzero)
+p_collect(value vin, type tin, value vout, type tout, value vzero, type tzero, ec_eng_t *ec_eng)
 {
     register pword *curr_var, *curr_tail, *zero_tail, *new_tail;
     register pword *pcoeff, *pvar, *pw;
@@ -439,12 +436,12 @@ p_collect(value vin, type tin, value vout, type tout, value vzero, type tzero)
 	    if (pvar == curr_var)			/* inside a sequence */
 	    {
 		err = bin_arith_op(pcoeff->val, pcoeff->tag,
-			new_coeff.val, new_coeff.tag, &new_coeff, ARITH_ADD);
+			new_coeff.val, new_coeff.tag, &new_coeff, ec_eng, ARITH_ADD);
 		if (err != PSUCCEED) goto _error_;
 	    }
 	    else				/* end of a sequence */
 	    {
-		if (p_is_zero(new_coeff.val, new_coeff.tag) == PSUCCEED)
+		if (p_is_zero(new_coeff.val, new_coeff.tag, ec_eng) == PSUCCEED)
 		{
 		    if (curr_var)
 		    {
@@ -489,16 +486,16 @@ p_collect(value vin, type tin, value vout, type tout, value vzero, type tzero)
 	{
 	    pword product;
 	    err = bin_arith_op(pcoeff->val, pcoeff->tag,
-			pvar->val, pvar->tag, &product, ARITH_MUL);
+			pvar->val, pvar->tag, &product, ec_eng, ARITH_MUL);
 	    if (err != PSUCCEED) goto _error_;
 	    err = bin_arith_op(product.val, product.tag,
-			new_coeff.val, new_coeff.tag, &new_coeff, ARITH_ADD);
+			new_coeff.val, new_coeff.tag, &new_coeff, ec_eng, ARITH_ADD);
 	    if (err != PSUCCEED) goto _error_;
 	}
     }
 
     /* end of last sequence */
-    if (p_is_zero(new_coeff.val, new_coeff.tag) == PSUCCEED)
+    if (p_is_zero(new_coeff.val, new_coeff.tag, ec_eng) == PSUCCEED)
     {
 	if (curr_var)
 	{
@@ -577,7 +574,7 @@ _error_:
 #define SIZE_LIST 2
 
 static int
-p_collapse_linear(value vin, type tin, value vout, type tout)
+p_collapse_linear(value vin, type tin, value vout, type tout, ec_eng_t *ec_eng)
 {
     pword *in_tail, *out_tail;
     pword *seq_mono, *seq_var, seq_coeff;
@@ -650,10 +647,10 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 		{
 		    pword product;
 		    err = bin_arith_op(cur_coeff->val, cur_coeff->tag,
-				cur_var->val, cur_var->tag, &product, ARITH_MUL);
+				cur_var->val, cur_var->tag, &product, ec_eng, ARITH_MUL);
 		    if (err != PSUCCEED) goto _error_;
 		    err = bin_arith_op(product.val, product.tag,
-				seq_coeff.val, seq_coeff.tag, &seq_coeff, ARITH_ADD);
+				seq_coeff.val, seq_coeff.tag, &seq_coeff, ec_eng, ARITH_ADD);
 		    if (err != PSUCCEED) goto _error_;
 		    seq_mono = 0;	/* not reusable */
 		    const_seen = 1;
@@ -663,7 +660,7 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 	    else if (cur_var == seq_var) /* still part of a variable sequence */
 	    {
 		err = bin_arith_op(cur_coeff->val, cur_coeff->tag,
-			seq_coeff.val, seq_coeff.tag, &seq_coeff, ARITH_ADD);
+			seq_coeff.val, seq_coeff.tag, &seq_coeff, ec_eng, ARITH_ADD);
 		if (err != PSUCCEED) goto _error_;
 		seq_mono = 0;	/* not reusable */
 		continue;
@@ -681,7 +678,7 @@ p_collapse_linear(value vin, type tin, value vout, type tout)
 	}
 
 	/* emit monomial for finished sequence (unless it is 0*Var) */
-	if (seq_var != &unit_var && p_is_zero(seq_coeff.val, seq_coeff.tag) == PSUCCEED)
+	if (seq_var != &unit_var && p_is_zero(seq_coeff.val, seq_coeff.tag, ec_eng) == PSUCCEED)
 	{
 	    /* an element was dropped: can't reuse earlier input list */
 	    in_reuse_tail = cur_tail;
@@ -742,36 +739,36 @@ _error_:
  *-----------------------------------------------------------------------*/
 
 int
-p_sgn(value v1, type t1, value v, type t)
+p_sgn(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
-    err = tag_desc[TagType(t1)].arith_op[ARITH_SGN](v1, &result);
+    err = tag_desc[TagType(t1)].arith_op[ARITH_SGN](ec_eng, v1, &result);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_min(value v1, type t1, value v2, type t2, value v, type t)
+p_min(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
-    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_MIN);
+    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_MIN);
 }
 
 static int
-p_max(value v1, type t1, value v2, type t2, value v, type t)
+p_max(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
-    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_MAX);
+    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_MAX);
 }
 
 static int
-p_gcd(value v1, type t1, value v2, type t2, value v, type t)
+p_gcd(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
-    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_GCD);
+    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_GCD);
 }
 
 static int
-p_gcd_ext(value v1, type t1, value v2, type t2, value s, type ts, value t, type tt, value g, type tg)
+p_gcd_ext(value v1, type t1, value v2, type t2, value s, type ts, value t, type tt, value g, type tg, ec_eng_t *ec_eng)
 {
     pword res1,res2,res3;
     int err;
@@ -784,11 +781,11 @@ p_gcd_ext(value v1, type t1, value v2, type t2, value s, type ts, value t, type 
     Check_Output_Integer_Or_Bignum(tt)
     Check_Output_Integer_Or_Bignum(tg)
     /* we don't have a TINT implementation, always compute via bignums */
-    err = tag_desc[TagType(t1)].coerce_to[TBIG](v1, &v1);
+    err = tag_desc[TagType(t1)].coerce_to[TBIG](ec_eng, v1, &v1);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[TagType(t2)].coerce_to[TBIG](v2, &v2);
+    err = tag_desc[TagType(t2)].coerce_to[TBIG](ec_eng, v2, &v2);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[TBIG].arith_op[ARITH_GCD_EXT](v1, v2, &res1, &res2, &res3);
+    err = tag_desc[TBIG].arith_op[ARITH_GCD_EXT](ec_eng, v1, v2, &res1, &res2, &res3);
     if (err != PSUCCEED) return err;
     Kill_DE;	/* in case it's a demon */
     Request_Unify_Pw(s, ts, res1.val, res1.tag);
@@ -798,133 +795,133 @@ p_gcd_ext(value v1, type t1, value v2, type t2, value s, type ts, value t, type 
 }
 
 static int
-p_lcm(value v1, type t1, value v2, type t2, value v, type t)
+p_lcm(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
-    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_LCM);
+    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_LCM);
 }
 
 static int
-p_uplus(value v1, type t1, value v, type t)
+p_uplus(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_PLUS, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_PLUS, TINT);
 }
 
 static int
-p_abs(value v1, type t1, value v, type t)
+p_abs(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_ABS, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_ABS, TINT);
 }
 
 static int
-p_sin(value v1, type t1, value v, type t)
+p_sin(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_SIN, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_SIN, TDBL);
 }
 
 static int
-p_cos(value v1, type t1, value v, type t)
+p_cos(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_COS, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_COS, TDBL);
 }
 
 static int
-p_tan(value v1, type t1, value v, type t)
+p_tan(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_TAN, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_TAN, TDBL);
 }
 
 static int
-p_asin(value v1, type t1, value v, type t)
+p_asin(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_ASIN, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_ASIN, TDBL);
 }
 
 static int
-p_acos(value v1, type t1, value v, type t)
+p_acos(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_ACOS, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_ACOS, TDBL);
 }
 
 static int
-p_atan(value v1, type t1, value v, type t)
+p_atan(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_ATAN, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_ATAN, TDBL);
 }
 
 static int
-p_atan2(value v1, type t1, value v2, type t2, value v, type t)
+p_atan2(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
-    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_ATAN2);
+    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_ATAN2);
 }
 
 static int
-p_exp(value v1, type t1, value v, type t)
+p_exp(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_EXP, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_EXP, TDBL);
 }
 
 static int
-p_ln(value v1, type t1, value v, type t)
+p_ln(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_LN, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_LN, TDBL);
 }
 
 static int
-p_sqrt(value v1, type t1, value v, type t)
+p_sqrt(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_SQRT, TDBL);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_SQRT, TDBL);
 }
 
 static int
-p_round(value v1, type t1, value v, type t)
+p_round(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_ROUND, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_ROUND, TINT);
 }
 
 static int
-p_floor(value v1, type t1, value v, type t)
+p_floor(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_FLOOR, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_FLOOR, TINT);
 }
 
 static int
-p_ceiling(value v1, type t1, value v, type t)
+p_ceiling(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_CEIL, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_CEIL, TINT);
 }
 
 static int
-p_truncate(value v1, type t1, value v, type t)
+p_truncate(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_TRUNCATE, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_TRUNCATE, TINT);
 }
 
 static int
-p_fix(value v1, type t1, value v, type t)
+p_fix(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_FIX, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_FIX, TINT);
 }
 
 static int
-p_integer2(value v1, type t1, value v, type t)
+p_integer2(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_INT, TINT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_INT, TINT);
 }
 
 static int
-p_numerator(value v1, type t1, value v, type t)
+p_numerator(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_NUM, TRAT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_NUM, TRAT);
 }
 
 static int
-p_denominator(value v1, type t1, value v, type t)
+p_denominator(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
-    return unary_arith_op(v1, t1, v, t, ARITH_DEN, TRAT);
+    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_DEN, TRAT);
 }
 
 static int
-p_pi(value v, type t)
+p_pi(value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     Make_Float(&result, 3.1415926535897932)
@@ -932,7 +929,7 @@ p_pi(value v, type t)
 }
 
 static int
-p_e(value v, type t)
+p_e(value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     Make_Float(&result, 2.7182818284590455)
@@ -945,36 +942,36 @@ p_e(value v, type t)
  *-----------------------------------------------------------------------*/
 
 static int
-p_rational2(value v1, type t1, value v, type t)
+p_rational2(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
     result.tag.kernel = TRAT;
-    err = tag_desc[TagType(t1)].coerce_to[TRAT](v1, &result.val);
+    err = tag_desc[TagType(t1)].coerce_to[TRAT](ec_eng, v1, &result.val);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_rationalize(value v1, type t1, value v, type t)
+p_rationalize(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
-    err = tag_desc[TagType(t1)].arith_op[ARITH_NICERAT](v1, &result);
+    err = tag_desc[TagType(t1)].arith_op[ARITH_NICERAT](ec_eng, v1, &result);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_bignum2(value v1, type t1, value v, type t)
+p_bignum2(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
     result.tag.kernel = TBIG;
-    err = tag_desc[TagType(t1)].coerce_to[TBIG](v1, &result.val);
+    err = tag_desc[TagType(t1)].coerce_to[TBIG](ec_eng, v1, &result.val);
     /* We fail here instead of making a type error. Thus bignum/2 can be
      * used more easily to test whether bignums are available or not */
     if (err != PSUCCEED) { Fail_; }
@@ -982,25 +979,25 @@ p_bignum2(value v1, type t1, value v, type t)
 }
 
 static int
-p_breal2(value v1, type t1, value v, type t)
+p_breal2(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
     result.tag.kernel = TIVL;
-    err = tag_desc[TagType(t1)].coerce_to[TIVL](v1, &result.val);
+    err = tag_desc[TagType(t1)].coerce_to[TIVL](ec_eng, v1, &result.val);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_float2(value v1, type t1, value v, type t)
+p_float2(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     int err;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
     result.tag.kernel = TDBL;
-    err = tag_desc[TagType(t1)].coerce_to[TagType(result.tag)](v1, &result.val);
+    err = tag_desc[TagType(t1)].coerce_to[TagType(result.tag)](ec_eng, v1, &result.val);
     if (err != PSUCCEED) return(err);
     Return_Numeric(v, t, result)
 }
@@ -1065,7 +1062,7 @@ _int_pow(word x,
 
 
 static int
-p_power(value v1, type t1, value v2, type t2, value v, type t)
+p_power(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     int err;
@@ -1076,7 +1073,7 @@ p_power(value v1, type t1, value v2, type t2, value v, type t)
 	{
 	    if (v2.nint < 0)
 	    {
-		if (GlobalFlags & PREFER_RATIONALS)
+		if (EclGblFlags & PREFER_RATIONALS)
 		{
 		    /* this will force bignum ^ int -> rational */
 		    Bip_Error(INTEGER_OVERFLOW)
@@ -1096,17 +1093,17 @@ p_power(value v1, type t1, value v2, type t2, value v, type t)
 	}
 	else if (IsBignum(t1))
 	{
-	    err = tag_desc[TBIG].arith_op[ARITH_POW](v1, v2, &result);
+	    err = tag_desc[TBIG].arith_op[ARITH_POW](ec_eng, v1, v2, &result);
 	    if (err) { Bip_Error(err); }
 	}
 	else if (IsRational(t1))
 	{
-	    err = tag_desc[TRAT].arith_op[ARITH_POW](v1, v2, &result);
+	    err = tag_desc[TRAT].arith_op[ARITH_POW](ec_eng, v1, v2, &result);
 	    if (err) { Bip_Error(err); }
 	}
 	else 
 	{
-	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_POW);
+	    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_POW);
 	}
     }
     else if(IsBignum(t2))
@@ -1119,7 +1116,7 @@ p_power(value v1, type t1, value v2, type t2, value v, type t)
     }
     else /* default also handles delay */
     {
-	return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_POW);
+	return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_POW);
     }
     Kill_DE;
     Return_Numeric(v, t, result)
@@ -1127,20 +1124,20 @@ p_power(value v1, type t1, value v2, type t2, value v, type t)
 
 
 static int
-p_powm(value v1, type t1, value v2, type t2, value v3, type t3, value v, type t)
+p_powm(value v1, type t1, value v2, type t2, value v3, type t3, value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     int err;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
     if (IsRef(t2)) { Bip_Error(PDELAY_2) }
     if (IsRef(t3)) { Bip_Error(PDELAY_3) }
-    err = tag_desc[TagType(t1)].coerce_to[TBIG](v1, &v1);
+    err = tag_desc[TagType(t1)].coerce_to[TBIG](ec_eng, v1, &v1);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[TagType(t2)].coerce_to[TBIG](v2, &v2);
+    err = tag_desc[TagType(t2)].coerce_to[TBIG](ec_eng, v2, &v2);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[TagType(t3)].coerce_to[TBIG](v3, &v3);
+    err = tag_desc[TagType(t3)].coerce_to[TBIG](ec_eng, v3, &v3);
     if (err != PSUCCEED) return(err);
-    err = tag_desc[TBIG].arith_op[ARITH_POWM](v1, v2, v3, &result);
+    err = tag_desc[TBIG].arith_op[ARITH_POWM](ec_eng, v1, v2, v3, &result);
     if (err != PSUCCEED) return(err);
     Return_Unify_Pw(v, t, result.val, result.tag);
 }
@@ -1154,7 +1151,7 @@ p_powm(value v1, type t1, value v2, type t2, value v3, type t3, value v, type t)
  */
 
 static int
-p_lshift(value v1, type t1, value v2, type t2, value v, type t)
+p_lshift(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     int err;
@@ -1182,11 +1179,11 @@ p_lshift(value v1, type t1, value v2, type t2, value v, type t)
 	}
 	else if (IsBignum(t1))
 	{
-	    err = tag_desc[TBIG].arith_op[ARITH_SHL](v1, v2, &result);
+	    err = tag_desc[TBIG].arith_op[ARITH_SHL](ec_eng, v1, v2, &result);
 	    if (err != PSUCCEED) { Bip_Error(err); }
 	}
 	else	/* error */
-	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHL);
+	    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_SHL);
     }
     else if (IsBignum(t2))
     {
@@ -1201,17 +1198,17 @@ p_lshift(value v1, type t1, value v2, type t2, value v, type t)
             Make_Integer(&result, BigNegative(v1.ptr) ? -1 : 0);
 	}
 	else
-	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHL);
+	    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_SHL);
     }
     else
-	return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHL);
+	return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_SHL);
 
     Kill_DE;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_rshift(value v1, type t1, value v2, type t2, value v, type t)
+p_rshift(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     int err;
@@ -1239,11 +1236,11 @@ p_rshift(value v1, type t1, value v2, type t2, value v, type t)
 	}
 	else if (IsBignum(t1))
 	{
-	    err = tag_desc[TBIG].arith_op[ARITH_SHR](v1, v2, &result);
+	    err = tag_desc[TBIG].arith_op[ARITH_SHR](ec_eng, v1, v2, &result);
 	    if (err != PSUCCEED) { Bip_Error(err); }
 	}
 	else
-	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHR);
+	    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_SHR);
     }
     else if (IsBignum(t2))
     {
@@ -1258,17 +1255,17 @@ p_rshift(value v1, type t1, value v2, type t2, value v, type t)
 	    Make_Integer(&result, BigNegative(v1.ptr) ? -1 : 0);
 	}
 	else
-	    return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHR);
+	    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_SHR);
     }
     else
-	return binary_arith_op(v1, t1, v2, t2, v, t, ARITH_SHR);
+	return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_SHR);
 
     Kill_DE;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_minint(value v, type t)
+p_minint(value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     Make_Integer(&result, MIN_S_WORD);
@@ -1276,7 +1273,7 @@ p_minint(value v, type t)
 }
 
 static int
-p_maxint(value v, type t)
+p_maxint(value v, type t, ec_eng_t *ec_eng)
 {
     pword result;
     Make_Integer(&result, MAX_S_WORD);
@@ -1285,7 +1282,7 @@ p_maxint(value v, type t)
 
 
 static int
-p_setbit(value vi, type ti, value vn, type tn, value v, type t)	/* argument order because of overflow handler */
+p_setbit(value vi, type ti, value vn, type tn, value v, type t, ec_eng_t *ec_eng)	/* argument order because of overflow handler */
 {
     int err;
     pword result;
@@ -1312,18 +1309,18 @@ p_setbit(value vi, type ti, value vn, type tn, value v, type t)	/* argument orde
     }
     else if (IsBignum(ti) || IsString(ti))
     {
-	err = tag_desc[TagType(ti)].arith_op[ARITH_SETBIT](vi, vn, &result);
+	err = tag_desc[TagType(ti)].arith_op[ARITH_SETBIT](ec_eng, vi, vn, &result);
 	if (err != PSUCCEED) return err;
     }
     else
-	return binary_arith_op(vi, ti, vn, tn, v, t, ARITH_SETBIT);
+	return binary_arith_op(vi, ti, vn, tn, v, t, ec_eng, ARITH_SETBIT);
 
     Kill_DE;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_clrbit(value vi, type ti, value vn, type tn, value v, type t)
+p_clrbit(value vi, type ti, value vn, type tn, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
@@ -1350,18 +1347,18 @@ p_clrbit(value vi, type ti, value vn, type tn, value v, type t)
     }
     else if (IsBignum(ti) || IsString(ti))
     {
-	err = tag_desc[TagType(ti)].arith_op[ARITH_CLRBIT](vi, vn, &result);
+	err = tag_desc[TagType(ti)].arith_op[ARITH_CLRBIT](ec_eng, vi, vn, &result);
 	if (err != PSUCCEED) return err;
     }
     else
-	return binary_arith_op(vi, ti, vn, tn, v, t, ARITH_CLRBIT);
+	return binary_arith_op(vi, ti, vn, tn, v, t, ec_eng, ARITH_CLRBIT);
 
     Kill_DE;
     Return_Numeric(v, t, result)
 }
 
 static int
-p_getbit(value vi, type ti, value vn, type tn, value v, type t)
+p_getbit(value vi, type ti, value vn, type tn, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
@@ -1380,11 +1377,11 @@ p_getbit(value vi, type ti, value vn, type tn, value v, type t)
     }
     else if (IsBignum(ti) || IsString(ti))
     {
-	err = tag_desc[TagType(ti)].arith_op[ARITH_GETBIT](vi, vn, &result);
+	err = tag_desc[TagType(ti)].arith_op[ARITH_GETBIT](ec_eng, vi, vn, &result);
 	if (err != PSUCCEED) return err;
     }
     else
-	return binary_arith_op(vi, ti, vn, tn, v, t, ARITH_GETBIT);
+	return binary_arith_op(vi, ti, vn, tn, v, t, ec_eng, ARITH_GETBIT);
 
     Kill_DE;
     Return_Numeric(v, t, result)
@@ -1392,7 +1389,7 @@ p_getbit(value vi, type ti, value vn, type tn, value v, type t)
 
 #if 0
 static int
-_strg_setbit(value v1, value v2, pword *pres)	/* string x int -> string */
+_strg_setbit(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* string x int -> string */
 {
     int words_old = 2*(BufferPwords(v1.ptr)-1);
     int words_offset = v2.nint / BITS_PER_WORD;
@@ -1426,16 +1423,16 @@ _strg_setbit(value v1, value v2, pword *pres)	/* string x int -> string */
  * ChunkSizeInBits must not exceed the wordsize.
  */
 
-p_integer_list(value vi, type ti, value vsz, type tsz, value v, type t)
+p_integer_list(value vi, type ti, value vsz, type tsz, value v, type t, ec_eng_t *ec_eng)
 {
     int err;
     pword result;
 
     Check_Integer_Or_Bignum(ti)
     Check_Integer(tsz)
-    err = tag_desc[TagType(ti)].coerce_to[TBIG](vi, &vi);
+    err = tag_desc[TagType(ti)].coerce_to[TBIG](ec_eng, vi, &vi);
     if (err != PSUCCEED) return(err);
-    err = ec_big_to_chunks(vi.ptr, vsz.nint, &result);
+    err = ec_big_to_chunks(ec_eng, vi.ptr, vsz.nint, &result);
     Return_If_Error(err);
     Return_Unify_Pw(v, t, result.val, result.tag);
 }
@@ -1449,6 +1446,7 @@ int
 un_arith_op(
     	value v1, type t1,	/* input */
 	pword *result,		/* output */
+	ec_eng_t *ec_eng,	/* engine */
 	int op,			/* operation */
 	int top)		/* the 'minimal' type for the result */
 {
@@ -1458,32 +1456,33 @@ un_arith_op(
     {
 	if (!IsNumber(t1))
 	    { Bip_Error(ARITH_TYPE_ERROR); }
-	err = tag_desc[TagType(t1)].coerce_to[top](v1, &v1);
+	err = tag_desc[TagType(t1)].coerce_to[top](ec_eng, v1, &v1);
 	if (err != PSUCCEED) return err;
     }
     else
 	/* CAUTION: must strip extra tag bits, e.g. PERSISTENT */
 	top = TagType(t1);
-    return tag_desc[top].arith_op[op](v1, result);
+    return tag_desc[top].arith_op[op](ec_eng, v1, result);
 }
 
 int
 unary_arith_op(
     	value v1, type t1,	/* input */
 	value v, type t,	/* output */
+	ec_eng_t *ec_eng,	/* engine */
 	int op,			/* operation */
 	int top)		/* the 'minimal' type for the result */
 {
     pword result;
     int err;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
-    err = un_arith_op(v1, t1, &result, op, top);
+    err = un_arith_op(v1, t1, &result, ec_eng, op, top);
     if (err != PSUCCEED) return err;
     Return_Numeric(v, t, result)
 }
 
 int
-bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
+bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, ec_eng_t *ec_eng, int op)
 {
     int err;
 
@@ -1493,30 +1492,30 @@ bin_arith_op(value v1, type t1, value v2, type t2, pword *pres, int op)
 	{
 	    if (!IsNumber(t2))
 		{ Bip_Error(ARITH_TYPE_ERROR); }
-	    err = tag_desc[TagType(t2)].coerce_to[TagType(t1)](v2, &v2);
+	    err = tag_desc[TagType(t2)].coerce_to[TagType(t1)](ec_eng, v2, &v2);
 	}
 	else
 	{
 	    if (!IsNumber(t1))
 		{ Bip_Error(ARITH_TYPE_ERROR); }
-	    err = tag_desc[TagType(t1)].coerce_to[TagType(t2)](v1, &v1);
+	    err = tag_desc[TagType(t1)].coerce_to[TagType(t2)](ec_eng, v1, &v1);
 	    t1.kernel = t2.kernel;
 	}
 	if (err != PSUCCEED) return err;
     }
-    err = tag_desc[TagType(t1)].arith_op[op](v1, v2, pres);
+    err = tag_desc[TagType(t1)].arith_op[op](ec_eng, v1, v2, pres);
     if (err != PSUCCEED) return err;	/* return with untouched *pres! */
     return PSUCCEED;
 }
 
 int
-binary_arith_op(value v1, type t1, value v2, type t2, value v, type t, int op)
+binary_arith_op(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng, int op)
 {
     pword result;
     int err;
     if (IsRef(t1)) { Bip_Error(PDELAY_1) }
     if (IsRef(t2)) { Bip_Error(PDELAY_2) }
-    err = bin_arith_op(v1, t1, v2, t2, &result, op);
+    err = bin_arith_op(v1, t1, v2, t2, &result, ec_eng, op);
     if (err != PSUCCEED) return err;
     Kill_DE;	/* in case it's a demon */
     Return_Numeric(v, t, result)
@@ -1536,7 +1535,7 @@ binary_arith_op(value v1, type t1, value v2, type t2, value v, type t, int op)
  *	UNIMPLEMENTED	from coercion
  */
 int
-arith_compare(value v1, type t1, value v2, type t2, int *res)
+arith_compare(ec_eng_t *ec_eng, value v1, type t1, value v2, type t2, int *res)
 {
     int err;
     pword *old_tg = TG; /* coercion may create temporaries */
@@ -1544,12 +1543,12 @@ arith_compare(value v1, type t1, value v2, type t2, int *res)
     {
 	if (tag_desc[TagType(t1)].numeric > tag_desc[TagType(t2)].numeric)
 	{
-	    err = tag_desc[TagType(t2)].coerce_to[TagType(t1)](v2, &v2);
+	    err = tag_desc[TagType(t2)].coerce_to[TagType(t1)](ec_eng, v2, &v2);
 	    t2.kernel = Tag(t1.kernel);
 	}
 	else
 	{
-	    err = tag_desc[TagType(t1)].coerce_to[TagType(t2)](v1, &v1);
+	    err = tag_desc[TagType(t1)].coerce_to[TagType(t2)](ec_eng, v1, &v1);
 	    t1.kernel = Tag(t2.kernel);
 	}
 	if (err != PSUCCEED) return err;
@@ -1560,14 +1559,14 @@ arith_compare(value v1, type t1, value v2, type t2, int *res)
 }
 
 static int
-_int_nop(value v1, pword *pres)
+_int_nop(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Integer(pres, v1.nint);
     Succeed_;
 }
 
 static int
-_dbl_nop(value v1, pword *pres)
+_dbl_nop(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     pres->tag.kernel = TDBL;
     pres->val.all = v1.all;	/* double or pointer */
@@ -1575,7 +1574,7 @@ _dbl_nop(value v1, pword *pres)
 }
 
 static int
-_noc(value in, value *out)
+_noc(ec_eng_t *ec_eng, value in, value *out)
 {
     *out = in;
     Succeed_;
@@ -1601,7 +1600,7 @@ _arith_compare_int(value v1, value v2, int *res)
 /* CAUTION: The code for int_add and int_mul is duplicated in the emulator */
 
 static int
-_int_add(value v1, value v2, pword *pres)	/* int x int -> int/big */
+_int_add(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
     word res = v1.nint + v2.nint;
     if (((v1.nint >= 0) == (v2.nint >= 0)) && (v1.nint >= 0) != (res >= 0))
@@ -1613,7 +1612,7 @@ _int_add(value v1, value v2, pword *pres)	/* int x int -> int/big */
 }
 
 static int
-_int_sub(value v1, value v2, pword *pres)	/* int x int -> int/big */
+_int_sub(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
     word res = v1.nint - v2.nint;
     if (((v1.nint >= 0) != (v2.nint >= 0)) && (v1.nint >= 0) != (res >= 0))
@@ -1625,7 +1624,7 @@ _int_sub(value v1, value v2, pword *pres)	/* int x int -> int/big */
 }
 
 static int
-_int_mul(value v1, value v2, pword *pres)	/* int x int -> int/big */
+_int_mul(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* int x int -> int/big */
 {
     word   n1 = v1.nint;
     word   n2 = v2.nint;
@@ -1648,7 +1647,7 @@ _int_mul(value v1, value v2, pword *pres)	/* int x int -> int/big */
 }
 
 static int
-_int_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
+_int_neg(ec_eng_t *ec_eng, value v1, pword *pres)	/* needed in the parser to evaluate signs */
 {
     if (v1.nint == MIN_S_WORD)
 	{ Bip_Error(INTEGER_OVERFLOW); }
@@ -1657,61 +1656,61 @@ _int_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
 }
 
 static int
-_int_sgn(value v1, pword *pres)
+_int_sgn(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Integer(pres, v1.nint > 0 ? 1 : v1.nint < 0 ? -1: 0);
     Succeed_;
 }
 
 static int
-_int_min(value v1, value v2, pword *pres)
+_int_min(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Integer(pres, v1.nint > v2.nint ? v2.nint : v1.nint);
     Succeed_;
 }
 
 static int
-_int_max(value v1, value v2, pword *pres)
+_int_max(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Integer(pres, v1.nint < v2.nint ? v2.nint : v1.nint);
     Succeed_;
 }
 
 static int
-_int_abs(value v1, pword *pres)
+_int_abs(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (v1.nint < 0)
-	return _int_neg(v1, pres);
+	return _int_neg(ec_eng, v1, pres);
     Make_Integer(pres, v1.nint);
     Succeed_;
 }
 
 static int
-_int_gcd(value v1, value v2, pword *pres)
+_int_gcd(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     /* No special TINT implementation, we default to the TBIG one */
     int err;
-    err = tag_desc[TINT].coerce_to[TBIG](v1, &v1);
+    err = tag_desc[TINT].coerce_to[TBIG](ec_eng, v1, &v1);
     if (err != PSUCCEED) return err;
-    err = tag_desc[TINT].coerce_to[TBIG](v2, &v2);
+    err = tag_desc[TINT].coerce_to[TBIG](ec_eng, v2, &v2);
     if (err != PSUCCEED) return err;
-    return tag_desc[TBIG].arith_op[ARITH_GCD](v1, v2, pres);
+    return tag_desc[TBIG].arith_op[ARITH_GCD](ec_eng, v1, v2, pres);
 }
 
 static int
-_int_lcm(value v1, value v2, pword *pres)
+_int_lcm(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     /* No special TINT implementation, we default to the TBIG one */
     int err;
-    err = tag_desc[TINT].coerce_to[TBIG](v1, &v1);
+    err = tag_desc[TINT].coerce_to[TBIG](ec_eng, v1, &v1);
     if (err != PSUCCEED) return err;
-    err = tag_desc[TINT].coerce_to[TBIG](v2, &v2);
+    err = tag_desc[TINT].coerce_to[TBIG](ec_eng, v2, &v2);
     if (err != PSUCCEED) return err;
-    return tag_desc[TBIG].arith_op[ARITH_LCM](v1, v2, pres);
+    return tag_desc[TBIG].arith_op[ARITH_LCM](ec_eng, v1, v2, pres);
 }
 
 static int
-_int_atan2(value v1, value v2, pword *pres)
+_int_atan2(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Double(pres, Atan2((double)v1.nint, (double)v2.nint));
     Succeed_;
@@ -1764,21 +1763,21 @@ _equal_dbl(pword *pw1, pword *pw2)
  */
 
 static int
-_dbl_neg(value v1, pword *pres)	/* needed in the parser to evaluate signs */
+_dbl_neg(ec_eng_t *ec_eng, value v1, pword *pres)	/* needed in the parser to evaluate signs */
 {
     Make_Double(pres, -Dbl(v1))
     Succeed_;
 }
 
 static int
-_dbl_sgn(value v1, pword *pres)
+_dbl_sgn(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Integer(pres, Dbl(v1) == 0.0 ? 0 : Dbl(v1) > 0.0 ? 1: -1);
     Succeed_;
 }
 
 static int
-_dbl_min(value v1, value v2, pword *pres)
+_dbl_min(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double d1 = Dbl(v1);
     double d2 = Dbl(v2);
@@ -1788,7 +1787,7 @@ _dbl_min(value v1, value v2, pword *pres)
 }
 
 static int
-_dbl_max(value v1, value v2, pword *pres)
+_dbl_max(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double d1 = Dbl(v1);
     double d2 = Dbl(v2);
@@ -1798,35 +1797,35 @@ _dbl_max(value v1, value v2, pword *pres)
 }
 
 static int
-_dbl_add(value v1, value v2, pword *pres)
+_dbl_add(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Checked_Double(pres, Dbl(v1) + Dbl(v2))
     Succeed_;
 }
 
 static int
-_dbl_sub(value v1, value v2, pword *pres)
+_dbl_sub(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Checked_Double(pres, Dbl(v1) - Dbl(v2))
     Succeed_;
 }
 
 static int
-_dbl_mul(value v1, value v2, pword *pres)
+_dbl_mul(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Checked_Double(pres, Dbl(v1) * Dbl(v2))
     Succeed_;
 }
 
 static int
-_dbl_div(value v1, value v2, pword *pres)
+_dbl_div(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Checked_Double(pres, Dbl(v1) / Dbl(v2))
     Succeed_;
 }
 
 static int
-_dbl_abs(value v1, pword *pres)
+_dbl_abs(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (Dbl(v1) < 0.0)
     {
@@ -1845,28 +1844,28 @@ _dbl_abs(value v1, pword *pres)
 }
 
 static int
-_dbl_sin(value v1, pword *pres)
+_dbl_sin(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Checked_Double(pres, sin(Dbl(v1)))
     Succeed_;
 }
 
 static int
-_dbl_cos(value v1, pword *pres)
+_dbl_cos(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Checked_Double(pres, cos(Dbl(v1)))
     Succeed_;
 }
 
 static int
-_dbl_tan(value v1, pword *pres)
+_dbl_tan(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Checked_Double(pres, tan(Dbl(v1)))
     Succeed_;
 }
 
 static int
-_dbl_asin(value v1, pword *pres)
+_dbl_asin(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double y = Dbl(v1);
     if (!OneMOne(y))
@@ -1876,7 +1875,7 @@ _dbl_asin(value v1, pword *pres)
 }
 
 static int
-_dbl_acos(value v1, pword *pres)
+_dbl_acos(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double y = Dbl(v1);
     if (!OneMOne(y))
@@ -1886,21 +1885,21 @@ _dbl_acos(value v1, pword *pres)
 }
 
 static int
-_dbl_atan(value v1, pword *pres)
+_dbl_atan(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Checked_Double(pres, atan(Dbl(v1)))
     Succeed_;
 }
 
 static int
-_dbl_atan2(value v1, value v2, pword *pres)
+_dbl_atan2(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Checked_Double(pres, Atan2(Dbl(v1), Dbl(v2)))
     Succeed_;
 }
 
 static int
-_dbl_exp(value v1, pword *pres)
+_dbl_exp(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double d = Dbl(v1);
     /* Catch the special cases of raising 'e' to +Inf and -Inf as some
@@ -1917,7 +1916,7 @@ _dbl_exp(value v1, pword *pres)
 }
 
 static int
-_dbl_ln(value v1, pword *pres)
+_dbl_ln(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double y = Dbl(v1);
     if (!NonNegative(y))
@@ -1927,7 +1926,7 @@ _dbl_ln(value v1, pword *pres)
 }
 
 static int
-_dbl_sqrt(value v1, pword *pres)
+_dbl_sqrt(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double y = Dbl(v1);
     if (!NonNegative(y))
@@ -1937,14 +1936,14 @@ _dbl_sqrt(value v1, pword *pres)
 }
 
 static int
-_dbl_pow(value v1, value v2, pword *pres)
+_dbl_pow(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     Make_Checked_Double(pres, SafePow(Dbl(v1), Dbl(v2)))
     Succeed_;
 }
 
 static int
-_dbl_round(value v1, pword *pres)
+_dbl_round(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double x;
 #if defined(HAVE_RINT) && !defined(HP_RINT) && !defined(HAVE_RINT_BUG)
@@ -1964,21 +1963,21 @@ _dbl_round(value v1, pword *pres)
 }
 
 static int
-_dbl_floor(value v1, pword *pres)
+_dbl_floor(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Checked_Double(pres, floor(Dbl(v1)))
     Succeed_;
 }
 
 static int
-_dbl_ceil(value v1, pword *pres)
+_dbl_ceil(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Checked_Double(pres, Ceil(Dbl(v1)))
     Succeed_;
 }
 
 static int
-_dbl_truncate(value v1, pword *pres)
+_dbl_truncate(ec_eng_t *ec_eng, value v1, pword *pres)
 {
 #ifdef HAVE_TRUNC
     Make_Checked_Double(pres, trunc(Dbl(v1)))
@@ -1993,7 +1992,7 @@ _dbl_truncate(value v1, pword *pres)
 /* This _dbl_fix() is a simplified version of the one in bigrat.c */
 
 static int
-_dbl_fix(value v1, pword *pres)
+_dbl_fix(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double f = Dbl(v1);
     if (MIN_S_WORD_DBL <= f && f < MAX_S_WORD_1_DBL)	/* fits in word? */
@@ -2012,7 +2011,7 @@ _dbl_fix(value v1, pword *pres)
 }
 
 static int
-_dbl_int2(value v1, pword *pres)
+_dbl_int2(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double f = Dbl(v1);
     if (MIN_S_WORD_DBL <= f && f < MAX_S_WORD_1_DBL)	/* fits in word? */
@@ -2044,26 +2043,26 @@ _dbl_int2(value v1, pword *pres)
 
 /*ARGSUSED*/
 static int
-_arith_type_err(value in, value *out)	/* CAUTION: we allow out == &in */
+_arith_type_err(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     return ARITH_TYPE_ERROR;
 }
 
 /*ARGSUSED*/
 static int
-_type_err(value in, value *out)		/* CAUTION: we allow out == &in */
+_type_err(ec_eng_t *ec_eng, value in, value *out)		/* CAUTION: we allow out == &in */
 {
     return TYPE_ERROR;
 }
 
 static int
-_unimp_err(value in, value *out)        /* CAUTION: we allow out == &in */
+_unimp_err(ec_eng_t *ec_eng, value in, value *out)        /* CAUTION: we allow out == &in */
 {
     return UNIMPLEMENTED;
 }
 
 static int
-_int_dbl(value in, value *out)        	/* CAUTION: we allow out == &in */
+_int_dbl(ec_eng_t *ec_eng, value in, value *out)        	/* CAUTION: we allow out == &in */
 {
     Make_Double_Val(*out, (double) in.nint)
     Succeed_;

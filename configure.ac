@@ -32,10 +32,10 @@ dnl
 #----------------------------------------------------------------------
 
 # AC_INIT defines PACKAGE_NAME and PACKAGE_VERSION
-AC_INIT([ECLiPSe], [6.2])
+AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.67 2016/07/24 19:34:43 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.68 2016/07/28 03:34:35 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -593,9 +593,6 @@ case "$ARCH" in
     dnl wsock32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lwsock32 -lnetapi32 $LIBS"
-    dnl Set to the oldest Windows version you want it to work on.
-    dnl 0x500=Win2000 - you may lose functionality if chosing an older version.
-    AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win32"
     OSCLASS="win"
     JAVA_PATH_SEP=";"
@@ -612,9 +609,6 @@ case "$ARCH" in
     dnl ws2_32 is for select(), gethostname() and sockets
     dnl netapi32 is for the Netbios() function
     LIBS="-lws2_32 -lnetapi32 $LIBS"
-    dnl Set to the oldest Windows version you want it to work on.
-    dnl 0x500=Win2000 - you may lose functionality if chosing an older version.
-    AC_DEFINE(HAVE_WIN32_WINNT, 0x500)
     OSTYPE="win64"
     OSCLASS="win"
     JAVA_PATH_SEP=";"
@@ -789,6 +783,7 @@ AC_CHECK_TOOL([STRIP],[strip])
 AC_C_CONST
 AC_C_INLINE
 AC_C_VOLATILE
+AC_C_VARARRAYS
 AC_C_BIGENDIAN
 AC_C_CHAR_UNSIGNED
 AC_CHECK_SIZEOF(int,4)
@@ -850,11 +845,12 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([],[return0;])],
 	LDFLAGS="$SAVED_LDFLAGS"])
 
 #----------------------------------------------------------------------
-# The --enable-debug option
+# The --enable-xxx options
 #----------------------------------------------------------------------
 AC_ARG_ENABLE(debug,
-	[  --enable-debug          compile with debugging features (ARG=opt for debugging optimised code)],
-	AC_MSG_RESULT(Configuring for debug=$enable_debug)
+	[AS_HELP_STRING([--enable-debug],[
+	    compile with debugging features (ARG=opt for debugging optimised code)])],
+	AC_MSG_NOTICE([Configuring for debug=$enable_debug])
 	[if test "x$enable_debug" != "xopt"; then 
 	    [OPTIMIZE=cp OPT_FLAGS_EMU=-g OPT_FLAGS_ARITH=-g OPT_FLAGS=-g LOCAL_FLAGS="$LOCAL_FLAGS -DPRINTAM"]
          else
@@ -990,6 +986,8 @@ dnl this doesn't work: AC_SEARCH_LIBS(gethostname, wsock32)
 AC_CHECK_FUNCS(select gethostname)
 
 AC_FUNC_MMAP
+
+AC_CHECK_DECLS([sigsetjmp],,,[[#include <setjmp.h>]])
 
 AC_MSG_CHECKING([for pow(zero,neg) bug])
 AC_RUN_IFELSE([AC_LANG_PROGRAM([[
@@ -1325,11 +1323,9 @@ ECLIPSETHIRDPARTY=${ECLIPSETHIRDPARTY:-"/vol/Eclipse/thirdparty"}
 #----------
 
 
-AC_ARG_WITH([tcl], [[  --without-tcl
-			Build ECLiPSe without the tkeclipse development
-			environment and without the Tcl/Tk interface
-			(not recommended).
-    ]],
+AC_ARG_WITH([tcl], [AS_HELP_STRING([--without-tcl],[
+	Build ECLiPSe without the tkeclipse development environment
+	and without the Tcl/Tk interface (not recommended).])],
     [tcl_requested="$withval"], [tcl_requested=yes])
 
 if test "$tcl_requested" = "yes"; then
@@ -1409,28 +1405,18 @@ fi
 # PTHREADS
 #----------
 
-AC_ARG_WITH([pthreads], [[  --without-pthreads
-			Build ECLiPSe without using pthreads.
-    ]],
-    [pthreads_requested="$withval"], [pthreads_requested=yes])
-
-if test "$pthreads_requested" = "yes"; then
-    AC_CHECK_HEADERS(pthread.h)
-    AC_CHECK_LIB(pthread,pthread_create)
-else
-    AC_MSG_NOTICE([Not using pthreads])
-fi
+AC_CHECK_HEADERS(pthread.h)
+AC_CHECK_LIB(pthread,pthread_create)
 
 
 #----------
 # GMP
 #----------
 
-AC_ARG_WITH([gmp], [[  --without-gmp
-			Build ECLiPSe without bignum/rational support.
-			(Not recommended - compiler will be restricted)
-			Default is to try finding GMP to build this support.
-    ]],
+AC_ARG_WITH([gmp], [AS_HELP_STRING([--without-gmp],
+	[Build ECLiPSe without bignum/rational support
+	(Not recommended - compiler will be restricted).
+	Default is to try finding GMP to build this support.])],
     [gmp_requested="$withval"], [gmp_requested=yes])
 
 if test "$gmp_requested" = "yes"; then
@@ -1530,11 +1516,10 @@ fi
 # Osi
 #----------
 
-AC_ARG_WITH([osi], [[  --with-osi[=versions]
-			Build ECLiPSe interface to COIN-OR Osi.  You can
-			optionally specify a version list, e.g. "clpcbc symclp".
-			Default is to build all available versions.
-    ]],
+AC_ARG_WITH([osi], [AS_HELP_STRING([[--with-osi[=versions]]],[
+	Build ECLiPSe interface to COIN-OR Osi.  You can
+	optionally specify a version list, e.g. "clpcbc symclp".
+	Default is to build all available versions.])],
     [osi_versions_requested="$withval"], [osi_versions_requested=yes])
 
 OSIBASEDIR="$ECLIPSETHIRDPARTY/coin"
@@ -1689,11 +1674,10 @@ $ECLIPSETHIRDPARTY
 C:
 /Library"
 
-AC_ARG_WITH([gurobi], [[  --with-gurobi[=versions]
-			Build ECLiPSe interface to the Gurobi optimizer.  You
-			can optionally specify a version list, e.g. "50 51".
-			Default is to build the first matching version.
-    ]],
+AC_ARG_WITH([gurobi], [AS_HELP_STRING([[--with-gurobi[=versions]]],[
+	Build ECLiPSe interface to the Gurobi optimizer.  You
+	can optionally specify a version list, e.g. "50 51".
+	Default is to build the first matching version.])],
     [gurobi_versions_requested="$withval"], [gurobi_versions_requested=yes])
 
 if test "$gurobi_versions_requested" != "no"; then
@@ -1740,10 +1724,9 @@ AC_ARG_ENABLE(eplex_own_malloc, [[  --enable-eplex-own-malloc
 # Gecode
 #----------
 
-AC_ARG_WITH([gfd], [[  --with-gfd
-			Build ECLiPSe interface to Gecode Solover.
-			Default is to build the interface.
-    ]],
+AC_ARG_WITH([gfd], [AS_HELP_STRING([--with-gfd],[
+	Build ECLiPSe interface to Gecode Solover.
+	Default is to build the interface.])],
     [gfd_requested="$withval"], [gfd_requested=yes])
 
 ALL_WITH_GECODE=
@@ -1790,13 +1773,13 @@ C:/Program Files/Java/jdk*
 $PROGRAMFILES/Java/jdk*
 /Library/Java/Home"
 
-AC_ARG_WITH([java], [[  --with-java[=dir]	Build ECLiPSe/Java interface.
-			If dir is given, this is taken as the Java installation
-			to use, otherwise the value of a JAVA_HOME environment
-			variable is used, otherwise a number of standard
-			locations is searched for a Java installation.
-			Default:yes
-    ]],
+AC_ARG_WITH([java], [AS_HELP_STRING([[--with-java[=dir]]],[
+	Build ECLiPSe/Java interface.
+	If dir is given, this is taken as the Java installation
+	to use, otherwise the value of a JAVA_HOME environment
+	variable is used, otherwise a number of standard
+	locations is searched for a Java installation.
+	Default:yes])],
     [with_java="$withval"], [with_java=yes])
 
 if test "$with_java" = "no"; then
@@ -1840,11 +1823,9 @@ fi
 
 FLEXLM_VERSION_PREF="7.2"
 
-AC_ARG_WITH([flexlm], [[  --with-flexlm[=version]
-			Build ECLiPSe interface to FlexLM. You can optionally
-			specify a version preference list.  Default is to
-			build first available.
-    ]],
+AC_ARG_WITH([flexlm], [AS_HELP_STRING([[--with-flexlm[=version]]],[
+	Build ECLiPSe interface to FlexLM. You can optionally specify
+	a version preference list.  Default is to build first available.])],
     [flexlm_versions="$withval"], [flexlm_versions=yes])
 
 FLEXLMDIR=
@@ -1922,11 +1903,10 @@ fi
 # Graphviz
 #----------
 
-AC_ARG_WITH([graphviz], [[  --with-graphviz[=versions]
-			Copy graphviz executables into the installation.
-			You can optionally specify a version list, e.g. "1.10".
-			Default is to use the first available version.
-    ]],
+AC_ARG_WITH([graphviz], [AS_HELP_STRING([[--with-graphviz[=versions]]],[
+	Copy graphviz executables into the installation.
+	You can optionally specify a version list, e.g. "1.10".
+	Default is to use the first available version.])],
     [graphviz_versions_requested="$withval"], [graphviz_versions_requested=yes])
 
 GRAPHVIZ_TARGET=
@@ -1955,11 +1935,10 @@ fi
 # MySQL
 #----------
 
-AC_ARG_WITH([mysql], [[  --with-mysql[=versions]
-			Build ECLiPSe database interface.  You can optionally
-			specify a version list, e.g. "50".
-			Default is to build the first available version.
-    ]],
+AC_ARG_WITH([mysql], [AS_HELP_STRING([[--with-mysql[=versions]]],[
+	Build ECLiPSe database interface.  You can optionally
+	specify a version list, e.g. "50".
+	Default is to build the first available version.])],
     [mysql_versions_requested="$withval"], [mysql_versions_requested=yes])
 
 ALL_WITH_MYSQL=
@@ -1989,10 +1968,9 @@ fi
 # CP-Viz
 #----------
 
-AC_ARG_WITH([cpviz], [[  --without-cpviz
-			Build ECLiPSe without the CP-Viz constraint visualiser
-			(CP-Viz requires Java, Batik and Javahelp)
-    ]],
+AC_ARG_WITH([cpviz], [AS_HELP_STRING([--without-cpviz],[
+	Build ECLiPSe without the CP-Viz constraint visualiser
+	(CP-Viz requires Java, Batik and Javahelp).])],
     [cpviz_requested="$withval"], [cpviz_requested=yes])
 
 

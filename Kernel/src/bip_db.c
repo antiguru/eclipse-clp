@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.18 2013/03/04 18:22:32 kish_shen Exp $
+ * VERSION	$Id: bip_db.c,v 1.19 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -59,9 +59,8 @@
 #include	"module.h"
 #include 	"debug.h"	/* for external definitions */
 #include	"property.h"
+#include	"os_support.h"
 
-#define MAX_KILLS		50
-#define MAX_KILLED_SIZE		1000
 
 #define Add_Did(vname, tname, varity, tarity, d)		\
 	if (IsRef(tname) || IsRef(tarity)) {			\
@@ -75,64 +74,14 @@
 	    d = add_dict(vname.did, (int) varity.nint);		\
 	}
 
-#define Get_Macro_Did(vproc, tproc, wd)		\
-	if (IsStructure(tproc) && vproc.ptr->val.did == d_type_) {\
-	    int res = _type_did(vproc.ptr+1, &(wd));\
-	    Return_If_Error(res);\
-	} else {\
-	    Get_Functor_Did(vproc, tproc, wd)\
-	}
-
 
 extern void
-    add_proc_to_chain(pri *p, proc_duet **chain),
     reclaim_abolished_procedures(void);
 
 extern vmcode par_fail_code_[];
 
 
-extern t_ext_type heap_rec_header_tid;
-
-static int
-#ifdef DBGING_DYN_DB
-    p_print_gc(void),
-#endif /* DBGING_DYN_DB */
-    p_abolish(value n, type tn, value a, type ta, value vm, type tm),
-    p_current_functor(value valn, type tagn, value vala, type taga, value vopt, type topt, value valsn, type tagsn),
-    p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm),
-    p_dynamic_source(value v1, type t1, value v2, type t2, value vsrc, type tsrc, value vm, type tm),
-    p_is_dynamic(value v1, type t1, value v2, type t2, value vm, type tm),
-    p_is_built_in(value val, type tag, value vm, type tm),
-    p_is_predicate(value val, type tag, value vm, type tm),
-    p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type tm),
-    p_external(value vp, type tp, value vf, type tf, value vm, type tm),
-    p_b_external(value vp, type tp, value vf, type tf, value vm, type tm),
-    p_external_body(value vpred, type tpred, value vmod, type tmod),
-    p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod, value vout, type tout),
-#ifdef PRINTAM
-    p_vm_statistics(value v, type t),
-#endif
-#ifndef NOALS
-    p_als(value val, type tag, value vm, type tm),
-#endif
-    p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vfid, type tfid, value vlid, type tlid, value vbid, type tbid, value vm, type tm),
-    p_retrieve_code(value vproc, type tproc, value vcode, type tcode, value vm, type tm),
-    p_decode_code(value vcode, type tcode, value v, type t),
-    p_functor_did(value vspec, type tspec, value v, type t),
-    p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, value vm, type tm),
-    p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, type tm, value vp, type tp),
-    p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, type tprop, value vmod, type tmod),
-    p_erase_macro(value vproc, type tproc, value vmod, type tmod),
-    p_erase_macro3(value vproc, type tproc, value vprop, type tprop, value vmod, type tmod),
-    p_illegal_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5),
-    p_is_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6),
-    p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6),
-    p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value vlm, type tlm, value vcm, type tcm),
-    p_trimcore(void),
-    p_create_call_n(value vn, type tn, value va, type ta),
-    p_mode(value pv, type pt, value mv, type mt);
-
-static int	_type_did(pword*, dident*);
+static int get_mode(ec_eng_t *, uint32, dident);
 
 static	dident
 		d_autoload_,
@@ -205,166 +154,6 @@ static	dident
 		d_predlist_option[PREDLIST_SIZE];
 
 
-/*
-When a clause is asserted, its birth tag is set to the value of
-DynGlobalClock When a clause is retracted, its death tag is set
-to it.  After both actions, DynGlobalClock is incremented by one.
-Whenever a call to a dynamic procedure is made it 'sees' only the
-currently living clauses, i.e. the ones for which
-birth < (DynGlobalClock at time of call) <= death.
-*/
-
-/* DynKilledCodeSize keeps a count of the size of 'retracted' code.
-When this exceeds a set value, the dynamic database garbage collector
-is invoked.
-*/
-
-
-void
-bip_db_init(int flags)
-{
-    pri		* proc;
-
-    d_autoload_ = in_dict("autoload", 0);
-    d_auxiliary_ = in_dict("auxiliary", 0);
-    d_trace_meta_ = in_dict("trace_meta", 0);
-    d_demon_ = in_dict("demon", 0);
-    d_deprecated_ = in_dict("deprecated", 0);
-    d_static_ = in_dict("static", 0);
-    d_dynamic_ = in_dict("dynamic", 0);
-    d_invisible_ = in_dict("invisible", 0);
-    d_imported_ = in_dict("imported", 0);
-    d_reexported_ = in_dict("reexported", 0);
-    d_exported_ = in_dict("exported", 0);
-    d_parallel_ = in_dict("parallel", 0);
-    d_run_priority_ = in_dict("run_priority", 0);
-    d_start_tracing_ = in_dict("start_tracing", 0);
-#ifdef EXTENDED_MODES
-    d_plusminus = in_dict("+-", 0);
-    d_minusplus = in_dict("-+", 0);
-#endif
-    d_constant = in_dict("constant", 0);
-    d_constant2 = in_dict("constant", 2);
-    d_nonvar = in_dict("nonvar", 0);
-    d_ground = in_dict("ground", 0);
-    d_a1 = in_dict("a", 1);
-    d_y1 = in_dict("y", 1);
-    d_ymask = in_dict("ymask", 1);
-    d_align = in_dict("align", 1);
-    d_table2 = in_dict("table", 2);
-    d_edesc = in_dict("edesc", 1);
-    d_try_table2 = in_dict("try_table", 2);
-    d_t1 = in_dict("t", 1);
-    d_w1 = in_dict("w", 1);
-    d_pw1 = in_dict("pw", 1);
-    d_nv1 = in_dict("nv", 1);
-    d_mv1 = in_dict("mv", 1);
-    d_an1 = in_dict("an", 1);
-    d_val1 = in_dict("val", 1);
-    d_tag1 = in_dict("tag", 1);
-    d_opc1 = in_dict("o", 1);
-    d_functor1 = in_dict("functor", 1);
-    d_proc1 = in_dict("proc", 1);
-    d_type0_ = in_dict("type", 0);
-    d_type_ = in_dict("type", 1);
-    d_init2 = in_dict("init", 2);
-    d_ref1 = in_dict("ref", 1);
-    d_ref2 = in_dict("ref", 2);
-    d_refm = in_dict("refm", 2);
-    d_tags = in_dict("tags", 0);
-    d_par_fail = in_dict("par_fail", 0);
-    d_source_file_ = in_dict("source_file", 0);
-    d_source_line_ = in_dict("source_line", 0);
-    d_source_offset_ = in_dict("source_offset", 0);
-    d_unfold6_ = in_dict("unfold", 6);
-
-    d_predlist_option[PREDLIST_UNDECLARED] = in_dict("undeclared",0);
-    d_predlist_option[PREDLIST_LOCAL] = in_dict("local",0);
-    d_predlist_option[PREDLIST_EXPORTED] = in_dict("exported",0);
-    d_predlist_option[PREDLIST_REEXPORTED] = in_dict("reexported",0);
-    d_predlist_option[PREDLIST_EXREEX] = in_dict("exported_reexported",0);
-    d_predlist_option[PREDLIST_DEFINED] = in_dict("defined",0);
-    d_predlist_option[PREDLIST_UNDEFINED] = in_dict("undefined",0);
-    d_predlist_option[PREDLIST_NOMODULE] = in_dict("no_module",0);
-    d_predlist_option[PREDLIST_NOEXPORT] = in_dict("no_export",0);
-    d_predlist_option[PREDLIST_DEPRECATED] = in_dict("deprecated",0);
-
-    if (!(flags & INIT_SHARED))
-	return;
-
-    DynGlobalClock = 1;
-    DynKilledCodeSize = 0;
-    DynNumOfKills = 0;
-    DynamicProcedures = 0;
-
-#ifndef NOALS
-    exported_built_in(in_dict("als_", 2), p_als, B_SAFE);
-#endif
-#ifdef PRINTAM
-    (void) built_in(in_dict("vm_statistics", 1), p_vm_statistics, B_UNSAFE|U_SIMPLE);
-#endif
-    (void) built_in(in_dict("load_eco", 4), p_load_eco, B_UNSAFE|U_SIMPLE);
-    (void) exported_built_in(in_dict("store_pred", 9), p_store_pred, B_UNSAFE);
-    exported_built_in(in_dict("retrieve_code", 3), p_retrieve_code, B_UNSAFE)
-	-> mode = BoundArg(2, GROUND);
-    (void) exported_built_in(in_dict("decode_code", 2), p_decode_code, B_UNSAFE);
-    (void) exported_built_in(in_dict("functor_did", 2), p_functor_did, B_UNSAFE);
-
-#ifdef DBGING_DYN_DB
-    (void) built_in(in_dict("print_gc", 0), p_print_gc, B_SAFE);
-#endif /* DBGING_DYN_DB */
-
-    (void) local_built_in(in_dict("trimcore0", 0), p_trimcore, B_SAFE);
-    (void) exported_built_in(in_dict("abolish_", 3), p_abolish, B_SAFE);
-    (void) local_built_in(in_dict("dynamic_create_", 3), p_dynamic_create, B_SAFE);
-    (void) exported_built_in(in_dict("dynamic_source_", 4), p_dynamic_source, B_UNSAFE|U_SIMPLE);
-    exported_built_in(in_dict("is_dynamic_", 3), p_is_dynamic, B_SAFE);
-    (void) local_built_in(in_dict("is_built_in_", 2), p_is_built_in, B_SAFE);
-    proc = exported_built_in(in_dict("is_predicate_", 2),
-					  p_is_predicate, B_SAFE);
-    b_built_in(in_dict("current_functor", 4),
-	       p_current_functor, d_.kernel_sepia)
-	-> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT);
-    (void) exported_built_in(in_dict("external_", 3), p_external, B_SAFE);
-    (void) exported_built_in(in_dict("b_external_", 3), p_b_external, B_SAFE);
-    (void) exported_built_in(in_dict("external_body", 2),
-		      p_external_body, B_SAFE);
-    (void) exported_built_in(in_dict("b_external_body", 2),
-		      p_external_body, B_SAFE);
-    local_built_in(in_dict("local_proc_flags", 5), p_proc_flags, B_UNSAFE|U_GROUND)
-	-> mode = BoundArg(3, GROUND);
-    (void) local_built_in(in_dict("set_proc_flags", 4), p_set_proc_flags, B_UNSAFE);
-    (void) local_built_in(in_dict("dict_param", 2), ec_dict_param, B_UNSAFE|U_SIMPLE);
-    (void) exported_built_in(in_dict("garbage_collect_dictionary", 0),
-					ec_gc_dictionary, B_SAFE);
-    (void) exported_built_in(in_dict("mode_", 2), p_mode, B_SAFE|U_SIMPLE);
-    (void) exported_built_in(in_dict("define_macro_", 4), p_define_macro, B_UNSAFE);
-    (void) exported_built_in(in_dict("erase_macro_", 2), p_erase_macro, B_UNSAFE);
-    (void) exported_built_in(in_dict("erase_macro_", 3), p_erase_macro3, B_UNSAFE);
-    (void) exported_built_in(in_dict("is_macro", 6), p_is_macro, B_SAFE);
-    (void) local_built_in(in_dict("visible_term_macro", 6), p_visible_term_macro, B_SAFE);
-    (void) local_built_in(in_dict("illegal_macro", 5), p_illegal_macro, B_SAFE);
-    (void) local_built_in(in_dict("visible_goal_macro", 4), p_visible_goal_macro, B_UNSAFE);
-    (void) local_built_in(in_dict("create_call_n", 2), p_create_call_n, B_UNSAFE);
-    local_built_in(in_dict("module_predicates", 3), p_module_predicates, B_UNSAFE)
-	-> mode = BoundArg(2, GROUND);
-#ifdef lint
-    (void) als((word)0);
-#endif
-}
-
-#ifdef DBGING_DYN_DB
-static int
-p_print_gc(void) /* print debugging information for the garbage collector */
-{
-p_fprintf(current_err_, "bip_db.c/p_print_gc: \n");
-p_fprintf(current_err_, "DynGlobalClock: ");
-p_fprintf(current_err_, "%d \n", DynGlobalClock);
-p_fprintf(current_err_, "DynKilledCodeSize: ");
-p_fprintf(current_err_, "%d \n", DynKilledCodeSize);
-}
-#endif /* DBGING_DYN_DB */
-
 
 
 /* ********************************************************************
@@ -373,7 +162,7 @@ p_fprintf(current_err_, "%d \n", DynKilledCodeSize);
 
 
 static int
-p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod, value vout, type tout)
+p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod, value vout, type tout, ec_eng_t *ec_eng)
 {
     stream_id nst;
     char *file;
@@ -391,10 +180,10 @@ p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod
     }
     mod_pw.val.all = vmod.all;
     mod_pw.tag.all = tmod.all;
-    res = ec_load_eco_from_stream(nst, vopt.nint, &mod_pw);
+    res = ec_load_eco_from_stream(ec_eng, nst, vopt.nint, &mod_pw);
     (void) ec_close_stream(nst, CLOSE_FORCE);
-    if (res != PSUCCEED)
-	return res;
+    stream_tid.free(nst);
+    Return_If_Not_Success(res);
     Return_Unify_Pw(mod_pw.val, mod_pw.tag, vout, tout);
 }
 
@@ -409,7 +198,7 @@ extern vmcode *print_am(register vmcode *code, vmcode **label, int *res, int opt
 		code of the specified procedure.
 */
 static int
-p_als(value val, type tag, value vm, type tm)
+p_als(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	wdid;
     vmcode	*code = 0;
@@ -427,7 +216,7 @@ p_als(value val, type tag, value vm, type tm)
 #endif
     {
 	Get_Proc_Did(val, tag, wdid);
-	proc = visible_procedure(wdid, vm.did, tm, 0);
+	proc = visible_procedure(wdid, vm.did, tm, 0, &err);
 	if (proc)
 	{
 	    if (IsLocked(proc->module_def)) {
@@ -445,7 +234,6 @@ p_als(value val, type tag, value vm, type tm)
 	}
 	else /* procedure not visible */
 	{
-	    Get_Bip_Error(err);
 	    Bip_Error(err);
 	}
     }
@@ -489,7 +277,7 @@ als(vmcode *code)	/* for use with dbx */
 
 #ifdef PRINTAM
 static int
-p_vm_statistics(value v, type t)
+p_vm_statistics(value v, type t, ec_eng_t *ec_eng)
 {
     if (IsRef(t))
     {
@@ -522,7 +310,7 @@ p_vm_statistics(value v, type t)
 	predicate (prolog, builtin, external)
 */
 static int
-p_is_predicate(value val, type tag, value vm, type tm)
+p_is_predicate(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident  d;
     pri    *proc;
@@ -530,10 +318,9 @@ p_is_predicate(value val, type tag, value vm, type tm)
 
     Check_Module(tm, vm);
     Get_Proc_Did(val, tag, d);
-    proc = visible_procedure(d, vm.did, tm, PRI_DONTIMPORT);
+    proc = visible_procedure(d, vm.did, tm, PRI_DONTIMPORT, &err);
     if (!proc)
     {
-	Get_Bip_Error(err);
 	switch(err) {
 
 	case IMPORT_PENDING:
@@ -551,7 +338,7 @@ p_is_predicate(value val, type tag, value vm, type tm)
 
 
 static int
-p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type tm)
+p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     pri *pd;
     pword result;
@@ -629,12 +416,12 @@ p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type t
 	     * that are not exported from their home module (yet) */
 	    if (PriIsProxy(pd)  &&  IsModule(PriHomeModule(pd)))
 	    {
+		int err;
 		type module_tag;
 		module_tag.kernel = ModuleTag(PriDid(pd));
 		if (!visible_procedure(PriDid(pd), PriHomeModule(pd),
-			module_tag, PRI_DONTIMPORT|PRI_EXPORTEDONLY))
+			module_tag, PRI_DONTIMPORT|PRI_EXPORTEDONLY, &err))
 		{
-		    Set_Bip_Error(0);
 		    break;
 		}
 	    }
@@ -682,7 +469,7 @@ p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type t
  */
 /*ARGSUSED*/
 static int
-p_current_functor(value valn, type tagn, value vala, type taga, value vopt, type topt, value valsn, type tagsn)
+p_current_functor(value valn, type tagn, value vala, type taga, value vopt, type topt, value valsn, type tagsn, ec_eng_t *ec_eng)
 {
     dident functor, atom;
     value vnext;
@@ -690,7 +477,7 @@ p_current_functor(value valn, type tagn, value vala, type taga, value vopt, type
     vnext.all = valsn.all;
     if (IsRef(tagn))	/* we have to backtrack through the whole dictionary */
     {
-	while (next_functor((int *) &vnext.nint, &functor))
+	while (next_functor((int *) &vnext.nint, &functor, 1 /*weak*/))
 	{
 	    if (vopt.nint == 1 && !DidProperties(functor))
 		continue;
@@ -784,12 +571,18 @@ _external(value vp, type tp, value vf, type tf, value vm, type tm, int nondet)
     char	*name;
     dident	wdid;
     word	c_address;
-    uint32	new_flags;
+    uint32	new_flags = 0;
     int		err;
     pri		*pd;
 
     Check_Module(tm, vm);
-    Get_Name(vf, tf, name);		/* name of the c function */
+    if (IsStructure(tf) && DidArity(vf.ptr->val.did) == 1) {
+	/* name(dummy) indicates that name() takes val/tag arguments */
+	new_flags = PL_C_ARGS;
+	name = DidName(vf.ptr->val.did);
+    } else {
+	Get_Name(vf, tf, name);		/* name of the c function */
+    }
     Error_If_Ref(tp);
     if (IsAtom(tp))
 	wdid = vp.did;
@@ -803,37 +596,36 @@ _external(value vp, type tp, value vf, type tf, value vm, type tm, int nondet)
     {
 	Bip_Error(NOCODE)
     }
-    pd = local_procedure(wdid, vm.did, tm, PRI_CREATE);
+    pd = local_procedure(wdid, vm.did, tm, PRI_CREATE, &err);
     if (!pd)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
-    new_flags = VMCODE|ARGFIXEDWAM|EXTERN|(GlobalFlags & DBGCOMP ? DEBUG_DB : 0);
-    err = pri_compatible_flags(pd, CODETYPE|ARGPASSING|EXTERN|DEBUG_DB, new_flags);
+    new_flags |= VMCODE|ARGFIXEDWAM|EXTERN|(EclGblFlags & DBGCOMP ? DEBUG_DB : 0);
+    err = pri_compatible_flags(pd, CODETYPE|ARGPASSING|EXTERN|PL_C_ARGS|DEBUG_DB, new_flags);
     if (err != PSUCCEED)
     {
 	Bip_Error(err);
     }
-    pri_change_flags(pd, CODETYPE|ARGPASSING|EXTERN|DEBUG_DB, new_flags);
+    pri_change_flags(pd, CODETYPE|ARGPASSING|EXTERN|PL_C_ARGS|DEBUG_DB, new_flags);
     return b_built_code(pd, c_address, nondet);
 }
 
 static
-p_external(value vp, type tp, value vf, type tf, value vm, type tm)
+p_external(value vp, type tp, value vf, type tf, value vm, type tm, ec_eng_t *ec_eng)
 {
     return _external(vp, tp, vf, tf, vm, tm, 0);
 }
 
 static
-p_b_external(value vp, type tp, value vf, type tf, value vm, type tm)
+p_b_external(value vp, type tp, value vf, type tf, value vm, type tm, ec_eng_t *ec_eng)
 {
     return _external(vp, tp, vf, tf, vm, tm, 1);
 }
 
 
 static int
-p_external_body(value vpred, type tpred, value vmod, type tmod)
+p_external_body(value vpred, type tpred, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     dident	wdid;
     pri		*pd;
@@ -842,10 +634,9 @@ p_external_body(value vpred, type tpred, value vmod, type tmod)
     Check_Module(tmod, vmod);
     Get_Proc_Did(vpred, tpred, wdid);
 
-    pd = visible_procedure(wdid, vmod.did, tmod, PRI_CREATE);
+    pd = visible_procedure(wdid, vmod.did, tmod, PRI_CREATE, &err);
     if (!pd)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     err = pri_compatible_flags(pd, CODETYPE|EXTERN, VMCODE|EXTERN);
@@ -870,7 +661,7 @@ Not_Available_Built_In(p_external_body)
  */
 
 static int
-p_create_call_n(value vn, type tn, value va, type ta)
+p_create_call_n(value vn, type tn, value va, type ta, ec_eng_t *ec_eng)
 {
     Check_Atom(tn)
     Check_Integer(ta)
@@ -936,7 +727,7 @@ ec_mark_dids_dyn_code(vmcode *code)
 	test whether a predicate (Name/Arity) is dynamic
 */
 static int
-p_is_dynamic(value v1, type t1, value v2, type t2, value vm, type tm)
+p_is_dynamic(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident  wdid;
     pri    *procindex;
@@ -948,10 +739,9 @@ p_is_dynamic(value v1, type t1, value v2, type t2, value vm, type tm)
     {
 	Fail_;
     }
-    procindex = visible_procedure(wdid, vm.did, tm, PRI_DONTWARN);
+    procindex = visible_procedure(wdid, vm.did, tm, PRI_DONTWARN, &err);
     if (!procindex)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     Succeed_If(DynamicProc(procindex));
@@ -962,7 +752,7 @@ p_is_dynamic(value v1, type t1, value v2, type t2, value vm, type tm)
  *	test whether a predicate (Name/Arity) is a built_in
  */
 static int
-p_is_built_in(value val, type tag, value vm, type tm)
+p_is_built_in(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident  d;
     pri    *procindex;
@@ -970,10 +760,9 @@ p_is_built_in(value val, type tag, value vm, type tm)
 
     Check_Module(tm, vm);
     Get_Proc_Did(val, tag, d);
-    procindex = visible_procedure(d, vm.did, tm, PRI_DONTWARN);
+    procindex = visible_procedure(d, vm.did, tm, PRI_DONTWARN, &err);
     if (!procindex)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     Succeed_If(procindex->flags & SYSTEM);
@@ -985,8 +774,9 @@ p_is_built_in(value val, type tag, value vm, type tm)
  * Return the corresponding property of the procedure so that it
  * can be processed in Prolog. System use only.
  */
+
 static int
-p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, type tm, value vp, type tp)
+p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, type tm, value vp, type tp, ec_eng_t *ec_eng)
 {
     dident	wd;
     uint32	flags;
@@ -1007,7 +797,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
     Check_Module(tm, vm);
     Get_Proc_Did(vn, tn, wd);
     tt.all = ModuleTag(vm.did);
-    proc = visible_procedure(wd, vm.did, tt, PRI_DONTWARN);
+    proc = visible_procedure(wd, vm.did, tt, PRI_DONTWARN, &err);
     if (! proc)
     {
 	Set_Bip_Error(0);
@@ -1084,7 +874,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 
     case 6:		/* mode			*/
 	s = Gbl_Tg;
-	if ((err = get_mode(PriMode(proc), wd)) < 0) {
+	if ((err = get_mode(ec_eng, PriMode(proc), wd)) < 0) {
 	    Bip_Error(err);
 	}
 	Request_Unify_Pw(vf, tf, s->val, s->tag);
@@ -1282,7 +1072,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
  *		
  */
 static int
-p_mode(value pv, type pt, value mv, type mt)
+p_mode(value pv, type pt, value mv, type mt, ec_eng_t *ec_eng)
 {
 	int	arity, i, err, mode;
 	uint32	mode_decl;
@@ -1344,10 +1134,9 @@ p_mode(value pv, type pt, value mv, type mt)
 		term = pred;
 		pred = 0;
 	    }
-	    proc = local_procedure(wd, mv.did, mt, PRI_CREATE);
+	    proc = local_procedure(wd, mv.did, mt, PRI_CREATE, &err);
 	    if (!proc)
 	    {
-		Get_Bip_Error(err);
 		Bip_Error(err);
 	    }
 	    arity = DidArity(wd);
@@ -1386,10 +1175,100 @@ p_mode(value pv, type pt, value mv, type mt)
 	Succeed_;
 }
 
+static int
+get_mode(ec_eng_t *ec_eng, uint32 mode_decl, dident wd)
+{
+    int			arity;
+    int			mode;
+    pword		*p = TG++;
+
+    arity = DidArity(wd);
+
+    if (arity == 0)
+    {
+	Check_Gc;
+	Make_Atom(p, wd)
+	return PSUCCEED;
+    }
+    else if (wd == d_.list)
+    {
+	Make_List(p,TG);
+	p = TG;
+	Push_List_Frame();
+    }
+    else
+    {
+	Make_Struct(p,TG);
+	p = TG+1;
+	Push_Struct_Frame(wd);
+    }
+
+    while (arity--)
+    {
+	p->tag.kernel = TDICT;
+	Next_Mode(mode_decl, mode);
+	switch (mode)
+	{
+	case NONVAR:
+	    p->val.did = d_.plus0;
+	    break;
+
+	case GROUND:
+	    p->val.did = d_.plusplus;
+	    break;
+
+	case OUTPUT:
+	    p->val.did = d_.minus0;
+	    break;
+
+#ifdef EXTENDED_MODES
+	case NOALIAS_INST:
+	    p->val.did = d_plusminus;
+	    break;
+
+	case NOALIAS:
+	    p->val.did = d_minusplus;
+	    break;
+#endif
+
+	default:
+	    p->val.did = d_.question;
+	}
+	p++;
+    }
+    return PSUCCEED;
+}
+
 
 /*----------------------------------------------------------------------
  * Builtins related to macros
  *----------------------------------------------------------------------*/
+
+
+#define Get_Macro_Did(vproc, tproc, wd)		\
+	if (IsStructure(tproc) && vproc.ptr->val.did == d_type_) {\
+	    int res = _type_did(vproc.ptr+1, &(wd));\
+	    Return_If_Error(res);\
+	} else {\
+	    Get_Functor_Did(vproc, tproc, wd)\
+	}
+
+static int
+_type_did(pword *pw, dident *pd)
+{
+    int i;
+    Dereference_(pw);
+    Check_Atom_Or_Nil(pw->val, pw->tag);
+    for (i=0; i<= NTYPES; i++)
+    {
+	if (i != TPTR && pw->val.did == tag_desc[i].type_name) {
+	    *pd = TransfDid(i);
+	    Succeed_;
+	}
+    }
+    Bip_Error(RANGE_ERROR);
+}
+
 
 static int
 _macro_options(value vprop, type tprop, int *pmtype, int *pflag)
@@ -1487,10 +1366,9 @@ _define_goal_macro(dident proc_did, dident trans_did, value vm, type tm)
      * First look up the predicate proc in module m
 
      */
-    proc_pri = local_procedure(proc_did, vm.did, tm, PRI_CREATE);
+    proc_pri = local_procedure(proc_did, vm.did, tm, PRI_CREATE, &err);
     if (!proc_pri)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
 
@@ -1517,15 +1395,14 @@ static int
 _erase_goal_macro(dident proc_did, value vm, type tm)
 {
     pri *proc_pri;
+    int err;
 
     /*
      * First look up the predicate proc in module m
      */
-    proc_pri = local_procedure(proc_did, vm.did, tm, 0);
+    proc_pri = local_procedure(proc_did, vm.did, tm, 0, &err);
     if (!proc_pri)
     {
-	int err;
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
 
@@ -1539,7 +1416,7 @@ _erase_goal_macro(dident proc_did, value vm, type tm)
 
 
 static int
-p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, type tprop, value vmod, type tmod)
+p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, type tprop, value vmod, type tmod, ec_eng_t *ec_eng)
 {
 	dident			 dp, dt, lookup_module;
 	int			 flag, mtype, err;
@@ -1595,26 +1472,21 @@ p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, 
 	    {
 		Bip_Error(RANGE_ERROR);
 	    } 
+
 	    /* we define the source transformation */
-	    prop = set_modular_property(dp, mtype,
-		    vmod.did, tmod,
-		    flag & TR_GLOBAL ? GLOBAL_PROP : LOCAL_PROP, &err);
-	    if (prop == (pword *) NULL)
-	    {
-		if (err != PERROR)
-		{
-		    Bip_Error(err);
-		}
-		if (flag & TR_GLOBAL)
-		{
-		    Bip_Error(GLOBAL_TR_EXISTS);
-		}
-		else
-		{
-		    Bip_Error(TR_IN_MOD);
-		}
+	    mt_mutex_lock(&PropertyLock);
+	    err = get_property_ref(dp, mtype, vmod.did, tmod,
+		    flag & TR_GLOBAL ? GLOBAL_PROP : LOCAL_PROP, &prop);
+	    if (err < 0) {
+		mt_mutex_unlock(&PropertyLock);
+		Bip_Error(err);
 	    }
-	    DidMacro(dp) = 1;
+	    if (!(err & NEW_PROP)) {
+		mt_mutex_unlock(&PropertyLock);
+		Bip_Error(flag & TR_GLOBAL? GLOBAL_TR_EXISTS: TR_IN_MOD);
+	    }
+
+	    DidMacro(dp) = 1;	/*TODO: bitfield - atomic update */
 	    md = (macro_desc *) hg_alloc(sizeof(macro_desc));
 	    prop->tag.kernel = TPTR;
 	    prop->val.ptr = (pword *) md;
@@ -1622,6 +1494,7 @@ p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, 
 	    md->trans_function = dt;
 	    md->module = lookup_module;
 	    md->flags = flag;
+	    mt_mutex_unlock(&PropertyLock);
 	}
 
 	Succeed_;
@@ -1629,7 +1502,7 @@ p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, 
 
 
 static int
-p_erase_macro (value vproc, type tproc, value vmod, type tmod)
+p_erase_macro (value vproc, type tproc, value vmod, type tmod, ec_eng_t *ec_eng)
 {
 	dident	dp;
 	int	i;
@@ -1639,7 +1512,7 @@ p_erase_macro (value vproc, type tproc, value vmod, type tmod)
 
 	/* If all return PFAIL or PERROR, the macro bit can be cleared */
 	for (i = TRANS_PROP; i <= WRITE_CLAUSE_TRANS_PROP; i++) {
-	    err1 = erase_modular_property(dp, i, vmod.did, tmod, VISIBLE_PROP);
+	    err1 = erase_property(dp, i, vmod.did, tmod, VISIBLE_PROP);
 	    if (err1 == PSUCCEED) {
 		err2 = PSUCCEED;
 		rem = 0;
@@ -1660,7 +1533,7 @@ p_erase_macro (value vproc, type tproc, value vmod, type tmod)
 }
 
 static int
-p_erase_macro3(value vproc, type tproc, value vprop, type tprop, value vmod, type tmod)
+p_erase_macro3(value vproc, type tproc, value vprop, type tprop, value vmod, type tmod, ec_eng_t *ec_eng)
 {
 	dident	wdid;
 	int	propid, flag, err;
@@ -1678,7 +1551,7 @@ p_erase_macro3(value vproc, type tproc, value vprop, type tprop, value vmod, typ
 	}
 	else	/* erase the property */
 	{
-	    err = erase_modular_property(wdid, propid, vmod.did, tmod,
+	    err = erase_property(wdid, propid, vmod.did, tmod,
 		    flag & TR_GLOBAL ? GLOBAL_PROP : LOCAL_PROP);
 	    if (err < PERROR) {
 		Bip_Error(err)
@@ -1689,28 +1562,12 @@ p_erase_macro3(value vproc, type tproc, value vprop, type tprop, value vmod, typ
 }
 
 
-static int
-_type_did(pword *pw, dident *pd)
-{
-    int i;
-    Dereference_(pw);
-    Check_Atom_Or_Nil(pw->val, pw->tag);
-    for (i=0; i<= NTYPES; i++)
-    {
-	if (i != TPTR && pw->val.did == tag_desc[i].type_name) {
-	    *pd = TransfDid(i);
-	    Succeed_;
-	}
-    }
-    Bip_Error(RANGE_ERROR);
-}
-
 /* Check the arguments of current_macro_body/5
 	illegal_macro(Functor, Pred, List, PredModule, Error)
  */
 /*ARGSUSED*/
 static int
-p_illegal_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5)
+p_illegal_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, ec_eng_t *ec_eng)
 {
 /* 1 */
     if (IsStructure(t1) && v1.ptr->val.did == d_.quotient)
@@ -1787,46 +1644,46 @@ p_illegal_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v
  */
 
 static int
-_is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6)
+_is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6, ec_eng_t *ec_eng)
 {
     pword	*pwd;
     pword	*p;
-    macro_desc	*md;
-    dident	trans_lookup_mod;
+    macro_desc	md;
     pri		*proc;
     type	tmod;
     int		err;
-    int		flags;
     Prepare_Requests;
 
     Check_Integer(t6);
-    pwd = get_modular_property(wdid, v6.nint, v5.did, t5, VISIBLE_PROP, &err);
-    if (!pwd) {
+    mt_mutex_lock(&PropertyLock);
+    err = get_property_ref(wdid, v6.nint, v5.did, t5, VISIBLE_PROP, &pwd);
+    if (err < 0) {
+	mt_mutex_unlock(&PropertyLock);
 	if (err != PERROR) {
 	    Bip_Error(err)
 	}
 	Fail_;
     }
+    md = *(macro_desc*)pwd->val.ptr;
+    mt_mutex_unlock(&PropertyLock);
 
-    md = (macro_desc *) pwd->val.ptr;
     pwd = Gbl_Tg;
     Gbl_Tg += 3;
     Check_Gc;
     pwd[0].val.did = d_.quotient;
     pwd[0].tag.kernel = TDICT;
-    pwd[1].val.did = add_dict(md->trans_function, 0);
+    pwd[1].val.did = add_dict(md.trans_function, 0);
     pwd[1].tag.kernel = TDICT;
-    pwd[2].val.nint = DidArity(md->trans_function);
+    pwd[2].val.nint = DidArity(md.trans_function);
     pwd[2].tag.kernel = TINT;
     Request_Unify_Structure(v2, t2, pwd);
 
     /* find trans_function's definition module (needed for qualified call) */
-    tmod.all = ModuleTag(md->module);
-    proc = visible_procedure(md->trans_function, md->module, tmod, PRI_DONTWARN);
+    tmod.all = ModuleTag(md.module);
+    proc = visible_procedure(md.trans_function, md.module, tmod, PRI_DONTWARN, &err);
     if (!proc || PriScope(proc) == DEFAULT)
     {
-	Set_Bip_Error(0);
-	Request_Unify_Atom(v4, t4, md->module);
+	Request_Unify_Atom(v4, t4, md.module);
     }
     else
     {
@@ -1834,17 +1691,16 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
     }
 
     /* build an option list from the flags */
-    flags = md->flags;
     pwd = Gbl_Tg;
 
     p = Gbl_Tg;
     Gbl_Tg += 2;
-    p[0].val.did = flags & TR_GLOBAL ? d_.global0 : d_.local0;
+    p[0].val.did = md.flags & TR_GLOBAL ? d_.global0 : d_.local0;
     p[0].tag.kernel = TDICT;
     p[1].val.ptr = Gbl_Tg;
     p[1].tag.kernel = TLIST;
 
-    if (flags & TR_PROTECT) {
+    if (md.flags & TR_PROTECT) {
 	p = Gbl_Tg;
 	Gbl_Tg += 2;
 	p[0].val.did = d_.protect_arg;
@@ -1852,7 +1708,7 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
 	p[1].val.ptr = Gbl_Tg;
 	p[1].tag.kernel = TLIST;
     }
-    if (flags & TR_TOP) {
+    if (md.flags & TR_TOP) {
 	p = Gbl_Tg;
 	Gbl_Tg += 2;
 	p[0].val.did = d_.top_only;
@@ -1860,7 +1716,7 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
 	p[1].val.ptr = Gbl_Tg;
 	p[1].tag.kernel = TLIST;
     }
-    if (flags & TR_WRITE) {
+    if (md.flags & TR_WRITE) {
 	p = Gbl_Tg;
 	Gbl_Tg += 2;
 	p[0].val.did = d_.write;
@@ -1868,7 +1724,7 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
 	p[1].val.ptr = Gbl_Tg;
 	p[1].tag.kernel = TLIST;
     }
-    if (flags & TR_CLAUSE) {
+    if (md.flags & TR_CLAUSE) {
 	p = Gbl_Tg;
 	Gbl_Tg += 2;
 	p[0].val.did = d_.clause0;
@@ -1876,7 +1732,7 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
 	p[1].val.ptr = Gbl_Tg;
 	p[1].tag.kernel = TLIST;
     }
-    if (flags & TR_GOAL) {
+    if (md.flags & TR_GOAL) {
 	p = Gbl_Tg;
 	Gbl_Tg += 2;
 	p[0].val.did = d_.goal;
@@ -1892,15 +1748,15 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
 
 /*ARGSUSED*/
 static int
-p_is_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6)
+p_is_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6, ec_eng_t *ec_eng)
 {
     dident	wdid;
     Get_Macro_Did(v1, t1, wdid);
-    return _is_macro(wdid, v2, t2, v3, t3, v4, t4, v5, t5, v6, t6);
+    return _is_macro(wdid, v2, t2, v3, t3, v4, t4, v5, t5, v6, t6, ec_eng);
 }
 
 static int
-p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6)
+p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, value v4, type t4, value v5, type t5, value v6, type t6, ec_eng_t *ec_eng)
 {
     int		res;
     dident	wdid;
@@ -1915,13 +1771,13 @@ p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, va
     }
     if (wdid != D_UNKNOWN)
     {
-	res = _is_macro(wdid, v2, t2, v3, t3, v4, t4, v5, t5, v6, t6);
+	res = _is_macro(wdid, v2, t2, v3, t3, v4, t4, v5, t5, v6, t6, ec_eng);
 	if (res != PFAIL)
 	    return res;		/* PSUCCEED or error */
     }
 
     /* if none, look for a type macro */
-    return _is_macro(TransfDid(t1.kernel), v2, t2, v3, t3, v4, t4, v5, t5, v6, t6);
+    return _is_macro(TransfDid(t1.kernel), v2, t2, v3, t3, v4, t4, v5, t5, v6, t6, ec_eng);
 }
 
 
@@ -1932,12 +1788,13 @@ p_visible_term_macro(value v1, type t1, value v2, type t2, value v3, type t3, va
  */
 
 static int
-p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value vtlm, type ttlm, value vlm, type tlm)
+p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value vtlm, type ttlm, value vlm, type tlm, ec_eng_t *ec_eng)
 {
 
     dident proc_did;
     pri *proc_pri;
     pword *pw;
+    int err;
     Prepare_Requests;
 
     switch (TagType(tgoal)) {
@@ -1954,9 +1811,8 @@ p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value v
     if (!DidMacro(proc_did) || !IsAtom(tlm) || !IsModule(vlm.did) /*this can happen!*/) {
     	Fail_;
     }
-    proc_pri = visible_procedure(proc_did, vlm.did, tlm, 0);
+    proc_pri = visible_procedure(proc_did, vlm.did, tlm, 0, &err);
     if (!proc_pri) {
-	Set_Bip_Error(0); /* reset error code from visible_procedure() */
 	Fail_;
     }
     if (!proc_pri->trans_function) {
@@ -1995,14 +1851,13 @@ p_visible_goal_macro(value vgoal, type tgoal, value vtrans, type ttrans, value v
  */
 
 static int
-p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm)
+p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	wdid;
     pri		*proc;
     int		ndebug;				/* current dbg mode */
     int		err;
     pri_code_t	pricode;
-    extern t_ext_ptr	ec_record_create(void);
 
     Check_Module(tm, vm);
     Add_Did(v1, t1, v2, t2, wdid);
@@ -2010,14 +1865,13 @@ p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm)
     {
 	Bip_Error(RANGE_ERROR)
     }
-    ndebug = (GlobalFlags & DBGCOMP) ? 0 : DEBUG_DB;
+    ndebug = (EclGblFlags & DBGCOMP) ? 0 : DEBUG_DB;
 
     a_mutex_lock(&ProcedureLock);
-    proc = local_procedure(wdid, vm.did, tm, PRI_CREATE);
+    proc = local_procedure(wdid, vm.did, tm, PRI_CREATE, &err);
     if (!proc)
     {
 	a_mutex_unlock(&ProcedureLock);
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     /* we redefine a procedure defined in the module		*/
@@ -2051,18 +1905,17 @@ p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm)
  */
 
 static int
-p_dynamic_source(value v1, type t1, value v2, type t2, value vsrc, type tsrc, value vm, type tm)
+p_dynamic_source(value v1, type t1, value v2, type t2, value vsrc, type tsrc, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	wdid;
     pri		*proc;
     pword	ref_pw;
+    int		err;
 
     Check_Module(tm, vm);
     Add_Did(v1, t1, v2, t2, wdid);
-    proc = visible_procedure(wdid, vm.did, tm, 0);
+    proc = visible_procedure(wdid, vm.did, tm, 0, &err);
     if (!proc) {
-	int err;
-	Get_Bip_Error(err);
 	if (err == NOENTRY)
 	    err = ACCESSING_UNDEF_DYN_PROC;
 	Bip_Error(err);
@@ -2105,7 +1958,7 @@ p_dynamic_source(value v1, type t1, value v2, type t2, value vsrc, type tsrc, va
 */
 /*ARGSUSED*/
 static int
-p_abolish(value n, type tn, value a, type ta, value vm, type tm)
+p_abolish(value n, type tn, value a, type ta, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	d;
     pri		*proc, *global;
@@ -2124,11 +1977,10 @@ p_abolish(value n, type tn, value a, type ta, value vm, type tm)
 	Bip_Error(NOENTRY);
     }
     a_mutex_lock(&ProcedureLock);
-    proc = local_procedure(d, vm.did, tm, 0);
+    proc = local_procedure(d, vm.did, tm, 0, &err);
     if (!proc)
     {
 	a_mutex_unlock(&ProcedureLock);
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     pri_abolish(proc);
@@ -2145,7 +1997,7 @@ p_abolish(value n, type tn, value a, type ta, value vm, type tm)
  *	Type checking is made on the modules and flags.
  */
 static int
-p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, value vm, type tm)
+p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, value vm, type tm, ec_eng_t *ec_eng)
 {
 	uint32	new_flags = 0, changed_flags = 0;
 	dident	wdid;
@@ -2294,12 +2146,9 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	 * Now get the procedure descriptor that needs to be changed
 	 */
 	a_mutex_lock(&ProcedureLock);
-	proc = visible_procedure(wdid, vm.did, tm, 0);
+	proc = visible_procedure(wdid, vm.did, tm, 0, &err);
 	if (!proc)
-	{
-	    Get_Bip_Error(err);
 	    goto _unlock_return_err_;
-	}
 
 	if (proc->module_ref != vm.did)
 	{
@@ -2311,12 +2160,9 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 		goto _unlock_return_err_;
 	    }
 	    /* Try to get the definition module descriptor */
-	    proc = pri_home(proc);
+	    proc = pri_home(proc, &err);
 	    if (!proc)
-	    {
-		Get_Bip_Error(err);
 		goto _unlock_return_err_;
-	    }
 	}
 
 	if (changed_flags)
@@ -2521,7 +2367,7 @@ _set_did_stability(
 
 
 static int
-p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vfid, type tfid, value vlid, type tlid, value vbid, type tbid, value vm, type tm)
+p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type tsize, value vbrktable, type tbrktable, value vflags, type tflags, value vfid, type tfid, value vlid, type tlid, value vbid, type tbid, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident		wdid;
     register pword	*codeptr, *pw1;
@@ -2612,7 +2458,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	    else if (d == d_a1)		/* a(N) */
 	    {
 		Check_Integer(pw1->tag);
-		Store_d(Address(pw1->val.nint))
+		Store_d(ArgReg(pw1->val.nint))
 	    }
 	    else if (d == d_t1 || d == d_pw1) /* t/pw(N) */
 	    {
@@ -2700,7 +2546,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 		pword ground_copy;
 		res = _set_did_stability(pw1->val, pw1->tag, DICT_CODE_REF);
 		if (res != PSUCCEED) { Bip_Error(res); }
-		res = create_heapterm(&ground_copy, pw1->val, pw1->tag);
+		res = create_heapterm(ec_eng, &ground_copy, pw1->val, pw1->tag);
 		if (res != PSUCCEED) { Bip_Error(res); }
 		Store_d(ground_copy.val.all);
 	    }
@@ -2708,7 +2554,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	    else if (d == d_tag1)	/* tag(GroundTerm) */
 	    {
 		pword ground_copy;
-		err = ec_constant_table_enter(pw1->val, pw1->tag, &ground_copy);
+		err = ec_constant_table_enter(ec_eng, pw1->val, pw1->tag, &ground_copy);
 		if (err == PSUCCEED) {
 		    if (IsAtom(ground_copy.tag)  &&  ground_copy.val.did == vm.did) {
 			Store_d(ModuleTag(ground_copy.val.did));
@@ -2724,11 +2570,11 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	    else if (d == d_val1)	/* val(GroundTerm) */
 	    {
 		pword ground_copy;
-		err = ec_constant_table_enter(pw1->val, pw1->tag, &ground_copy);
+		err = ec_constant_table_enter(ec_eng, pw1->val, pw1->tag, &ground_copy);
 		if (err == PSUCCEED) {
 		    Store_d(ground_copy.val.all);
 		} else if (err == PFAIL) {
-		    int res = create_heapterm(&ground_copy, pw1->val, pw1->tag);
+		    int res = create_heapterm(ec_eng, &ground_copy, pw1->val, pw1->tag);
 		    if (res != PSUCCEED) { Bip_Error(res); }
 		    Store_d(ground_copy.val.all);
 		} else {
@@ -2748,12 +2594,12 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 		    Check_Atom(pmod->tag);
 		    Dereference_(pproc);
 		    Get_Proc_Did(pproc->val, pproc->tag, pdid);
-		    Store_d(qualified_procedure(pdid, pmod->val.did, vm.did, tm));
+		    Store_d(qualified_procedure(pdid, pmod->val.did, vm.did, tm, &err));
 		}
 		else
 		{
 		    Get_Proc_Did(pw1->val, pw1->tag, pdid);
-		    Store_d(visible_procedure(pdid, vm.did, tm, PRI_CREATE|PRI_REFER));
+		    Store_d(visible_procedure(pdid, vm.did, tm, PRI_CREATE|PRI_REFER, &err));
 		}
 	    }
 	    else if (d == d_functor1)	/* functor(N/A) */
@@ -2824,7 +2670,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 
 		  key.val.nint = 1;
 		  key.tag.kernel = TINT;
-		  result.val.ptr = ec_keysort(result.val, key.val, key.tag, 0, 1, 0, &err);
+		  result.val.ptr = ecl_keysort(ec_eng, result.val, key.val, key.tag, 0, 1, 0, &err);
 		  if (!result.val.ptr) 
 		  {
 		    Bip_Error(err);
@@ -2874,11 +2720,10 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 
     a_mutex_lock(&ProcedureLock);
 
-    proc = local_procedure(wdid, vm.did, tm, PRI_CREATE);
+    proc = local_procedure(wdid, vm.did, tm, PRI_CREATE, &err);
     if (!proc)
     {
 	a_mutex_unlock(&ProcedureLock);
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     /* Set ECO_FLAGS according to flags argument.
@@ -2902,7 +2747,7 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 
 
 static int
-p_decode_code(value vcode, type tcode, value v, type t)
+p_decode_code(value vcode, type tcode, value v, type t, ec_eng_t *ec_eng)
 {
     dident d;
     word w;
@@ -3101,7 +2946,7 @@ p_decode_code(value vcode, type tcode, value v, type t)
     }
     else if (d == d_a1)		/* a(Word) -> Number */
     {
-	Return_Unify_Integer(v, t, pw1->val.ptr - &A[0]);
+	Return_Unify_Integer(v, t, pw1->val.nint);
     }
     else if (d == d_y1 || d == d_t1 || d == d_pw1) /* y/t/pw(Word) -> Number */
     {
@@ -3156,7 +3001,7 @@ p_decode_code(value vcode, type tcode, value v, type t)
 
 
 static int
-p_functor_did(value vspec, type tspec, value v, type t)
+p_functor_did(value vspec, type tspec, value v, type t, ec_eng_t *ec_eng)
 {
     dident d;
     Get_Functor_Did(vspec, tspec, d);
@@ -3165,7 +3010,7 @@ p_functor_did(value vspec, type tspec, value v, type t)
 
 
 static int
-p_retrieve_code(value vproc, type tproc, value vcode, type tcode, value vm, type tm)
+p_retrieve_code(value vproc, type tproc, value vcode, type tcode, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	wdid;
     vmcode	*code_block, *code;
@@ -3179,10 +3024,9 @@ p_retrieve_code(value vproc, type tproc, value vcode, type tcode, value vm, type
     Check_Module(tm, vm);
     Get_Proc_Did(vproc, tproc, wdid);
 
-    proc = visible_procedure(wdid, vm.did, tm, 0);
+    proc = visible_procedure(wdid, vm.did, tm, 0, &err);
     if (!proc)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
 
@@ -3261,75 +3105,139 @@ p_retrieve_code(value vproc, type tproc, value vcode, type tcode, value vm, type
  * Clean up all memory areas whre there might be some unused stuff.
  */
 static int
-p_trimcore(void)
+p_trimcore(ec_eng_t *ec_eng)
 {
     reclaim_abolished_procedures();
-    (void) trim_global_trail(TG_SEG);
-    (void) trim_control_local();
+    (void) trim_global_trail(ec_eng, TG_SEG);
+    (void) trim_control_local(ec_eng);
     Succeed_;
 }
 
-int
-get_mode(uint32 mode_decl, dident wd)
-{
-    int			arity;
-    int			mode;
-    pword		*p = TG++;
-
-    arity = DidArity(wd);
-
-    if (arity == 0)
-    {
-	Check_Gc;
-	Make_Atom(p, wd)
-	return PSUCCEED;
-    }
-    else if (wd == d_.list)
-    {
-	Make_List(p,TG);
-	p = TG;
-	Push_List_Frame();
-    }
-    else
-    {
-	Make_Struct(p,TG);
-	p = TG+1;
-	Push_Struct_Frame(wd);
-    }
-
-    while (arity--)
-    {
-	p->tag.kernel = TDICT;
-	Next_Mode(mode_decl, mode);
-	switch (mode)
-	{
-	case NONVAR:
-	    p->val.did = d_.plus0;
-	    break;
-
-	case GROUND:
-	    p->val.did = d_.plusplus;
-	    break;
-
-	case OUTPUT:
-	    p->val.did = d_.minus0;
-	    break;
-
-#ifdef EXTENDED_MODES
-	case NOALIAS_INST:
-	    p->val.did = d_plusminus;
-	    break;
-
-	case NOALIAS:
-	    p->val.did = d_minusplus;
-	    break;
-#endif
-
-	default:
-	    p->val.did = d_.question;
-	}
-	p++;
-    }
-    return PSUCCEED;
-}
 /* Bip_Error() redefined to return() !! */
+
+
+void
+bip_db_init(int flags)
+{
+    pri		* proc;
+
+    d_autoload_ = in_dict("autoload", 0);
+    d_auxiliary_ = in_dict("auxiliary", 0);
+    d_trace_meta_ = in_dict("trace_meta", 0);
+    d_demon_ = in_dict("demon", 0);
+    d_deprecated_ = in_dict("deprecated", 0);
+    d_static_ = in_dict("static", 0);
+    d_dynamic_ = in_dict("dynamic", 0);
+    d_invisible_ = in_dict("invisible", 0);
+    d_imported_ = in_dict("imported", 0);
+    d_reexported_ = in_dict("reexported", 0);
+    d_exported_ = in_dict("exported", 0);
+    d_parallel_ = in_dict("parallel", 0);
+    d_run_priority_ = in_dict("run_priority", 0);
+    d_start_tracing_ = in_dict("start_tracing", 0);
+#ifdef EXTENDED_MODES
+    d_plusminus = in_dict("+-", 0);
+    d_minusplus = in_dict("-+", 0);
+#endif
+    d_constant = in_dict("constant", 0);
+    d_constant2 = in_dict("constant", 2);
+    d_nonvar = in_dict("nonvar", 0);
+    d_ground = in_dict("ground", 0);
+    d_a1 = in_dict("a", 1);
+    d_y1 = in_dict("y", 1);
+    d_ymask = in_dict("ymask", 1);
+    d_align = in_dict("align", 1);
+    d_table2 = in_dict("table", 2);
+    d_edesc = in_dict("edesc", 1);
+    d_try_table2 = in_dict("try_table", 2);
+    d_t1 = in_dict("t", 1);
+    d_w1 = in_dict("w", 1);
+    d_pw1 = in_dict("pw", 1);
+    d_nv1 = in_dict("nv", 1);
+    d_mv1 = in_dict("mv", 1);
+    d_an1 = in_dict("an", 1);
+    d_val1 = in_dict("val", 1);
+    d_tag1 = in_dict("tag", 1);
+    d_opc1 = in_dict("o", 1);
+    d_functor1 = in_dict("functor", 1);
+    d_proc1 = in_dict("proc", 1);
+    d_type0_ = in_dict("type", 0);
+    d_type_ = in_dict("type", 1);
+    d_init2 = in_dict("init", 2);
+    d_ref1 = in_dict("ref", 1);
+    d_ref2 = in_dict("ref", 2);
+    d_refm = in_dict("refm", 2);
+    d_tags = in_dict("tags", 0);
+    d_par_fail = in_dict("par_fail", 0);
+    d_source_file_ = in_dict("source_file", 0);
+    d_source_line_ = in_dict("source_line", 0);
+    d_source_offset_ = in_dict("source_offset", 0);
+    d_unfold6_ = in_dict("unfold", 6);
+
+    d_predlist_option[PREDLIST_UNDECLARED] = in_dict("undeclared",0);
+    d_predlist_option[PREDLIST_LOCAL] = in_dict("local",0);
+    d_predlist_option[PREDLIST_EXPORTED] = in_dict("exported",0);
+    d_predlist_option[PREDLIST_REEXPORTED] = in_dict("reexported",0);
+    d_predlist_option[PREDLIST_EXREEX] = in_dict("exported_reexported",0);
+    d_predlist_option[PREDLIST_DEFINED] = in_dict("defined",0);
+    d_predlist_option[PREDLIST_UNDEFINED] = in_dict("undefined",0);
+    d_predlist_option[PREDLIST_NOMODULE] = in_dict("no_module",0);
+    d_predlist_option[PREDLIST_NOEXPORT] = in_dict("no_export",0);
+    d_predlist_option[PREDLIST_DEPRECATED] = in_dict("deprecated",0);
+
+    if (!(flags & INIT_SHARED))
+	return;
+
+#ifndef NOALS
+    exported_built_in(in_dict("als_", 2), p_als, B_SAFE);
+#endif
+#ifdef PRINTAM
+    (void) built_in(in_dict("vm_statistics", 1), p_vm_statistics, B_UNSAFE|U_SIMPLE);
+#endif
+    (void) built_in(in_dict("load_eco", 4), p_load_eco, B_UNSAFE|U_SIMPLE);
+    (void) exported_built_in(in_dict("store_pred", 9), p_store_pred, B_UNSAFE);
+    exported_built_in(in_dict("retrieve_code", 3), p_retrieve_code, B_UNSAFE)
+	-> mode = BoundArg(2, GROUND);
+    (void) exported_built_in(in_dict("decode_code", 2), p_decode_code, B_UNSAFE);
+    (void) exported_built_in(in_dict("functor_did", 2), p_functor_did, B_UNSAFE);
+
+    (void) local_built_in(in_dict("trimcore0", 0), p_trimcore, B_SAFE);
+    (void) exported_built_in(in_dict("abolish_", 3), p_abolish, B_SAFE);
+    (void) local_built_in(in_dict("dynamic_create_", 3), p_dynamic_create, B_SAFE);
+    (void) exported_built_in(in_dict("dynamic_source_", 4), p_dynamic_source, B_UNSAFE|U_SIMPLE);
+    exported_built_in(in_dict("is_dynamic_", 3), p_is_dynamic, B_SAFE);
+    (void) local_built_in(in_dict("is_built_in_", 2), p_is_built_in, B_SAFE);
+    proc = exported_built_in(in_dict("is_predicate_", 2),
+					  p_is_predicate, B_SAFE);
+    b_built_in(in_dict("current_functor", 4),
+	       p_current_functor, d_.kernel_sepia)
+	-> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT);
+    (void) exported_built_in(in_dict("external_", 3), p_external, B_SAFE);
+    (void) exported_built_in(in_dict("b_external_", 3), p_b_external, B_SAFE);
+    (void) exported_built_in(in_dict("external_body", 2),
+		      p_external_body, B_SAFE);
+    (void) exported_built_in(in_dict("b_external_body", 2),
+		      p_external_body, B_SAFE);
+    local_built_in(in_dict("local_proc_flags", 5), p_proc_flags, B_UNSAFE|U_GROUND)
+	-> mode = BoundArg(3, GROUND);
+    (void) local_built_in(in_dict("set_proc_flags", 4), p_set_proc_flags, B_UNSAFE);
+    (void) local_built_in(in_dict("dict_param", 2), p_dict_param, B_UNSAFE|U_SIMPLE);
+    (void) exported_built_in(in_dict("garbage_collect_dictionary", 0),
+					p_gc_dictionary, B_SAFE);
+    (void) exported_built_in(in_dict("mode_", 2), p_mode, B_SAFE|U_SIMPLE);
+    (void) exported_built_in(in_dict("define_macro_", 4), p_define_macro, B_UNSAFE);
+    (void) exported_built_in(in_dict("erase_macro_", 2), p_erase_macro, B_UNSAFE);
+    (void) exported_built_in(in_dict("erase_macro_", 3), p_erase_macro3, B_UNSAFE);
+    (void) exported_built_in(in_dict("is_macro", 6), p_is_macro, B_SAFE);
+    (void) local_built_in(in_dict("visible_term_macro", 6), p_visible_term_macro, B_SAFE);
+    (void) local_built_in(in_dict("illegal_macro", 5), p_illegal_macro, B_SAFE);
+    (void) local_built_in(in_dict("visible_goal_macro", 4), p_visible_goal_macro, B_UNSAFE);
+    (void) local_built_in(in_dict("create_call_n", 2), p_create_call_n, B_UNSAFE);
+    local_built_in(in_dict("module_predicates", 3), p_module_predicates, B_UNSAFE)
+	-> mode = BoundArg(2, GROUND);
+#ifdef lint
+    (void) als((word)0);
+#endif
+}
+
+/* Add all new code in front of the initialization function! */

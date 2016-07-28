@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.12 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.13 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /*
@@ -46,94 +46,10 @@
 #include	"module.h"
 #include	"opcode.h"
 #include	"property.h"
+#include	"os_support.h"
 
 extern syntax_desc
     *copy_syntax_desc(syntax_desc *sd);
-
-static int
-    p_is_module(value v, type t),
-    p_is_locked(value v, type t),
-    p_authorized_module(value v, type t),
-    p_lock1(value v, type t),
-    p_lock2(value v, type t, value vl, type tl),
-    p_lock_pass_(value v, type t, value vl, type tl),
-    p_unlock2(value v, type t, value vl, type tl),
-    p_tool1(value vi, type ti, value vm, type tm),
-    p_tool2(value vi, type ti, value vb, type tb, value vm, type tm),
-    p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm, type tm),
-    p_local(value v, type t, value vm, type tm),
-    p_implicit_local(value v, type t, value vm, type tm),
-    p_export(value v, type t, value vm, type tm),
-    p_reexport_from(value vim, type tim, value v, type t, value vm, type tm),
-    p_import_from(value vim, type tim, value v, type t, value vm, type tm),
-    p_import(value library, type tlib, value import_mod, type tim),
-    p_pr(value v, type t),
-    p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod),
-    p_create_module(value v, type t),
-    p_begin_module(value v, type t),
-    p_default_module(value v, type t),
-    p_module_tag(value vm, type tm, value vs, type ts);
-
-
-void
-module_init(int flags)
-{
-   if (flags & INIT_SHARED)
-   {
-       value v1;
-
-       v1.did = d_.kernel_sepia;
-       (void) p_create_module(v1,tdict);
-
-       v1.did = d_.default_module;	/* needed while -b option is in C */
-       (void) p_create_module(v1,tdict);
-
-#ifdef DFID
-       v1.did = in_dict("dfid", 0);	/* to initialize global vars */
-       (void) p_create_module(v1,tdict);
-#endif
-
-
-       AbolishedProcedures = 0;
-       AbolishedDynProcedures = 0;
-       CompiledStructures = 0;
-       AbolishedProcedures = 0;
-   }
-}
-
-
-void
-bip_module_init(int flags)
-{
-    if (!(flags & INIT_SHARED))
-	return;
-    (void) local_built_in(in_dict("erase_module_", 2), p_erase_module, B_SAFE);
-    (void) local_built_in(in_dict("is_a_module", 1), p_is_module, B_SAFE);
-    (void) local_built_in(in_dict("authorized_module", 1), p_authorized_module, B_SAFE);
-    (void) built_in(in_dict("is_locked", 1), p_is_locked, B_SAFE);
-    (void) built_in(in_dict("begin_module", 1), p_begin_module, B_SAFE);
-    (void) local_built_in(in_dict("begin_module", 2), p_begin_module, B_SAFE);
-    (void) local_built_in(in_dict("create_module_", 1), p_create_module, B_SAFE);
-    (void) built_in(d_.lock, p_lock1, B_SAFE);
-    (void) built_in(in_dict("lock", 2), p_lock2, B_SAFE);
-    (void) built_in(in_dict("lock_pass_", 2), p_lock_pass_, B_SAFE);
-    (void) built_in(in_dict("unlock", 2), p_unlock2, B_SAFE);
-    (void) exported_built_in(in_dict("tool_", 2), p_tool1, B_UNSAFE);
-    (void) exported_built_in(in_dict("tool_", 3), p_tool2, B_UNSAFE);
-    exported_built_in(in_dict("tool_body_", 4), p_tool_body, B_UNSAFE|U_GROUND)
-	-> mode = BoundArg(2, GROUND) | BoundArg(3, CONSTANT);
-    (void) local_built_in(d_.localb, p_local, B_UNSAFE);
-    (void) exported_built_in(in_dict("implicit_local",2), p_implicit_local, B_UNSAFE);
-    (void) local_built_in(d_.exportb, p_export, B_UNSAFE);
-    (void) local_built_in(in_dict("reexport_from_",3), p_reexport_from, B_UNSAFE);
-    (void) local_built_in(d_.import_fromb, p_import_from, B_UNSAFE);
-    (void) local_built_in(in_dict("import_", 2), p_import, B_UNSAFE);
-    (void) local_built_in(in_dict("module_tag", 2), p_module_tag, B_UNSAFE);
-    (void) exported_built_in(in_dict("default_module", 1), p_default_module,
-    	B_UNSAFE|U_SIMPLE);
-    (void) exported_built_in(in_dict("pr", 1), p_pr, B_SAFE);
-
-}
 
 
 /*
@@ -142,7 +58,7 @@ bip_module_init(int flags)
 */
 
 static int
-_tool_body(pri *proci, dident *pdid, int *parity, dident *pmodule)
+_tool_body(pri *proci, dident *pdid, int *parity, dident *pmodule, ec_eng_t *ec_eng)
 {
     pri		*procb;
     int		flags;
@@ -183,7 +99,7 @@ _tool_body(pri *proci, dident *pdid, int *parity, dident *pmodule)
 }
 
 static int
-p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm, type tm)
+p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm, type tm, ec_eng_t *ec_eng)
 {
 	dident	di;
 	pri	*procb, *proci;
@@ -204,13 +120,12 @@ p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm,
 	    Bip_Error(TYPE_ERROR);
 	}
 	Check_Output_Atom_Or_Nil(vmb, tmb);
-	if (!(proci = visible_procedure(di, vm.did, tm, PRI_CREATE)))
+	if (!(proci = visible_procedure(di, vm.did, tm, PRI_CREATE, &err)))
 	{
-	    Get_Bip_Error(err);
 	    Bip_Error(err);
 	}
 
-	if (!_tool_body(proci, &pdid, &arity, &module))
+	if (!_tool_body(proci, &pdid, &arity, &module, ec_eng))
 	{
 	    Get_Bip_Error(err);
 	    Bip_Error(err);
@@ -249,42 +164,34 @@ ec_create_module(dident module_did)	/* also called from megalog */
 {
     pword		*prop;
     module_item		*m;
+    int			res;
 
-    /* Not quite right, should be atomic lookup & enter */
-    a_mutex_lock(&ModuleLock);
-
-    if (IsModule(module_did))
-    {
-	a_mutex_unlock(&ModuleLock);
+    mt_mutex_lock(&PropertyLock);
+    res = get_property_ref(module_did, MODULE_PROP, d_.nil, tdict, GLOBAL_PROP, &prop);
+    if (!(res & NEW_PROP)) {
+	mt_mutex_unlock(&PropertyLock);
 	Bip_Error(MODULE_EXISTS);
     }
 
-    DidModule(module_did) = UNLOCK_MODULE;
-    prop = (pword *) get_property(module_did, MODULE_PROP);
-    if (!prop)
-    {
-        prop = (pword *) set_property(module_did, MODULE_PROP);
-        /* the module did not exist before, no need to test prop */
-	m = (module_item *) hg_alloc(sizeof(module_item));
-        prop->tag.kernel = TPTR;
-        prop->val.ptr = (pword *) m;
-    }
-    else
-	m = (module_item *) prop->val.ptr;
-
+    m = (module_item *) hg_alloc(sizeof(module_item));
     m->syntax = copy_syntax_desc(default_syntax);
-    m->lock = (char *) 0;
-    m->procedures = 0;
-    m->properties = 0;
-    m->imports = 0;
+    m->lock = NULL;
+    m->procedures = NULL;
+    m->properties = NULL;
+    m->imports = NULL;
 
-    a_mutex_unlock(&ModuleLock);
-    Succeed_;
+    prop->tag.kernel = TPTR;
+    prop->val.ptr = (pword *) m;
+
+    DidModule(module_did) = UNLOCK_MODULE;
+
+    mt_mutex_unlock(&PropertyLock);
+    Succeed_
 }
 
 
 static int
-p_create_module(value v, type t)
+p_create_module(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Atom(t);	/* don't allow TNIL because of ModuleTag() problem */
     return ec_create_module(v.did);
@@ -292,30 +199,37 @@ p_create_module(value v, type t)
 
 
 static int
-p_begin_module(value v, type t)
+p_begin_module(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Module_And_Access(v, t);
     Succeed_;
 }
 
 
+/**
+ * Set/Get the engine's context module for resumed goals
+ */
 static int
-p_default_module(value v, type t)
+p_default_module(value v, type t, ec_eng_t *ec_eng)
 {
+#if 0
     if (IsRef(t)) {
+#endif
 	pword pw;
-	pw.val.did = d_.default_module;
+	pw.val.did = ec_eng->default_module;
 	pw.tag.kernel = ModuleTag(d_.default_module);
         Return_Unify_Pw(v, t, pw.val, pw.tag);
+#if 0
     }
     Check_Module_And_Access(v, t);
-    d_.default_module = v.did;
+    ec_eng->default_module = v.did;
     Succeed_;
+#endif
 }
 
 
 static int
-p_lock1(value v, type t)
+p_lock1(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Module_And_Access(v, t);
     DidModule(v.did) = HARD_LOCK_MODULE;
@@ -324,7 +238,7 @@ p_lock1(value v, type t)
 
 
 static int
-p_lock_pass_(value vl, type tl, value v, type t)
+p_lock_pass_(value vl, type tl, value v, type t, ec_eng_t *ec_eng)
 {
    module_item	*m;
 
@@ -342,14 +256,14 @@ p_lock_pass_(value vl, type tl, value v, type t)
 
 
 static int
-p_lock2(value v, type t, value vl, type tl)
+p_lock2(value v, type t, value vl, type tl, ec_eng_t *ec_eng)
 {
-    return p_lock_pass_(vl, tl, v, t);
+    return p_lock_pass_(vl, tl, v, t, ec_eng);
 }
 
 
 static int
-p_unlock2(value v, type t, value vl, type tl)
+p_unlock2(value v, type t, value vl, type tl, ec_eng_t *ec_eng)
 {
    module_item	*m;
 
@@ -384,7 +298,7 @@ p_unlock2(value v, type t, value vl, type tl)
 
 
 static int
-p_is_module(value v, type t)
+p_is_module(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Atom_Or_Nil(v, t);
     Succeed_If(IsModule(v.did));
@@ -392,7 +306,7 @@ p_is_module(value v, type t)
 
 
 static int
-p_authorized_module(value v, type t)
+p_authorized_module(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Atom_Or_Nil(v, t);
     Succeed_If(IsModule(v.did) && (!IsLocked(v.did) || IsModuleTag(v.did, t)));
@@ -400,7 +314,7 @@ p_authorized_module(value v, type t)
 
 
 static int
-p_is_locked(value v, type t)
+p_is_locked(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Atom_Or_Nil(v, t);
 
@@ -432,7 +346,7 @@ p_is_locked(value v, type t)
 	in all modules.
 */
 static int
-p_pr(value v, type t)
+p_pr(value v, type t, ec_eng_t *ec_eng)
 {
     pri		*proc;
     dident	wdid;
@@ -608,7 +522,7 @@ _tool_code(pri *procb, int debug)
 	set the tool flag of Name/Arity in SourceModule.
 */
 static int
-p_tool1(value vi, type ti, value vm, type tm)
+p_tool1(value vi, type ti, value vm, type tm, ec_eng_t *ec_eng)
 {
 #if 0
     dident	di;
@@ -618,10 +532,9 @@ p_tool1(value vi, type ti, value vm, type tm)
     Check_Module(tm, vm);
     Get_Proc_Did(vi, ti, di);
 
-    proci = visible_procedure(di, vm.did, tm, PRI_CREATE);
+    proci = visible_procedure(di, vm.did, tm, PRI_CREATE, &err);
     if (!proci)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     if (proci->flags & TOOL)
@@ -651,7 +564,7 @@ p_tool1(value vi, type ti, value vm, type tm)
 #define TOOL_INHERIT_FLAGS (CODETYPE|ARGPASSING|EXTERN|UNIFTYPE)
 
 static int
-p_tool2(value vi, type ti, value vb, type tb, value vm, type tm)
+p_tool2(value vi, type ti, value vb, type tb, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	di, db;
     pri		*procb, *proci;
@@ -668,18 +581,16 @@ p_tool2(value vi, type ti, value vb, type tb, value vm, type tm)
         Bip_Error(RANGE_ERROR);
     }
     if (vm.did == d_.kernel_sepia)
-	proci = export_procedure(di, vm.did, tm);
+	proci = export_procedure(di, vm.did, tm, &err);
     else
-	proci = local_procedure(di, vm.did, tm, PRI_CREATE);
+	proci = local_procedure(di, vm.did, tm, PRI_CREATE, &err);
     if (!proci)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
-    procb = visible_procedure(db, vm.did, tm, PRI_CREATE);
+    procb = visible_procedure(db, vm.did, tm, PRI_CREATE, &err);
     if (!procb)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     /* Incompatbilities of being a TOOL */
@@ -695,7 +606,7 @@ p_tool2(value vi, type ti, value vb, type tb, value vm, type tm)
     changed_flags = TOOL|TOOL_INHERIT_FLAGS|DEBUG_DB|SYSTEM;
     new_flags = TOOL
 		|(TOOL_INHERIT_FLAGS & procb->flags)
-		|(GlobalFlags & DBGCOMP ? DEBUG_DB : 0)
+		|(EclGblFlags & DBGCOMP ? DEBUG_DB : 0)
 		|(vm.did == d_.kernel_sepia ? SYSTEM : 0);
     err = pri_compatible_flags(proci, changed_flags, new_flags);
     if (err != PSUCCEED)
@@ -705,19 +616,18 @@ p_tool2(value vi, type ti, value vb, type tb, value vm, type tm)
     pri_change_flags(proci, changed_flags & ~CODETYPE, new_flags & ~CODETYPE);
     Pri_Set_Reference(procb);
     proci->mode = procb->mode;
-    pricode.vmc = _tool_code(procb, GlobalFlags & DBGCOMP);
+    pricode.vmc = _tool_code(procb, EclGblFlags & DBGCOMP);
     pri_define_code(proci, procb->flags & CODETYPE, pricode);
     /* make sure the tool body is exported or reexported, so it can
      * be invoked with a qualified call with lookup module vm */
     if (!PriAnyExp(procb) && !PriWillExport(procb))
     {
 	if (PriScope(procb) == IMPORT)
-	    procb = reexport_procedure(db, vm.did, tm, PriHomeModule(procb));
+	    procb = reexport_procedure(db, vm.did, tm, PriHomeModule(procb), &err);
 	else
-	    procb = export_procedure(db, vm.did, tm);
+	    procb = export_procedure(db, vm.did, tm, &err);
 	if (!procb)
 	{
-	    Get_Bip_Error(err);
 	    Bip_Error(err);
 	}
     }
@@ -757,23 +667,24 @@ _add_module(dident module, didlist **start)
  */
 
 static int
-p_implicit_local(value v, type t, value vm, type tm)
+p_implicit_local(value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	d;
+    int	err;
 
     Check_Module(tm, vm);
     Get_Proc_Did(v, t, d);
 
-    if (!local_procedure(d, vm.did, tm, PRI_CREATE))
+    if (!local_procedure(d, vm.did, tm, PRI_CREATE, &err))
     {
-	Fail_;	/* with bip_error */
+	Bip_Error(err);
     }
     Succeed_;
 }
 
 
 static int
-p_local(value v, type t, value vm, type tm)
+p_local(value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	d;
     pri	*proc;
@@ -782,17 +693,16 @@ p_local(value v, type t, value vm, type tm)
     Check_Module(tm, vm);
     Get_Proc_Did(v, t, d);
 
-    proc = local_procedure(d, vm.did, tm, PRI_CREATE|PRI_DONTWARN);
+    proc = local_procedure(d, vm.did, tm, PRI_CREATE|PRI_DONTWARN, &err);
     if (!proc)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     Succeed_;
 }
 
 static int
-p_export(value v, type t, value vm, type tm)
+p_export(value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	d;
     pri	*proc;
@@ -801,10 +711,9 @@ p_export(value v, type t, value vm, type tm)
     Check_Module(tm, vm);
     Get_Proc_Did(v, t, d);
 
-    proc = export_procedure(d, vm.did, tm);
+    proc = export_procedure(d, vm.did, tm, &err);
     if (!proc)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     Succeed_;
@@ -812,7 +721,7 @@ p_export(value v, type t, value vm, type tm)
 
 
 static int
-p_import_from(value vim, type tim, value v, type t, value vm, type tm)
+p_import_from(value vim, type tim, value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	 d;
     pri	*proc, *export;
@@ -822,10 +731,9 @@ p_import_from(value vim, type tim, value v, type t, value vm, type tm)
     Check_Module(tm, vm);
     Get_Proc_Did(v, t, d);
 
-    proc = import_procedure(d, vm.did, tm, vim.did);
+    proc = import_procedure(d, vm.did, tm, vim.did, &err);
     if (!proc)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     Succeed_;
@@ -833,7 +741,7 @@ p_import_from(value vim, type tim, value v, type t, value vm, type tm)
 
 
 static int
-p_reexport_from(value vim, type tim, value v, type t, value vm, type tm)
+p_reexport_from(value vim, type tim, value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	 d;
     pri	*proc, *export;
@@ -843,10 +751,9 @@ p_reexport_from(value vim, type tim, value v, type t, value vm, type tm)
     Check_Module(tm, vm);
     Get_Proc_Did(v, t, d);
 
-    proc = reexport_procedure(d, vm.did, tm, vim.did);
+    proc = reexport_procedure(d, vm.did, tm, vim.did, &err);
     if (!proc)
     {
-	Get_Bip_Error(err);
 	Bip_Error(err);
     }
     Succeed_;
@@ -860,7 +767,7 @@ p_reexport_from(value vim, type tim, value v, type t, value vm, type tm)
 
 /*ARGSUSED*/
 static int
-p_import(value library, type tlib, value import_mod, type tim)
+p_import(value library, type tlib, value import_mod, type tim, ec_eng_t *ec_eng)
 {
     module_item	*export_prop, *import_prop;
     pri		*pe, *pi;
@@ -869,7 +776,7 @@ p_import(value library, type tlib, value import_mod, type tim)
     Check_Module_And_Access(import_mod, tim);
     Check_Module(tlib, library);
 
-    a_mutex_lock(&ModuleLock);
+    mt_mutex_lock(&SharedDataLock);
 
     export_prop = ModuleItem(library.did);
     import_prop = ModuleItem(import_mod.did);
@@ -880,7 +787,7 @@ p_import(value library, type tlib, value import_mod, type tim)
     {
 	if (lib_scan->name == library.did)
 	{
-	    a_mutex_unlock(&ModuleLock);
+	    mt_mutex_unlock(&SharedDataLock);
 	    Succeed_; /* the library is already imported		*/
 	}
 	lib_scan = lib_scan->next;
@@ -892,7 +799,7 @@ p_import(value library, type tlib, value import_mod, type tim)
     /* now perform the pending imports					*/
     resolve_pending_imports(import_prop->procedures);
 
-    a_mutex_unlock(&ModuleLock);
+    mt_mutex_unlock(&SharedDataLock);
     Succeed_;
 }
 
@@ -917,7 +824,7 @@ delete_duet_from_chain(dident the_name, didlist **chain)
 }
 
 static int
-p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod)
+p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod, ec_eng_t *ec_eng)
 {
 	module_item	*pm, *import_pm;
 	int		 i;
@@ -956,7 +863,7 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod)
 
 	/* reclaim module descriptor */
 
-	(void) erase_property(module.did, MODULE_PROP);
+	(void) erase_global_property(module.did, MODULE_PROP);
 
 	DidPtr(module.did)->module = 0;
 
@@ -968,10 +875,65 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod)
  */
 /*ARGSUSED*/
 static int
-p_module_tag(value vm, type tm, value vs, type ts)
+p_module_tag(value vm, type tm, value vs, type ts, ec_eng_t *ec_eng)
 {
     type	t;
 
     t.kernel = ModuleTag(vm.did);
     Return_Unify_Pw(vs, ts, vm, t)
 }
+
+
+void
+module_init(int flags)
+{
+   if (flags & INIT_SHARED)
+   {
+       ec_create_module(d_.kernel_sepia);	/* the kernel module */
+       ec_create_module(d_.dummy_module);	/* a nameless module */
+
+#ifdef DFID
+       ec_create_module(in_dict("dfid", 0));	/* to initialize global vars */
+#endif
+
+       AbolishedProcedures = 0;
+       CompiledStructures = 0;
+       AbolishedProcedures = 0;
+   }
+}
+
+
+void
+bip_module_init(int flags)
+{
+    if (!(flags & INIT_SHARED))
+	return;
+    (void) local_built_in(in_dict("erase_module_", 2), p_erase_module, B_SAFE);
+    (void) local_built_in(in_dict("is_a_module", 1), p_is_module, B_SAFE);
+    (void) local_built_in(in_dict("authorized_module", 1), p_authorized_module, B_SAFE);
+    (void) built_in(in_dict("is_locked", 1), p_is_locked, B_SAFE);
+    (void) built_in(in_dict("begin_module", 1), p_begin_module, B_SAFE);
+    (void) local_built_in(in_dict("begin_module", 2), p_begin_module, B_SAFE);
+    (void) local_built_in(in_dict("create_module_", 1), p_create_module, B_SAFE);
+    (void) built_in(d_.lock, p_lock1, B_SAFE);
+    (void) built_in(in_dict("lock", 2), p_lock2, B_SAFE);
+    (void) built_in(in_dict("lock_pass_", 2), p_lock_pass_, B_SAFE);
+    (void) built_in(in_dict("unlock", 2), p_unlock2, B_SAFE);
+    (void) exported_built_in(in_dict("tool_", 2), p_tool1, B_UNSAFE);
+    (void) exported_built_in(in_dict("tool_", 3), p_tool2, B_UNSAFE);
+    exported_built_in(in_dict("tool_body_", 4), p_tool_body, B_UNSAFE|U_GROUND)
+	-> mode = BoundArg(2, GROUND) | BoundArg(3, CONSTANT);
+    (void) local_built_in(d_.localb, p_local, B_UNSAFE);
+    (void) exported_built_in(in_dict("implicit_local",2), p_implicit_local, B_UNSAFE);
+    (void) local_built_in(d_.exportb, p_export, B_UNSAFE);
+    (void) local_built_in(in_dict("reexport_from_",3), p_reexport_from, B_UNSAFE);
+    (void) local_built_in(d_.import_fromb, p_import_from, B_UNSAFE);
+    (void) local_built_in(in_dict("import_", 2), p_import, B_UNSAFE);
+    (void) local_built_in(in_dict("module_tag", 2), p_module_tag, B_UNSAFE);
+    (void) exported_built_in(in_dict("default_module", 1), p_default_module,
+    	B_UNSAFE|U_SIMPLE);
+    (void) exported_built_in(in_dict("pr", 1), p_pr, B_SAFE);
+
+}
+
+/* Add all new code in front of the initialization function! */

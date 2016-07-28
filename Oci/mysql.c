@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.11 2016/03/14 23:21:02 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.12 2016/07/28 03:34:36 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -49,16 +49,16 @@
  * TODO General header for contents of this file
  */
 
+#include "external.h"	/* ECLiPSe definitions */
+#include <mysql/mysql.h> /* MySQL definitions */
+#include "dbi.h"	/* This interface */
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-/*#include <malloc.h>*/
 #include <string.h>
-#include <mysql/mysql.h> 
-#include "external.h"	/* ECLiPSe definitions */
-#include "dbi.h"	/* Oracle call interface */
 
 
 /* ----------------------------------------------------------------------
@@ -188,7 +188,7 @@ raise_mysql_stmt_error(MYSQL_STMT * stmt)
    user-supplied buffers, so only template_put has to be called.
 */
 int
-template_get(value v,type t,template_t * * template_out)
+template_get(value v,type t,template_t * * template_out, ec_eng_t *ec_eng)
 {
 	dident did;
 	char argtag;
@@ -306,7 +306,7 @@ template_get(value v,type t,template_t * * template_out)
 */
 int
 template_put(int tuple_num, template_t * template,sql_t sql_type,
-	     void * buffer, void * lengths, pword * tuple) 
+	     void * buffer, void * lengths, pword * tuple, ec_eng_t *ec_eng) 
 {
     word i;
     word arg;
@@ -316,7 +316,6 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
     char *s;
     double d;
     pword * res;
-    extern pword * dbformat_to_term(char *, dident, type);
 
     pw = TG;
     Make_Struct(tuple , pw);
@@ -374,7 +373,7 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 	    {
 #if defined(HAVE_MYSQLBIGINT)
 		/* may convert to ECLiPSe TBIG if required */
-		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](*(long_long *)argbuf, &pw[arg+1]);
+		pw[arg+1] = ecl_long_long(ec_eng, *(long_long *)argbuf);
 #else
 		Make_Integer( &pw[arg+1], *(word *)argbuf);
 #endif
@@ -392,7 +391,7 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 		}
 
 		/* may convert to ECLiPSe TBIG if required */
-		tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](i, &pw[arg+1]);
+		pw[arg+1] = ecl_long_long(ec_eng, i);
 #else
 		word i;
 		if (sscanf(((MYSQL_ROW)buffer)[arg],"%ld",&i) == 0) {
@@ -438,7 +437,7 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
 		    Bip_Error(TYPE_ERROR);
 		}
 	    }
-	    res = dbformat_to_term( argbuf+DBF_HEADER_LEN, 0, tdict);
+	    res = dbformat_to_term(ec_eng, argbuf+DBF_HEADER_LEN, 0, tdict);
 	    if (NULL == res)
 	    {
 		/* bad error but probably won't happen since, if the
@@ -490,7 +489,7 @@ template_put(int tuple_num, template_t * template,sql_t sql_type,
    template (used for input (param) templates)
 */
 int
-template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,pword * tuple) 
+template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,pword * tuple,ec_eng_t *ec_eng) 
 {
     word i;
     word j;
@@ -499,7 +498,6 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
     map_t * m;
     char * argbuf;
     unsigned long * largbuf;
-    extern pword * term_to_dbformat(pword *,dident);
 
 #ifdef DEBUG
     fprintf(stderr,"tuple_num=%d template=0x%x buffer=0x%x tuple=0x%x\n",
@@ -598,7 +596,7 @@ template_bind(int tuple_num, template_t * template,char * buffer,void * lengths,
 	    	pword * old_tg = TG;
 		pword * ext;
 
-		ext = term_to_dbformat(arg,NULL);
+		ext = term_to_dbformat(ec_eng, arg,NULL);
 		if (NULL == ext)
 		    Bip_Error(TYPE_ERROR);
 		BindDbFormat(largbuf, argbuf, m->size,
@@ -642,7 +640,7 @@ session_init(session_t ** session)
 }
 
 int
-session_start(session_t * s, char * username, char * host, char * password, value v_opts)
+session_start(session_t * s, char * username, char * host, char * password, value v_opts, ec_eng_t *ec_eng)
 {
 	char * dbname = NULL;
 	pword * optarg;
@@ -1138,7 +1136,7 @@ session_sql_prep(session_t *session,
 int 
 session_tostr(session_t * session, char *buf, int quoted)
 {
-    sprintf(buf, "'MySQLS'(16'%x)", (word) session);
+    sprintf(buf, "'MySQLS'(16'%"W_MOD"x)", (word) session);
     return strlen(buf); /* size of actual string */
 }
 
@@ -1439,7 +1437,7 @@ cursor_one_tuple(cursor_t *cursor)
 }
 
 int
-cursor_N_tuples(cursor_t * cursor, word * n, pword * tuple_listp, pword ** tp)
+cursor_N_tuples(cursor_t * cursor, word * n, pword * tuple_listp, pword ** tp, ec_eng_t *ec_eng)
 {
     pword * head;
     template_t * template; 
@@ -1465,7 +1463,7 @@ cursor_N_tuples(cursor_t * cursor, word * n, pword * tuple_listp, pword ** tp)
 	Push_List_Frame();
 	Make_List(*tp, head);
 	if (res = template_put(*n, template, cursor->sql_type,
-		cursor->tuple_buffer, cursor->tuple_datalengths, head))
+		cursor->tuple_buffer, cursor->tuple_datalengths, head, ec_eng))
 	{
 	    return res;
 	}
@@ -1478,7 +1476,7 @@ cursor_N_tuples(cursor_t * cursor, word * n, pword * tuple_listp, pword ** tp)
 }
 
 int 
-cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples, pword ** cdrp)
+cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples, pword ** cdrp, ec_eng_t *ec_eng)
 {
     int res;
     pword * car; 
@@ -1493,7 +1491,7 @@ cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples
 	Dereference_(car);               /* access the data */
 
 	if (res = template_bind(0, cursor->param_template,
-		       cursor->param_buffer, cursor->param_datalengths, car))
+		       cursor->param_buffer, cursor->param_datalengths, car, ec_eng))
 	{
 #ifdef DEBUG
 		fprintf(stderr,"DEBUG tuple=%d\n",tuplep);
@@ -1518,7 +1516,7 @@ cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples
 int 
 cursor_tostr(cursor_t * cursor, char *buf, int quoted)
 {
-    sprintf(buf, "'MySQLC'(16'%x)", (word) cursor);
+    sprintf(buf, "'MySQLC'(16'%"W_MOD"x)", (word) cursor);
     return strlen(buf); /* size of actual string */
 }
 

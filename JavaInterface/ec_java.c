@@ -24,13 +24,14 @@
 /*
  * Eclipse Java interface
  *
- * $Id: ec_java.c,v 1.1 2006/09/23 01:54:08 snovello Exp $
+ * $Id: ec_java.c,v 1.2 2016/07/28 03:34:35 jschimpf Exp $
  *
  */
 
-#include <stdlib.h>
+#define USES_NO_ENGINE_HANDLE
 #include <eclipse.h>
 #include "com_parctechnologies_eclipse_NativeEclipse.h"
+#include <stdlib.h>
 
 
 #define CHECK_JAVA_EXCEPTION \

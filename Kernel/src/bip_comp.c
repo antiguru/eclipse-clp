@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.8 2015/05/20 23:55:36 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.9 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -70,64 +70,14 @@
 #define Marked(tag)		((tag).kernel & MARK)
 
 
-static int	p_termless(value v1, type t1, value v2, type t2),
-		p_termlesseq(value v1, type t1, value v2, type t2),
-		p_termgreater(value v1, type t1, value v2, type t2),
-		p_termgreatereq(value v1, type t1, value v2, type t2),
-		p_unify(value v1, type t1, value v2, type t2, value vl, type tl),
-		p_acyclic_term(value v, type t),
-		p_ground(value v, type t),
-		p_nonground(value v, type t),
-		p_occurs(value vs, type ts, value vt, type tt),
-		p_compare_instances4(value vr, type tr, value v1, type t1, value v2, type t2, value vl, type tl),
-		p_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t),
-		p_number_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t),
-		p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2),
-		p_array_sort(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2),
-		p_number_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2);
-
-static int	_instance(int rel, value v1, type t1, value v2, type t2, pword *meta);
-
-
-void
-bip_comp_init(int flags)
-{
-    if (flags & INIT_SHARED)
-    {
-	(void) built_in(d_.less,		p_termless,	B_SAFE);
-	(void) built_in(d_.lessq,		p_termlesseq,	B_SAFE);
-	(void) built_in(d_.greater,		p_termgreater,	B_SAFE);
-	(void) built_in(d_.greaterq,		p_termgreatereq,B_SAFE);
-	exported_built_in(in_dict("unify", 3), p_unify,
-	    B_UNSAFE|U_UNIFY) -> mode =
-	    BoundArg(1, NONVAR) | BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-	exported_built_in(in_dict("compare_instances", 4),
-				p_compare_instances4,	B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(1, CONSTANT) |
-			BoundArg(4, NONVAR);
-	(void) built_in(in_dict("occurs", 2),	p_occurs,	B_UNSAFE);
-	(void) built_in(d_.nonground,		p_nonground,	B_SAFE);
-	(void) built_in(d_.ground,		p_ground,	B_SAFE);
-	(void) built_in(in_dict("acyclic_term",1),	p_acyclic_term,	B_SAFE);
-	built_in(in_dict("merge", 5), 	p_merge5, 	B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR) | BoundArg(5, NONVAR);
-	built_in(in_dict("number_merge", 5), 	p_number_merge5, 	B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR) | BoundArg(5, NONVAR);
-	built_in(in_dict("sort", 4), 	p_sort4, 	B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
-	built_in(in_dict("number_sort", 4), 	p_number_sort4, 	B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
-	built_in(in_dict("array_sort", 4), 	p_array_sort, 	B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
-    }
-}
+static int	_instance(ec_eng_t*, int rel, value v1, type t1, value v2, type t2, pword *meta);
 
 
 /*
  * @</2 - term ordering
  */
 static int 
-p_termless(value v1, type t1, value v2, type t2)
+p_termless(value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
 	Succeed_If(ec_compare_terms(v1, t1, v2, t2) < 0);
 }
@@ -136,7 +86,7 @@ p_termless(value v1, type t1, value v2, type t2)
  * @=</2 - term ordering
  */
 static int 
-p_termlesseq(value v1, type t1, value v2, type t2)
+p_termlesseq(value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
 	Succeed_If(ec_compare_terms(v1, t1, v2, t2) <= 0);
 }
@@ -145,7 +95,7 @@ p_termlesseq(value v1, type t1, value v2, type t2)
  * @>/2 - term ordering
  */
 static int
-p_termgreater(value v1, type t1, value v2, type t2)
+p_termgreater(value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
 	Succeed_If(ec_compare_terms(v1, t1, v2, t2) > 0);
 }
@@ -154,7 +104,7 @@ p_termgreater(value v1, type t1, value v2, type t2)
  * @>=/2 - term ordering
  */
 static int
-p_termgreatereq(value v1, type t1, value v2, type t2)
+p_termgreatereq(value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
 	Succeed_If(ec_compare_terms(v1, t1, v2, t2) >= 0);
 }
@@ -166,12 +116,12 @@ p_termgreatereq(value v1, type t1, value v2, type t2)
  *	and their mates encountered during the unification
  */
 static int
-p_unify(value v1, type t1, value v2, type t2, value vl, type tl)
+p_unify(value v1, type t1, value v2, type t2, value vl, type tl, ec_eng_t *ec_eng)
 {
     pword	*list = (pword *) 0;
     int		res;
 
-    res = ec_unify_(v1, t1, v2, t2, &list);
+    res = ec_unify_(ec_eng, v1, t1, v2, t2, &list);
     if (res == PSUCCEED) {
 	if (list == (pword *) 0) {
 	    Return_Unify_Nil(vl, tl)
@@ -235,16 +185,18 @@ _compare_loop_:
 	    {
 	    case TINT:
 		if (IsTag(t2.kernel,TINT))	/* TINT x TINT */
-		{
 		    return v1.nint < v2.nint ? LESS :
 			v1.nint > v2.nint ? GREATER : 0;
-		}
-		/* else fall through */
+
+		/* if (IsTag(t2.kernel,TBIG))	   TINT x TBIG */
+		return BigNegative(v2.ptr) ? GREATER : LESS;
 
 	    case TBIG:
-		/* this case handles TINT x TBIG, TBIG x TINT, TBIG x TBIG */
-		(void) arith_compare(v1, t1, v2, t2, &res);
-		return res;
+		if (IsTag(t2.kernel,TINT))	/* TBIG x TINT */
+		    return BigNegative(v1.ptr) ? LESS : GREATER;
+
+		/* if (IsTag(t2.kernel,TBIG))	   TBIG x TBIG */
+		return tag_desc[TBIG].compare(v1, v2);
 
 	    case TSTRG:
 		return compare_strings(v1, v2);
@@ -308,8 +260,7 @@ _compare_args_:						/* (arity, v1, v2) */
 			Dereference_(arg2)
 			if (--arity == 0)
 			    break;
-			res = ec_compare_terms
-				(arg1->val, arg1->tag,
+			res = ec_compare_terms(arg1->val, arg1->tag,
 				 arg2->val, arg2->tag);
 			if (res != EQUAL)
 			    return res;
@@ -334,7 +285,7 @@ _compare_args_:						/* (arity, v1, v2) */
  * or a constant and it occurs in the term Term.
  */
 static int
-p_occurs(value vs, type ts, value vt, type tt)
+p_occurs(value vs, type ts, value vt, type tt, ec_eng_t *ec_eng)
 {
 	if (!IsRef(ts) && !IsDouble(ts) && !IsSimple(ts))
 	{
@@ -485,7 +436,7 @@ static int
 p_compare_instances4(value vr, type tr,
 	value v1, type t1,
 	value v2, type t2,
-	value vl, type tl)
+	value vl, type tl, ec_eng_t *ec_eng)
 {
 	int             code;
 	dident 		res;
@@ -496,7 +447,7 @@ p_compare_instances4(value vr, type tr,
 
 	if (IsRef(tr))
 	{
-	    code = _instance(ANY_INST, v1, t1, v2, t2, &list);
+	    code = _instance(ec_eng, ANY_INST, v1, t1, v2, t2, &list);
 	    if (code == 0)
 		{ Fail_; }
 	    if (code & EQ)
@@ -512,17 +463,17 @@ p_compare_instances4(value vr, type tr,
 	{
 	    if (vr.did == d_.unify0)
 	    {
-		if (!_instance(EQ,v1,t1,v2,t2, &list))
+		if (!_instance(ec_eng, EQ,v1,t1,v2,t2, &list))
 		    { Fail_; }
 	    }
 	    else if (vr.did == d_.inf0)
 	    {
-		code = _instance(EQ|LT,v1,t1,v2,t2, &list);
+		code = _instance(ec_eng, EQ|LT,v1,t1,v2,t2, &list);
 		if (code != LT) {Fail_; }
 	    }
 	    else if (vr.did == d_.sup0)
 	    {
-		code = _instance(EQ|GT,v1,t1,v2,t2, &list);
+		code = _instance(ec_eng, EQ|GT,v1,t1,v2,t2, &list);
 		if (code != GT) {Fail_; }
 	    }
 	    else
@@ -540,7 +491,7 @@ p_compare_instances4(value vr, type tr,
  * numbervars(), but it uses terms with the special tag TVARNUM.
  */
 static void
-_instantiate(value v1, type t1)
+_instantiate(ec_eng_t *ec_eng, value v1, type t1)
 {
     int		arity;
     pword	*arg1;
@@ -569,7 +520,7 @@ _instantiate(value v1, type t1)
 	    Dereference_(arg1);
 	    if (--arity == 0)
 		break;
-	    _instantiate(arg1->val, arg1->tag);
+	    _instantiate(ec_eng, arg1->val, arg1->tag);
 	}
 	v1.all = arg1->val.all;		/* tail recursion */
 	t1.all = arg1->tag.all;
@@ -583,7 +534,9 @@ _instantiate(value v1, type t1)
  */
 
 static int
-_instance(int rel,		/* relation type asked for */
+_instance(
+	ec_eng_t *ec_eng,
+    	int rel,		/* relation type asked for */
 	value v1, type t1,
 	value v2, type t2,
 	pword *meta)		/* output list of meta pairs */
@@ -628,7 +581,7 @@ _instance(int rel,		/* relation type asked for */
 		 * the variables inside are not bound later by mistake.
 		 * This also makes simple occur check possible.
 		 */
-		_instantiate(v2, t2);
+		_instantiate(ec_eng, v2, t2);
 		if (!IsTag(v1.ptr->tag.kernel, TVARNUM))
 		{
 		    if (IsVar(t1)) Trail_(v1.ptr) else Trail_Tag(v1.ptr);
@@ -644,7 +597,7 @@ _instance(int rel,		/* relation type asked for */
 	else if (IsRef(t2))		/* nonvar - var */
 	{
 	    /* see comment above */
-	    _instantiate(v1, t1);
+	    _instantiate(ec_eng, v1, t1);
 	    if (!IsTag(v2.ptr->tag.kernel, TVARNUM))
 	    {
 		if (IsVar(t2)) Trail_(v2.ptr) else Trail_Tag(v2.ptr);
@@ -733,7 +686,7 @@ _instance(int rel,		/* relation type asked for */
 	    Dereference_(arg2);
 	    if (--arity == 0)
 		break;
-	    rel = _instance(rel, arg1->val, arg1->tag,
+	    rel = _instance(ec_eng, rel, arg1->val, arg1->tag,
 			    arg2->val, arg2->tag, meta);
 
 	    if (rel == 0)		/* fail early */
@@ -754,13 +707,13 @@ _instance(int rel,		/* relation type asked for */
 */
 
 static int
-p_nonground(value v, type t)
+p_nonground(value v, type t, ec_eng_t *ec_eng)
 {
     Succeed_If(ec_nonground(v, t))
 }
 
 int
-p_ground(value v, type t)
+p_ground(value v, type t, ec_eng_t *ec_eng)
 {
     Succeed_If(!ec_nonground(v, t))
 }
@@ -776,7 +729,6 @@ p_ground(value v, type t)
 
 static int
 _cyclic_term(value val, type tag)	/* expects a dereferenced argument */
-          
 {
     pword *arg_i;
     int arity;
@@ -814,7 +766,7 @@ _cyclic_term(value val, type tag)	/* expects a dereferenced argument */
 }
 
 static int
-p_acyclic_term(value v, type t)
+p_acyclic_term(value v, type t, ec_eng_t *ec_eng)
 {
     Succeed_If(!_cyclic_term(v, t));
 }
@@ -870,7 +822,7 @@ p_acyclic_term(value v, type t)
     }
 
 static int
-p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2)
+p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
     pword 	*list;
     int		err, reverse, keep_duplicates, number_sort;
@@ -889,7 +841,7 @@ p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type 
     {
 	Return_Unify_Nil(v2, t2)
     }
-    list = ec_keysort(v1, vk, tk, reverse, keep_duplicates, number_sort, &err);
+    list = ecl_keysort(ec_eng, v1, vk, tk, reverse, keep_duplicates, number_sort, &err);
     if (!list) {
 	Bip_Error(err)
     } else {
@@ -919,7 +871,7 @@ p_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type 
  */
 
 static int
-p_number_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2)
+p_number_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
     register pword 	*list;
     register int	reverse, keep_duplicates;
@@ -954,7 +906,7 @@ p_number_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2
     {
 	Return_Unify_Nil(v2, t2)
     }
-    list = ec_keysort(v1, vk, tk, reverse, keep_duplicates, TRUE, &err);
+    list = ecl_keysort(ec_eng, v1, vk, tk, reverse, keep_duplicates, TRUE, &err);
     if (!list) {
 	Bip_Error(err)
     } else {
@@ -970,11 +922,11 @@ p_number_sort4(value vk, type tk, value vo, type to, value v1, type t1, value v2
  * 	array_list(RandomArray, RandomList),
  *	sort(Key, Order, RandomList, SortedList),
  * 	array_list(SortedArray, SortedList).
- * but doesn't not leave any garbage behind.
+ * but does not leave any garbage behind.
  */
 
 static int
-p_array_sort(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2)
+p_array_sort(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
     pword 	*arr;
     pword 	*list;
@@ -1043,8 +995,6 @@ _get_key(pword *pw, value vk, type tk, int *perr)
     Dereference_(pw);
     if (!IsInteger(tk) || vk.nint != 0)
     {
-	pword *ec_chase_arg(value vn, type tn, value vt, type tt, int *perr);
-
 	if (pw = ec_chase_arg(vk, tk, pw->val, pw->tag, perr))
 	{
 	    Dereference_(pw);
@@ -1055,7 +1005,7 @@ _get_key(pword *pw, value vk, type tk, int *perr)
 
 
 pword *
-ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int number_sort, int *err)
+ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep_duplicates, int number_sort, int *err)
 {
     register pword 	*h1, *h2, *comp_ptr, *append;
     pword 		*key_ptr1, *key_ptr2, *old_tg, *next_append;
@@ -1115,7 +1065,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 		return 0;
 	    }
 	    comp = number_sort;	/* input for breal comparison */
-	    int res = arith_compare(key_ptr1->val, key_ptr1->tag,
+	    int res = arith_compare(ec_eng, key_ptr1->val, key_ptr1->tag,
 				 key_ptr2->val, key_ptr2->tag, &comp);
 	    if (res != PSUCCEED)
 	    {
@@ -1252,7 +1202,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 		if (number_sort)
 		{
 		    comp = number_sort;
-		    int res = arith_compare(key_ptr1->val, key_ptr1->tag,
+		    int res = arith_compare(ec_eng, key_ptr1->val, key_ptr1->tag,
 					 key_ptr2->val, key_ptr2->tag, &comp);
 		    if (res != PSUCCEED)
 		    {
@@ -1414,7 +1364,7 @@ ec_keysort(value v1, value vk, type tk, int reverse, int keep_duplicates, int nu
 
 static int
 _merge(value vk, type tk,
-	value v1, type t1, value v2, type t2, value v, type t,
+	value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng,
 	int reverse, int keep_duplicates, int number_sort)
 {
     pword 	*old_tg = TG;
@@ -1463,7 +1413,7 @@ _merge(value vk, type tk,
 		goto _merge_error_;
 	    }
 	    comp = number_sort;
-	    err = arith_compare(key_ptr1->val, key_ptr1->tag,
+	    err = arith_compare(ec_eng, key_ptr1->val, key_ptr1->tag,
 				key_ptr2->val, key_ptr2->tag, &comp);
 	    if(err != PSUCCEED)
 	    {
@@ -1569,16 +1519,16 @@ _merge_error_:		/* (err,old_tg) */
 
 
 static int
-p_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t)
+p_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
     int	reverse, keep_duplicates, number_sort;
     Set_Ordering_Options(vo.did);
-    return _merge(vk, tk, v1, t1, v2, t2, v, t, reverse, keep_duplicates, number_sort);
+    return _merge(vk, tk, v1, t1, v2, t2, v, t, ec_eng, reverse, keep_duplicates, number_sort);
 }
 
 
 static int
-p_number_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t)
+p_number_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
     int	reverse, keep_duplicates;
     Check_Atom(to);
@@ -1597,6 +1547,41 @@ p_number_merge5(value vk, type tk, value vo, type to, value v1, type t1, value v
     } else {
 	Bip_Error(RANGE_ERROR)
     }
-    return _merge(vk, tk, v1, t1, v2, t2, v, t, reverse, keep_duplicates, TRUE);
+    return _merge(vk, tk, v1, t1, v2, t2, v, t, ec_eng, reverse, keep_duplicates, TRUE);
 }
 
+
+void
+bip_comp_init(int flags)
+{
+    if (flags & INIT_SHARED)
+    {
+	(void) built_in(d_.less,		p_termless,	B_SAFE);
+	(void) built_in(d_.lessq,		p_termlesseq,	B_SAFE);
+	(void) built_in(d_.greater,		p_termgreater,	B_SAFE);
+	(void) built_in(d_.greaterq,		p_termgreatereq,B_SAFE);
+	exported_built_in(in_dict("unify", 3), p_unify,
+	    B_UNSAFE|U_UNIFY) -> mode =
+	    BoundArg(1, NONVAR) | BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
+	exported_built_in(in_dict("compare_instances", 4),
+				p_compare_instances4,	B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(1, CONSTANT) |
+			BoundArg(4, NONVAR);
+	(void) built_in(in_dict("occurs", 2),	p_occurs,	B_UNSAFE);
+	(void) built_in(d_.nonground,		p_nonground,	B_SAFE);
+	(void) built_in(d_.ground,		p_ground,	B_SAFE);
+	(void) built_in(in_dict("acyclic_term",1),	p_acyclic_term,	B_SAFE);
+	built_in(in_dict("merge", 5), 	p_merge5, 	B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR) | BoundArg(5, NONVAR);
+	built_in(in_dict("number_merge", 5), 	p_number_merge5, 	B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR) | BoundArg(5, NONVAR);
+	built_in(in_dict("sort", 4), 	p_sort4, 	B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
+	built_in(in_dict("number_sort", 4), 	p_number_sort4, 	B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
+	built_in(in_dict("array_sort", 4), 	p_array_sort, 	B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR);
+    }
+}
+
+/* Add all new code in front of the initialization function! */

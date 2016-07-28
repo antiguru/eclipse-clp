@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.10 2013/04/17 01:34:21 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.11 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -49,7 +49,6 @@ extern void	endpwent(void);
 #include <grp.h>
 extern void	endgrent(void);
 #else
-#include <windows.h>
 #include <process.h>
 #endif
 
@@ -97,6 +96,7 @@ extern void	exit();
 #include "emu_export.h"
 #include "os_support.h"
 
+
 extern int      p_wm_get();
 extern int      p_wm_get_ids();
 extern int      p_wm_set();
@@ -105,57 +105,18 @@ extern double   elapsed_session_time();
 extern int      p_worker_stat_reset();
 extern int      p_worker_stat();
 
-static int p_date(value v, type t),
-	p_all_times(value vuser, type tuser, value vsys, type tsys, value vreal, type treal),
-	p_argc(value v0, type t0),
-	p_argv(value v0, type t0, value v1, type t1),
-	p_cd(value v, type t),
-	p_expand_filename(value vin, type tin, value vout, type tout, value vopt, type topt),
-	p_os_file_name(value vecl, type tecl, value vos, type tos),
-	p_getcwd(value sval, type stag),
-	p_getenv(value v0, type t0, value v1, type t1),
-	p_get_sys_flag(value vf, type tf, value vv, type tv),
-	p_kill(value pv, type pt, value sv, type st),
-	p_local_time(value vy, type ty, value vm, type tm, value vd, type td, value vh, type th, value vmin, type tmin, value vsec, type tsec, value vdst, type tdst, value vunixtime, type tunixtime),
-	p_local_time_string(value vunixtime, type tunixtime, value vformat, type tformat, value vs, type ts),
-	p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type tfile),
-	p_frandom(value v, type t),
-	p_random(value v, type t),
-	p_seed(value v, type t),
-	p_sleep(value v, type t),
-	p_setenv(value v0, type t0, value v1, type t1),
-	p_suffix(value sval, type stag, value sufval, type suftag),
-	p_session_time(value vtime, type ttime),
-	p_get_hr_time(value vtime, type ttime),
-	p_set_timer(value vtimer, type ttimer, value vinterv, type tinterv),
-	p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv),
-	p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinterv, type tinterv),
-	p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinterv, type tinterv),
-	p_cputime(value val, type tag),
-	p_alarm(value v, type t),
-#ifdef _WIN32
-	p_system(value v, type t),
-#endif
-	p_sys_file_flag(value fv, type ft, value nv, type nt, value vv, type vt);
-
-static void
-	_fseed(uint32),
-	_post_alarm(long int);
-
-
-int	p_heap_stat(value vwhat, type twhat, value vval, type tval);
-
-static dident	d_virtual,
-		d_version,
-		d_profile;
 
 /*
  * Static variables
  */
 
 static dident	d_hostid_ = D_UNKNOWN;	/* cache for hostid atom */
+static dident	d_hostarch_,
+		d_installation_dir_,
+		d_virtual_,
+		d_version_,
+		d_profile_;
 
-static int32	seed;	/* for random generator */
 
 #ifdef _WIN32
 static LARGE_INTEGER ticks_per_sec_;
@@ -163,102 +124,18 @@ static int have_perf_counter_ = 0;
 #endif
 
 
-void
-bip_misc_init(int flags)
-{
-    if (flags & INIT_SHARED)
-    {
-	(void) built_in(in_dict("argc",1),	p_argc,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("argv",2),	p_argv,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("getenv",2),	p_getenv, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("setenv",2),	p_setenv, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("date",1), 	p_date,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("local_time",8),  p_local_time,	B_UNSAFE|U_GROUND);
-	(void) built_in(in_dict("local_time_string",3),  p_local_time_string,	B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("expand_filename",3),
-				p_expand_filename,	B_UNSAFE|U_SIMPLE);
-	built_in(in_dict("os_file_name",2), 	p_os_file_name, B_UNSAFE|U_GROUND)
-		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	(void) built_in(in_dict("random",1), 	p_random, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("frandom",1), 	p_frandom, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("seed",1),	p_seed, 	B_SAFE);
-	(void) built_in(in_dict("sleep",1), 	p_sleep, 	B_UNSAFE);
-	(void) built_in(in_dict("kill", 2), 	p_kill, 	B_SAFE);
-	(void) built_in(in_dict("suffix", 2), 	p_suffix, B_UNSAFE|U_SIMPLE);
-	built_in(in_dict("pathname", 3), 	p_pathname, B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
-	(void) built_in(in_dict("getcwd", 1), 	p_getcwd,  B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("cd", 1),		p_cd, 	B_SAFE);
-	(void) built_in(in_dict("get_hr_time", 1), p_get_hr_time, 	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("set_timer", 2), p_set_timer, 	B_SAFE);
-	(void) built_in(in_dict("get_timer", 2),
-				p_get_timer,		B_UNSAFE|U_SIMPLE);
-	(void) exported_built_in(in_dict("start_timer", 3), p_start_timer,	B_SAFE);
-	exported_built_in(in_dict("stop_timer", 3),
-				p_stop_timer,		B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
-	(void) local_built_in(in_dict("wm_get", 1), p_wm_get, B_UNSAFE|U_GROUND);
-	(void) local_built_in(in_dict("wm_get_ids", 2), p_wm_get_ids, B_UNSAFE|U_GROUND);
-	(void) local_built_in(in_dict("wm_set", 3), p_wm_set, B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("wm_interface", 1), p_wm_interface, 
-			B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("session_time", 1), p_session_time,
-		B_UNSAFE|U_SIMPLE);
-	local_built_in(in_dict("all_times", 3), p_all_times, B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) |
-		    BoundArg(3, CONSTANT);
-	(void) local_built_in(in_dict("heap_stat", 2),
-				p_heap_stat,		B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("get_sys_flag", 2),
-				p_get_sys_flag,		B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("sys_file_flag", 3),
-				p_sys_file_flag,	B_UNSAFE|U_SIMPLE);
-	(void) exported_built_in(in_dict("worker_statistics_reset", 1),
-			p_worker_stat_reset, B_SAFE);
-	(void) exported_built_in(in_dict("worker_statistics", 2), p_worker_stat,
-		B_UNSAFE|U_GROUND);
-	(void) built_in(in_dict("cputime",1), p_cputime, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("alarm",1), p_alarm, B_UNSAFE);
-#ifdef _WIN32
-	(void) local_built_in(in_dict("_system", 1), p_system, B_SAFE);
-#endif
-    }
-
-    if (flags & INIT_PRIVATE)
-    {
-	d_virtual = in_dict("virtual", 0);
-	d_profile = in_dict("profile", 0);
-	d_version = in_dict(ec_version, 0);
-    }
-
-    if (flags & INIT_PROCESS)
-    {
-	/* initialize random generators */
-	int rand_init = ec_unix_time() * getpid();
-	_fseed((uint32) rand_init);
-#ifdef HAVE_RANDOM
-	srandom((unsigned) rand_init);
-#else
-	srand((unsigned) rand_init);
-#endif
-#ifdef _WIN32
-	if (QueryPerformanceFrequency(&ticks_per_sec_))
-	    have_perf_counter_ = 1;
-#endif
-    }
-}
-
 
 /*	argc/1
  *	unifies its argument with the number of argument of the call to sepia.
  */
 
 static int
-p_argc(value v0, type t0)
+p_argc(value v0, type t0, ec_eng_t *ec_eng)
 {
     Check_Output_Integer(t0);
-    Return_Unify_Integer(v0,t0,ec_options.Argc);
+    Return_Unify_Integer(v0, t0, ec_eng->options.Argc);
 }
+
 
 /*	argv/2
  *	first argument must be an integer in the range [0..Argc[
@@ -266,7 +143,7 @@ p_argc(value v0, type t0)
  */
 
 static int
-p_argv(value v0, type t0, value v1, type t1)
+p_argv(value v0, type t0, value v1, type t1, ec_eng_t *ec_eng)
 {
     pword result;
 
@@ -275,8 +152,8 @@ p_argv(value v0, type t0, value v1, type t1)
 	if (v0.nint >= 0)	/* get one argument */
 	{
 	    Check_Output_String(t1);
-	    if (v0.nint >= ec_options.Argc) { Bip_Error(RANGE_ERROR); }
-	    Make_String(&result, ec_options.Argv[v0.nint]);
+	    if (v0.nint >= ec_eng->options.Argc) { Bip_Error(RANGE_ERROR); }
+	    Make_String(&result, ec_eng->options.Argv[v0.nint]);
 	}
 	else	/* shift arguments: argv(NegPos, NShift) */
 	{
@@ -284,11 +161,11 @@ p_argv(value v0, type t0, value v1, type t1)
 	    Check_Integer(t1);
 	    i = -v0.nint;
 	    j = i + v1.nint;
-	    if (j < i || i >= ec_options.Argc || j > ec_options.Argc)
+	    if (j < i || i >= ec_eng->options.Argc || j > ec_eng->options.Argc)
 	    	{ Bip_Error(RANGE_ERROR); }
-	    while (j < ec_options.Argc)
-	    	ec_options.Argv[i++] = ec_options.Argv[j++];
-	    ec_options.Argc = i;
+	    while (j < ec_eng->options.Argc)
+	    	ec_eng->options.Argv[i++] = ec_eng->options.Argv[j++];
+	    ec_eng->options.Argc = i;
 	    Succeed_;
 	}
     }
@@ -299,12 +176,12 @@ p_argv(value v0, type t0, value v1, type t1)
 	Check_Output_List(t1);
 	if (v0.did != d_.all) { Bip_Error(RANGE_ERROR); }
 	cdr = &result;
-	for (i=0; i<ec_options.Argc; i++)
+	for (i=0; i<ec_eng->options.Argc; i++)
 	{
 	    car = TG;
 	    Push_List_Frame();
 	    Make_List(cdr, car);
-	    Make_String(car, ec_options.Argv[i]);
+	    Make_String(car, ec_eng->options.Argv[i]);
 	    cdr = car + 1;
 	}
 	Make_Nil(cdr);
@@ -313,6 +190,7 @@ p_argv(value v0, type t0, value v1, type t1)
 
     Return_Unify_Pw(v1, t1, result.val, result.tag);
 }
+
 
 /*
  *	getenv/2
@@ -323,7 +201,7 @@ p_argv(value v0, type t0, value v1, type t1)
 #define	TENTATIVE_SIZE 1024
 
 static int
-p_getenv(value v0, type t0, value v1, type t1)
+p_getenv(value v0, type t0, value v1, type t1, ec_eng_t *ec_eng)
 {
     int size, buf_size;
     char *name;
@@ -353,7 +231,7 @@ p_getenv(value v0, type t0, value v1, type t1)
  */
 
 static int
-p_setenv(value v0, type t0, value v1, type t1)
+p_setenv(value v0, type t0, value v1, type t1, ec_eng_t *ec_eng)
 {
     char *name, *new_value;
     pword *old_tg = TG;
@@ -437,7 +315,7 @@ p_setenv(value v0, type t0, value v1, type t1)
 
 #if 0
 static int
-p_unsetenv(value v0, type t0)
+p_unsetenv(value v0, type t0, ec_eng_t *ec_eng)
 {
     char *name;
     Get_Name(v0, t0, name);
@@ -462,7 +340,7 @@ p_unsetenv(value v0, type t0)
  *	with fixed field sizes (total: 26 characters)
  */
 static int
-p_date(value v, type t)
+p_date(value v, type t, ec_eng_t *ec_eng)
 {
     char buf[50];
     value val;
@@ -475,7 +353,7 @@ p_date(value v, type t)
 
 
 static int
-p_local_time(value vy, type ty, value vm, type tm, value vd, type td, value vh, type th, value vmin, type tmin, value vsec, type tsec, value vdst, type tdst, value vunixtime, type tunixtime)
+p_local_time(value vy, type ty, value vm, type tm, value vd, type td, value vh, type th, value vmin, type tmin, value vsec, type tsec, value vdst, type tdst, value vunixtime, type tunixtime, ec_eng_t *ec_eng)
 {
     time_t time_utc;
     struct tm time_here;
@@ -527,7 +405,7 @@ p_local_time(value vy, type ty, value vm, type tm, value vd, type td, value vh, 
 
 
 static int
-p_local_time_string(value vunixtime, type tunixtime, value vformat, type tformat, value vs, type ts)
+p_local_time_string(value vunixtime, type tunixtime, value vformat, type tformat, value vs, type ts, ec_eng_t *ec_eng)
 {
     pword *pw;
     time_t time_utc;
@@ -606,29 +484,38 @@ p_local_time_string(value vunixtime, type tunixtime, value vformat, type tformat
 #define RND_R	(RND_M % RND_A)
 
 static void
-_fseed(uint32 n)
+_fseed(int32 *pstate, uint32 n)
 {
     int32 seed0 = n % RND_M;
-    seed = (seed0==0) ? 1 : seed0;	/* seed must be in range 1..2147483646 */
+    *pstate = (seed0==0) ? 1 : seed0;	/* seed must be in range 1..2147483646 */
 }
 
 static double
-frandom(void)
+_frandom(int32 *pstate)
 {
+    int32 state = *pstate;
     int32 lo,hi,test;
     static double temp = 1.0 / (double)RND_M;
 
-    hi = seed / RND_Q;
-    lo = seed % RND_Q;
+    hi = state / RND_Q;
+    lo = state % RND_Q;
     test = RND_A * lo - RND_R * hi;
-    seed = (test > 0) ? (test) : (test + RND_M);
-    return( (double)seed * temp);
+    *pstate = state = (test > 0) ? (test) : (test + RND_M);
+    return (double)state * temp;
 }
 
-static int
-p_frandom(value v, type t)
+void
+ec_frand_init(int32 *pstate)
 {
-    double f = frandom();
+    int rand_init = ec_unix_time() * getpid();
+    _fseed(pstate, (uint32) rand_init);
+}
+
+
+static int
+p_frandom(value v, type t, ec_eng_t *ec_eng)
+{
+    double f = _frandom(&ec_eng->frand_state);
     Check_Output_Float(t);
     Return_Unify_Float(v, t, f); /* may use several times its arguments */
 }
@@ -639,7 +526,7 @@ p_frandom(value v, type t)
  * Binds it argument to a random integer.
  */
 static int
-p_random(value v, type t)
+p_random(value v, type t, ec_eng_t *ec_eng)
 {
     long n;
 #ifdef HAVE_RANDOM
@@ -658,7 +545,7 @@ p_random(value v, type t)
  * Sets the seed for random/1. The argument must be an int.
  */
 static int
-p_seed(value v, type t)
+p_seed(value v, type t, ec_eng_t *ec_eng)
 {
 	Check_Integer(t);
 #ifdef HAVE_RANDOM
@@ -666,7 +553,7 @@ p_seed(value v, type t)
 #else
 	srand((unsigned) v.nint);
 #endif
-	_fseed((uint32) v.nint);		/* for frandom() */
+	_fseed(&ec_eng->frand_state, (uint32) v.nint);		/* for frandom() */
 	Succeed_;
 }
 
@@ -677,14 +564,19 @@ p_seed(value v, type t)
  * Suspends the process for the given (integer) number of seconds.
  */
 static int
-p_sleep(value v, type t)
+p_sleep(value v, type t, ec_eng_t *ec_eng)
 {
+    double seconds;
     if (IsInteger(t))
-	(void) ec_sleep((double) v.nint);
+	seconds = (double) v.nint;
     else if (IsDouble(t))
-	(void) ec_sleep(Dbl(v));
+	seconds = Dbl(v);
     else
 	{ Bip_Error(TYPE_ERROR); }
+
+    ecl_pause_engine(ec_eng, 1, PAUSE_EXITABLE_VIA_LONGJMP);
+    (void) ec_sleep(seconds);
+    ecl_unpause_engine(ec_eng);
     return(PSUCCEED);
 }
 
@@ -692,7 +584,7 @@ p_sleep(value v, type t)
  * Get the suffix of a filename (extension).
  */
 static int
-p_suffix(value sval, type stag, value sufval, type suftag)
+p_suffix(value sval, type stag, value sufval, type suftag, ec_eng_t *ec_eng)
 {
 	char		*p;
 	char		*suffix;
@@ -730,7 +622,7 @@ p_suffix(value sval, type stag, value sufval, type suftag)
  * Split the pathname into parent path and simple file name.
  */
 static int
-p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type tfile)
+p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type tfile, ec_eng_t *ec_eng)
 {
 	char		*path;
 	char		*p, *d, *f, *e;
@@ -792,7 +684,7 @@ p_pathname(value sval, type stag, value pathval, type pathtag, value vfile, type
  */
 
 static int
-p_expand_filename(value vin, type tin, value vout, type tout, value vopt, type topt)
+p_expand_filename(value vin, type tin, value vout, type tout, value vopt, type topt, ec_eng_t *ec_eng)
 {
     char *in, out[MAX_PATH_LEN];
     value v;
@@ -806,7 +698,7 @@ p_expand_filename(value vin, type tin, value vout, type tout, value vopt, type t
 
 
 static int
-p_os_file_name(value vecl, type tecl, value vos, type tos)
+p_os_file_name(value vecl, type tecl, value vos, type tos, ec_eng_t *ec_eng)
 {
     char *in, out[MAX_PATH_LEN];
     pword pw;
@@ -840,7 +732,7 @@ p_os_file_name(value vecl, type tecl, value vos, type tos)
  * getcwd/1
  */
 static int
-p_getcwd(value sval, type stag)
+p_getcwd(value sval, type stag, ec_eng_t *ec_eng)
 {
 	value	v;
 	char	*s;
@@ -857,7 +749,7 @@ p_getcwd(value sval, type stag)
 
 
 static int
-p_cd(value v, type t)
+p_cd(value v, type t, ec_eng_t *ec_eng)
 {
     char   *name;
     Get_Name(v,t,name)
@@ -869,7 +761,7 @@ p_cd(value v, type t)
 
 
 static int
-p_all_times(value vuser, type tuser, value vsys, type tsys, value vreal, type treal)
+p_all_times(value vuser, type tuser, value vsys, type tsys, value vreal, type treal, ec_eng_t *ec_eng)
 {
     double user, sys, elapsed;
     Prepare_Requests
@@ -885,7 +777,7 @@ p_all_times(value vuser, type tuser, value vsys, type tsys, value vreal, type tr
 }
 
 static int
-p_session_time(value vtime, type ttime)
+p_session_time(value vtime, type ttime, ec_eng_t *ec_eng)
 {
     double elapsed, dummy;
 
@@ -899,9 +791,8 @@ p_session_time(value vtime, type ttime)
 
 
 static int
-p_get_sys_flag(value vf, type tf, value vv, type tv)
+p_get_sys_flag(value vf, type tf, value vv, type tv, ec_eng_t *ec_eng)
 {
-    extern dident	d_hostarch_;
     pword		pw;
 
     Check_Integer(tf);
@@ -984,12 +875,35 @@ p_get_sys_flag(value vf, type tf, value vv, type tv)
 	break;
 
     case 11:	/* current version */
-	Make_Atom(&pw, d_version);
+	Make_Atom(&pw, d_version_);
 	break;
 
     case 12:	/* default_language option */
 	Make_Atom(&pw, in_dict(
 	    ec_options.default_language ? ec_options.default_language : "", 0));
+	break;
+
+    case 13:	/* installation_dir */
+	pw.tag.kernel = TSTRG;
+	pw.val.ptr = DidString(d_installation_dir_);
+	break;
+
+    case 14:	/* meta_arity */
+	Make_Integer(&pw, MetaArity);
+	break;
+
+    case 15:	/* cpu_count */
+#if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
+	Make_Integer(&pw, sysconf(_SC_NPROCESSORS_ONLN));
+#elif defined(_WIN32)
+	{
+	    SYSTEM_INFO si;
+	    GetSystemInfo(&si);
+	    Make_Integer(&pw, si.dwNumberOfProcessors);
+	}
+#else
+	Fail_;
+#endif
 	break;
 
     default:
@@ -999,7 +913,7 @@ p_get_sys_flag(value vf, type tf, value vv, type tv)
 }
 
 static int
-p_cputime(value val, type tag)
+p_cputime(value val, type tag, ec_eng_t *ec_eng)
 {
 	Check_Output_Float(tag);
 	Return_Unify_Float(val, tag, ((double) (user_time())) / clock_hz);
@@ -1008,15 +922,11 @@ p_cputime(value val, type tag)
 static void
 _post_alarm(long int n)
 {
-    if (ec_post_event_int(n) != PSUCCEED)
-    {
-	p_fprintf(current_err_, "ECLiPSe: Could not post alarm event");
-	ec_flush(current_err_);
-    }
+    ec_send_signal(n);
 }
 
 static int
-p_alarm(value v, type t)
+p_alarm(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Integer(t);
 #ifdef USE_TIMER_THREAD
@@ -1036,13 +946,13 @@ p_alarm(value v, type t)
  */
 
 static int
-p_get_hr_time(value v, type t)
+p_get_hr_time(value v, type t, ec_eng_t *ec_eng)
 {
     double seconds;
 #ifdef _WIN32
     LARGE_INTEGER ticks;
     if (!have_perf_counter_)
-	return p_session_time(v, t);
+	return p_session_time(v, t, ec_eng);
 
     if (!QueryPerformanceCounter(&ticks))
     {
@@ -1079,16 +989,16 @@ p_get_hr_time(value v, type t)
 #endif
 
 static int
-p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinterv, type tinterv)
+p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinterv, type tinterv, ec_eng_t *ec_eng)
 {
     int timer;
 
     Check_Atom(ttimer)
     if (vtimer.did == d_.real0)
         timer = ITIMER_REAL;
-    else if (vtimer.did == d_virtual)
+    else if (vtimer.did == d_virtual_)
         timer = ITIMER_VIRTUAL;
-    else if (vtimer.did == d_profile)
+    else if (vtimer.did == d_profile_)
         timer = ITIMER_PROF;
     else {
         Bip_Error(RANGE_ERROR)
@@ -1192,22 +1102,22 @@ p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinter
 }
 
 static int
-p_set_timer(value vtimer, type ttimer, value vinterv, type tinterv)
+p_set_timer(value vtimer, type ttimer, value vinterv, type tinterv, ec_eng_t *ec_eng)
 {
-    return p_start_timer(vtimer, ttimer, vinterv, tinterv, vinterv, tinterv);
+    return p_start_timer(vtimer, ttimer, vinterv, tinterv, vinterv, tinterv, ec_eng);
 }
 
 static int
-p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv)
+p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv, ec_eng_t *ec_eng)
 {
     int timer;
 
     Check_Atom(ttimer)
     if (vtimer.did == d_.real0)
         timer = ITIMER_REAL;
-    else if (vtimer.did == d_virtual)
+    else if (vtimer.did == d_virtual_)
         timer = ITIMER_VIRTUAL;
-    else if (vtimer.did == d_profile)
+    else if (vtimer.did == d_profile_)
         timer = ITIMER_PROF;
     else {
         Bip_Error(RANGE_ERROR)
@@ -1258,7 +1168,7 @@ p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv)
  */
 
 static int
-p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinterv, type tinterv)
+p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinterv, type tinterv, ec_eng_t *ec_eng)
 {
     int timer;
     Prepare_Requests
@@ -1268,9 +1178,9 @@ p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinte
     Check_Atom(ttimer)
     if (vtimer.did == d_.real0)
         timer = ITIMER_REAL;
-    else if (vtimer.did == d_virtual)
+    else if (vtimer.did == d_virtual_)
         timer = ITIMER_VIRTUAL;
-    else if (vtimer.did == d_profile)
+    else if (vtimer.did == d_profile_)
         timer = ITIMER_PROF;
     else {
         Bip_Error(RANGE_ERROR)
@@ -1314,9 +1224,8 @@ p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinte
 
 
 static int
-p_kill(value vpid, type tpid, value vsig, type tsig)
+p_kill(value vpid, type tpid, value vsig, type tsig, ec_eng_t *ec_eng)
 {
-    extern int ec_signalnum(value vsig, type tsig);
     int sig = ec_signalnum(vsig, tsig);
     if (sig < 0) {
 	if (IsInteger(tsig) && vsig.nint == 0) {
@@ -1372,7 +1281,7 @@ p_kill(value vpid, type tpid, value vsig, type tsig)
 
 #ifdef _WIN32
 static int
-p_system(value v, type t)
+p_system(value v, type t, ec_eng_t *ec_eng)
 {
     int res;
     char *command;
@@ -1389,7 +1298,7 @@ p_system(value v, type t)
 
 /*ARGSUSED*/
 static int
-p_sys_file_flag(value fv, type ft, value nv, type nt, value vv, type vt)
+p_sys_file_flag(value fv, type ft, value nv, type nt, value vv, type vt, ec_eng_t *ec_eng)
 {
     struct_stat		buf;
     char		*name;
@@ -1517,3 +1426,125 @@ _access_:
 	Fail_;
     }
 }
+
+
+/** heap_stat(+What, -Value) - heap statistics
+ */
+static int
+p_heap_stat(value vwhat, type twhat, value vval, type tval, ec_eng_t *ec_eng)
+{
+    pword result;
+    Check_Integer(twhat);
+    result.tag.kernel = TINT;
+    switch(vwhat.nint)
+    {
+    case 0:	/* shared allocated */
+	result.val.nint = hg_statistics(HEAP_STAT_ALLOCATED);
+	break;
+    case 1:	/* shared used */
+	result.val.nint = hg_statistics(HEAP_STAT_USED);
+	break;
+    case 2:	/* private allocated */
+	result.val.nint = hp_statistics(HEAP_STAT_ALLOCATED);
+	break;
+    case 3:	/* private used */
+	result.val.nint = hp_statistics(HEAP_STAT_USED);
+	break;
+    default:
+	Fail_;
+    }
+    Return_Unify_Pw(vval, tval, result.val, result.tag);
+}
+
+/*----------------------------------------------------------------------
+ * Initialisation
+ *----------------------------------------------------------------------*/
+
+void
+bip_misc_init(int flags, char *installation_dir)
+{
+    if (flags & INIT_SHARED)
+    {
+	(void) built_in(in_dict("argc",1),	p_argc,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("argv",2),	p_argv,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("getenv",2),	p_getenv, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("setenv",2),	p_setenv, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("date",1), 	p_date,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("local_time",8),  p_local_time,	B_UNSAFE|U_GROUND);
+	(void) built_in(in_dict("local_time_string",3),  p_local_time_string,	B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("expand_filename",3),
+				p_expand_filename,	B_UNSAFE|U_SIMPLE);
+	built_in(in_dict("os_file_name",2), 	p_os_file_name, B_UNSAFE|U_GROUND)
+		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	(void) built_in(in_dict("random",1), 	p_random, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("frandom",1), 	p_frandom, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("seed",1),	p_seed, 	B_SAFE);
+	(void) built_in(in_dict("sleep",1), 	p_sleep, 	B_UNSAFE);
+	(void) built_in(in_dict("kill", 2), 	p_kill, 	B_SAFE);
+	(void) built_in(in_dict("suffix", 2), 	p_suffix, B_UNSAFE|U_SIMPLE);
+	built_in(in_dict("pathname", 3), 	p_pathname, B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
+	(void) built_in(in_dict("getcwd", 1), 	p_getcwd,  B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("cd", 1),		p_cd, 	B_SAFE);
+	(void) built_in(in_dict("get_hr_time", 1), p_get_hr_time, 	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("set_timer", 2), p_set_timer, 	B_SAFE);
+	(void) built_in(in_dict("get_timer", 2),
+				p_get_timer,		B_UNSAFE|U_SIMPLE);
+	(void) exported_built_in(in_dict("start_timer", 3), p_start_timer,	B_SAFE);
+	exported_built_in(in_dict("stop_timer", 3),
+				p_stop_timer,		B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
+	(void) local_built_in(in_dict("wm_get", 1), p_wm_get, B_UNSAFE|U_GROUND);
+	(void) local_built_in(in_dict("wm_get_ids", 2), p_wm_get_ids, B_UNSAFE|U_GROUND);
+	(void) local_built_in(in_dict("wm_set", 3), p_wm_set, B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("wm_interface", 1), p_wm_interface, 
+			B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("session_time", 1), p_session_time,
+		B_UNSAFE|U_SIMPLE);
+	local_built_in(in_dict("all_times", 3), p_all_times, B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) |
+		    BoundArg(3, CONSTANT);
+	(void) local_built_in(in_dict("heap_stat", 2),
+				p_heap_stat,		B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("get_sys_flag", 2),
+				p_get_sys_flag,		B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("sys_file_flag", 3),
+				p_sys_file_flag,	B_UNSAFE|U_SIMPLE);
+	(void) exported_built_in(in_dict("worker_statistics_reset", 1),
+			p_worker_stat_reset, B_SAFE);
+	(void) exported_built_in(in_dict("worker_statistics", 2), p_worker_stat,
+		B_UNSAFE|U_GROUND);
+	(void) built_in(in_dict("cputime",1), p_cputime, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("alarm",1), p_alarm, B_UNSAFE);
+#ifdef _WIN32
+	(void) local_built_in(in_dict("_system", 1), p_system, B_SAFE);
+#endif
+    }
+
+    if (flags & INIT_PRIVATE)
+    {
+	d_virtual_ = in_dict("virtual", 0);
+	d_profile_ = in_dict("profile", 0);
+	d_version_ = in_dict(ec_version, 0);
+	d_hostarch_ = in_dict(HOSTARCH, 0);
+	d_installation_dir_ = in_dict(installation_dir, 0);
+    }
+
+    if (flags & INIT_PROCESS)
+    {
+	/*TODO: per engine, not process (with option to inherit on engine creation?) */
+	/* initialize random generators */
+	int rand_init = ec_unix_time() * getpid();
+#ifdef HAVE_RANDOM
+	srandom((unsigned) rand_init);
+#else
+	srand((unsigned) rand_init);
+#endif
+#ifdef _WIN32
+	if (QueryPerformanceFrequency(&ticks_per_sec_))
+	    have_perf_counter_ = 1;
+#endif
+    }
+}
+
+/* Add all new code in front of the initialization function! */

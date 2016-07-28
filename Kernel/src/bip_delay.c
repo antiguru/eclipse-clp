@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.10 2015/05/20 23:52:26 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.11 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -31,7 +31,6 @@
  *
  *****************************************************************************/
 
-#define BAD_RESTORE_WL		-274
 /*
  * INCLUDES:
  */
@@ -49,65 +48,13 @@
 /*
  * EXTERNAL VARIABLE DEFINITIONS:
  */
-pword		*p_meta_arity_;
 
 /*
  * STATIC VARIABLE DEFINITIONS:
  */
-static int	p_delayed_goals(value vres, type tres),
-		p_last_suspension(value v, type t),
-		p_new_delays(value v1, type t1, value vres, type tres),
-		p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst),
-		p_meta_bind(value vmeta, type tmeta, value vterm, type tterm),
-		p_nonground2(value val, type tag, value vvar, type tvar),
-		p_term_variables_lr(value vterm, type tterm, value vlist, type tlst),
-		p_term_variables_rl(value vterm, type tterm, value vlist, type tlst),
-		p_term_variables_array(value vterm, type tterm, value varr, type tarr),
-		p_replace_attribute(value vmeta, type tmeta, value vterm, type tterm, value vm, type tm),
-		p_kill_suspension(value vsusp, type tsusp, value vt, type tt),
-		p_unschedule_suspension(value vsusp, type tsusp),
-		p_setuniv(value v, type t),
-		p_suspensions(value vres, type tres),
-		p_new_suspensions(value vlast, type tlast, value vres, type tres),
-		p_suspension_to_goal(value vsusp, type tsusp, value vgoal, type tgoal, value vmod, type tmod),
-		p_suspensions_to_goals(value vSusps, type tSusps, value vGoals, type tGoals, value vLink, type tLink),
-		p_current_suspension(value vres, type tres, value vlast, type tlast),
-		p_insert_suspension(value vvars, type tvars, value vsusp, type tsusp, value vn, type tn, value vsl, type tsl),
-                p_enter_suspension_list(value vn, type tn, value vatt, type tatt, value vsusp, type tsusp),
-		p_add_attribute(value vv, type tv, value va, type ta, value vm, type tm),
-		p_get_attribute(value vv, type tv, value va, type ta, value vm, type tm),
-		p_get_attributes(value vv, type tv, value va, type ta, value vm, type tm, value vmod, type tmod),
-		p_get_postponed(value v, type t),
-		p_get_postponed_nonempty(value v, type t),
-		p_postpone_suspensions(value vpos, type tpos, value vattr, type tattr),
-		p_reinit_postponed(value vold, type told),
-		p_reset_postponed(value vold, type told),
-		p_subcall_init(),
-		p_subcall_fini(value vs, type ts),
-		p_set_priority(value vp, type tp),
-		p_set_priority2(value vp, type tp, value vt, type tt),
-		p_get_priority(value vp, type tp),
-		p_first_woken(value pv, type pt, value v, type t),
-		p_last_scheduled(value vg, type tg),
-		p_new_scheduled(value vold, type told, value vl, type tl),
-		p_notify_constrained(value v, type t),
-		p_init_suspension_list(value vpos, type tpos, value vattr, type tattr),
-		p_undo_meta_bind(value vp, type tp, value vv, type tv),
-		p_do_meta_bind(value vp, type tp, value vt, type tt),
-		p_meta_index(value vname, type tname, value vi, type ti),
-		p_set_suspension_arg(value vs, type ts, value vi, type tn, value v, type t),
-		p_get_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t),
-		p_set_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t),
-		p_get_suspension_number(value vs, type ts, value vn, type tn),
-		p_set_suspension_number(value vs, type ts, value vn, type tn);
 
-int		p_merge_suspension_lists(value vpos1, type tpos1, value vattr1, type tattr1, value vpos2, type tpos2, value vattr2, type tattr2),
-		p_schedule_woken(value vl, type tl),
-		p_schedule_suspensions(value vpos, type tpos, value vattr, type tattr),
-		p_set_suspension_priority(value vsusp, type tsusp, value vprio, type tprio);
-
-static pword	*_make_goal_list(pword *last, register int undelay);
-static int	modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, int replace);
+static pword	*_make_goal_list(ec_eng_t *, pword *last, register int undelay);
+static int	_modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, ec_eng_t *ec_eng, int replace);
 
 
 static type	tref;
@@ -130,124 +77,6 @@ static dident	d_qualified_goal_,
 /*
  * FUNCTION DEFINITIONS:
  */
-void
-bip_delay_init(int flags)
-{
-    value	v;
-
-    tref.kernel = TREF;
-    d_qualified_goal_ = in_dict("qualified_goal", 0);
-    d_es_2_ = in_dict("es", 2);
-    d_postponed_ = in_dict("postponed", 0);
-    if (flags & INIT_SHARED)
-    {
-	built_in(in_dict("delayed_goals",1),	p_delayed_goals,
-		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
-	built_in(in_dict("nonground", 3), p_nonground3,	B_UNSAFE|U_GLOBAL)
-	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-	built_in(in_dict("term_variables", 2), p_term_variables_rl,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	built_in(in_dict("term_variables_rl", 2), p_term_variables_rl,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	built_in(in_dict("term_variables_lr", 2), p_term_variables_lr,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	built_in(in_dict("term_variables_array", 2), p_term_variables_array,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	local_built_in(in_dict("meta_bind", 2), p_meta_bind, B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	local_built_in(in_dict("undo_meta_bind", 2), p_undo_meta_bind, B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	(void) local_built_in(in_dict("do_meta_bind", 2), p_do_meta_bind, B_UNSAFE);
-	exported_built_in(in_dict("meta_index", 2), p_meta_index, B_UNSAFE|U_SIMPLE)
-	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT);
-	(void) built_in(in_dict("insert_suspension", 4), p_insert_suspension,
-		B_UNSAFE);
-	(void) built_in(in_dict("enter_suspension_list", 3), p_enter_suspension_list,
-		B_UNSAFE);
-	built_in(in_dict("set_suspension_arg", 3),
-		p_set_suspension_arg, B_SAFE);
-	built_in(in_dict("set_suspension_data", 3),
-		p_set_suspension_data, B_SAFE);
-	built_in(in_dict("get_suspension_data", 3),
-		p_get_suspension_data, B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(2, NONVAR);
-	(void) exported_built_in(in_dict("set_suspension_number", 2),
-		p_set_suspension_number, B_SAFE);
-	exported_built_in(in_dict("get_suspension_number", 2),
-		p_get_suspension_number, B_UNSAFE|U_SIMPLE)
-	    -> mode = BoundArg(2, CONSTANT);
-	exported_built_in(in_dict("suspensions_to_goals", 3),
-		p_suspensions_to_goals, B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(2, NONVAR);
-	built_in(in_dict("suspension_to_goal", 3), p_suspension_to_goal,
-		B_UNSAFE|U_UNIFY)
-	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, CONSTANT);
-	(void) exported_built_in(in_dict("kill_suspension", 2),
-		p_kill_suspension, B_UNSAFE);
-	(void) exported_built_in(in_dict("unschedule_suspension", 1),
-		p_unschedule_suspension, B_SAFE);
-	(void) exported_built_in(in_dict("replace_attribute", 3),
-		p_replace_attribute,	B_UNSAFE);
-	(void) exported_built_in(in_dict("last_suspension", 1),
-		p_last_suspension, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("notify_constrained", 1),
-		p_notify_constrained, B_UNSAFE);
-	b_built_in(in_dict("current_suspension",2),	p_current_suspension,
-		d_.kernel_sepia) -> mode = BoundArg(1, NONVAR);
-	built_in(in_dict("suspensions",1),	p_suspensions,
-		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
-	exported_built_in(in_dict("new_suspensions",2),	p_new_suspensions,
-		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	exported_built_in(in_dict("new_delays",2),p_new_delays,
-		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	exported_built_in(in_dict("first_woken", 2), p_first_woken,
-		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	(void) built_in(in_dict("nonground", 2), p_nonground2,
-		B_UNSAFE|U_UNIFY);
-	(void) built_in(in_dict("schedule_woken", 1), p_schedule_woken,
-		B_SAFE);
-	(void) built_in(in_dict("init_suspension_list", 2),
-		p_init_suspension_list, B_SAFE|U_SIMPLE);
-	(void) built_in(in_dict("merge_suspension_lists", 4),
-		p_merge_suspension_lists, B_SAFE);
-	(void) built_in(in_dict("schedule_suspensions", 2),
-		p_schedule_suspensions, B_SAFE);
-	(void) built_in(in_dict("postpone_suspensions", 2),
-		p_postpone_suspensions, B_SAFE);
-	(void) built_in(in_dict("set_suspension_priority", 2),
-		p_set_suspension_priority, B_SAFE);
-	(void) local_built_in(in_dict("get_postponed", 1),
-		p_get_postponed, B_UNSAFE|U_GLOBAL);
-	(void) local_built_in(in_dict("get_postponed_nonempty", 1),
-		p_get_postponed_nonempty, B_UNSAFE|U_GLOBAL);
-	(void) local_built_in(in_dict("reinit_postponed", 1),
-		p_reinit_postponed, B_UNSAFE|U_GLOBAL);
-	(void) local_built_in(in_dict("reset_postponed", 1),
-		p_reset_postponed, B_UNSAFE|U_GLOBAL);
-
-	/* these two are used in Grace */
-	exported_built_in(in_dict("last_scheduled", 1), p_last_scheduled, B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
-	exported_built_in(in_dict("new_scheduled", 2), p_new_scheduled, B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-
-	(void) built_in(in_dict("get_priority", 1), p_get_priority, B_UNSAFE);
-	(void) exported_built_in(in_dict("set_priority", 1), p_set_priority, B_UNSAFE);
-	(void) exported_built_in(in_dict("set_priority", 2), p_set_priority2, B_UNSAFE);
-	(void) exported_built_in(in_dict("subcall_init", 0), p_subcall_init, B_SAFE);
-	(void) exported_built_in(in_dict("subcall_fini", 1), p_subcall_fini, B_UNSAFE);
-	(void) exported_built_in(in_dict("add_attribute", 3), p_add_attribute,
-		B_UNSAFE);
-	exported_built_in(in_dict("get_attribute", 3), p_get_attribute,
-		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	exported_built_in(in_dict("get_attributes", 4), p_get_attributes,
-		B_UNSAFE|U_GLOBAL) ->
-		mode = BoundArg(2, NONVAR) | BoundArg(4, CONSTANT);
-	(void) exported_built_in(in_dict("setuniv", 1), p_setuniv, B_UNSAFE);
-    }
-	
-    /* Global variable meta_arity holds the current number of attribute slots */
-    v.nint = 1;
-    p_meta_arity_ = init_kernel_var(flags, in_dict("meta_arity", 0), v, tint);
-}
-
 
 /* p_delayed_goals: delayed_goals/1
  * one argument gets bound to the list
@@ -255,7 +84,7 @@ bip_delay_init(int flags)
  */
 
 static int
-p_delayed_goals(value vres, type tres)
+p_delayed_goals(value vres, type tres, ec_eng_t *ec_eng)
 {
     pword	result;
 
@@ -270,7 +99,7 @@ p_delayed_goals(value vres, type tres)
 	}
 	Succeed_;
     }
-    if (result.val.ptr = _make_goal_list(LD_END, 0))
+    if (result.val.ptr = _make_goal_list(ec_eng, LD_END, 0))
 	result.tag.kernel = TLIST;
     else
 	result.tag.kernel = TNIL;
@@ -283,7 +112,7 @@ p_delayed_goals(value vres, type tres)
  */
 
 static int
-p_last_suspension(value v, type t)
+p_last_suspension(value v, type t, ec_eng_t *ec_eng)
 {
     pword	result;
     Check_Ref(t)
@@ -297,12 +126,12 @@ p_last_suspension(value v, type t)
  */
 
 static int
-p_subcall_init()
+p_subcall_init(ec_eng_t *ec_eng)
 {
     if (WL < GB) {
 	Trail_Pword(&TAGGED_WL)
     }
-    WL = wl_init();		/* saves old WP, WL, LD */
+    WL = wl_init(ec_eng);		/* saves old WP, WL, LD */
     Set_WP(PRIORITY_MAIN)
     Succeed_;
 }
@@ -314,7 +143,7 @@ p_subcall_init()
  */
 
 static int
-p_subcall_fini(value vres, type tres)
+p_subcall_fini(value vres, type tres, ec_eng_t *ec_eng)
 {
     pword	result;
 
@@ -335,7 +164,7 @@ p_subcall_fini(value vres, type tres)
     else if (IsRef(tres) || IsList(tres))
     {
 	/* collect, kill, and return the delayed goals */
-	if (result.val.ptr = _make_goal_list(LD_END, 1))
+	if (result.val.ptr = _make_goal_list(ec_eng, LD_END, 1))
 	    result.tag.kernel = TLIST;
 	else
 	    result.tag.kernel = TNIL;
@@ -365,7 +194,7 @@ p_subcall_fini(value vres, type tres)
 
 /*ARGSUSED*/
 static int
-p_new_delays(value v1, type t1, value vres, type tres)
+p_new_delays(value v1, type t1, value vres, type tres, ec_eng_t *ec_eng)
 {
     pword	result, *susp;
     Get_Suspension(v1, t1, susp)
@@ -384,7 +213,7 @@ p_new_delays(value v1, type t1, value vres, type tres)
     }
     else if (IsRef(tres) || IsList(tres))
     {
-	if (result.val.ptr = _make_goal_list(susp, 1))
+	if (result.val.ptr = _make_goal_list(ec_eng, susp, 1))
 	    result.tag.kernel = TLIST;
 	else
 	    result.tag.kernel = TNIL;
@@ -398,7 +227,7 @@ p_new_delays(value v1, type t1, value vres, type tres)
 
 
 static pword *
-_make_goal_list(pword *last, register int undelay)
+_make_goal_list(ec_eng_t *ec_eng, pword *last, register int undelay)
 {
     pword		*env = LD;
     register pword	*pw, *head = (pword *) 0;
@@ -439,7 +268,7 @@ _make_goal_list(pword *last, register int undelay)
  */
 
 static int
-_suspensions(value vres, type tres, pword *last)
+_suspensions(value vres, type tres, ec_eng_t *ec_eng, pword *last)
 {
     pword	result;
     pword	*env = LD;
@@ -478,9 +307,9 @@ _suspensions(value vres, type tres, pword *last)
 }
 
 static int
-p_suspensions(value vres, type tres)
+p_suspensions(value vres, type tres, ec_eng_t *ec_eng)
 {
-    return _suspensions(vres, tres, LD_END);
+    return _suspensions(vres, tres, ec_eng, LD_END);
 }
 
 /*
@@ -488,7 +317,7 @@ p_suspensions(value vres, type tres)
  * current_suspension(-S, State)
  */
 static int
-p_current_suspension(value vres, type tres, value vlast, type tlast)
+p_current_suspension(value vres, type tres, value vlast, type tlast, ec_eng_t *ec_eng)
 {
     pword *de = IsTag(tlast.kernel, TSUSP) ? SuspPrevious(vlast.ptr) : LD;
     while (de > LD_END)
@@ -507,11 +336,11 @@ p_current_suspension(value vres, type tres, value vlast, type tlast)
 }
 
 static int
-p_new_suspensions(value vlast, type tlast, value vres, type tres)
+p_new_suspensions(value vlast, type tlast, value vres, type tres, ec_eng_t *ec_eng)
 {
     pword *susp;
     Get_Suspension(vlast, tlast, susp)
-    return _suspensions(vres, tres, susp);
+    return _suspensions(vres, tres, ec_eng, susp);
 }
 
 
@@ -519,10 +348,10 @@ p_new_suspensions(value vlast, type tlast, value vres, type tres)
  * Bind a metaterm without raising an event
  */
 static int
-p_meta_bind(value vmeta, type tmeta, value vterm, type tterm)
+p_meta_bind(value vmeta, type tmeta, value vterm, type tterm, ec_eng_t *ec_eng)
 {
     if (IsMeta(tmeta)) {
-	return meta_bind(vmeta.ptr, vterm, tterm);
+	return meta_bind(ec_eng, vmeta.ptr, vterm, tterm);
     }
     else if (IsRef(tmeta)) {
 	Bip_Error(INSTANTIATION_FAULT);
@@ -538,7 +367,7 @@ p_meta_bind(value vmeta, type tmeta, value vterm, type tterm)
  * Count the structures on the global stack
  */
 int
-global_stat(void)
+global_stat(ec_eng_t *ec_eng)
 {
     pword	*tg = TG_ORIG;
     word	arity;
@@ -607,7 +436,7 @@ global_stat(void)
 
 
 static int
-p_suspension_to_goal(value vsusp, type tsusp, value vgoal, type tgoal, value vmod, type tmod)
+p_suspension_to_goal(value vsusp, type tsusp, value vgoal, type tgoal, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     register pword *susp;
     Prepare_Requests;
@@ -630,7 +459,7 @@ p_suspension_to_goal(value vsusp, type tsusp, value vgoal, type tgoal, value vmo
  */
 
 static int
-p_suspensions_to_goals(value vSusps, type tSusps, value vGoals, type tGoals, value vLink, type tLink)
+p_suspensions_to_goals(value vSusps, type tSusps, value vGoals, type tGoals, value vLink, type tLink, ec_eng_t *ec_eng)
 {
     pword result, *where = &result;
     Prepare_Requests;
@@ -666,7 +495,7 @@ p_suspensions_to_goals(value vSusps, type tSusps, value vGoals, type tGoals, val
 
 
 static int
-p_kill_suspension(value vsusp, type tsusp, value vt, type tt)
+p_kill_suspension(value vsusp, type tsusp, value vt, type tt, ec_eng_t *ec_eng)
 {
     register pword *susp;
 
@@ -700,7 +529,7 @@ p_kill_suspension(value vsusp, type tsusp, value vt, type tt)
  * woken goal was supposed to do has become redundant in the current situation.
  */
 static int
-p_unschedule_suspension(value vsusp, type tsusp)
+p_unschedule_suspension(value vsusp, type tsusp, ec_eng_t *ec_eng)
 {
     pword *susp;
     Get_Suspension(vsusp, tsusp, susp)
@@ -722,7 +551,7 @@ p_unschedule_suspension(value vsusp, type tsusp)
  * Module does not need to be a module, just an attribute slot name.
  */
 static int
-p_insert_suspension(value vvars, type tvars, value vsusp, type tsusp, value vn, type tn, value vsl, type tsl)
+p_insert_suspension(value vvars, type tvars, value vsusp, type tsusp, value vn, type tn, value vsl, type tsl, ec_eng_t *ec_eng)
 {
     pword	*susp;
     int		slot;
@@ -735,7 +564,7 @@ p_insert_suspension(value vvars, type tvars, value vsusp, type tsusp, value vn, 
     }
     if (IsInteger(tsl)) {
 	slot = vsl.nint;
-	if (slot <= 0 || slot > p_meta_arity_->val.nint) {
+	if (slot < 1 || slot > MetaArity) {
 	    Bip_Error(RANGE_ERROR)
 	}
     } else if (IsAtom(tsl)) {
@@ -747,7 +576,7 @@ p_insert_suspension(value vvars, type tvars, value vsusp, type tsusp, value vn, 
     else {
 	Bip_Error(TYPE_ERROR)
     }
-    res = deep_suspend(vvars, tvars, (int) vn.nint, susp, slot);
+    res = deep_suspend(ec_eng, vvars, tvars, (int) vn.nint, susp, slot);
     if (res < 0) {
 	Bip_Error(res)
     }
@@ -756,7 +585,7 @@ p_insert_suspension(value vvars, type tvars, value vsusp, type tsusp, value vn, 
 
 
 static int
-p_nonground2(value val, type tag, value vvar, type tvar)
+p_nonground2(value val, type tag, value vvar, type tvar, ec_eng_t *ec_eng)
 {
     pword *pw;
 
@@ -791,6 +620,7 @@ p_nonground2(value val, type tag, value vvar, type tvar)
 
 static int
 _collect_vars(
+	ec_eng_t *ec_eng,
     	value val, type tag,	/* current term */
 	word vars_needed,	/* >0, number of variables to collect */
 	pword *last_comp,	/* previously encountered compound term (or NULL) */
@@ -851,7 +681,7 @@ _collect_vars(
             Dereference_(arg_i);
 	    if (!ISAtomic(arg_i->tag.kernel))
 	    {
-		vars_needed = _collect_vars(arg_i->val, arg_i->tag, vars_needed,
+		vars_needed = _collect_vars(ec_eng, arg_i->val, arg_i->tag, vars_needed,
 				curr_comp, next_comp, arg_i, elem_sz);
 		if (vars_needed == 0)
 		    return vars_needed;
@@ -868,7 +698,7 @@ _collect_vars(
 
 
 static int
-p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst)
+p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
 {
     pword list;
     pword **old_tt = TT;
@@ -879,7 +709,7 @@ p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst)
 	{ Bip_Error(RANGE_ERROR); }
 
     Make_List(&list, TG);
-    if (_collect_vars(vterm, tterm, vn.nint, 0, 0, 0, 2) != 0) {
+    if (_collect_vars(ec_eng, vterm, tterm, vn.nint, 0, 0, 0, 2) != 0) {
 	Fail_;			/* not enough variables found */
     }
     {
@@ -903,7 +733,7 @@ p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst)
 
 
 static int
-p_term_variables_rl(value vterm, type tterm, value vlist, type tlst)
+p_term_variables_rl(value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
 {
     pword list;
     pword **old_tt = TT;
@@ -911,7 +741,7 @@ p_term_variables_rl(value vterm, type tterm, value vlist, type tlst)
     Check_Output_List(tlst)
 
     Make_List(&list, TG);
-    (void) _collect_vars(vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
+    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
     if (TG == list.val.ptr) {
 	Make_Nil(&list);
     } else {
@@ -928,7 +758,7 @@ p_term_variables_rl(value vterm, type tterm, value vlist, type tlst)
 
 
 static int
-p_term_variables_lr(value vterm, type tterm, value vlist, type tlst)
+p_term_variables_lr(value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
 {
     pword list;
     pword **old_tt = TT;
@@ -936,7 +766,7 @@ p_term_variables_lr(value vterm, type tterm, value vlist, type tlst)
     Check_Output_List(tlst)
 
     Make_List(&list, TG);
-    (void) _collect_vars(vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
+    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
     if (TG == list.val.ptr) {
 	Make_Nil(&list);
     } else {
@@ -952,13 +782,13 @@ p_term_variables_lr(value vterm, type tterm, value vlist, type tlst)
 
 
 static int
-p_term_variables_array(value vterm, type tterm, value varr, type tarr)
+p_term_variables_array(value vterm, type tterm, value varr, type tarr, ec_eng_t *ec_eng)
 {
     pword *old_tg = TG++;	/* leave space for array functor */
     pword **old_tt = TT;
     pword result;
 
-    (void) _collect_vars(vterm, tterm, MAX_S_WORD, 0, 0, 0, 1);
+    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 1);
     if (TG > old_tg+1) {
 	Make_Atom(old_tg, add_dict(d_.nil, TG-old_tg-1));
 	Make_Struct(&result, old_tg);
@@ -977,7 +807,7 @@ p_term_variables_array(value vterm, type tterm, value varr, type tarr)
  */
 
 static int
-_setuniv(value v, type t)
+_setuniv(ec_eng_t *ec_eng, value v, type t)
 {
     register int   arity, err;
 
@@ -1026,7 +856,7 @@ _setuniv(value v, type t)
 	{
 	    pword *next = v.ptr++;
 	    Dereference_(next);
-	    if (err = _setuniv(next->val, next->tag))
+	    if (err = _setuniv(ec_eng, next->val, next->tag))
 		Bip_Error(err);
 	}
 	Dereference_(v.ptr);		/* tail recursion optimised */
@@ -1036,12 +866,12 @@ _setuniv(value v, type t)
 }
 
 static int
-p_setuniv(value v, type t)
+p_setuniv(value v, type t, ec_eng_t *ec_eng)
 {
    if (IsRef(t))
-      return(_setuniv(v, v.ptr->tag));	/* needed due to Puts_named_variable */
+      return(_setuniv(ec_eng, v, v.ptr->tag));	/* needed due to Puts_named_variable */
    else
-      return(_setuniv(v, t));
+      return(_setuniv(ec_eng, v, t));
 }
 
 /* Destructively replace the attribute of a metaterm. This allows
@@ -1049,9 +879,9 @@ p_setuniv(value v, type t)
  * metaterm structure.
  */
 static int
-p_replace_attribute(value vmeta, type tmeta, value vterm, type tterm, value vm, type tm)
+p_replace_attribute(value vmeta, type tmeta, value vterm, type tterm, value vm, type tm, ec_eng_t *ec_eng)
 {
-    return modify_attribute(vmeta, tmeta, vterm, tterm, vm, tm, 1);
+    return _modify_attribute(vmeta, tmeta, vterm, tterm, vm, tm, ec_eng, 1);
 }
 
 /*
@@ -1060,13 +890,13 @@ p_replace_attribute(value vmeta, type tmeta, value vterm, type tterm, value vm, 
  * to merge the two attributes.
  */
 static int
-p_add_attribute(value vv, type tv, value va, type ta, value vm, type tm)
+p_add_attribute(value vv, type tv, value va, type ta, value vm, type tm, ec_eng_t *ec_eng)
 {
-    return modify_attribute(vv, tv, va, ta, vm, tm, 0);
+    return _modify_attribute(vv, tv, va, ta, vm, tm, ec_eng, 0);
 }
 
 static int
-modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, int replace)
+_modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, ec_eng_t *ec_eng, int replace)
 {
     int		slot;
     pword	*var;
@@ -1078,7 +908,7 @@ modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, int re
     if (IsInteger(tm))
     {
 	slot = vm.nint;
-	if (slot <= 0 || slot > p_meta_arity_->val.nint) {
+	if (slot < 1 || slot > MetaArity) {
 	    return(RANGE_ERROR);
 	}
     }
@@ -1113,7 +943,7 @@ modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, int re
 	if ((arity = DidArity(var->val.did)) < slot) {
 	/* we must increase the attribute size */
 
-	    mt = add_attribute(tv.kernel, nva, nta, slot);
+	    mt = add_attribute(ec_eng, tv.kernel, nva, nta, slot);
 	    /* copy the other attributes */
 	    attr = MetaTerm(mt)->val.ptr;
 	    for (i = 1; i <= arity; i++)
@@ -1128,7 +958,7 @@ modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, int re
 	}
 	var += slot;
 	if (replace) {
-	    /* this code is a specialisation of ec_assign() */
+	    /* this code is a specialisation of ecl_assign() */
 	    if (!NewLocation(var) && !NewValue(var->val, var->tag))
 	    {
 		Trail_Pword(var);
@@ -1143,25 +973,25 @@ modify_attribute(value vv, type tv, value va, type ta, value vm, type tm, int re
 		Return_Unify_Pw(var->val, var->tag, va, ta);
 	    } else {
 	    /* the slot is not empty, let the handler handle it */
-		mt = add_attribute(TREF, nva, nta, slot);
+		mt = add_attribute(ec_eng, TREF, nva, nta, slot);
 		Return_Unify_Pw(vv, tv, mt->val, mt->tag);
 	    }
 	}
     } else if (IsVar(tv) || IsName(tv)) {
     /* bind the free variable to a fresh metaterm */
-	mt = add_attribute(tv.kernel, nva, nta, slot);
+	mt = add_attribute(ec_eng, tv.kernel, nva, nta, slot);
 	Return_Unify_Pw(vv, tv, mt->val, tref);
     } else {
 	if (replace)
 	    return TYPE_ERROR;
     /* a nonvariable, let the handler handle it */
-	mt = add_attribute(TREF, nva, nta, slot);
+	mt = add_attribute(ec_eng, TREF, nva, nta, slot);
 	Return_Unify_Pw(vv, tv, mt->val, mt->tag);
     }
 }
 
 static pword *
-get_attribute(value vv, type tv, value vm, type tm, int *err)
+get_attribute(value vv, type tv, value vm, type tm, ec_eng_t *ec_eng, int *err)
 {
     int		slot;
     pword	*var;
@@ -1169,7 +999,7 @@ get_attribute(value vv, type tv, value vm, type tm, int *err)
     if (IsInteger(tm))
     {
 	slot = vm.nint;
-	if (slot <= 0 || slot > p_meta_arity_->val.nint) {
+	if (slot < 1 || slot > MetaArity) {
 	    *err = RANGE_ERROR;
 	    return 0;
 	}
@@ -1210,12 +1040,12 @@ get_attribute(value vv, type tv, value vm, type tm, int *err)
  * Return the given attribute, for completeness only.
  */
 static int
-p_get_attribute(value vv, type tv, value va, type ta, value vm, type tm)
+p_get_attribute(value vv, type tv, value va, type ta, value vm, type tm, ec_eng_t *ec_eng)
 {
     pword	*var;
     int		err;
 
-    var = get_attribute(vv, tv, vm, tm, &err);
+    var = get_attribute(vv, tv, vm, tm, ec_eng, &err);
     if (var == 0) {
 	if (err == PFAIL) {
 	    Fail_;
@@ -1230,14 +1060,14 @@ p_get_attribute(value vv, type tv, value va, type ta, value vm, type tm)
  * SICStus-like $get_attributes/3
  */
 static int
-p_get_attributes(value vv, type tv, value va, type ta, value vm, type tm, value vmod, type tmod)
+p_get_attributes(value vv, type tv, value va, type ta, value vm, type tm, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     pword	*var;
     pword	*mask;
     int		err;
     Prepare_Requests;
 
-    var = get_attribute(vv, tv, vmod, tmod, &err);
+    var = get_attribute(vv, tv, vmod, tmod, ec_eng, &err);
     if (var == 0) {
 	if (err == PFAIL) {
 	    Request_Unify_Integer(vm, tm, 0)
@@ -1263,7 +1093,7 @@ p_get_attributes(value vv, type tv, value va, type ta, value vm, type tm, value 
  */
 /*ARGSUSED*/
 static int
-p_undo_meta_bind(value vp, type tp, value vv, type tv)
+p_undo_meta_bind(value vp, type tp, value vv, type tv, ec_eng_t *ec_eng)
 {
     vp.ptr->tag.kernel = RefTag(TMETA);
     vp.ptr->val.ptr = vp.ptr;
@@ -1276,7 +1106,7 @@ p_undo_meta_bind(value vp, type tp, value vv, type tv)
  */
 /*ARGSUSED*/
 static int
-p_do_meta_bind(value vp, type tp, value vt, type tt)
+p_do_meta_bind(value vp, type tp, value vt, type tt, ec_eng_t *ec_eng)
 {
     vp.ptr->val.all = vt.all;
     vp.ptr->tag.all = tt.all;
@@ -1289,7 +1119,7 @@ p_do_meta_bind(value vp, type tp, value vt, type tt)
  * numbers and this predicate uses the negative ones to make the difference.
  */
 static int
-p_set_suspension_number(value vs, type ts, value vn, type tn)
+p_set_suspension_number(value vs, type ts, value vn, type tn, ec_eng_t *ec_eng)
 {
     Check_Type(ts, TSUSP)
     Check_Integer(tn)
@@ -1308,7 +1138,7 @@ p_set_suspension_number(value vs, type ts, value vn, type tn)
  * Return the invoc of the suspension, fail if it has a debug invoc.
  */
 static int
-p_get_suspension_number(value vs, type ts, value vn, type tn)
+p_get_suspension_number(value vs, type ts, value vn, type tn, ec_eng_t *ec_eng)
 {
     word	n;
 
@@ -1321,7 +1151,7 @@ p_get_suspension_number(value vs, type ts, value vn, type tn)
 }
 
 static int
-p_get_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t)
+p_get_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t, ec_eng_t *ec_eng)
 {
     Check_Output_Type(ts, TSUSP)
     Check_Atom(twhat);
@@ -1373,7 +1203,7 @@ p_get_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type 
 }
 
 static int
-p_set_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t)
+p_set_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type t, ec_eng_t *ec_eng)
 {
     Check_Output_Type(ts, TSUSP)
     Check_Atom(twhat);
@@ -1405,7 +1235,7 @@ p_set_suspension_data(value vs, type ts, value vwhat, type twhat, value v, type 
  */
 
 static int
-p_set_suspension_arg(value vs, type ts, value vn, type tn, value va, type ta)
+p_set_suspension_arg(value vs, type ts, value vn, type tn, value va, type ta, ec_eng_t *ec_eng)
 {
     pword *argp;
     word arity;
@@ -1439,7 +1269,7 @@ p_set_suspension_arg(value vs, type ts, value vn, type tn, value va, type ta)
 	Bip_Error(RANGE_ERROR);
     }
     argp += vn.nint;
-    return ec_assign(argp, va, ta);	/* succeeds */
+    return ecl_assign(ec_eng, argp, va, ta);	/* succeeds */
 }
 
 
@@ -1447,7 +1277,7 @@ p_set_suspension_arg(value vs, type ts, value vn, type tn, value va, type ta)
  * Distribute the suspensions in the list to the global woken lists
  */
 int
-p_schedule_woken(value vl, type tl)
+p_schedule_woken(value vl, type tl, ec_eng_t *ec_eng)
 {
     register pword	*p, *next;
 
@@ -1469,7 +1299,7 @@ p_schedule_woken(value vl, type tl)
 	Bip_Error(TYPE_ERROR)
     }
 
-    /* simplified version of ec_schedule_susps without 
+    /* simplified version of ecl_schedule_susps without 
      * list cleanup (since the list is not needed anymore).
      */
     for (;;)
@@ -1523,7 +1353,7 @@ p_schedule_woken(value vl, type tl)
  *	reset the postponed suspension list to the given old value.
  */
 int
-ec_init_postponed(void)
+ec_init_postponed(ec_eng_t *ec_eng)
 {
     pword *pw = TG;
     Push_Struct_Frame(d_es_2_);
@@ -1534,14 +1364,14 @@ ec_init_postponed(void)
 }
 
 static int
-p_get_postponed(value v, type t)
+p_get_postponed(value v, type t, ec_eng_t *ec_eng)
 {
     Bind_(v.ptr, PostponedList.val.ptr, PostponedList.tag.kernel);
     Succeed_;
 }
 
 static int
-p_get_postponed_nonempty(value v, type t)
+p_get_postponed_nonempty(value v, type t, ec_eng_t *ec_eng)
 {
     int result;
     pword new_struct;
@@ -1559,11 +1389,11 @@ p_get_postponed_nonempty(value v, type t)
     /*Make_Nil(pw+2);*/
     Make_Stamp(pw+2);				/* a timestamped [] */
     Make_Struct(&new_struct, pw);
-    return ec_assign(&PostponedList, new_struct.val, new_struct.tag);
+    return ecl_assign(ec_eng, &PostponedList, new_struct.val, new_struct.tag);
 }
 
 static int
-p_reinit_postponed(value vold, type told)
+p_reinit_postponed(value vold, type told, ec_eng_t *ec_eng)
 {
     pword *pw = &PostponedList.val.ptr[2];	/* return old suspension list */
     Bind_(vold.ptr, pw->val.ptr, pw->tag.kernel);
@@ -1572,13 +1402,13 @@ p_reinit_postponed(value vold, type told)
     {
 	pword empty;
 	Make_Stamp(&empty);			/* a timestamped [] */
-	ec_assign(pw, empty.val, empty.tag);
+	ecl_assign(ec_eng, pw, empty.val, empty.tag);
     }
     Succeed_;
 }
 
 static int
-p_reset_postponed(value vold, type told)
+p_reset_postponed(value vold, type told, ec_eng_t *ec_eng)
 {
     /* we expect that the postponed list is already empty at this point */
 #ifdef PRINTAM
@@ -1592,7 +1422,7 @@ p_reset_postponed(value vold, type told)
 #endif
     if (!IsNil(told))				/* reset if necessary */
     {
-	return ec_assign(&PostponedList.val.ptr[2], vold, told);
+	return ecl_assign(ec_eng, &PostponedList.val.ptr[2], vold, told);
     }
     Succeed_;
 }
@@ -1604,7 +1434,7 @@ p_reset_postponed(value vold, type told)
  */
 
 int
-p_postpone_suspensions(value vpos, type tpos, value vattr, type tattr)
+p_postpone_suspensions(value vpos, type tpos, value vattr, type tattr, ec_eng_t *ec_eng)
 {
     Check_Integer(tpos);
     Check_Structure(tattr);
@@ -1612,12 +1442,12 @@ p_postpone_suspensions(value vpos, type tpos, value vattr, type tattr)
     {
 	Bip_Error(RANGE_ERROR);
     }
-    return p_schedule_postponed(vattr.ptr[vpos.nint].val, vattr.ptr[vpos.nint].tag);
+    return p_schedule_postponed(vattr.ptr[vpos.nint].val, vattr.ptr[vpos.nint].tag, ec_eng);
 }
 
 
 int
-p_schedule_postponed(value vl, type tl)
+p_schedule_postponed(value vl, type tl, ec_eng_t *ec_eng)
 {
     pword	*p, *next, *ppp;
     pword	newpp;
@@ -1700,7 +1530,7 @@ p_schedule_postponed(value vl, type tl)
     }
 
     if (change)
-    	ec_assign(&PostponedList.val.ptr[2], newpp.val, newpp.tag);
+    	ecl_assign(ec_eng, &PostponedList.val.ptr[2], newpp.val, newpp.tag);
     Succeed_
 }
 
@@ -1721,7 +1551,7 @@ p_schedule_postponed(value vl, type tl)
 
 static
 int
-p_init_suspension_list(value vpos, type tpos, value vattr, type tattr)
+p_init_suspension_list(value vpos, type tpos, value vattr, type tattr, ec_eng_t *ec_eng)
 {
     pword	*arg;
     Check_Integer(tpos);
@@ -1740,7 +1570,7 @@ p_init_suspension_list(value vpos, type tpos, value vattr, type tattr)
  * enter_suspension_list(+Positiion, +Attribute, +Suspension)
  */
 static int
-p_enter_suspension_list(value vn, type tn, value vatt, type tatt, value vsusp, type tsusp)
+p_enter_suspension_list(value vn, type tn, value vatt, type tatt, value vsusp, type tsusp, ec_eng_t *ec_eng)
 {
     pword	*susp, *att;
     int		res;
@@ -1753,7 +1583,7 @@ p_enter_suspension_list(value vn, type tn, value vatt, type tatt, value vsusp, t
     if ((int) vn.nint <= 0 || DidArity(att->val.did) < (int) vn.nint) {
 	Bip_Error(RANGE_ERROR);
     }
-    res = ec_enter_suspension(att + (int) vn.nint, susp);
+    res = ecl_enter_suspension(ec_eng, att + (int) vn.nint, susp);
     if (res < 0) {
 	Bip_Error(res);
     }
@@ -1769,7 +1599,7 @@ p_enter_suspension_list(value vn, type tn, value vatt, type tatt, value vsusp, t
  * Currently neither cleanup nor duplicate removal.
  */
 int
-p_merge_suspension_lists(value vpos1, type tpos1, value vattr1, type tattr1, value vpos2, type tpos2, value vattr2, type tattr2)
+p_merge_suspension_lists(value vpos1, type tpos1, value vattr1, type tattr1, value vpos2, type tpos2, value vattr2, type tattr2, ec_eng_t *ec_eng)
 {
     pword	*list1, *list2;
     pword	*last;
@@ -1820,6 +1650,7 @@ p_merge_suspension_lists(value vpos1, type tpos1, value vattr1, type tattr1, val
 }
 
 
+#if 0
 /*
  * ec_schedule_susp(+Susp)
  *
@@ -1828,7 +1659,7 @@ p_merge_suspension_lists(value vpos1, type tpos1, value vattr1, type tattr1, val
  */
 
 int
-ec_schedule_susp(pword *susp)
+ec_schedule_susp(ec_eng_t *ec_eng, pword *susp)
 {
     if (!SuspDead(susp) && !SuspScheduled(susp))
     {
@@ -1849,6 +1680,7 @@ ec_schedule_susp(pword *susp)
     }
     Succeed_
 }
+#endif
 
 
 /*
@@ -1861,7 +1693,7 @@ ec_schedule_susp(pword *susp)
  */
 
 int
-ec_schedule_susps(pword *next)
+ecl_schedule_susps(ec_eng_t *ec_eng, pword *next)
 {
     pword	*last_live, *p;
     int		found_dead = 0;
@@ -1979,11 +1811,11 @@ ec_schedule_susps(pword *next)
 
 
 /*
- * This is basically a subset of ec_schedule_susps:
+ * This is basically a subset of ecl_schedule_susps:
  * It does not schedule, but only cleans up the list.
  */
 int
-ec_prune_suspensions(pword *next)
+ecl_prune_suspensions(ec_eng_t *ec_eng, pword *next)
 {
     pword	*last_live, *p;
     int		found_dead = 0;
@@ -2052,7 +1884,7 @@ ec_prune_suspensions(pword *next)
 
 
 int
-p_schedule_suspensions(value vpos, type tpos, value vattr, type tattr)
+p_schedule_suspensions(value vpos, type tpos, value vattr, type tattr, ec_eng_t *ec_eng)
 {
     Check_Integer(tpos);
     Check_Structure(tattr);
@@ -2060,7 +1892,7 @@ p_schedule_suspensions(value vpos, type tpos, value vattr, type tattr)
     {
 	Bip_Error(RANGE_ERROR);
     }
-    return ec_schedule_susps(&vattr.ptr[vpos.nint]);
+    return ecl_schedule_susps(ec_eng, &vattr.ptr[vpos.nint]);
 }
 
 
@@ -2071,7 +1903,7 @@ p_schedule_suspensions(value vpos, type tpos, value vattr, type tattr)
  * as the suspension has not been scheduled for waking.
  */
 int
-p_set_suspension_priority(value vsusp, type tsusp, value vprio, type tprio)
+p_set_suspension_priority(value vsusp, type tsusp, value vprio, type tprio, ec_eng_t *ec_eng)
 {
     Check_Integer(tprio)
     Check_Type(tsusp, TSUSP)
@@ -2088,14 +1920,14 @@ p_set_suspension_priority(value vsusp, type tsusp, value vprio, type tprio)
 
 
 static int
-p_get_priority(value vp, type tp)
+p_get_priority(value vp, type tp, ec_eng_t *ec_eng)
 {
     Check_Output_Integer(tp)
     Return_Unify_Integer(vp, tp, WP)
 }
 
 static int
-p_set_priority(value vp, type tp)
+p_set_priority(value vp, type tp, ec_eng_t *ec_eng)
 {
     int prio;
     Check_Integer(tp)
@@ -2105,7 +1937,7 @@ p_set_priority(value vp, type tp)
 }
 
 static int
-p_set_priority2(value vp, type tp, value vt, type tt)
+p_set_priority2(value vp, type tp, value vt, type tt, ec_eng_t *ec_eng)
 {
     int prio;
     Check_Integer(tp)
@@ -2119,7 +1951,7 @@ p_set_priority2(value vp, type tp, value vt, type tt)
 }
 
 static
-p_first_woken(value pv, type pt, value v, type t)
+p_first_woken(value pv, type pt, value v, type t, ec_eng_t *ec_eng)
 {
     pword	*p;
 
@@ -2127,7 +1959,7 @@ p_first_woken(value pv, type pt, value v, type t)
     if (pv.nint < 1 || pv.nint > SUSP_MAX_PRIO) {
 	Bip_Error(RANGE_ERROR)
     }
-    p = first_woken((int) pv.nint);
+    p = first_woken(ec_eng, (int) pv.nint);
     if (!p) {
 	Fail_;
     } else {
@@ -2140,7 +1972,7 @@ p_first_woken(value pv, type pt, value v, type t)
  * current state of the waking scheduler
  */
 static int
-p_last_scheduled(value vg, type tg)
+p_last_scheduled(value vg, type tg, ec_eng_t *ec_eng)
 {
     register pword	*p = TG;
     int			i;
@@ -2168,7 +2000,7 @@ p_last_scheduled(value vg, type tg)
  * that have been woken (scheduled) since the OldWL.
  */
 static int
-p_new_scheduled(value vold, type told, value vl, type tl)
+p_new_scheduled(value vold, type told, value vl, type tl, ec_eng_t *ec_eng)
 {
     register pword	*o;
     register pword	*n;
@@ -2245,8 +2077,37 @@ p_new_scheduled(value vold, type told, value vl, type tl)
     Return_Unify_Pw(vl, tl, list->val, list->tag)
 }
 
+
+dident
+meta_name(int slot)
+{
+    return (1 <= slot && slot <= MetaArity) ? MetaAttribute[slot-1] : D_UNKNOWN;
+}
+
+int
+meta_index(dident wd)
+{
+    int i;
+    for(i=0; i<MetaArity; ++i)
+    	if (MetaAttribute[i] == wd) return i+1;
+    return 0;
+}
+
 static int
-p_meta_index(value vname, type tname, value vi, type ti)
+_new_meta_index(dident wd)
+{
+    int i;
+    for(i=0; i<MetaArity; ++i)
+    	if (MetaAttribute[i] == wd) return i+1;
+    MetaArity = ++i;
+    MetaAttribute = (dident*) hg_resize(MetaAttribute, i*sizeof(dident));
+    MetaAttribute[i-1] = wd;
+    return i;
+}
+
+
+static int
+p_meta_index(value vname, type tname, value vi, type ti, ec_eng_t *ec_eng)
 {
     if (IsInteger(ti))
     {
@@ -2260,16 +2121,168 @@ p_meta_index(value vname, type tname, value vi, type ti)
 	if (i == 0) { Fail_; }
 	Return_Unify_Integer(vi, ti, i);
     }
+    if (IsStructure(tname) && vname.ptr[0].val.did == d_.plus1) {
+	pword *pw = &vname.ptr[1];
+	Dereference_(pw);
+	if (IsAtom(pw->tag)) {
+	    int i = _new_meta_index(pw->val.did);
+	    Return_Unify_Integer(vi, ti, i);
+	}
+    }
     Bip_Error(TYPE_ERROR);
 }
 
 
+/* compatibility */
+
 static int
-p_notify_constrained(value v, type t)
+p_meta_attributes(value v, type t, ec_eng_t *ec_eng)
+{
+    int i;
+    pword result;
+    pword *tail = &result;
+    for (i=MetaArity; i>0; --i) {
+	pword *pw = TG;
+	Make_List(tail, pw);
+	Push_List_Frame();
+	Make_List(&pw[0], TG);
+	tail = &pw[1];
+	pw = TG;
+	Push_List_Frame();
+	Make_Atom(&pw[0], MetaAttribute[i-1]);
+	Make_Integer(&pw[1], i);
+    }
+    Make_Nil(tail);
+    Return_Unify_Pw(v, t, result.val, result.tag);
+}
+
+
+static int
+p_notify_constrained(value v, type t, ec_eng_t *ec_eng)
 {
     if (!IsMeta(t)) {
 	Succeed_
     }
-    return notify_constrained(v.ptr);
+    return ecl_notify_constrained(ec_eng, v.ptr);
 }
 
+
+void
+bip_delay_init(int flags)
+{
+    value	v;
+
+    tref.kernel = TREF;
+    d_qualified_goal_ = in_dict("qualified_goal", 0);
+    d_es_2_ = in_dict("es", 2);
+    d_postponed_ = in_dict("postponed", 0);
+    if (flags & INIT_SHARED)
+    {
+	built_in(in_dict("delayed_goals",1),	p_delayed_goals,
+		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
+	built_in(in_dict("nonground", 3), p_nonground3,	B_UNSAFE|U_GLOBAL)
+	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
+	built_in(in_dict("term_variables", 2), p_term_variables_rl,
+	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	built_in(in_dict("term_variables_rl", 2), p_term_variables_rl,
+	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	built_in(in_dict("term_variables_lr", 2), p_term_variables_lr,
+	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	built_in(in_dict("term_variables_array", 2), p_term_variables_array,
+	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	local_built_in(in_dict("meta_bind", 2), p_meta_bind, B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	local_built_in(in_dict("undo_meta_bind", 2), p_undo_meta_bind, B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	(void) local_built_in(in_dict("do_meta_bind", 2), p_do_meta_bind, B_UNSAFE);
+	exported_built_in(in_dict("meta_index", 2), p_meta_index, B_UNSAFE|U_SIMPLE)
+	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT);
+	exported_built_in(in_dict("meta_attributes", 1), p_meta_attributes, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("insert_suspension", 4), p_insert_suspension,
+		B_UNSAFE);
+	(void) built_in(in_dict("enter_suspension_list", 3), p_enter_suspension_list,
+		B_UNSAFE);
+	built_in(in_dict("set_suspension_arg", 3),
+		p_set_suspension_arg, B_SAFE);
+	built_in(in_dict("set_suspension_data", 3),
+		p_set_suspension_data, B_SAFE);
+	built_in(in_dict("get_suspension_data", 3),
+		p_get_suspension_data, B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(2, NONVAR);
+	(void) exported_built_in(in_dict("set_suspension_number", 2),
+		p_set_suspension_number, B_SAFE);
+	exported_built_in(in_dict("get_suspension_number", 2),
+		p_get_suspension_number, B_UNSAFE|U_SIMPLE)
+	    -> mode = BoundArg(2, CONSTANT);
+	exported_built_in(in_dict("suspensions_to_goals", 3),
+		p_suspensions_to_goals, B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(2, NONVAR);
+	built_in(in_dict("suspension_to_goal", 3), p_suspension_to_goal,
+		B_UNSAFE|U_UNIFY)
+	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, CONSTANT);
+	(void) exported_built_in(in_dict("kill_suspension", 2),
+		p_kill_suspension, B_UNSAFE);
+	(void) exported_built_in(in_dict("unschedule_suspension", 1),
+		p_unschedule_suspension, B_SAFE);
+	(void) exported_built_in(in_dict("replace_attribute", 3),
+		p_replace_attribute,	B_UNSAFE);
+	(void) exported_built_in(in_dict("last_suspension", 1),
+		p_last_suspension, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("notify_constrained", 1),
+		p_notify_constrained, B_UNSAFE);
+	b_built_in(in_dict("current_suspension",2),	p_current_suspension,
+		d_.kernel_sepia) -> mode = BoundArg(1, NONVAR);
+	built_in(in_dict("suspensions",1),	p_suspensions,
+		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
+	exported_built_in(in_dict("new_suspensions",2),	p_new_suspensions,
+		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	exported_built_in(in_dict("new_delays",2),p_new_delays,
+		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	exported_built_in(in_dict("first_woken", 2), p_first_woken,
+		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	(void) built_in(in_dict("nonground", 2), p_nonground2,
+		B_UNSAFE|U_UNIFY);
+	(void) built_in(in_dict("schedule_woken", 1), p_schedule_woken,
+		B_SAFE);
+	(void) built_in(in_dict("init_suspension_list", 2),
+		p_init_suspension_list, B_SAFE|U_SIMPLE);
+	(void) built_in(in_dict("merge_suspension_lists", 4),
+		p_merge_suspension_lists, B_SAFE);
+	(void) built_in(in_dict("schedule_suspensions", 2),
+		p_schedule_suspensions, B_SAFE);
+	(void) built_in(in_dict("postpone_suspensions", 2),
+		p_postpone_suspensions, B_SAFE);
+	(void) built_in(in_dict("set_suspension_priority", 2),
+		p_set_suspension_priority, B_SAFE);
+	(void) local_built_in(in_dict("get_postponed", 1),
+		p_get_postponed, B_UNSAFE|U_GLOBAL);
+	(void) local_built_in(in_dict("get_postponed_nonempty", 1),
+		p_get_postponed_nonempty, B_UNSAFE|U_GLOBAL);
+	(void) local_built_in(in_dict("reinit_postponed", 1),
+		p_reinit_postponed, B_UNSAFE|U_GLOBAL);
+	(void) local_built_in(in_dict("reset_postponed", 1),
+		p_reset_postponed, B_UNSAFE|U_GLOBAL);
+
+	/* these two are used in Grace */
+	exported_built_in(in_dict("last_scheduled", 1), p_last_scheduled, B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
+	exported_built_in(in_dict("new_scheduled", 2), p_new_scheduled, B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+
+	(void) built_in(in_dict("get_priority", 1), p_get_priority, B_UNSAFE);
+	(void) exported_built_in(in_dict("set_priority", 1), p_set_priority, B_UNSAFE);
+	(void) exported_built_in(in_dict("set_priority", 2), p_set_priority2, B_UNSAFE);
+	(void) exported_built_in(in_dict("subcall_init", 0), p_subcall_init, B_SAFE);
+	(void) exported_built_in(in_dict("subcall_fini", 1), p_subcall_fini, B_UNSAFE);
+	(void) exported_built_in(in_dict("add_attribute", 3), p_add_attribute,
+		B_UNSAFE);
+	exported_built_in(in_dict("get_attribute", 3), p_get_attribute,
+		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
+	exported_built_in(in_dict("get_attributes", 4), p_get_attributes,
+		B_UNSAFE|U_GLOBAL) ->
+		mode = BoundArg(2, NONVAR) | BoundArg(4, CONSTANT);
+	(void) exported_built_in(in_dict("setuniv", 1), p_setuniv, B_UNSAFE);
+
+	MetaArity = 0;
+	MetaAttribute = (dident*) 0;
+    }
+}
+
+/* Add all new code in front of the initialization function! */

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.4 2012/02/10 20:15:23 jschimpf Exp $
+ * VERSION	$Id: error.h,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -34,6 +34,12 @@
 /*
  * DEFINES:
  */
+
+/* Macro that expands into "<file>:<line>" */
+#define __FILE_LINE__ __FILE__":"stringify_step1(__LINE__)
+#define stringify_step1(s) stringify_step2(s)
+#define stringify_step2(s) #s
+
 
 #define Set_Bip_Error(N)	g_emu_.global_bip_error = (N);
 #define Get_Bip_Error(N)	(N) = g_emu_.global_bip_error; Set_Bip_Error(0);
@@ -46,21 +52,22 @@
  * Non-error status usually returned by the builtins
  */
 
-/* 0..2,4..7 are PSUCCEED,PFAIL,PTHROW,PYIELD,PRUNNING,PWAITIO,PFLUSHIO	*/
-#define PKEEP			3	/* not used by builtins		*/
-/* 8..15 are used for delaying on builtin arguments	*/
+/* 0..7 are PSUCCEED,PFAIL,PTHROW,PEXITED,PYIELD,PRUNNING,PWAITIO,PFLUSHIO	*/
+#define PKEEP			0x08	/* keep-flag, not used by builtins */
+
+/* 16 and above are used for delaying on builtin arguments	*/
 /* the lower 3 bits specify on which args to delay	*/
 /* if they are zero, the SV list is used to delay on 	*/
-#define PDELAY			8	/* delay on argument or SV list	*/
-#define PDELAY_MASK		7	/* mask for the arity		*/
-#define PDELAY_1		9	/* delay on argument 1		*/
-#define PDELAY_2		10	/* delay on argument 2		*/
-#define PDELAY_1_2		11	/* delay on argument 1 and 2	*/
-#define PDELAY_3		12	/* delay on argument 3		*/
-#define PDELAY_1_3		13	/* delay on argument 1 and 3	*/
-#define PDELAY_2_3		14	/* delay on argument 2 and 3	*/
-#define PDELAY_1_2_3		15	/* delay on argument 1, 2 and 3	*/
-#define PDELAY_BOUND		16	/* put on the bound list	*/
+#define PDELAY			0x10	/* delay on argument or SV list	*/
+#define PDELAY_BOUND		0x08	/* put on the bound list, not inst */
+#define PDELAY_MASK		0x07	/* mask for the arity		*/
+#define PDELAY_1		0x11	/* delay on argument 1		*/
+#define PDELAY_2		0x12	/* delay on argument 2		*/
+#define PDELAY_1_2		0x13	/* delay on argument 1 and 2	*/
+#define PDELAY_3		0x14	/* delay on argument 3		*/
+#define PDELAY_1_3		0x15	/* delay on argument 1 and 3	*/
+#define PDELAY_2_3		0x16	/* delay on argument 2 and 3	*/
+#define PDELAY_1_2_3		0x17	/* delay on argument 1, 2 and 3	*/
 
 /*
  * Error codes are negative numbers in C code.
@@ -70,6 +77,7 @@
 #define PERROR			-1	/* general error */
 #define UNIFY_OVNI		-2	/* unknown object type */
 #if 0	/* these have been moved to ec_public.h */
+#define EC_EXTERNAL_ERROR	-3	/* error in a user-defined external */
 #define INSTANTIATION_FAULT	-4	/* variable instead of constant */
 #define TYPE_ERROR		-5	/* wrong type */
 #define RANGE_ERROR		-6	/* out of range */
@@ -184,6 +192,11 @@
 #define NO_FILE			-171
 #define MPS_ERROR		-176
 #define NO_SHARED_LIB		-177
+#define ENGINE_BUSY		-180
+#define ENGINE_NOT_ASYNC	-181
+#define ENGINE_DEAD		-182
+#define ENGINE_NOT_UP		-183
+#define ENGINE_NOT_OWNED	-184
 #define PEOF			-190	/* end of file in an IO predicate */
 #define OUT_ERROR		-191	/* like SYS_ERROR for output functions*/
 #define STREAM_MODE		-192 	/* wrong stream mode */
@@ -196,7 +209,6 @@
 #define	REMEMBER		-210
 #define NOCODE			-211	/* no code in the descriptor	*/
 #define ILLEGAL_RETURN		-212	/* bad return code from external */
-#define EC_EXTERNAL_ERROR	-213
 #define EC_LICENSE_ERROR	-214
 
 #define IC_EXCLUSION_ERROR	-220    /* A value was excluded from
@@ -230,10 +242,7 @@
 #define	UNDEF_ATTR	        -270
 #define	ATTR_FORMAT	        -271
 #define	BAD_DELAY_CONDITION     -272
-#define	BAD_RESTORE_WL		-274
 
-#define KEGI_GENERAL_SUNVIEW	-330
-#define KEGI_GENERAL_X11	-331
 
 /* Panic messages */
 #define	MEMORY_P		"Out of memory - no more swap space"

@@ -21,20 +21,46 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.9 2012/10/17 10:05:20 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.10 2016/07/28 03:34:36 jschimpf Exp $
  */
 
-/*
+/** @file
  *
- * Builtins to set up and manipulate handler tables
+ * Signal handling, including builtins to set up and manipulate handler tables.
  *
+ * Each signal is handled in one of the following ways:
+ *
+ *	- IH_UNCHANGED ECLiPSe makes no attempt at handling the signal
+ *	- IH_SYSTEM_DFL	(default/0) handler was (re)set to SIG_DFL (OS default)
+ *	- IH_IGNORE (true/0) signal is ignored (SIG_IGN on Unix)
+ *	- IH_ECLIPSE_DFL (internal/0) caught by ECLiPSe to implement internals
+ *	- IH_POST_EVENT (event/1) leads to posting a synchronous Prolog event
+ *	- IH_THROW (throw/1) leads to throw(<signame>)
+ *	- IH_ABORT (abort/0) calls abort/0
+ *	- IH_HALT (halt/0) calls halt/0, terminates ECLiPSe subsystem
+ *	- IH_HANDLE_ASYNC run Prolog handler in signal engine
+ *
+ * Fatal signals (SEGV etc) are handled directly in the problem
+ * thread with catch_fatal().
+ *
+ * Other signals are handled by a dedicated signal_thread.
+ * A signal handler writes the signal number into signal_pipe, and
+ * the signal_thread reads this and handles the signals sequentially.
+ *
+ * If the handler is in Prolog, the signal_thread executes it in the
+ * signal_engine (which is dedicated to signal handler execution).
+ *
+ * For IH_POST_EVENT/IH_THROW/IH_ABORT, the corresponding action
+ * (posting a synchronous event, or executing throw/1) is engine-specific.
+ * It is applied to the engine from where set_interrupt_handler/2 was
+ * invoked.
+ * 
  */
 
 #include "config.h"
 
 #include <errno.h>
 #include <signal.h>
-
 #ifdef HAVE_STRING_H
 #include <string.h>
 #else
@@ -77,6 +103,11 @@ typedef struct {
 	int sa_mask;
 	int sa_flags;
 } sig_action_t;
+
+int sigaction(int sig, sig_action_t *action, sig_action_t *oldact)
+{
+    return signal(sig, action->sa_handler) == SIG_ERR ? -1 : 0;
+}
 #  endif
 #endif
 
@@ -91,19 +122,49 @@ typedef struct {
 
 /*
  * Signal blocking and unblocking
- * We maintain a mask sig_block_mask_ to block all interrupts
- * whose handler might enqueue signals or post events - this is
- * to implement exclusive access to these queue data structures.
  */
 
-#ifdef HAVE_SIGPROCMASK
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
 
-#define If_Have_Sig_Masks(Decl) Decl;
+#define HAVE_SIG_MASKS
+#define Empty_Sig_Mask(Mask) (void) sigemptyset(&(Mask));
+#define Save_Sig_Mask(Mask) \
+	(void) pthread_sigmask(SIG_SETMASK, NULL, &(Mask));
+#define Restore_Sig_Mask(Mask) \
+	(void) pthread_sigmask(SIG_SETMASK, &(Mask), NULL);
+#define Restore_Signal(Mask,i) { \
+	sigset_t mask; \
+	sigemptyset(&mask); \
+	sigaddset(&mask, i); \
+	(void) pthread_sigmask(sigismember(&(Mask),i)?SIG_BLOCK:SIG_UNBLOCK, \
+		&mask, NULL); }
+#define Block_Signal(i) { \
+	sigset_t mask; \
+	sigemptyset(&mask); \
+	sigaddset(&mask, i); \
+	pthread_sigmask(SIG_BLOCK, &mask, NULL); }
+#define Unblock_Signal(i) { \
+	sigset_t mask; \
+	sigemptyset(&mask); \
+	sigaddset(&mask, i); \
+	pthread_sigmask(SIG_UNBLOCK, &mask, (sigset_t *) 0); }
+
+
+#elif HAVE_SIGPROCMASK
+
+#define HAVE_SIG_MASKS
 #define Empty_Sig_Mask(Mask) (void) sigemptyset(&(Mask));
 #define Save_Sig_Mask(Mask) \
 	(void) sigprocmask(SIG_SETMASK, (sigset_t *) 0, &(Mask));
 #define Restore_Sig_Mask(Mask) \
 	(void) sigprocmask(SIG_SETMASK, &(Mask), (sigset_t *) 0);
+#define Restore_Signal(Mask,i) { \
+	sigset_t mask; \
+	sigemptyset(&mask); \
+	sigaddset(&mask, i); \
+	(void) sigprocmask(sigismember(&(Mask),i)?SIG_BLOCK:SIG_UNBLOCK, \
+		&mask, NULL); }
 #define Block_Signal(i) { \
 	sigset_t mask; \
 	sigemptyset(&mask); \
@@ -115,14 +176,8 @@ typedef struct {
 	sigaddset(&mask, i); \
 	sigprocmask(SIG_UNBLOCK, &mask, (sigset_t *) 0); }
 
-#define Init_Block_Mask() Empty_Sig_Mask(sig_block_mask_)
-#define	Add_To_Block_Mask(i) sigaddset(&sig_block_mask_, i);
-#define	Del_From_Block_Mask(i) sigdelset(&sig_block_mask_, i);
-#define Block_Signals(OldMask) \
-	(void) sigprocmask(SIG_BLOCK, &sig_block_mask_, &(OldMask));
 
-#else
-#ifdef HAVE_SIGVEC
+#elif HAVE_SIGVEC
 
 typedef int sigset_t;
 
@@ -130,43 +185,35 @@ typedef int sigset_t;
 # define sigmask(n)      (1 << ((n) - 1))
 #endif
 
-#define If_Have_Sig_Masks(Decl) Decl;
+#define HAVE_SIG_MASKS
 #define Empty_Sig_Mask(Mask) (Mask) = 0;
 #define Save_Sig_Mask(Mask) (Mask) = sigblock(0);
 #define Restore_Sig_Mask(Mask) (void) sigsetmask(Mask);
+#define Restore_Signal(Mask,i) \
+	(void) sigsetmask(sigblock(0) &~ sigmask(i) | (Mask) & sigmask(i));
 #define Block_Signal(i) \
 	(void) sigblock(sigmask(i));
 #define Unblock_Signal(i) \
 	(void) sigsetmask(sigblock(0) & ~sigmask(i));
 
-#define Init_Block_Mask() Empty_Sig_Mask(sig_block_mask_)
-#define	Add_To_Block_Mask(i) sig_block_mask_ |= sigmask(i);
-#define	Del_From_Block_Mask(i) sig_block_mask_ &= ~sigmask(i);
-#define Block_Signals(OldMask) OldMask = sigblock(sig_block_mask_);
 
 #else
 
-#define If_Have_Sig_Masks(Decl)
-#define Empty_Sig_Mask(Mask) (Mask) = 0;
+#undef HAVE_SIG_MASKS
+#define Empty_Sig_Mask(Mask)
 #define Save_Sig_Mask(Mask)
 #define Restore_Sig_Mask(Mask)
+#define Restore_Signal(Mask,i)
 #define Block_Signal(i)
 #define Unblock_Signal(i)
 
-#define Init_Block_Mask()
-#define	Add_To_Block_Mask(i)
-#define	Del_From_Block_Mask(i)
-#define Block_Signals(OldMask)
-
-#endif
 #endif
 
-#define Unblock_Signals() Restore_Sig_Mask(initial_sig_mask_)
 
-If_Have_Sig_Masks(static sigset_t initial_sig_mask_)	/* normal execution sigmask */
-If_Have_Sig_Masks(static sigset_t sig_block_mask_)	/* what to block on handler invoc */
-
-static int	spurious = 0;	/* counts nesting of fatal signals */
+/* To remember the initial signal dispositions (for resetting) */
+#ifdef HAVE_SIG_MASKS
+static sigset_t initial_sig_mask_;
+#endif
 
 
 /*
@@ -204,15 +251,12 @@ static struct sigstack	sigstack_descr;
 #define FatalSignal(n) \
 	((n)==SIGILL || (n)==SIGSEGV || IsSIGBUS(n) || IsSIGQUIT(n))
 
+/* signals that are expected to get delivered to the culprit thread */
+#define ThreadFatalSignal(n) \
+	((n)==SIGILL || (n)==SIGSEGV || IsSIGBUS(n) || (n)==SIGFPE)
 
-/*
- * EXTERN declarations
- */
-
-extern pri	*true_proc_,
-		*fail_proc_;
-
-extern void		halt_session(void);
+/* used only for piping message to signal thread */
+#define PSEUDO_SIG_DICT_GC	(NSIG+1)
 
 
 /*
@@ -230,37 +274,19 @@ pri	**default_error_handler_;
  */
 int	*interrupt_handler_flags_ = 0;
 pri	**interrupt_handler_ = 0;
+ec_eng_t	**interrupt_posting_engine_ = 0;
 dident	*interrupt_name_ = 0;
 int	ec_sigalrm;	/* normally SIGALRM, but also defined on Windows */
 int	ec_sigio;	/* normally SIGIO, but also defined on Windows */
 
-static dident	d_event_, d_throw_, d_internal_, d_defers_;
+static dident	d_event_, d_throw_, d_internal_, d_defers_, d_fatal_;
 static type	kernel_tag_;
 static int	user_error = USER_ERROR;
 
 
-int	p_reset(void);
-
 static int
-	p_pause(void),
-        p_get_event_handler(value vn, type tn, value vh, type th, value vm, type tm),
-	p_define_error(value valm, type tagm, value vale, type tage),
-	p_get_interrupt_handler(value vn, type tn, value vh, type th, value vm, type tm),
-	p_interrupt_id_det(value vnum, type tnum, value vname, type tname),
-	p_post_events(value v, type t),
-	p_set_error_handler(value vn, type tn, value vp, type tp, value vm, type tm),
-	p_reset_error_handler(value vn, type tn),
-	p_set_default_error_handler(value vn, type tn, value vp, type tp, value vm, type tm),
-	p_set_interrupt_handler(value vn, type tn, value vp, type tp, value vm, type tm),
-	p_valid_error(value vn, type tn);
-static int
-	_set_error_array(pri **arr, word n, dident w, value vm, type tm);
+	_set_error_array(pri **arr, word n, dident w, value vm, type tm, ec_eng_t*);
 
-#ifdef SA_SIGINFO
-static RETSIGTYPE _break(int, siginfo_t*, void *);
-#else
-static RETSIGTYPE _break(int);
-#endif
 
 /* Profiling handler is defined in emu.c */
 #if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
@@ -282,403 +308,114 @@ extern RETSIGTYPE sigprof_handler(int);
 	{ Bip_Error(RANGE_ERROR) }
 
 
-/*----------------------------------------------------------------------
- * Signal handling
- *
- * In a standalone eclipse, we try to catch all signals
- * and handle them in Prolog, if possible.
- *
- * When interrupts (except fatal ones) are disabled by Disable_Int,
- * we delay them by putting them into the delayed_interrupt_ queue
- * and reconsider them in delayed_break() which is invoked by Enable_Int.
- *
- * Signals that are required to be handled "synchronously" (ie. handler
- * was set to event/1, indicated by the IH_POST_EVENT flag)
- * are done by (eventually) posting an event with the signal's Prolog name,
- * e.g. 'alrm' for SIGALRM.
- *
- * Asynchronous signal handling is normally done via a recursive engine
- * by calling it_emulc(). However, this is not possible while the
- * emulator registers are not exported (EXPORTED flag). In that case,
- * we post the signal number (integer) as an event, and the handler
- * will then be executed by the original engine. The DEL_IRQ_POSTED
- * flag is set to indicate that there is an async signal in the queue.
- *----------------------------------------------------------------------*/
-
-#define NBDELAY	32
-
-static int _enqueue_irq(int n), _dequeue_irq(void);
-static int delayed_interrupt_[NBDELAY];
-static int first_delayed_ = 0, next_delayed_ = 0;
-
-If_Have_Sig_Masks(static sigset_t mask_before_blocking_)
-
-void
-block_signals(void)
-{
-    Block_Signals(mask_before_blocking_);
-}
-
-void
-unblock_signals(void)
-{
-    Restore_Sig_Mask(mask_before_blocking_);
-}
-
-
-static void
-_handle_fatal(int n)
-{
-    if (spurious > 1)
-    {
-	exit(-1);		/* we keep everything blocked */
-    }
-    else if (spurious++ == 1)
-    {
-	value v1;
-	v1.nint = -1;
-	(void) p_exit(v1, tint);
-    }
-    first_delayed_ = next_delayed_ = 0;
-    /*
-     * In the development system
-     * signals will be unblocked upon reinit (handlers_init())
-     */
-    ec_panic("Fatal signal caught",
-	(VM_FLAGS & EXPORTED)? "protected code": "emulator");
-}
-
-
-static void
-_handle_async(int n, int polling)		 /* may be 0 */
-{
-    /* not InterruptsDisabled! */
-
-#if defined(SIGIO) || defined(SIGPOLL)
-#if !defined(SIGIO)
-    if (n == SIGPOLL)
-#else
-#if !defined(SIGPOLL)
-    if (n == SIGIO)
-#else
-    if (n == SIGIO || n == SIGPOLL)
-#endif
-#endif
-    {
-	msg_trigger();
-	if (!(interrupt_handler_flags_
-	     && (interrupt_handler_flags_[n] == IH_HANDLE_ASYNC
-	      || interrupt_handler_flags_[n] == IH_POST_EVENT)))
-	{
-	    return;
-	}
-    } 
-#endif
-
-    if (FatalSignal(n))
-    {
-	if (spurious > 0		/* already tried unsuccessfully */
-	    || !(VM_FLAGS & EXPORTED))	/* can't get a recursive engine */
-	{
-	    _handle_fatal(n);
-	}
-	spurious = 1;			/* first attempt to handle */
-	/* invoke Prolog handler below */
-    }
-    else if (interrupt_handler_flags_[n] == IH_HANDLE_ASYNC)
-    {
-	if (!(VM_FLAGS & EXPORTED))	/* can't get a recursive engine */
-	{
-	    if (ec_post_event_int(n) != PSUCCEED)
-		(void) write(2,"\nEvent queue overflow - signal lost\n",36);
-	    return;
-	}
-	/* else invoke Prolog handler below */
-	
-    }
-    else if (interrupt_handler_flags_[n] == IH_POST_EVENT)
-    {
-	if (ec_post_event_int(n) != PSUCCEED)
-	    (void) write(2,"\nEvent queue overflow - signal lost\n",36);
-	return;
-    }
-    else if (interrupt_handler_flags_[n] == IH_ABORT
-	 ||  interrupt_handler_flags_[n] == IH_THROW)
-    {
-	if (polling) {
-	    pword exit_tag;
-	    Make_Atom(&exit_tag, interrupt_handler_flags_[n] == IH_ABORT ?
-				    d_.abort : interrupt_name_[n]);
-	    (void) longjmp_throw(exit_tag.val, exit_tag.tag);
-	} else {
-	    /* We are in signal handler or timer thread, i.e. it is not
-	     * safe to abort here. Post, and handle later via polling */
-	    if (ec_post_event_int(n) != PSUCCEED)
-		(void) write(2,"\nEvent queue overflow - signal lost\n",36);
-	}
-	return;
-    }
-    else
-    {
-	(void) write(2,"\nUnexpected interrupt type in handle_async()\n",45);
-	return;
-    }
-
-    /*
-     * Invoke the Prolog handler for signal n
-     */
-    {
-	int i;
-	value v1, v2;
-	v1.nint = n;
-	i = it_emulc(v1, tint);
-	if (FatalSignal(n))
-	    spurious--;
-	if (i == PTHROW)
-	{
-	    if (!ec_options.parallel_worker || g_emu_.nesting_level > 1)
-		longjmp(*g_emu_.it_buf, PTHROW);
-	    else if (!IsRecursionFrame(BTop(B.args)))
-	    {
-		pword event;
-		Make_Atom(&event, d_.abort);
-		(void) ec_post_event(event);
-	    }
-	    /* else ignore the THROW, we are in an idle worker */
-	}
-    }
-}
-
-
-#ifdef SA_SIGINFO
-static RETSIGTYPE
-_break(int n, siginfo_t *si, void *dummy)
-#else
-static RETSIGTYPE
-_break(int n)
-#endif
-{
-    /* signal n should be blocked on handler invocation */
-
-#if !defined(HAVE_SIGACTION) && !defined(HAVE_SIGVEC)
-    signal(n,_break);	/* restore signal catcher to _break	*/
-#endif
-
-#ifdef SA_SIGINFO
-    if (FatalSignal(n) && si) {
-	char buf[128];
-	sprintf(buf, "Fatal signal (signal=%d, si_code=%d, si_addr=%08x)\n",
-			n, si->si_code, si->si_addr);
-	write(2, buf, strlen(buf));
-    }
-#endif
-
-    if (InterruptsDisabled)
-    {
-	if (FatalSignal(n))
-	{
-	    _handle_fatal(n);
-	}
-	else				/* not fatal, delay it */
-	{
-	    (void) _enqueue_irq(n);	/* incl. Set_Interrupts_Pending */
-	}
-	return;
-    }
-
-    Unblock_Signal(n);
-    _handle_async(n, 0);
-}
-
 
 void
 delayed_break(void)
-{
-    int n;
-    int saved_errno = errno;	/* to avoid unexpected side effects */
+{}
 
-    while (InterruptsPending && (n = _dequeue_irq()) != -1)
-    {
-	_handle_async(n, 0);
-    }
-    errno = saved_errno;
+
+/*----------------------------------------------------------------------*
+ * Signal Thread
+ *----------------------------------------------------------------------*/
+
+static void	*signal_thread = NULL;
+static int	signal_pipe[2];
+
+
+/**
+ * Signal handler that writes the signal number to a pipe which is read
+ * by the signal thread's main function.  Who executes this handler
+ * depends on the signal masks, but usually it is the signal thread.
+ */
+static RETSIGTYPE
+_write_to_pipe(int signr)
+{
+    char signr_byte = signr;
+    if(write(signal_pipe[1], &signr_byte, 1)) /*ignore*/;
 }
 
 
-/*
- * This is called from asynchronous points in the emulator to allow
- * handling urgent events. 
+/**
+ * Pretend that signal signr has occurred.
  */
 void
-ec_handle_async(void)		/* !InterruptsDisabled && EXPORTED */
+ec_send_signal(int signr)
 {
-    int n;
-    while ((n = next_urgent_event()) != -1)
-    {
-	_handle_async(n, 1);
-    }
+    _write_to_pipe(signr);
 }
 
 
-static int
-_dequeue_irq(void)
+/**
+ * Asynchronously initiate a dictionary garbage collection
+ * by sending the PSEUDO_SIG_DICT_GC pseudo signal.
+ */
+void
+ec_signal_dict_gc()
 {
-    int n;
-    If_Have_Sig_Masks(sigset_t saved_mask)
-
-    Block_Signals(saved_mask);
-    if (first_delayed_ != next_delayed_)	/* empty? */
-    {
-	n = delayed_interrupt_[first_delayed_];	/* no: get one	*/
-	first_delayed_ = (first_delayed_ + 1) % NBDELAY;
-	if (first_delayed_ == next_delayed_)	/* last one? */
-	{
-	    Clr_Interrupts_Pending();
-	}
-    }
-    else
-    {
-	n = -1;
-	Clr_Interrupts_Pending();
-    }
-    Restore_Sig_Mask(saved_mask);
-    return n;
-}
-
-static int
-_enqueue_irq(int n)		/* must not be interrupted */
-{
-    int i = (next_delayed_ + 1) % NBDELAY;
-
-    if (i == first_delayed_)	/* queue full ? */
-    {
-	(void) write(2,"\nInterrupt queue overflow - signal lost\n",40);
-	/* Some machines cannot continue after a signal, they would
-	   loop infinitely with queue overflow */
-	_handle_fatal(n);
-	/*NOTREACHED*/
-    }
-    delayed_interrupt_[next_delayed_] = n;
-    next_delayed_ = i;		/* enter in queue */
-
-    Set_Interrupts_Pending();
-    return 0;
+    _write_to_pipe(PSEUDO_SIG_DICT_GC);
 }
 
 
-/* 
- * Handler used for message passing
- * This handler can be used for SIGIO/SIGPOLL when these signals are
- * not needed otherwise. It is not used anymore because we need to
- * handle SIGIO synchronously in order to implement socket events.
+/**
+ * HALT signal handler
+ */
+static RETSIGTYPE
+_halt_session(int signr)
+{
+    ec_cleanup();
+    exit(0);
+}
+
+
+/**
+ * Set up signal handlers and signal masks for the signal_thread.
+ * This must be executed in the signal handling thread!
  */
 
-RETSIGTYPE
-sigmsg_handler(int n)
-{
-    if (InterruptsDisabled )
-    {
-	(void) _enqueue_irq(n);
-    }
-    else
-    {
-	Unblock_Signal(n);
-	msg_trigger();
-	return;
-    }
-}
-
-
 static int
-_install_int_handler(int i, int how)
+_install_signal_thread_handler(int sig, int how)
 {
-    int res;
     sig_action_t action;
-
-#ifndef SIGIO
-    if (i == ec_sigio)
-    {
-	Succeed_;	/* this is a fake signal number, do nothing */
-    }
-#endif
-#ifndef SIGALRM
-    if (i == ec_sigalrm)
-    {
-	Succeed_;	/* this is a fake signal number, do nothing */
-    }
-#endif
 
     Empty_Sig_Mask(action.sa_mask);
     action.sa_flags = SA_INTERRUPT;
 
     switch(how)
     {
-    case IH_HANDLE_ASYNC:
-#if !defined(HAVE_SIGACTION) && !defined(HAVE_SIGVEC)
-	Bip_Error(UNIMPLEMENTED);	/* e.g. Windows... */
-#else
-	if (i == SIGSEGV)
-	{
-	    /* try to run the SIGSEGV handler on its own stack */
-#ifdef HAVE_SIGALTSTACK
-	    sigstack_descr.ss_sp = signal_stack;
-	    sigstack_descr.ss_size = SIGSTKSZ;
-	    sigstack_descr.ss_flags = 0;
-	    (void) sigaltstack(&sigstack_descr, (stack_t *) 0);
-	    /* We may need SA_SIGINFO for more sophisticated SEGV handling */
-	    action.sa_flags = SA_ONSTACK | SA_INTERRUPT;
-#else
-#  ifdef HAVE_SIGSTACK
-	    sigstack_descr.ss_sp = signal_stack + SIGSTACK_SIZE;
-	    sigstack_descr.ss_onstack = 0;
-	    (void) sigstack(&sigstack_descr, (struct sigstack*)0);
-	    action.sa_flags = SA_ONSTACK;
-#  endif
-#endif
-	}
-#ifdef SA_SIGINFO
-	if (FatalSignal(i)) {
-	    action.sa_flags |= SA_SIGINFO;
-	}
-#endif
-	Add_To_Block_Mask(i);
-#ifdef SA_SIGINFO
-	action.sa_sigaction = _break;
-#else
-	action.sa_handler = _break;
-#endif
-#endif
-	break;
-
     case IH_UNCHANGED:
 	/* We can't change back from something else to this one */
-	Succeed_;
-
-    case IH_SYSTEM_DFL:
-	Del_From_Block_Mask(i);
-	action.sa_handler = SIG_DFL;
 	break;
 
     case IH_IGNORE:
-	Del_From_Block_Mask(i);
 	action.sa_handler = SIG_IGN;
+	if (sigaction(sig, &action, NULL)) {
+	    errno = 0;
+	    return 0;	/* something couldn't be ignored, silently accept */
+	}
 	break;
 
+    case IH_SYSTEM_DFL:
+	action.sa_handler = SIG_DFL;
+	if (sigaction(sig, &action, NULL))
+	    return -1;
+	Block_Signal(sig);	/* do not handle in signal thread */
+	break;
+
+    case IH_HANDLE_ASYNC:
     case IH_THROW:
     case IH_ABORT:
     case IH_POST_EVENT:
-	Add_To_Block_Mask(i);
-#ifdef SA_SIGINFO
-	action.sa_flags |= SA_SIGINFO;
-	action.sa_sigaction = _break;
-#else
-	action.sa_handler = _break;
-#endif
+	action.sa_handler = _write_to_pipe;
+	if (sigaction(sig, &action, NULL))
+	    return -1;
+	Unblock_Signal(sig);	/* allow signal for this thread */
 	break;
 
     case IH_HALT:
-	Add_To_Block_Mask(i);
-	action.sa_handler = (RETSIGTYPE(*)(int)) halt_session;
+	action.sa_handler = _halt_session;
+	if (sigaction(sig, &action, NULL))
+	    return -1;
+	Unblock_Signal(sig);	/* allow signal for this thread */
 	break;
 
     case IH_ECLIPSE_DFL:
@@ -686,99 +423,377 @@ _install_int_handler(int i, int how)
 	 * This sets handlers that are needed to implement internal
 	 * Eclipse functionality like timers, profiler etc
 	 */
-	switch(i)
-	{
-#ifdef SIGPROF
-	case SIGPROF:
-	    Del_From_Block_Mask(i);
-#if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
-	    action.sa_flags |= SA_SIGINFO;
-	    action.sa_sigaction = sigprof_handler;
-#else
-	    action.sa_handler = sigprof_handler;
-#endif
-	    break;
-#endif
-#if defined(SIGIO)
-	case SIGIO:
-	    Add_To_Block_Mask(i);
-	    action.sa_handler = sigmsg_handler;
-	    break;
-#endif
-#if defined(SIGPOLL) && (!defined(SIGIO) || SIGPOLL != SIGIO)
-	case SIGPOLL:
-	    Add_To_Block_Mask(i);
-	    action.sa_handler = sigmsg_handler;
-	    break;
-#endif
-	default:
-	    Del_From_Block_Mask(i);
-	    Succeed_;
+	if (FatalSignal(sig)) {
+	    Block_Signal(sig);	/* handled in appropriate thread, not here */
 	}
+	/*TODO: SIGPROF, SIGIO */
 	break;
     }
-
-#ifdef HAVE_SIGACTION
-    res = sigaction(i, &action, (struct sigaction *) 0);
-#else
-#ifdef HAVE_SIGVEC
-    res = sigvec(i, &action, (struct sigvec *) 0);
-#else
-    res = ( signal(i, action.sa_handler) == SIG_ERR ? -1 : 0 );
-#endif
-#endif
-
-    if (res == -1  &&  action.sa_handler != SIG_IGN)
-    {
-	Set_Errno;
-	Bip_Error(SYS_ERROR);
-    }
-    errno = 0;	/* something couldn't be ignored, silently accept */
-    Succeed_;
+    return 0;
 }
 
 
-/*
- * Reset all signal handlers that are set to Eclipse-specific
- * handling, because we are about to shut down Eclipse.
- * Additionally, ignore SIGPIPE, because it might be raised
- * during cleanup of the Eclipse streams.
+/**
+ * Run the prolog handler for the given signal number.
+ * This must be executed in the signal handling thread!
  */
 
-void
-handlers_fini()
+static void
+_run_prolog_handler(ec_eng_t *ec_eng, int sig)
 {
-    int i;
+    pri *proc = interrupt_handler_[sig];
+    pword goal, module;
 
-    for(i = 1; i < NSIG; i++)
+    if (EngIsDead(ec_eng)) {
+	if (PSUCCEED != ecl_init_aux(NULL, ec_eng, 0)) {
+	    fprintf(stderr, "Could not (re)init signal engine, ignoring signal %d\n", sig);
+	    return;
+	}
+    } else if (!EngIsOurs(ec_eng)  &&  ecl_acquire_engine(ec_eng) != PSUCCEED) {
+	fprintf(stderr, "Signal thread could not acquire signal engine - exiting\n");
+	return;
+    }
+
+    /* construct goal <defmod>:<handler>(<sig>) */
+    goal = ec_term(d_.colon,
+	    ec_atom(PriHomeModule(proc)),
+	    DidArity(PriDid(proc)) == 0 ? ec_atom(PriDid(proc))
+					: ec_term(PriDid(proc), ec_long(sig)));
+    Make_Module_Atom(&module, PriModule(proc));
+
+    /* run the handler */
+    for(;;)
     {
-	if (InterruptName[i] != D_UNKNOWN)
+	int res = ecl_resume_goal(ec_eng, goal, module, NULL, GOAL_CUTFAIL);
+	switch(res)
 	{
-	    switch (interrupt_handler_flags_[i])
-	    {
-	    case IH_ECLIPSE_DFL:
-	    case IH_POST_EVENT:
-	    case IH_THROW:
-	    case IH_ABORT:
-	    case IH_HANDLE_ASYNC:
-		(void) _install_int_handler(i, IH_SYSTEM_DFL);
-		break;
+	    case PFAIL:
+	    case PTHROW:
+	    case PEXITED:
+		ecl_relinquish_engine(ec_eng);
+		return;
 
-	    case IH_UNCHANGED:
-	    case IH_SYSTEM_DFL:
-	    case IH_IGNORE:
+	    case PSUCCEED:
+		/* cannot happen */
 	    default:
+		fprintf(stderr, "Signal engine returned %d\n", res);
+		Make_Atom(&goal, d_.abort);
 		break;
-	    }
 	}
     }
-#ifdef SIGPIPE
-    (void) _install_int_handler(SIGPIPE, IH_IGNORE);
-#endif
 }
 
 
-/* Given tagged integer or atom, return signal number (or negative error code) */
+/**
+ * Main loop executed in signal_thread, reading from signal_pipe.
+ * Positive numbers are signal handling requests.
+ * Negative numbers are signal handler change requests.
+ */
+
+static int
+_signal_thread_function(void* dummy)
+{
+    for(;;)
+    {
+	char signr;
+
+	/* Read signal number from the pipe, and handle it.
+	 * Negative numbers indicate that the handler has changed. */
+	int n = read(signal_pipe[0], &signr, 1);
+	if (n < 0) {
+	    if (errno == EINTR) {
+	        continue;
+	    }
+	    perror("read() in _signal_thread_function() - thread dying");
+	    return -1;
+	} else if (n == 0) {
+	    close(signal_pipe[0]);
+	    return -1;
+	}
+	
+	if (0 < -signr && -signr <= NSIG) {
+	    if (_install_signal_thread_handler(-signr, interrupt_handler_flags_[-signr]))
+		perror("Installing signal handler");
+	    continue;
+	} else if (signr == PSEUDO_SIG_DICT_GC) {
+	    p_gc_dictionary(NULL);
+	    continue;
+	} else if (!(0 < signr && signr <= NSIG)) {
+	    fprintf(stderr, "Bad signal number on signal_pipe[0]: %d - ignored\n", signr);
+	    continue;
+	}
+
+	switch(interrupt_handler_flags_[signr])
+	{
+	    case IH_POST_EVENT:
+		ecl_post_event_unique(interrupt_posting_engine_[signr],
+					ec_atom(interrupt_name_[signr]));
+		break;
+
+	    case IH_THROW:
+		ecl_request_throw(interrupt_posting_engine_[signr],
+					ec_atom(interrupt_name_[signr]));
+		break;
+
+	    case IH_ABORT:
+		ecl_request_throw(interrupt_posting_engine_[signr],
+					ec_atom(d_.abort));
+		break;
+
+	    case IH_HANDLE_ASYNC:
+		_run_prolog_handler(&ec_.m_sig, signr);
+		break;
+
+		/* This can happen when the global handler setting
+		 * was changed while a signal was still in the queue.
+		 */
+	    default:
+		fprintf(stderr, "Inconsistent handler setup for signal %d - signal ignored\n", signr);
+		/*fall through*/
+	    case IH_IGNORE:
+		break;
+	}
+    }
+}
+
+
+/**
+ * Create and start signal_thread, if not yet running.
+ */
+
+static int
+_setup_signal_thread()
+{
+    if (!signal_thread)
+    {
+	if (pipe(signal_pipe)) {
+	    Set_Errno;
+	    return SYS_ERROR;
+	}
+	signal_thread = ec_make_thread();
+	if (!signal_thread)
+	    return SYS_ERROR;
+	if (!ec_start_thread(signal_thread, _signal_thread_function, NULL))
+	    return SYS_ERROR;
+    }
+    return PSUCCEED;
+}
+
+
+/*----------------------------------------------------------------------*/
+
+/**
+ * Signal handler for fatal signals.  For most signals, this
+ * will be executed on the thread that caused the problem.
+ * It may execute on the sigaltstack signal_stack.
+ */
+
+static RETSIGTYPE
+#ifdef SA_SIGINFO
+_catch_fatal(int sig, siginfo_t *si, void *dummy)
+#else
+_catch_fatal(int sig)
+#endif
+{
+    ec_eng_t *eng;
+    char buf[128];
+    char msg[] =
+	"Possible reasons are:\n"
+	"- a faulty external C function\n"
+	"- certain operations on circular terms\n"
+	"- machine stack overflow\n"
+	"- an internal error in ECLiPSe\n";
+#ifdef SA_SIGINFO
+    if (si)
+	sprintf(buf, "Fatal signal (signal=%d, si_code=%d, si_addr=%08x)\n",
+			sig, si->si_code, (int)(word)si->si_addr);
+#else
+    sprintf(buf, "Fatal signal (signal=%d)\n", sig);
+#endif
+    /* Can't use ECLiPSe I/O here, as it might need to PYIELD */
+    if (write(2, buf, strlen(buf))) /*ignore*/;
+
+    /* Check if the problem happened inside an emulator, by looking
+     * for an engine that is running in this thread. If so, perform a
+     * throw(fatal_signal_caught).
+     */
+    eng = eng_chain_header;
+    do {
+	if (eng->run_thread == ec_thread_self()) {
+	    pword ball;
+	    Make_Atom(&ball, d_fatal_);
+	    longjmp_throw(eng, ball.val, ball.tag);
+	}
+	eng = eng->next;
+    } while(eng != eng_chain_header);
+
+    /* If no engine found, print message here and panic */
+    if (write(2, msg, strlen(msg))) /*ignore*/;
+    ec_panic("system now unstable, restart recommended.", NULL);
+    exit(2);	/* in case ec_panic() accidentally returns */
+}
+
+
+/*----------------------------------------------------------------------*/
+
+/**
+ * Set up a signal handler for sig, according to how and proc.
+ *
+ * @param sig signal number
+ * @param how one of IH_UNCHANGED, IH_SYSTEM_DFL, IH_IGNORE, IH_ECLIPSE_DFL,
+ *	    IH_POST_EVENT, IH_THROW, IH_ABORT, IH_HALT, IH_HANDLE_ASYNC.
+ * @param proc for IH_HANDLE_ASYNC the handler procedure indentifier,
+ *		otherwise ignored (can be NULL)
+ * @param ec_eng the engine to which IH_POST_EVENT/IH_THROW/IH_ABORT apply,
+ *		otherwise ignored (can be NULL)
+ */
+
+static int
+_install_int_handler(int sig, int how, pri *proc, ec_eng_t *ec_eng)
+{
+    sig_action_t action;
+
+    Empty_Sig_Mask(action.sa_mask);
+    action.sa_flags = SA_INTERRUPT;
+
+    interrupt_handler_flags_[sig] = how;
+    interrupt_handler_[sig] = proc;
+    if (interrupt_posting_engine_[sig]) {
+	engine_tid.free(interrupt_posting_engine_[sig]);
+	interrupt_posting_engine_[sig] = NULL;
+    }
+
+    /* if this is a fake signal number, do nothing */
+    if (0
+#ifndef SIGIO
+	|| sig == ec_sigio
+#endif
+#ifndef SIGALRM
+	|| sig == ec_sigalrm
+#endif
+	)
+    {
+	return PSUCCEED;	/* this is a fake signal number, do nothing */
+    }
+
+    /* Adjust the signal mask for the calling thread */
+    switch(how)
+    {
+	case IH_UNCHANGED:
+	    return PSUCCEED;
+
+	case IH_IGNORE:
+	    /* signal mask not important */
+	    break;
+
+	case IH_SYSTEM_DFL:
+	    /* reset mask to how it was when ECLiPSe was initialized */
+	    /* (assuming we are in the same thread...) */
+	    Restore_Signal(initial_sig_mask_, sig);
+	    break;
+
+	case IH_POST_EVENT:
+	    /* block for this thread (and delegate to signal thread) */
+	    Block_Signal(sig);
+	    /* post event to this engine */
+	    interrupt_posting_engine_[sig] = engine_tid.copy(ec_eng);
+	    break;
+
+	case IH_THROW:
+	case IH_ABORT:
+	    interrupt_posting_engine_[sig] = engine_tid.copy(ec_eng);
+	    /* fall through */
+	case IH_HANDLE_ASYNC:
+	    /* block for this thread (and delegate to signal thread) */
+	    Block_Signal(sig);
+	    break;
+
+	case IH_HALT:
+	    /* block for this thread (and delegate to signal thread) */
+	    Block_Signal(sig);
+	    break;
+
+	case IH_ECLIPSE_DFL:
+	    if (ThreadFatalSignal(sig))
+	    {
+#if !defined(HAVE_SIGACTION)
+		return UNIMPLEMENTED;	/* e.g. Windows... */
+#else
+		/* These signals are handled by the culprit thread */
+		if (sig == SIGSEGV)
+		{
+#ifdef HAVE_SIGALTSTACK
+		    /* try to run the SIGSEGV handler on its own stack */
+		    sigstack_descr.ss_sp = signal_stack;
+		    sigstack_descr.ss_size = SIGSTKSZ;
+		    sigstack_descr.ss_flags = 0;
+		    (void) sigaltstack(&sigstack_descr, (stack_t *) 0);
+		    /* We may need SA_SIGINFO for more sophisticated SEGV handling */
+		    action.sa_flags = SA_ONSTACK | SA_INTERRUPT;
+#endif
+		}
+#ifdef SA_SIGINFO
+		action.sa_flags |= SA_SIGINFO;
+#endif
+#ifdef SA_SIGINFO
+		action.sa_sigaction = _catch_fatal;
+#else
+		action.sa_handler = _catch_fatal;
+#endif
+#endif
+		if (sigaction(sig, &action, NULL)) {
+		    Set_Errno;
+		    return SYS_ERROR;
+		}
+		/* The mask should apply to all threads, but this sets only
+		 * the calling thread.  Repeat the setup in other threads if
+		 * required.  Some of these signals can't be masked anyway */
+		Unblock_Signal(sig);
+	    }
+	    /*TODO: SIGPROF, SIGIO */
+	    break;
+
+    }
+
+    /* Notify the signal_thread of handler change.
+     * Accesses the interrupt_handler_ arrays! */
+    if (signal_thread)
+	_write_to_pipe(-sig);
+
+    return PSUCCEED;		/* can't check for errors */
+}
+
+
+/**
+ * Initialize signal handling for a newly created thread.
+ * Some signal handlers require a setup action in every thread.
+ * This currently only works for threads that are created _after_
+ * the handlers have been set up.
+ */
+int
+ec_thread_reinstall_handlers(void *dummy)
+{
+#if 1
+    /* More generic routine */
+    int sig;
+    for(sig=1; sig<NSIG; sig++)
+    {
+	if (interrupt_handler_flags_[sig] == IH_ECLIPSE_DFL)
+	    _install_int_handler(sig, IH_ECLIPSE_DFL, NULL, NULL);
+    }
+#else
+    /* Required per-thread re-setup for SIGSEGV (found by experiment) */
+    sigaltstack(&sigstack_descr, (stack_t *) 0);
+    Unblock_Signal(SIGSEGV);
+#endif
+    return 0;
+}
+
+
+
+/**
+ * Given tagged integer or atom, return signal number (or negative error code)
+ */
 int ec_signalnum(value vsig, type tsig)
 {
     if (IsInteger(tsig)) {
@@ -802,8 +817,11 @@ int ec_signalnum(value vsig, type tsig)
 }
 
 
+/**
+ * Implements interrupt_id_det(?Number, ?Name)
+ */
 static int
-p_interrupt_id_det(value vnum, type tnum, value vname, type tname)
+p_interrupt_id_det(value vnum, type tnum, value vname, type tname, ec_eng_t *ec_eng)
 {
     if (IsInteger(tnum))
     {
@@ -833,15 +851,14 @@ p_interrupt_id_det(value vnum, type tnum, value vname, type tname)
 }
 
 
-/*
- *		define_error(+Message, -ErrorNumber)
- *
+/**
+ * Implements define_error(+Message, -ErrorNumber)
  */
 
 static int
-p_define_error(value valm, type tagm, value vale, type tage)
+p_define_error(value valm, type tagm, value vale, type tage, ec_eng_t *ec_eng)
 {
-	int m;
+	int m, err;
 
 	Check_String(tagm);
 	Check_Ref(tage);
@@ -854,40 +871,37 @@ p_define_error(value valm, type tagm, value vale, type tage)
 	ErrorMessage[m] = (char *) hg_alloc((int)StringLength(valm)+1);
 	(void) strcpy(ErrorMessage[m], StringStart(valm));
 	error_handler_[m] = qualified_procedure(d_.error_handler,
-		d_.kernel_sepia, d_.kernel_sepia, kernel_tag_);
+		d_.kernel_sepia, d_.kernel_sepia, kernel_tag_, &err);
 	Return_Unify_Integer(vale, tage, m);
 }
 
-/*
+/**
+ * Get a procedure identifier for invoking handler mod:pdid.
  * The handler array entries are considered qualified references
- * from sepia_kernel. If no exported handler exists, we create one.
+ * from sepia_kernel. If no exported handler exists, we create one,
+ * or export an existing local one.
  */
 static pri *
 _kernel_ref_export_proc(dident pdid, dident mod, type mod_tag)
 {
-    pri *pd = visible_procedure(pdid, mod, mod_tag, 0);
+    int err;
+    pri *pd = visible_procedure(pdid, mod, mod_tag, 0, &err);
     if (!pd  ||  PriScope(pd) == LOCAL)
     {
-	int err;
-	Get_Bip_Error(err);	/* reset error code from visible_procedure() */
-	pd = export_procedure(pdid, mod, mod_tag);
+	pd = export_procedure(pdid, mod, mod_tag, &err);
 	if (!pd)
 	    return 0;
     }
     return qualified_procedure(pdid, PriHomeModule(pd),
-    				d_.kernel_sepia, kernel_tag_);
+    				d_.kernel_sepia, kernel_tag_, &err);
 }
 
-/*
- * setting a handler for an existing error code
- * p_set_error_handler(vn,tn,vp,tp)	FUNCTION
- * (vn,tn) defines the error code
- * (vp,tp) defines a handler
+/**
+ * Implements set_error_handler(+EventId, +PredSpec)@Module.
+ * Set a handler for an existing error code or an event name.
  */
-
-/*ARGSUSED*/
 static int
-p_set_error_handler(value vn, type tn, value vp, type tp, value vm, type tm)
+p_set_error_handler(value vn, type tn, value vp, type tp, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	pdid;
     int		err, defers = 0;
@@ -909,12 +923,12 @@ p_set_error_handler(value vn, type tn, value vp, type tp, value vm, type tm)
 	if (defers)
 	    { Bip_Error(UNIMPLEMENTED); }
 	Check_Error_Number(vn, tn)
-	return _set_error_array(error_handler_, vn.nint, pdid, vm, tm);
+	return _set_error_array(error_handler_, vn.nint, pdid, vm, tm, ec_eng);
     }
     else if (IsAtom(tn))
     {
 	pri *proc;
-	pword *prop;
+	pword prop;
 
 	if (DidArity(pdid) > MAX_HANDLER_ARITY)
 	{
@@ -927,13 +941,9 @@ p_set_error_handler(value vn, type tn, value vp, type tp, value vm, type tm)
 	    Bip_Error(err);
 	}
 
-	a_mutex_lock(&PropertyLock);
-	prop = get_property(vn.did, EVENT_PROP);
-	if (!prop)
-	    prop = set_property(vn.did, EVENT_PROP);
-	prop->tag.kernel = TPROC | (defers? EVENT_DEFERS: 0);
-	prop->val.ptr = (pword *) proc;
-	a_mutex_unlock(&PropertyLock);
+	prop.tag.kernel = TPROC | (defers? EVENT_DEFERS: 0);
+	prop.val.ptr = (pword *) proc;
+	set_global_property(vn.did, EVENT_PROP, &prop);
 	Succeed_;
     }
     else
@@ -942,9 +952,12 @@ p_set_error_handler(value vn, type tn, value vp, type tp, value vm, type tm)
     }
 }
 
-/* post events from a list into the event queue */
+/**
+ * Implements post_events(+EventList).
+ * Post events from a list into the event queue
+ */
 static int
-p_post_events(value v, type t)
+p_post_events(value v, type t, ec_eng_t *ec_eng)
 {
     if (IsList(t))
     {
@@ -957,8 +970,8 @@ p_post_events(value v, type t)
 	    if (IsInteger(car->tag)) {
 		Bip_Error(TYPE_ERROR);
 	    }
-	    /* Integers aren't allowed, let ec_post_event type check rest */
-	    res = ec_post_event(*car);
+	    /* Integers aren't allowed, let ecl_post_event type check rest */
+	    res = ecl_post_event(ec_eng, *car);
 	    if (res != PSUCCEED)
 	    {
 		Bip_Error(res);
@@ -982,19 +995,26 @@ p_post_events(value v, type t)
     Check_Nil(t);
 }
 
+/**
+ * Implements set_default_error_handler(+ErrorNumber, +PredSpec)@Module.
+ * Set the default handler for an existing error code.
+ */
 static int
-p_set_default_error_handler(value vn, type tn, value vp, type tp, value vm, type tm)
+p_set_default_error_handler(value vn, type tn, value vp, type tp, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	pdid;
     Check_Error_Number(vn, tn)
     Check_Module(tm, vm);
     Get_Proc_Did(vp, tp, pdid);
-    return _set_error_array(default_error_handler_, vn.nint, pdid, vm, tm);
+    return _set_error_array(default_error_handler_, vn.nint, pdid, vm, tm, ec_eng);
 }
 
-/*ARGSUSED*/
+/**
+ * Helper function to set default_error_handler_[n] or error_handler_[n]
+ * to an appropriate procedure identifier for the handler specified by m:w
+ */
 static int
-_set_error_array(pri **arr, word n, dident w, value vm, type tm)
+_set_error_array(pri **arr, word n, dident w, value vm, type tm, ec_eng_t *ec_eng)
 {
     pri		*proc;
     int		err;
@@ -1022,8 +1042,13 @@ _set_error_array(pri **arr, word n, dident w, value vm, type tm)
     Succeed_;
 }
 
+/**
+ * Implements reset_error_handler(+ErrorId).
+ * For error numbers, reset handler to default setting.
+ * For atomic error names, erase event property.
+ */
 static int
-p_reset_error_handler(value vn, type tn)
+p_reset_error_handler(value vn, type tn, ec_eng_t *ec_eng)
 {
     Error_If_Ref(tn);
     if (IsInteger(tn))
@@ -1034,8 +1059,8 @@ p_reset_error_handler(value vn, type tn)
     }
     else if IsAtom(tn)
     {
-	int err = erase_property(vn.did, EVENT_PROP);
-	if (err < 0)
+	int err = erase_global_property(vn.did, EVENT_PROP);
+	if (err < 0 && err != PERROR)
 	{
 	    Bip_Error(err);
 	}
@@ -1048,8 +1073,11 @@ p_reset_error_handler(value vn, type tn)
 }
 
 
+/**
+ * Implements set_interrupt_handler(+SigNr, +PredSpec)@Module.
+ */
 static int
-p_set_interrupt_handler(value vn, type tn, value vp, type tp, value vm, type tm)
+p_set_interrupt_handler(value vn, type tn, value vp, type tp, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident w;
     pri *proc = 0;
@@ -1087,18 +1115,16 @@ p_set_interrupt_handler(value vn, type tn, value vp, type tp, value vm, type tm)
 	    Bip_Error(err);
 	}
     }
-    err = _install_int_handler(sig, how);
+    err = _install_int_handler(sig, how, proc, ec_eng);
     Return_If_Error(err);
-    if (err == PSUCCEED)        /* do nothing for PFAIL */
-    {
-        interrupt_handler_flags_[sig] = how;
-        interrupt_handler_[sig] = proc;
-    }
     Succeed_;
 }
 
 
-static p_pause(void)
+/**
+ * Implements pause/0.
+ */
+static p_pause(ec_eng_t *ec_eng)
 {
 #ifdef SIGSTOP
     reset_ttys_and_buffers();
@@ -1116,9 +1142,11 @@ static p_pause(void)
 }
 
 
-/*ARGSUSED*/
+/**
+ * Implements get_interrupt_handler(+SigNr, -PredSpec, -Module).
+ */
 static int
-p_get_interrupt_handler(value vn, type tn, value vh, type th, value vm, type tm)
+p_get_interrupt_handler(value vn, type tn, value vh, type th, value vm, type tm, ec_eng_t *ec_eng)
 {
     dident	wdid, module;
     pri		*proc;
@@ -1186,21 +1214,14 @@ p_get_interrupt_handler(value vn, type tn, value vh, type th, value vm, type tm)
 }
 
 
-int
-p_reset(void)
-{
-
-    (void) ec_outfs(current_err_, "Aborting execution....\n");
-    ec_flush(current_err_);
-    ec_panic("reset/0 called",0);
-}
-
-
+/**
+ * Implements get_event_handler(+EventId, -PredSpec, -Module).
+ */
 static int
-p_get_event_handler(value vn, type tn, value vh, type th, value vm, type tm)
+p_get_event_handler(value vn, type tn, value vh, type th, value vm, type tm, ec_eng_t *ec_eng)
 {
     pri *proc;
-    pword *prop, *pw;
+    pword *pw;
     Prepare_Requests;
 
     Error_If_Ref(tn);
@@ -1213,11 +1234,11 @@ p_get_event_handler(value vn, type tn, value vh, type th, value vm, type tm)
     Check_Output_Atom_Or_Nil(vm, tm);
     if (IsAtom(tn))
     {
-      a_mutex_lock(&PropertyLock);
-      prop = get_property(vn.did, EVENT_PROP);
-      a_mutex_unlock(&PropertyLock);
-      if (!prop) Fail_;
-      proc = (pri *) prop->val.ptr;
+      pword prop;
+      int res;
+      res = get_global_property(vn.did, EVENT_PROP, &prop);
+      Return_If_Not_Success(res);
+      proc = (pri *) prop.val.ptr;
     } 
     else if (IsInteger(tn)) 
     {
@@ -1245,28 +1266,78 @@ p_get_event_handler(value vn, type tn, value vh, type th, value vm, type tm)
 #undef Bip_Error
 #define Bip_Error(N) Bip_Error_Fail(N)
 
+/**
+ * Implements valid_error(+ErrorNumber).
+ * Reports errors by failing with bip_error set.
+ */
 static int
-p_valid_error(value vn, type tn)
+p_valid_error(value vn, type tn, ec_eng_t *ec_eng)
 {
     Check_Error_Number(vn,tn);
     Succeed_;
 }
 
-/* undo redefiinition of Bip_Error() */
+/* undo redefinition of Bip_Error() */
 #undef Bip_Error
 #define Bip_Error(N) return(N);
 
 
+/**
+ * Finalize ECLiPSe signal handling.
+ * Reset all signal handlers that are set to Eclipse-specific
+ * handling, because we are about to shut down Eclipse.
+ * Additionally, ignore SIGPIPE, because it might be raised
+ * during cleanup of the Eclipse streams.
+ */
+
+void
+handlers_fini()
+{
+    int i;
+
+    for(i = 1; i < NSIG; i++)
+    {
+	if (InterruptName[i] != D_UNKNOWN)
+	{
+	    switch (interrupt_handler_flags_[i])
+	    {
+	    case IH_ECLIPSE_DFL:
+	    case IH_POST_EVENT:
+	    case IH_THROW:
+	    case IH_ABORT:
+	    case IH_HANDLE_ASYNC:
+	    case IH_HALT:
+		(void) _install_int_handler(i, IH_SYSTEM_DFL, NULL, NULL);
+		break;
+
+	    case IH_UNCHANGED:
+	    case IH_SYSTEM_DFL:
+	    case IH_IGNORE:
+	    default:
+		break;
+	    }
+	}
+    }
+#ifdef SIGPIPE
+    (void) _install_int_handler(SIGPIPE, IH_IGNORE, NULL, NULL);
+#endif
+
+    ecl_free_engine(&ec_.m_sig, 0);
+}
+
+
+/**
+ * Globally initialize ECLiPSe signal handling.
+ */
 void
 handlers_init(int flags)
 {
     register int i;
 
-    first_delayed_ = next_delayed_ = 0;
-
     d_event_ = in_dict("event",1);
     d_throw_ = in_dict("throw",1);
     d_defers_ = in_dict("defers",1);
+    d_fatal_ = in_dict("fatal_signal_caught",0);
     d_internal_ = in_dict("internal",0);
     kernel_tag_.kernel = ModuleTag(d_.kernel_sepia);
 
@@ -1290,12 +1361,15 @@ handlers_init(int flags)
 	    (int *) hg_alloc(NSIG * sizeof(int));
 	InterruptName =
 	    (dident *) hg_alloc(NSIG * sizeof(dident));
+	interrupt_posting_engine_ =
+	    (ec_eng_t **) hg_alloc(NSIG * sizeof(ec_eng_t *));
 
 	for(i = 0; i < NSIG; i++)
 	{
 	    InterruptHandler[i] = (pri *) 0;
 	    InterruptHandlerFlags[i] = IH_UNCHANGED;
 	    InterruptName[i] = D_UNKNOWN;
+	    interrupt_posting_engine_[i] = NULL;
 	}
 
 	/*
@@ -1392,7 +1466,7 @@ handlers_init(int flags)
 #ifdef SIGPWR
 	InterruptName[SIGPWR] = in_dict("pwr", 0);
 #endif
-#ifdef SIGIOT
+#if defined(SIGIOT) && (SIGIOT != SIGABRT)
 	InterruptName[SIGIOT] = in_dict("iot", 0);
 #endif
 #ifdef SIGWAITING
@@ -1477,7 +1551,6 @@ handlers_init(int flags)
 	(void) built_in(in_dict("reset_event_handler", 1),
 				p_reset_error_handler,		B_SAFE);
 
-	(void) local_built_in(d_.reset,		p_reset,	B_SAFE);
 	(void) exported_built_in(in_dict("set_error_handler_", 3),
 				p_set_error_handler,		B_SAFE);
 	(void) exported_built_in(in_dict("set_default_error_handler_", 3),
@@ -1503,14 +1576,13 @@ handlers_init(int flags)
 
     if (flags & INIT_PROCESS)
     {
-	Init_Block_Mask();
 	Save_Sig_Mask(initial_sig_mask_);
+	_setup_signal_thread();		/* could be lazy */
     }
     else		/* on reset signals may need to be unblocked  */
     {
 	Restore_Sig_Mask(initial_sig_mask_);
     }
-    spurious = 0;	/* reset fatal signal nesting indicator */
 
     errno = 0;		/*  we may have ignored some return values ... */
 

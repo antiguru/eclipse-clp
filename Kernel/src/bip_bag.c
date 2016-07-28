@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_bag.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * Version:	$Id: bip_bag.c,v 1.2 2016/07/28 03:34:35 jschimpf Exp $
  *
  * Contents:	Built-ins for the bag-primitives
  *
@@ -36,6 +36,9 @@
 #include        "mem.h"
 #include        "error.h"
 #include	"dict.h"
+#include	"emu_export.h"
+#include	"property.h"
+#include	"os_support.h"
 
 #include        <stdio.h>	/* for sprintf() */
 
@@ -56,6 +59,7 @@
  *
  *----------------------------------------------------------------------*/
 
+static dident d_bag_;
 
 /* INSTANCE TYPE DECLARATION */
 
@@ -63,6 +67,8 @@ typedef struct {
     pword		list[2];
     uword		size;
     uword		ref_ctr;
+    ec_mutex_t		lock;
+    ec_cond_t		cond;
 } t_heap_bag;
 
 
@@ -93,8 +99,10 @@ _erase_heap_bag(t_heap_bag *obj)	/* obj != NULL */
 static void
 _free_heap_bag(t_heap_bag *obj)		/* obj != NULL */
 {
-    if (--obj->ref_ctr <= 0)
+    int rem = atomic_add(&obj->ref_ctr, -1);
+    if (rem <= 0)
     {
+	assert(rem==0);
 	_erase_heap_bag(obj);
 	hg_free_size(obj, sizeof(t_heap_bag));
 #ifdef DEBUG_RECORD
@@ -107,7 +115,7 @@ _free_heap_bag(t_heap_bag *obj)		/* obj != NULL */
 static t_heap_bag *
 _copy_heap_bag(t_heap_bag *obj)		/* obj != NULL */
 {
-    ++obj->ref_ctr;
+    atomic_add(&obj->ref_ctr,1);
     return obj;
 }
 
@@ -138,10 +146,46 @@ _strsz_heap_bag(t_heap_bag *obj, int quoted)	/* obj != NULL */
     return STRSZ_BAG;
 }
 
+static dident
+_kind_bag()
+{
+    return d_bag_;
+}
+
+static int
+_lock_bag(t_heap_bag *obj)
+{
+    return mt_mutex_lock(&obj->lock);
+}
+
+static int
+_trylock_bag(t_heap_bag *obj)
+{
+    return mt_mutex_trylock(&obj->lock);
+}
+
+static int
+_unlock_bag(t_heap_bag *obj)
+{
+    return mt_mutex_unlock(&obj->lock);
+}
+
+static int
+_signal_bag(t_heap_bag *obj, int all)
+{
+    return ec_cond_signal(&obj->cond, all);
+}
+
+static int
+_wait_bag(t_heap_bag *obj, int timeout_ms)
+{
+    return ec_cond_wait(&obj->cond, &obj->lock, timeout_ms);
+}
+
 
 /* CLASS DESCRIPTOR (method table) */
 
-t_ext_type heap_bag_tid = {
+const t_ext_type heap_bag_tid = {
     (void (*)(t_ext_ptr)) _free_heap_bag,
     (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_bag,
     (void (*)(t_ext_ptr)) _mark_heap_bag,
@@ -150,14 +194,20 @@ t_ext_type heap_bag_tid = {
     0,	/* equal */
     (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_bag,
     0,	/* get */
-    0	/* set */
+    0,	/* set */
+    _kind_bag,				/* kind */
+    (int (*)(t_ext_ptr)) _lock_bag,	/* lock */
+    (int (*)(t_ext_ptr)) _trylock_bag,	/* trylock */
+    (int (*)(t_ext_ptr)) _unlock_bag,	/* unlock */
+    (int (*)(t_ext_ptr,int)) _signal_bag,
+    (int (*)(t_ext_ptr,int)) _wait_bag
 };
 
 
 /* PROLOG INTERFACE */
 
 static int
-p_bag_create(value vbag, type tbag)
+p_bag_create(value vbag, type tbag, ec_eng_t *ec_eng)
 {
     t_heap_bag *obj;
     pword bag;
@@ -170,12 +220,14 @@ p_bag_create(value vbag, type tbag)
     obj->ref_ctr = 1;
     Make_List(obj->list, obj->list);	/* pointer to last element (self) */
     Make_Nil(&obj->list[1]);
-    bag = ec_handle(&heap_bag_tid, (t_ext_ptr) obj);
+    mt_mutex_init_recursive(&obj->lock);
+    ec_cond_init(&obj->cond);
+    bag = ecl_handle(ec_eng, &heap_bag_tid, (t_ext_ptr) obj);
     Return_Unify_Pw(vbag, tbag, bag.val, bag.tag);
 }
 
 static int
-p_bag_enter(value vbag, type tbag, value vterm, type tterm)
+p_bag_enter(value vbag, type tbag, value vterm, type tterm, ec_eng_t *ec_eng)
 {
     t_heap_bag *obj;
     pword copy_pw, *pw;
@@ -183,21 +235,20 @@ p_bag_enter(value vbag, type tbag, value vterm, type tterm)
 
     Get_Typed_Object(vbag, tbag, &heap_bag_tid, obj);
 
-    if ((err = create_heapterm(&copy_pw, vterm, tterm)) != PSUCCEED)
+    if ((err = create_heapterm(ec_eng, &copy_pw, vterm, tterm)) != PSUCCEED)
 	{ Bip_Error(err); }
-    a_mutex_lock(&SharedDataLock);
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);
     pw = (pword *) hg_alloc_size(2*sizeof(pword));
     move_heapterm(&copy_pw, pw);
     Make_Nil(pw + 1);
     Make_List(obj->list[0].val.ptr + 1, pw);
     obj->list[0].val.ptr = pw;
     ++obj->size;
-    a_mutex_unlock(&SharedDataLock);
     Succeed_;
 }
 
 static int
-p_bag_retrieve(value vbag, type tbag, value vl, type tl)
+p_bag_retrieve(value vbag, type tbag, value vl, type tl, ec_eng_t *ec_eng)
 {
     t_heap_bag *obj;
     pword list;
@@ -205,6 +256,7 @@ p_bag_retrieve(value vbag, type tbag, value vl, type tl)
 
     Get_Typed_Object(vbag, tbag, &heap_bag_tid, obj);
     Check_Output_List(tl);
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);
     pw = &obj->list[1];
     cdr = &list;
     while (IsList(pw->tag))
@@ -213,7 +265,7 @@ p_bag_retrieve(value vbag, type tbag, value vl, type tl)
         car = TG;
         Push_List_Frame();
         Make_List(cdr, car);
-	get_heapterm(pw, car);
+	get_heapterm(ec_eng, pw, car);
         cdr = car + 1;
 	pw += 1;
     }
@@ -222,16 +274,17 @@ p_bag_retrieve(value vbag, type tbag, value vl, type tl)
 }
 
 static int
-p_bag_erase(value vbag, type tbag)
+p_bag_erase(value vbag, type tbag, ec_eng_t *ec_eng)
 {
     t_heap_bag *obj;
     Get_Typed_Object(vbag, tbag, &heap_bag_tid, obj);
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);
     _erase_heap_bag(obj);
     Succeed_;
 }
 
 static int
-p_bag_count(value vbag, type tbag, value vc, type tc)
+p_bag_count(value vbag, type tbag, value vc, type tc, ec_eng_t *ec_eng)
 {
     t_heap_bag *obj;
     Check_Output_Integer(tc);
@@ -240,10 +293,10 @@ p_bag_count(value vbag, type tbag, value vc, type tc)
 }
 
 static int
-p_bag_dissolve(value vbag, type tbag, value vl, type tl)
+p_bag_dissolve(value vbag, type tbag, value vl, type tl, ec_eng_t *ec_eng)
 {
-    int res = p_bag_retrieve(vbag, tbag, vl, tl);
-    p_handle_free(vbag, tbag);
+    int res = p_bag_retrieve(vbag, tbag, vl, tl, ec_eng);
+    p_handle_free(vbag, tbag, ec_eng);
     return res;
 }
 
@@ -255,6 +308,8 @@ p_bag_dissolve(value vbag, type tbag, value vl, type tl)
 void
 bip_bag_init(int flags)
 {
+    d_bag_ = in_dict("bag", 0);
+
     if (flags & INIT_SHARED)
     {
 	(void) built_in(in_dict("bag_create", 1), p_bag_create, B_SAFE|U_SIMPLE);

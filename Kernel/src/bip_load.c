@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_load.c,v 1.3 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: bip_load.c,v 1.4 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -34,7 +34,6 @@
 #include "config.h"
 
 #ifdef _WIN32
-#include <windows.h>
 #else
 #include <sys/types.h>
 #include <stdio.h>
@@ -74,7 +73,7 @@ extern char	*strcpy();
 extern char	*sbrk();
 #endif
 
-#if defined(HAVE_DLOPEN) || defined(HAVE_NLIST) || defined(_WIN32) || defined(HAVE_MACH_O_DYLD_H)
+#if defined(HAVE_DLOPEN) || defined(_WIN32) || defined(HAVE_MACH_O_DYLD_H)
 #define D_DEF
 #endif
 
@@ -83,10 +82,6 @@ extern char	*sbrk();
 #    define D_LOAD
 #  endif
 #endif
-
-/* We consider BSD-type dynamic loading with ld -A, or SVR4
- * dynamic linking or AIX (IBM rs6000) using load()
- */
 
 #if (defined(HAVE_DLOPEN) && !defined(sun4_0)) || defined(HAVE_MACH_O_DYLD_H)
 # define OS_SUPPORTS_DL
@@ -125,16 +120,6 @@ extern char	*sbrk();
 #endif /* HAVE_DLOPEN */
 
 
-#define SEPIA_TMP	"/tmp"
-
-unsigned ec_vers = 0;
-
-pword	*p_whoami_;
-pword	*p_binary_;
-
-dident	d_hostarch_;
-
-
 #if defined(D_LOAD) && defined(D_DEF)
 
 /****************************************************************
@@ -158,9 +143,7 @@ struct dload_info {
 static struct dload_info *dload_list = 0;
 
 static int 
-p_load(v, t)
-value v;
-type t;
+p_load(value v, type t, ec_eng_t *ec_eng)
 {
     char *name;
     char buf1[MAX_PATH_LEN];
@@ -224,7 +207,7 @@ static struct dload_info *dload_list = 0;
 
 
 static int 
-p_load(value v, type t)
+p_load(value v, type t, ec_eng_t *ec_eng)
 {
     char buf1[MAX_PATH_LEN];
     char *name;
@@ -262,304 +245,20 @@ bip_load_fini(void)
 }
 
 #else /*!OS_SUPPORTS_DL */
-#ifdef _AIX
-/* In AIX we have to keep track of each dynamically loaded file in order
-to use nlist with it in ec_getaddress(). */
-
-struct dload_info {
-  char *filename;
-  char *entryproc;
-  void (*funcp)();
-  struct dload_info *next;
-};
-
-static struct dload_info *dload_list;
-
-static int 
-p_load(value v, type t)
-{
-    char *name;
-    int  res;
-    char fullname[MAX_PATH_LEN];
-    long tsize;
-    char	*tmpdir;
-    char	*loader;
-
-    Get_Name(v,t,name)			/* get the name of the file */
-    name = expand_filename(name, fullname, EXPAND_ABSOLUTE);
-    if(!IsString(p_whoami_->tag)) {
-	Bip_Error(TYPE_ERROR)
-    }
-					/* identifier for temporary */
-    tmpdir = getenv("ECLIPSETMP");
-    if (!tmpdir)
-	tmpdir = SEPIA_TMP;
-    loader = getenv("ECLIPSELOADER");
-    if (!loader)
-	loader = "ld";
-
-    res = _load_once(loader, name, tmpdir);
-    if (res < 0)
-    {
-	Bip_Error(res);
-    }
-    ec_vers++;
-    return(PSUCCEED);
-}
-
-_load_once(char *loader, char *vstr, char *tmpdir)
-{
-    FILE *f;
-    extern int	sys_nerr;
-    int		res;
-    char buf[1024];	/* buf will hold the loader command */
-    char *temp, *entryproc; 
-    char dummy[MAX_PATH_LEN + 30];
-    char expsympath[1024], tmpsympath[1024];
-    void (*funcp)();
-    struct dload_info *cur;
-
-    temp = (char *) hg_alloc(MAX_PATH_LEN + 30);
-    entryproc = (char *) hg_alloc(MAX_PATH_LEN + 30);
-
-    (void) sprintf(temp, "%s/eclipse.%d.%d", tmpdir, getpid(), ec_vers);
-    					/* file which will hold linked code */
-    (void) sprintf(dummy,"%s/eclipse_dummy.%d.%d",tmpdir,getpid(),ec_vers);
-                                        /* dummy file needed to defiine a 
-					   known entry point */
-    (void) sprintf(entryproc,"eclipse_dummy_entry%d",ec_vers);
-                                        /* name of entry procedure */
-
-    /* create dummy entry proc */
-
-    if(!(f = fopen(dummy,"w")))
-      {
-	if (!errno)
-	    errno = sys_nerr;
-	Set_Errno
-	return(SYS_ERROR);
-      }
-
-    (void) fprintf(f,"int %s() \n { return(0); } \n",entryproc);
-    (void) fclose(f);
-
-    (void) sprintf(buf,"cd %s; mv %s %s.c; cc -c %s.c; /bin/rm %s.c\n",
-	         tmpdir, dummy, dummy, dummy, dummy);
-
-    strcat(dummy,".o");    
-    res = system(buf);
-    if (res != 0) {
-      (void) unlink(dummy);
-      Set_Errno
-      return(SYS_ERROR);
-    }
-
-    (void) sprintf(tmpsympath, "%s/tmpsymXXXXXX",tmpdir);
-    mktemp(tmpsympath);
-
-    {
-      pword *library;
-      Get_Kernel_Var(in_dict("library",0), library);
-      
-      /* the loader command we will execute */
-      (void) sprintf(buf,"echo \"#! %s\" > %s; cat %s/%s/%s>>%s; %s -H512 -T512 %s %s -e %s  -bI:%s -bfl -bgcbypass:2 -o %s -lc",
-	     StringStart(p_whoami_->val),tmpsympath,
-	     StringStart(library->val), HOSTARCH, "expsymtab", tmpsympath,
-	     loader,dummy,vstr,entryproc, tmpsympath,temp);
-    }
-
-    res = system(buf);
-    (void) unlink(dummy);
-    (void) unlink(tmpsympath);
-
-    if(res != 0) {
-	(void) unlink(temp);	/* if there was a problem, remove temporary */
-	if (!errno)
-	    errno = sys_nerr;
-	Set_Errno
-	return(SYS_ERROR);
-    }				/* everything was ok */
-
-    /* Now dynamically link code in temp using load() */
-   if (!(funcp=(void (*)())load(temp, 0, NULL)))
-     {
-       (void) unlink(temp);
-       Set_Errno
-       return(SYS_ERROR);
-     }
-
-    /* keep track of the loaded file and its entrypoint */
-    if (ec_vers == 0)
-      {
-	dload_list = (struct dload_info *) 
-	             hg_alloc(sizeof(struct dload_info));
-	cur = dload_list;
-	cur->next = NULL;
-      }
-    else
-      {
-	cur = (struct dload_info *) 
-	             hg_alloc(sizeof(struct dload_info));
-	cur->next = dload_list;
-	dload_list = cur;
-      }
-    cur->filename = temp;
-    cur->funcp = funcp;
-    cur->entryproc = entryproc;
-    return PSUCCEED;
-}
-
-void
-bip_load_fini()
-{
-    if (ec_vers > 0)
-    {
-	struct dload_info *cur = dload_list;
-
-	while(cur != NULL)
-	{
-	    unlink(cur->filename);
-	    cur = cur->next;
-	}
-    }
-}
-
-#else
 
 static generic_ptr dload_list = 0;
 
 static int 
-p_load(value v, type t)
+p_load(value v, type t, ec_eng_t *ec_eng)
 {
-    char *name;
-    char *end;
-    int size, res;
-    int fd;
-    char buf[1024];	/* buf will hold the loader command */
-    char temp[MAX_PATH_LEN + 30];
-    char fullname[MAX_PATH_LEN];
-    long tsize;
-    char	*tmpdir;
-    char	*loader;
-
-    Get_Name(v,t,name)			/* get the name of the file */
-    name = expand_filename(name, fullname, EXPAND_ABSOLUTE);
-    if(!IsString(p_whoami_->tag)) {
-	Bip_Error(TYPE_ERROR)
-    }
-    end = (char *) sbrk(0);			/* end of memory */
-					/* identifier for temporary */
-    tmpdir = getenv("ECLIPSETMP");
-    if (!tmpdir)
-	tmpdir = SEPIA_TMP;
-    loader = getenv("ECLIPSELOADER");
-    if (!loader)
-	loader = "ld";
-    (void) sprintf(temp, "%s/eclipse.%d.%d", tmpdir, getpid(), ec_vers);
-    					/* file which will keep the symbol */
-					/* table and the linked code */
-    res = _load_once(buf, loader, end, name, temp, &size, &tsize, &fd);
-    if (res < 0)
-    {
-	Bip_Error(res);
-    }
-
-    end = (char *) sbrk((int) tsize);
-
-    if(size != read(fd, end, size))	/* read in the code */
-    {
-	(void) close(fd);
-	(void) unlink(temp);
-	Set_Errno
-	Bip_Error(SYS_ERROR)
-    }
-    (void) close(fd);				/* that is all */
-
-    if (ec_vers > 0)			/* remove previous temporary if any */
-	(void) unlink(StringStart(p_whoami_->val));
-
-    free_heapterm(p_whoami_);
-    set_string(p_whoami_, temp);
-    ec_vers++;
-    return(PSUCCEED);
-}
-
-_load_once(char buf[], char *loader, char *end, char *vstr, char *temp,
-	int *size, long *tsize, int *fd)
-{
-    extern int		sys_nerr;
-    int			res;
-#ifdef FileHeader
-    struct FileHeader	filehdr;
-#endif
-    struct AoutHeader	hr;
-
-    /* the loader command we will execute */
-    /* "-N" needed to avoid wasting space and avoid alignment problems */
-#ifdef sun4_0
-/*
- * There is a bug in SUNOS 4.0: when a file is dynamically loaded with
- * ld -A, the new symbol table which is created contains a wrong
- * _DYNAMIC_ symbol so that when a savecore with this table is made,
- * dbx is unable to work on the resulting binary. We fix it by loading
- * the file aux.o which contains  a reference to the _DYNAMIC_ symbol
- * so that it is defined in the new symbol table.
- */
-    {
-	pword *library;
-	Get_Kernel_Var(in_dict("library",0), library);
-
-	(void) sprintf(buf,
-		"%s -N -A %s -T %x -o %s %s/%s/%s %s -lc 1>&2",
-		loader,
-    		StringStart(p_whoami_->val), end, temp,
-		StringStart(library->val), HOSTARCH, "auxiliary.o", vstr);
-    }
-#else
-    (void) sprintf(buf,
-#ifdef hpux
-		"%s -a archive -N -A %s -R %x -o %s %s /lib/dyncall.o -lc 1>&2",
-#else
-		"%s -N -A %s -T %x -o %s %s -lc 1>&2",
-#endif
-		loader,
-    		StringStart(p_whoami_->val), end, temp, vstr);
-#endif
-    res = system(buf);
-    if(res != 0) {
-	(void) unlink(temp);	/* if there was a problem, remove temporary */
-	if (!errno)
-	    errno = sys_nerr;
-	Set_Errno
-	return(SYS_ERROR);
-    }				/* everything was ok */
-    if((*fd = open(temp, O_RDWR)) < 0) {	/* try to open temp */
-        Set_Errno
-	return(SYS_ERROR);
-    }
-
-    /* read in the header information */
-#ifdef FileHeader
-    (void) read(*fd, (char *) &filehdr, sizeof(filehdr));
-    (void) read(*fd, (char *) &hr, sizeof(hr));
-    (void) lseek(*fd, (long) N_TXTOFF(filehdr, hr), L_SET);
-#else
-    (void) read(*fd, (char *) &hr, sizeof(hr));
-    (void) lseek(*fd, (long) N_TXTOFF(hr), L_SET);
-#endif
-    *size = TD_SIZE(hr);
-    *tsize = (((*size + BS_SIZE(hr)) + 511)/ 512) * 512;
-    return PSUCCEED;
+    Bip_Error(UNIMPLEMENTED);
 }
 
 void
 bip_load_fini()
 {
-    if (IsString(p_whoami_->tag) && ec_vers > 0)
-	(void) unlink(StringStart(p_whoami_->val));
 }
 
-#endif /* _AIX */
 #endif /* OS_SUPPORTS_DL */
 #endif /* _WIN32 */
 
@@ -629,119 +328,13 @@ ec_getaddress(char *s)
 }
 
 #else
-#ifdef _AIX
-/* For AIX we have to return a function descriptor which contains
-not only the address of the function, but also the location of 
-the table of contents (toc). */
-
-struct func_descriptor {
-  int address;
-  int toc;
-};
 
 word
 ec_getaddress(char *s)
 {
-    struct nlist lis[4];
-    struct func_descriptor *fdesc;
-    extern char _text[ ], _data[ ];
-    int found = 0;
-    int n = strlen(s);
-    uword *wp = (uword *) hg_alloc( n + 2);
-    char *p = (char *) wp;
-
-    *p = '.';
-    (void) strcpy(p + 1, s);
-    
-    lis[0].n_value = 0;
-    lis[0].n_name = p;
-    lis[1].n_value = 0;
-    lis[1].n_name = "_text";
-    lis[2].n_value = 0;
-    lis[2].n_name = "TOC";
-    lis[3].n_name = "";
-    n = nlist(StringStart(p_whoami_->val),lis);
-    if (lis[0].n_value && lis[1].n_value && lis[2].n_value)
-      {
-	fdesc = (struct func_descriptor *)
-	  hg_alloc(sizeof(struct func_descriptor));
-	fdesc->address = (int) _text + lis[0].n_value - lis[1].n_value;
-	fdesc->toc = (int) _data + lis[2].n_value;
-	found = 1;
-      }
-#ifdef D_LOAD
-    if (!found && (ec_vers > 0))   /* a dynamic load has been performed */
-      {
-	struct dload_info *cur = dload_list;
-	while ((!found)  && cur)
-	  {
-	    char *real_entryproc = (char *) 
-		  hg_alloc((long)strlen(cur->entryproc) + 2);
-	    
-	    *real_entryproc = '.';
-	    (void) strcpy(real_entryproc + 1, cur->entryproc);
-	    
-	    lis[0].n_value = 0;
-	    lis[0].n_name = real_entryproc;
-	    lis[1].n_value = 0;
-	    lis[1].n_name = p;
-	    lis[2].n_name = "";
-	    
-	    n = nlist(cur->filename,lis);
-	    if (lis[0].n_value  && lis[1].n_value)
-	      {
-		int temp;
-		    
-		fdesc = (struct func_descriptor *)
-		  hg_alloc(sizeof(struct func_descriptor));
-		fdesc->address = (* (int *) (cur->funcp)) + 
-		  lis[1].n_value - lis[0].n_value;
-		temp = (int) (cur->funcp);
-		fdesc->toc = *(((int *) temp) + 1);
-		found = 1;
-	      }
-	    else
-	      cur = cur->next;
-	    hg_free(real_entryproc);
-	  }
-      }
-#endif
-    hg_free(wp);
-    if (found) 
-      return( (int) fdesc);
-    else
-      return 0;
-  }
-	
-#else
-
-word
-ec_getaddress(char *s)
-{
-    struct nlist lis[2];
-    lis[0].n_value = 0;
-    lis[0].N_NAME = s;
-    lis[1].N_NAME = 0;
-
-    if(nlist(StringStart(p_whoami_->val), lis) < 0 || lis[0].n_value == 0)
-    {
-	    int n = strlen(s);
-	    uword *wp = (uword *) hg_alloc(n + 2);
-	    char *p = (char *) wp;
-	    *p = '_';
-	    (void) strcpy(p + 1, s);
-	    lis[0].n_value = 0;
-	    lis[0].N_NAME = p;
-	    lis[1].N_NAME = 0;
-	    n = nlist(StringStart(p_whoami_->val), lis);
-	    hg_free((generic_ptr) wp);
-	    if(n < 0 || lis[0].n_value == 0)
-	    	return 0;
-    }
-    return(lis[0].n_value);
+    return 0;
 }
 
-#endif
 #endif
 #endif
 
@@ -755,11 +348,12 @@ ec_getaddress(char *s)
 
 #define MAX_CALL_C_ARITY	10
 static int
-p_call_c(value v, type t, value vr, type tr)
+p_call_c(value v, type t, value vr, type tr, ec_eng_t *ec_eng)
 {
     word foo, aux;
     int arity;
     pword *p, *pw;
+    pword prop;
     value arg[MAX_CALL_C_ARITY];
     dident mydid;
     double	f;
@@ -800,22 +394,10 @@ p_call_c(value v, type t, value vr, type tr)
     }
     arity = DidArity(mydid);
     mydid = add_dict(mydid, 0);
-    if(pw = get_property(mydid, SYSCALL_PROP))
+    if (get_global_property(mydid, SYSCALL_PROP, &prop) == PSUCCEED)
     {
-	if(IsInteger(pw->tag))
-	{
-	    foo = pw->val.nint;
-	}
-	else
-	{
-	    foo = ec_getaddress(DidName(mydid));
-	    if(!foo)
-	    {
-		Bip_Error(NOCODE);
-	    }
-	    pw->tag.kernel = TINT;
-	    pw->val.nint = foo;
-	}
+	assert(IsInteger(prop.tag));
+	foo = prop.val.nint;
     }
     else
     {
@@ -824,9 +406,8 @@ p_call_c(value v, type t, value vr, type tr)
 	{
 	    Bip_Error(NOCODE);
 	}
-	pw = set_property(mydid, SYSCALL_PROP);
-	pw->tag.kernel = TINT;
-	pw->val.nint = foo;
+	Make_Integer(&prop, foo);
+	set_global_property(mydid, SYSCALL_PROP, &prop);
     }
     aux = 0;
     				/* arguments translation */
@@ -978,7 +559,7 @@ p_call_c(value v, type t, value vr, type tr)
 }
 
 static int
-p_symbol_address(value vals, type tags, value vala, type taga)
+p_symbol_address(value vals, type tags, value vala, type taga, ec_eng_t *ec_eng)
 {
 	char	*name;
 	word	symbol;
@@ -1010,7 +591,7 @@ Not_Available_Built_In(p_call_c)
 
 /*ARGSUSED*/
 static int
-p_licence_checkout(value vfeature, type tfeature, value vpol, type tpol, value vversion, type tversion, value vlicloc, type tlicloc, value vmsg, type tmsg, value vstat, type tstat)
+p_licence_checkout(value vfeature, type tfeature, value vpol, type tpol, value vversion, type tversion, value vlicloc, type tlicloc, value vmsg, type tmsg, value vstat, type tstat, ec_eng_t *ec_eng)
 {
     pword pw;
     Prepare_Requests;
@@ -1022,21 +603,21 @@ p_licence_checkout(value vfeature, type tfeature, value vpol, type tpol, value v
 
 /*ARGSUSED*/
 static int
-p_licence_held(value vfeature, type tfeature)
+p_licence_held(value vfeature, type tfeature, ec_eng_t *ec_eng)
 {
     Fail_;
 }
 
 /*ARGSUSED*/
 static int
-p_licence_checkin(value vfeature, type tfeature)
+p_licence_checkin(value vfeature, type tfeature, ec_eng_t *ec_eng)
 {
     Succeed_;
 }
 
 /*ARGSUSED*/
 static int
-p_licence_heartbeat(value vfeature, type tfeature, value vminutes, type tminutes, value vrec, type trec, value vfrec, type tfrec)
+p_licence_heartbeat(value vfeature, type tfeature, value vminutes, type tminutes, value vrec, type trec, value vfrec, type tfrec, ec_eng_t *ec_eng)
 {
     Fail_;
 }
@@ -1064,7 +645,7 @@ _pt_init(int flags)
 	int (*init_fct)();
 
 	Make_Atom(&pw, in_dict(pteclipse,0));	/* load it */
-	if (p_load(pw.val, pw.tag) != PSUCCEED)
+	if (p_load(pw.val, pw.tag, NULL) != PSUCCEED)
 	    ec_panic("Can't load library file", pteclipse);
 
 	init_fct = (int(*)()) ec_getaddress("pteclipse_init");
@@ -1105,15 +686,6 @@ bip_load_init(int flags)
 
 	_pt_init(flags);
     }
-
-    /* whoami and binary are properly initialized in top.pl */
-    dummy_v1.nint = 0;
-    p_whoami_ = init_kernel_var(flags, in_dict("whoami", 0), dummy_v1, tint);
-    p_binary_ = init_kernel_var(flags, in_dict("binary", 0), dummy_v1, tint);
-
-    d_hostarch_ = in_dict(HOSTARCH, 0);
-
-    ec_vers = 0;
 
     dload_list = 0;
 #ifndef _WIN32

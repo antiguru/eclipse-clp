@@ -1309,7 +1309,7 @@ Error:
    Apart from error handling, this is a shorthand for
 <PRE>
     text_to_string(Text, String) :-
-	( Text == [] -> String = ""
+	( Text == [] -> String = \"\"
 	; atom(Text) -> atom_string(Text, String)
     	; string(Text) -> String = Text
 	; is_list(Text), Text = [C|_], atom(C) -> string_chars(String, Text)

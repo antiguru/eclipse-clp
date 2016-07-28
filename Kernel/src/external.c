@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: external.c,v 1.1 2008/06/30 17:43:55 jschimpf Exp $
+ * VERSION	$Id: external.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -44,7 +44,7 @@
 
 
 int
-ec_remember(int n, value v, type t)
+ec_remember(ec_eng_t *ec_eng, int n, value v, type t)
 {
 	control_ptr     p1;
 	int             i;
@@ -77,7 +77,7 @@ ec_remember(int n, value v, type t)
 }
 
 void
-cut_external(void)
+cut_external(ec_eng_t *ec_eng)
 {
     (B.top-1)->backtrack = external_fail_code_;
 }

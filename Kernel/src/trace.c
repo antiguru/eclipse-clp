@@ -121,7 +121,7 @@ init_trace_file_names()
 	  tmpdir, ParallelWorker,session_key);
 }
 
-p_start_trace()
+p_start_trace(ec_eng_t *ec_eng)
 {
   tracing = -1;
   start_tracing_message();
@@ -137,7 +137,7 @@ start_tracing_message()
   send_simple_wm_message(wm_low_aport_id, START_TRACING);
 }
 
-p_stop_trace()
+p_stop_trace(ec_eng_t *ec_eng)
 {
   LOG_EVENT(IDLE);
   stop_tracing_message();
@@ -180,8 +180,7 @@ log_reset()
 	wstat_.cumulated_event_time[i] = 0;
 }
 
-log_init(event)
-int event;
+log_init(int event)
 {
     wstat_.trace_stack_ptr = 0;
     wstat_.current_activity = event;
@@ -198,9 +197,7 @@ trace_header_t * get_trace_ptr()
   return(&theader);
 }
 
-p_write_traces(v_widlist, t_widlist, v_filename, t_filename)
-value v_widlist, v_filename;
-type t_widlist, t_filename;
+p_write_traces(value v_widlist, type t_widlist, value v_filename, type t_filename, ec_eng_t *ec_eng)
 {
 
   pword *p;
@@ -284,8 +281,7 @@ type t_widlist, t_filename;
     }
 }
 
-write_trace_buffer(full)
-int full;
+write_trace_buffer(int full)
 {
   int i,ub;
 
@@ -311,8 +307,7 @@ int full;
 
 
 
-print_trace(trace_header)
-trace_header_t * trace_header;
+print_trace(trace_header_t * trace_header)
 {
   hrtime_t trace_start;
   word utime, hrtime_to_usec();
@@ -391,8 +386,7 @@ __psunsigned_t phys_addr, raddr;
 
 }
 /* convert time returned by high-resolution  clock to microseconds */
-word hrtime_to_usec(hrtime)
-hrtime_t hrtime;
+word hrtime_to_usec(hrtime_t hrtime)
 {
     unsigned long long temp; /* just in case unsinged long long > 64 bits */
   
@@ -401,8 +395,7 @@ hrtime_t hrtime;
   return((word) temp);
 }
 
-double hrtime_to_msec(hrtime)
-hrtime_t hrtime;
+double hrtime_to_msec(hrtime_t hrtime)
 {
   double temp;
   temp = (hrtime / 1000000000.0);
@@ -415,14 +408,12 @@ void init_hrclock()
 { }
 
 /* convert time returned by high-resolution  clock to microseconds */
-word hrtime_to_usec(hrtime)
-hrtime_t hrtime;
+word hrtime_to_usec(hrtime_t hrtime)
 {
   return((word) (hrtime / 1000));
 }
 
-double hrtime_to_msec(hrtime)
-hrtime_t hrtime;
+double hrtime_to_msec(hrtime_t hrtime)
 {
   return((hrtime / 1000000.0));
 }
@@ -432,19 +423,17 @@ hrtime_t hrtime;
 #else  /* WORKER_TRACING */
 
 /*ARGSUSED*/
-p_write_traces(v_widlist, t_widlist, v_filename, t_filename)
-value v_widlist, v_filename;
-type t_widlist, t_filename;
+p_write_traces(value v_widlist, type t_widlist, value v_filename, type t_filename, ec_eng_t *ec_eng)
 {
   Succeed_
 }
 
-p_start_trace()
+p_start_trace(ec_eng_t *ec_eng)
 {
   Succeed_
 }
 
-p_stop_trace()
+p_stop_trace(ec_eng_t *ec_eng)
 {
   Succeed_
 }
@@ -489,9 +478,8 @@ wstat_init()
 
 #define WSTAT_ITEMS (13 + MAX_NUM_EVENTS)
 
-p_worker_stat(vwid, twid, vstat, tstat)
-value vwid, vstat;
-type twid, tstat;
+int
+p_worker_stat(value vwid, type twid, value vstat, type tstat, ec_eng_t *ec_eng)
 {
     struct worker_stat_ext s;
     pword *p;
@@ -532,9 +520,8 @@ type twid, tstat;
     Return_Unify_Structure(vstat, tstat, p);
 }
 
-p_worker_stat_reset(vwid, twid)
-value vwid;
-type twid;
+int
+p_worker_stat_reset(value vwid, type twid, ec_eng_t *ec_eng)
 {
     Check_Integer(twid);
     if (vwid.nint == ParallelWorker)
@@ -555,8 +542,7 @@ type twid;
 
 /* called on the worker that provides the statistics data */
 
-int get_worker_stat(wstat_ext1)
-struct worker_stat_ext * wstat_ext1;
+int get_worker_stat(struct worker_stat_ext * wstat_ext1)
 {
     /* to force updating the cumulative counters */
     LOG_EVENT_PUSH(TRACE_BUF_OVERFLOW)
@@ -565,9 +551,7 @@ struct worker_stat_ext * wstat_ext1;
     convert_to_ext(wstat_,wstat_ext1);
 }
 
-int convert_to_ext(w,wext)
-struct worker_stat w;
-struct worker_stat_ext *wext;
+int convert_to_ext(struct worker_stat w, struct worker_stat_ext *wext)
 {
   int i;
 
@@ -610,9 +594,7 @@ reset_worker_stat()
 #endif
 }
 
-wstat_types_init(mdt_wstat)
-amsg_type_t * mdt_wstat;
-
+wstat_types_init(amsg_type_t * mdt_wstat)
 {
   amsg_typedef_t template[33];
 
@@ -655,8 +637,7 @@ amsg_type_t * mdt_wstat;
 }
 
 #ifdef WORKER_TRACING
-trace_types_init(mdt_trace)
-amsg_type_t * mdt_trace;
+trace_types_init(amsg_type_t * mdt_trace)
 {
   amsg_type_t template[6];
 

@@ -186,7 +186,7 @@ session_init(session_t ** session);
 
 int 
 session_start(session_t * session, char * username, char * host, 
-              char * password, value v_opts);
+              char * password, value v_opts, ec_eng_t *ec_eng);
 
 void
 session_error_value(session_t * session, int * code, char ** msg);
@@ -245,7 +245,10 @@ int
 cursor_one_tuple(cursor_t *cursor);
 
 int 
-cursor_N_tuples(cursor_t* cursor, word* n, pword* tuple_listp, pword** tp);
+cursor_N_tuples(cursor_t* cursor, word* n, pword* tuple_listp, pword** tp, ec_eng_t*);
+
+int 
+cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples, pword ** cdrp, ec_eng_t *ec_eng);
 
 int
 cursor_all_tuples(cursor_t * cursor, template_t * template, void * buffer);
@@ -259,6 +262,16 @@ cursor_tostr(cursor_t * cursor, char *buf, int quoted);
 void
 cursor_free(cursor_t * cursor);
 
+int
+template_get(value v,type t,template_t * * template_out, ec_eng_t *ec_eng);
+
+int
+template_put(int tuple_num, template_t * template,sql_t sql_type,
+	void * buffer, void * lengths, pword * tuple, ec_eng_t *ec_eng);
+
+int
+template_bind(int tuple_num, template_t * template,char * buffer,
+	void * lengths,pword * tuple,ec_eng_t *ec_eng);
 
 void
 dbi_init();

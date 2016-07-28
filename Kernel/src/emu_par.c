@@ -138,7 +138,7 @@ static int copy_count_;		/* debugging */
  * Testing
  *---------------------------------------------*/
 
-#define Notify(text) { if (GlobalFlags & ENG_TRACE_FLAG) {\
+#define Notify(text) { if (EclGblFlags & ENG_TRACE_FLAG) {\
 	p_fprintf(current_err_, text); ec_flush(current_err_); }}
 
 
@@ -1322,7 +1322,7 @@ eng_donate_state(eng_handle_t m, const st_handle_t *dest_node, const st_handle_t
 	    return;
 	}
 
-	if (!(GlobalFlags & FULL_COPY))
+	if (!(EclGblFlags & FULL_COPY))
 	{
 
 	    /* Now copy the stacks above bcommon to shared memory.
@@ -1446,7 +1446,7 @@ eng_accept_state(amsg_t msg, amsg_data_t *msg_data, amsg_count_t msg_size)
 	_adjust_engine();
 
 #if 0
-	if (GlobalFlags & ENG_TRACE_FLAG)
+	if (EclGblFlags & ENG_TRACE_FLAG)
 	{
 	    p_fprintf(current_err_, "FO = 0x%x, B = 0x%x\n", FO, B.args);
 	}
@@ -1495,7 +1495,7 @@ eng_accept_state(amsg_t msg, amsg_data_t *msg_data, amsg_count_t msg_size)
 	cd = *(struct copy_data **) msg_data;
 	amsg_free(msg);
 
-	if (!(GlobalFlags & FULL_COPY))
+	if (!(EclGblFlags & FULL_COPY))
 	{
 	    pword *my_gcb, *min_gcb, *bcopy;
 	    Compute_Gcb(my_gcb);
@@ -1562,7 +1562,7 @@ eng_accept_state(amsg_t msg, amsg_data_t *msg_data, amsg_count_t msg_size)
 
 	_get_memory(&cd->stacks);		/* get the stack data */
 #ifdef COPY_CHECK
-	if (GlobalFlags & CHECK_COPY)
+	if (EclGblFlags & CHECK_COPY)
 	    _chk_memory(&cd->stacks);	/* check the stack data */
 #endif
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.20 2016/07/24 19:34:45 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.21 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -172,6 +172,17 @@
  * INCLUDES:
  */
 #include "config.h"
+#include "sepia.h"
+#include "types.h"
+#include "embed.h"
+#include "mem.h"
+#include "error.h"
+#include "dict.h"
+#include "lex.h"
+#include "ec_io.h"
+#include "emu_export.h"
+#include "property.h"
+#include "module.h"
 #include "os_support.h"
 
 #include <stdio.h>	/* for sprintf, readline */
@@ -236,17 +247,6 @@ extern long		lseek();
 
 #endif
 
-#include "sepia.h"
-#include "types.h"
-#include "embed.h"
-#include "mem.h"
-#include "error.h"
-#include "dict.h"
-#include "lex.h"
-#include "ec_io.h"
-#include "emu_export.h"
-#include "property.h"
-#include "module.h"
 
 /*
  * DEFINES:
@@ -260,21 +260,16 @@ extern long		lseek();
  * Set the stream number as a property of the atom's did. The counter for
  * the previous stream, if any, is decremented, and the new one is incremented.
  */
-#define Set_Stream(sdid, nst)						\
-	{								\
-		pword   *prop;						\
-		prop = get_property(sdid, STREAM_PROP);			\
-		if (prop == (pword *) NULL)				\
-		    prop = set_property(sdid, STREAM_PROP);		\
-		else							\
-		    stream_tid.free((stream_id) prop->val.wptr);	\
-		prop->tag.kernel = TPTR;				\
-		prop->val.wptr = (uword *) stream_tid.copy(nst);	\
-	}
-
-#define Set_New_Stream(did, nst)		\
-    (void) erase_property(did, STREAM_PROP); 	\
-    Set_Stream(did, nst)
+#define Set_New_Stream(did, nst) {				\
+	int res;						\
+	pword old, new;						\
+	new.tag.kernel = TPTR;					\
+	new.val.wptr = (uword*) stream_tid.copy(nst);		\
+	res = swap_global_property(did, STREAM_PROP, &new, &old);	\
+	assert(res >= 0);					\
+	if (!(res & NEW_PROP)) /* free old stream, if any */	\
+	    stream_tid.free((stream_id) old.val.wptr);		\
+    }
 
 #define Check_Stream_Owner(nst)	\
 	if (StreamUnit(nst) != NO_UNIT && nst->fd_pid && nst->fd_pid != own_pid) \
@@ -345,22 +340,6 @@ extern long		lseek();
 stream_id	stream_ids_[STREAM_MIN];
 stream_desc	stream_desc_structs_[STREAM_MIN];
 
-/*
- * System streams. user is a conglomerate of current_input_ and current_output_
- */
-
-stream_id	current_input_,		/* current streams */
-		current_output_,
-		current_err_,
-		log_output_,
-		warning_output_,
-
-		user_input_,		/* default streams */
-		user_output_,
-		user_err_,
-
-		null_;
-
 
 /* SICStus-like read hook */
 int (*E_read_hook)() = NULL;
@@ -427,23 +406,7 @@ io_init(int flags)
 {
     int		i;
 
-    if ((ec_options.io_option == OWN_IO) && (flags & INIT_PRIVATE))
-    {
-	/* 
-	 * Make a private array of stream descriptors
-	 */
-	StreamDescriptors = stream_ids_;
-	for (i = 0; i < STREAM_MIN; i++)
-	{
-	    StreamId(i) = &stream_desc_structs_[i];
-	    a_mutex_init(&StreamId(i)->lock);
-	    StreamMode(StreamId(i)) = SCLOSED;
-	    StreamNref(StreamId(i)) = 0;
-	    StreamNr(StreamId(i)) = i;
-	}
-	NbStreams = NbStreamsFree = STREAM_MIN;
-    }
-    if ((ec_options.io_option != OWN_IO) && (flags & INIT_SHARED))
+    if (flags & INIT_SHARED)
     {
 	/* 
 	 * Make a shared array of stream descriptors
@@ -453,12 +416,16 @@ io_init(int flags)
 	for (i = 0; i < STREAM_MIN; i++)
 	{
 	    StreamId(i) = (stream_desc *) hg_alloc_size(sizeof(stream_desc));
-	    a_mutex_init(&StreamId(i)->lock);
 	    StreamMode(StreamId(i)) = SCLOSED;
 	    StreamNref(StreamId(i)) = 0;
 	    StreamNr(StreamId(i)) = i;
 	}
-	NbStreams = NbStreamsFree = STREAM_MIN;
+	NbStreams = STREAM_MIN;
+	NbStreamsFree = STREAM_MIN - 4;
+	stream_tid.copy(StreamId(0));
+	stream_tid.copy(StreamId(1));
+	stream_tid.copy(StreamId(2));
+	stream_tid.copy(StreamId(3));
     }
     if (flags & INIT_PRIVATE)
     {
@@ -472,66 +439,48 @@ io_init(int flags)
     }
     if (flags & INIT_SHARED)
     {
+	Set_New_Stream(d_.stdin0, StreamId(0));
+	Set_New_Stream(d_.stdout0, StreamId(1));
+	Set_New_Stream(d_.stderr0, StreamId(2));
 	Set_New_Stream(d_.input, current_input_);
 	Set_New_Stream(d_.output, current_output_);
 	Set_New_Stream(d_.err, current_err_);
 	Set_New_Stream(d_.warning_output, warning_output_);
 	Set_New_Stream(d_.log_output, log_output_);
 	Set_New_Stream(d_.null, null_);
-	Set_New_Stream(d_.stdin0, StreamId(0));
-	Set_New_Stream(d_.stdout0, StreamId(1));
-	Set_New_Stream(d_.stderr0, StreamId(2));
-	Set_New_Stream(d_.user_input, StreamId(0));
-	Set_New_Stream(d_.user_output, StreamId(1));
-	Set_New_Stream(d_.user_error, StreamId(2));
-    }
-
-    if ((ec_options.io_option != OWN_IO) && (flags & REINIT_SHARED))
-    {
-	/* The stream descriptors are in the form they were when the
-	 * save was done. The opened streams don't exist any more,
-	 * and the standard streams may be different,
-	 * therefore we set all open descriptors to closed.
-	 * Note that they can still have alias names.
-	 */
-	for (i = 0; i < NbStreams; i++)
-	{
-	    stream_id nst = StreamId(i);
-	    if (IsOpened(nst))
-	    {
-		_free_stream(nst);
-	    }
-	}
+	Set_New_Stream(d_.user_input, user_input_);
+	Set_New_Stream(d_.user_output, user_output_);
+	Set_New_Stream(d_.user_error, user_err_);
     }
 
     /*
      * Create the standard Eclipse I/O streams
      */
-    if (flags & ((ec_options.io_option == OWN_IO) ? INIT_PRIVATE : INIT_SHARED|REINIT_SHARED))
+    if (flags & INIT_SHARED)
     {
 	/* 
 	 * Make the system streams (init or reinit)
 	 */
-	init_stream(null_,  NO_UNIT, SRDWR | SNULL | SSYSTEM, d_.null,
-	    NO_PROMPT, NO_STREAM, 0);
+	init_stream(null_,  NO_UNIT, SRDWR | SNULL | SDONTCLOSE, d_.null,
+	    NO_STREAM, 0);
 
 	if (ec_options.io_option == MEMORY_IO)
 	{
-	    init_stream(current_input_, NO_UNIT, SREAD|SQUEUE|SSYSTEM|SYIELD,
-	    	D_UNKNOWN, NO_PROMPT, NO_STREAM, 0);
-	    init_stream(current_output_, NO_UNIT, SWRITE|SQUEUE|SSYSTEM|SFLUSHEOL|SYIELD,
-		D_UNKNOWN, NO_PROMPT, NO_STREAM, 0);
-	    init_stream(current_err_, NO_UNIT, SWRITE|SQUEUE|SSYSTEM|SFLUSHEOL|SYIELD,
-		D_UNKNOWN,  NO_PROMPT, NO_STREAM, 0);
+	    init_stream(current_input_, NO_UNIT, SREAD|SQUEUE|SDONTCLOSE|SYIELD,
+	    	D_UNKNOWN, NO_STREAM, 0);
+	    init_stream(current_output_, NO_UNIT, SWRITE|SQUEUE|SDONTCLOSE|SFLUSHEOL|SYIELD,
+		D_UNKNOWN, NO_STREAM, 0);
+	    init_stream(current_err_, NO_UNIT, SWRITE|SQUEUE|SDONTCLOSE|SFLUSHEOL|SYIELD,
+		D_UNKNOWN, NO_STREAM, 0);
 
 	}
 	else	/* connect to fd 0,1,2 */
 	{
-	    _init_fd_stream(current_input_,  0, SREAD|SSYSTEM,  d_.user,
+	    _init_fd_stream(current_input_,  0, SREAD|SDONTCLOSE,  d_.user,
 	    	in_dict(" ",0), current_output_, 0);
-	    _init_fd_stream(current_output_, 1, SWRITE|SSYSTEM, d_.user,
+	    _init_fd_stream(current_output_, 1, SWRITE|SDONTCLOSE, d_.user,
 	    	NO_PROMPT, NO_STREAM, 0);
-	    _init_fd_stream(current_err_,    2, SWRITE|SSYSTEM, d_.err,
+	    _init_fd_stream(current_err_,    2, SWRITE|SDONTCLOSE, d_.err,
 	    	NO_PROMPT, NO_STREAM, 0);
 	}
     }
@@ -549,28 +498,22 @@ io_init(int flags)
  *			unit -	OS file descriptor, NO_UNIT if a special one
  *			mode -	Sepia i/o mode
  *			name -	if a file, then its name, otherwise an acronym
- *			prompt - the string to prompt with
- *			prompt_stream - the stream where to print the prompt
+ *			paired_stream - the paired read-stream for sockets
  *			size -	the size of the buffer or 0 if default
  *				If buf != 0 then size must be its size
  *
  * DESCRIPTION:		Initialize a new stream. Fill the data into
  *			the stream structure, allocate buffer(s)
  *			if necessary.
+ *			The stream is not shared, no locking necessary.
  */
 void
-init_stream(stream_id nst, int unit, int mode, dident name, dident prompt, stream_id prompt_stream, int size)
+init_stream(stream_id nst, int unit, int mode, dident name, stream_id paired_stream, int size)
 {
     unsigned char *buf;
 
-    if (!IsOpened(nst))
-    {
-        if (--NbStreamsFree <= 0)
-        {
-            NbStreamsFree = 0;  /* just in case it got out of sync */
-            Set_Tg_Soft_Lim(TG) /* initiate GC of stream handles */
-        }
-    }
+    assert(!IsOpened(nst) || (mode & SSLAVE)); 
+    assert(paired_stream == NO_STREAM || (mode&STYPE) == SSOCKET);
 
     StreamUnit(nst) = unit;
     if (LocalStreams())
@@ -584,16 +527,29 @@ init_stream(stream_id nst, int unit, int mode, dident name, dident prompt, strea
 	nst->fd_pid = (unit == 1 || unit == 2) ? 0 : own_pid;
     }
     my_io_aport(&nst->aport);
-    a_mutex_init(&nst->lock);
+    if (!(mode & SSLAVE))
+    {
+	mt_mutex_init_recursive(&nst->lock);
+    }
+    if (paired_stream)
+    {
+	StreamPairedStream(nst) = paired_stream;
+	/* link the slave back to the master */
+	assert(!(mode & SSLAVE) && (StreamMode(paired_stream) & SSLAVE));
+	StreamPairedStream(paired_stream) = nst;
+    } else {
+	StreamPairedStream(nst) = nst;	/* self */
+    }
     StreamLine(nst) = 1;
     StreamEncoding(nst) = SENC_DEFAULT;
-    StreamPromptStream(nst) = prompt_stream;
-    StreamPrompt(nst) = prompt;
+    StreamPromptStream(nst) = NO_STREAM;
+    StreamPrompt(nst) = NO_PROMPT;
     StreamName(nst) = name;
     StreamPath(nst) = D_UNKNOWN;
     StreamCnt(nst) = 0;
     StreamOffset(nst) = 0;
     Make_Nil(&StreamEvent(nst));
+    StreamEventEngine(nst) = NULL;
     StreamRand(nst) = 0;
     StreamLastWritten(nst) = -1;
     StreamOutputMode(nst) = DEFAULT_OUTPUT_MODE;
@@ -613,7 +569,7 @@ init_stream(stream_id nst, int unit, int mode, dident name, dident prompt, strea
 
     /* Don't initialise StreamNref(nst) because it is a property of
      * the descriptor, not of the stream proper. When the descriptor
-     * has just been obtained via find_free_stream(), it is 0 anyway.
+     * has just been obtained via find_free_stream(), it is initialised anyway.
      * Otherwise the stream is only re-initialised, e.g. after restore. */
 
     if (size == 0)
@@ -686,9 +642,22 @@ _init_fd_stream(stream_id nst, int unit, int mode, dident name, dident prompt, s
 	prompt_stream = NO_STREAM;
 	size = 0;
     }
-    init_stream(nst, unit, mode, name, prompt, prompt_stream, size);
+    init_stream(nst, unit, mode, name, NO_STREAM, size);
+    StreamPrompt(nst) = prompt;
+    StreamPromptStream(nst) = prompt_stream;
 }
 
+
+/*
+ * Find and return an unused stream descriptor, create if necessary.
+ * This is the only way to find free stream descriptors.
+ * The returned stream has a ref count of 2 and is unshared
+ * [ref cont 1 is reserved, and only used when closing in _lose_stream()].
+ * Modifications of the global array, and the increment of the
+ * reference counter from 0 are protected by SharedDataLock.
+ * After calling this, invoke Trigger_Gc_If_Out_Of_Streams
+ * to free up stream handles if necessary.
+ */
 
 stream_id
 find_free_stream(void)
@@ -696,17 +665,25 @@ find_free_stream(void)
     int		i;
     stream_id	nst;
 
+    mt_mutex_lock(&SharedDataLock);	/* for global stream array */
     for(i = 0; i < NbStreams; i++)
     {
 	nst = StreamId(i);
-	if(!IsOpened(nst) && StreamNref(nst) == 0)
+	if(StreamNref(nst) <= 0)
 	{
+	    assert(StreamNref(nst) == 0);
+	    atomic_add(&NbStreamsFree, -1);
+	    StreamNref(nst) = 2;
+	    mt_mutex_unlock(&SharedDataLock);
 	    return(nst);
 	}
     }
 
     if (LocalStreams())
+    {
+	mt_mutex_unlock(&SharedDataLock);
 	return 0;		/* can't extend the static array */
+    }
 
     StreamDescriptors = (stream_desc **) hg_realloc_size(
 		(generic_ptr) StreamDescriptors,
@@ -722,7 +699,28 @@ find_free_stream(void)
 
     nst = StreamId(NbStreams);
     NbStreams += STREAM_INC;
-    NbStreamsFree += STREAM_INC;
+    atomic_add(&NbStreamsFree, STREAM_INC-1);
+    StreamNref(nst) = 2;
+    mt_mutex_unlock(&SharedDataLock);
+    return nst;
+}
+
+/*
+ * A slave is a stream descriptor that is paired with a master stream
+ * descriptor, and can only be accessed via StreamPairedStream().  It
+ * is not in the global stream array, and some fields are invalid, e.g.
+ * - stream number
+ * - reference count
+ * - mutex
+ * It is recognizable from the SSLAVE flag.
+ */
+stream_id
+alloc_slave_stream(void)
+{
+    stream_id nst = (stream_desc *) hg_alloc_size(sizeof(stream_desc));
+    StreamMode(nst) = SCLOSED|SSLAVE;
+    StreamNref(nst) = 0;
+    StreamNr(nst) = -1;
     return nst;
 }
 
@@ -735,23 +733,9 @@ find_free_stream(void)
 void
 mark_dids_from_streams(void)
 {
-    int		i;
-    stream_id	nst;
-
+    int i;
     for(i = 0; i < NbStreams; i++)
-    {
-	nst = StreamId(i);
-	if ((IsOpened(nst) || StreamNref(nst) > 0))
-	{
-	    if (StreamPrompt(nst) != D_UNKNOWN)	/* == SocketUnix */
-		Mark_Did(StreamPrompt(nst));
-	    if (StreamName(nst) != D_UNKNOWN)
-		Mark_Did(StreamName(nst));
-	    if (StreamPath(nst) != D_UNKNOWN)
-		Mark_Did(StreamPath(nst));
-	    mark_dids_from_pwords(&StreamEvent(nst), &StreamEvent(nst)+1);
-	}
-    }
+	stream_tid.mark_dids(StreamId(i));
 }
 
 
@@ -788,12 +772,17 @@ ec_open_file(char *name, int mode, int *err)
 
     /* make the stream descriptor */
     nst = find_free_stream();
-    init_stream(nst, fd, mode|io_type->io_type, enter_dict(name, 0), NO_PROMPT, NO_STREAM, 0);
+    init_stream(nst, fd, mode|io_type->io_type, enter_dict(name, 0), NO_STREAM, 0);
     (void) expand_filename(name, buf, EXPAND_ABSOLUTE);
     StreamPath(nst) = enter_dict(buf, 0);
     return(nst);
 }
 
+
+/*
+ * Auxiliary function for ec_close_stream()
+ * Called with stream locked.
+ */
 static void
 _free_stream(stream_id nst)
 {
@@ -835,23 +824,48 @@ _free_stream(stream_id nst)
 	}
 	StreamBuf(nst) = NO_BUF;
     }
-    if (StreamLexAux(nst) != NO_BUF)
+
+    if (!IsNil(StreamEvent(nst).tag)) {
+	if (IsTag(StreamEvent(nst).tag.kernel, TPTR)) {
+	    /* If the stream handle is embedded in the event goal, freeing the
+	     * goal term may lead to recursive closing of the stream. To avoid
+	     * this, we temporarily increment the reference count */
+	    if (StreamMode(nst) & SSLAVE)
+		atomic_add(&nst->paired_stream->nref, 1);
+	    else
+		atomic_add(&nst->nref, 1);
+	    heap_event_tid.free(StreamEvent(nst).val.wptr);
+	    if (!(StreamMode(nst) & SSLAVE))
+		atomic_add(&nst->paired_stream->nref, -1);
+	    else
+		atomic_add(&nst->nref, -1);
+	}
+	engine_tid.free(StreamEventEngine(nst));
+	StreamEventEngine(nst) = NULL;
+	Make_Nil(&StreamEvent(nst));
+    }
+
+    if (StreamMode(StreamPairedStream(nst)) & SSLAVE)
+    {
+	_free_stream(StreamPairedStream(nst));
+	StreamPairedStream(nst) = NULL;
+    }
+    else if (StreamLexAux(nst) != NO_BUF)
     {
 	hg_free((generic_ptr)StreamLexAux(nst));
 	StreamLexAux(nst) = NO_BUF;
     }
-    if (IsTag(StreamEvent(nst).tag.kernel, TPTR)) {
-	extern t_ext_type heap_event_tid;
-	heap_event_tid.free(StreamEvent(nst).val.wptr);
-	Make_Nil(&StreamEvent(nst));
-    }
 
-    StreamMode(nst) = SCLOSED;
-    ++NbStreamsFree;
+    if (StreamMode(nst) & SSLAVE)
+	hg_free_size((generic_ptr) nst, sizeof(stream_desc));
+    else 
+	StreamMode(nst) = SCLOSED;
 }
 
 /*
  * Close a stream
+ * This does not change the reference count.
+ * Call with stream already locked (or reference count is 0, i.e. not shared).
  * Options:
  *	CLOSE_FORCE: free the stream even if there were errors
  *	CLOSE_LOST: we are closing because the stream was lost (fail/gc)
@@ -865,6 +879,8 @@ ec_close_stream(stream_id nst, int options)
     if(!IsOpened(nst))
 	return STREAM_SPEC;
 
+    assert(!(StreamMode(nst) & SSLAVE));
+
     if (IsWriteStream(nst) && !IsQueueStream(nst))
     {
         int err = ec_flush(nst);
@@ -872,15 +888,12 @@ ec_close_stream(stream_id nst, int options)
             return err;
 	res = err;
     }
-    /* Don't close the stdin, stdout and stderr file descriptors (SSYSTEM)
+    /* Don't close the stdin, stdout and stderr file descriptors (SDONTCLOSE)
      * because this very likely hangs the system. Moreover, we would then
      * need a way to reopen them, e.g. after restoring a saved state.
      */
-    if (StreamMode(nst) & SSYSTEM)
+    if (StreamMode(nst) & SDONTCLOSE)
         return res;
-
-    if (IsSocket(nst) && IsInvalidSocket(nst))
-        return res;	/* will be closed via paired SWRITE socket */
 
     if (!(IsNullStream(nst) || IsStringStream(nst) || IsQueueStream(nst)))
     {
@@ -890,17 +903,7 @@ ec_close_stream(stream_id nst, int options)
 	res = (res==PSUCCEED ? err : res);
     }
 
-    if (IsSocket(nst))
-    {
-        if (SocketInputStream(nst))
-        {
-            --StreamNref(SocketInputStream(nst));
-            assert(StreamNref(SocketInputStream(nst)) == 0);
-            _free_stream(SocketInputStream(nst));
-        }
-        SocketConnection(nst) = 0;	/* otherwise we would try to free it */
-    }
-    else if(IsFileStream(nst) &&
+    if(IsFileStream(nst) &&
 	( StreamMode(nst) & SDELETECLOSED ||
 	  StreamMode(nst) & SDELETELOST && options & CLOSE_LOST))
     {
@@ -934,10 +937,14 @@ _local_io_close(stream_id nst)
 	if (SocketUnix(nst) != D_UNKNOWN)
 	    (void) ec_unlink(DidName(SocketUnix(nst)));
 
-	(void) ec_stream_reset_sigio(nst, SWRITE);
+	(void) ec_stream_reset_sigio(nst);
 	if (SocketInputStream(nst))
-	    (void) ec_stream_reset_sigio(nst, SREAD);
+	    (void) ec_stream_reset_sigio(SocketInputStream(nst));
     }
+    ec_teardown_stream_sigio_thread(nst, 1);
+    if (StreamPairedStream(nst))
+	ec_teardown_stream_sigio_thread(StreamPairedStream(nst), 1);
+
 #if defined(HAVE_READLINE)
     if (IsReadlineStream(nst)) {
 	if (fclose(StreamFILE(nst)) < 0)
@@ -947,34 +954,8 @@ _local_io_close(stream_id nst)
 	}
     }
 #endif
-    if ((err = StreamMethods(nst).close(StreamUnit(nst))) != PSUCCEED)
-    {
-	return err;
-    }
 
-#if _WIN32
-    /* for sockets, clean up any signal-threads */
-    if (IsSocket(nst))
-    {
-	int dummy;
-	stream_id inst;
-	if (nst->signal_thread)
-	{
-	    ec_thread_wait(nst->signal_thread, &dummy, THREAD_TIMEOUT);
-	    if (ec_thread_terminate(nst->signal_thread, THREAD_TIMEOUT) < 0)
-		return SYS_ERROR;
-	    nst->signal_thread = 0;
-	}
-	if ((inst = SocketInputStream(nst)) && inst->signal_thread)
-	{
-	    ec_thread_wait(inst->signal_thread, &dummy, THREAD_TIMEOUT);
-	    if (ec_thread_terminate(inst->signal_thread, THREAD_TIMEOUT) < 0)
-		return SYS_ERROR;
-	    inst->signal_thread = 0;
-	}
-    }
-#endif
-    return(PSUCCEED);
+    return StreamMethods(nst).close(StreamUnit(nst));
 }
 
 
@@ -999,6 +980,14 @@ flush_and_close_io(int own_streams_only)
     for (i = 0; i < NbStreams; i++)
     {
 	stream_id nst = StreamId(i);
+	/*
+	p_fprintf(current_err_, "Stream %d: nref=%d, %s, %s\n", i, nst->nref,
+		(!IsOpened(nst))?"closed":mutex_was_unlocked(&nst->lock)?"open":"open+locked",
+		nst->name? DidName(nst->name) : "");
+	ec_flush(current_err_);
+	*/
+	if (!IsOpened(nst))
+	    continue;
 	Lock_Stream(nst);
 	if (!own_streams_only || !RemoteStream(nst))
 	{
@@ -1151,7 +1140,7 @@ _local_fill_buffer(stream_id nst)
 	    StreamMode(nst) &= ~MREAD;
 	    return count == 0 ? PEOF : SYS_ERROR;
 	}
-	else if (StreamMode(nst) & SSIGIO)
+	else if (nst->signal_thread && StreamNeedsThread(nst))
 	{
 	    ec_reenable_sigio(nst, wanted, count);
 	}
@@ -1563,7 +1552,7 @@ _queue_write(stream_id nst, char *s, int count)
 	StreamMode(nst) &= ~MEOF;
 	if (!IsNil(StreamEvent(nst).tag))
 	{
-	    int res = ec_post_event(StreamEvent(nst));
+	    int res = ecl_post_event(StreamEventEngine(nst), StreamEvent(nst));
 	    Return_If_Error(res);
 	}
     }
@@ -1921,7 +1910,8 @@ _local_io_flush_out(stream_id nst)
 	/*
 	 * scramble the data before writing it out
 	 */
-	char *scrambled_buf = hp_alloc(StreamSize(nst));
+	int bufsize = StreamSize(nst);
+	New_Array(char, scrambled_buf, bufsize);
 	int count = StreamPtr(nst) - StreamBuf(nst);
 	uint32 key = StreamRand(nst);
 	int i;
@@ -1934,7 +1924,7 @@ _local_io_flush_out(stream_id nst)
 	}
 	StreamRand(nst) = key;
 	n = StreamMethods(nst).write(StreamUnit(nst), scrambled_buf, count);
-	hp_free(scrambled_buf);
+	Delete_Array(char, scrambled_buf, bufsize);
     }
     else
     {
@@ -1969,6 +1959,12 @@ _local_io_flush_out(stream_id nst)
 int
 ec_seek_stream(stream_id nst, long int pos, int whence)
 {
+    /* no seek on scrambled files: synchronisation gets lost */
+    /* no seek on append files: always at eof */
+    if(!IsOpened(nst) || (StreamMode(nst) & (SSCRAMBLE|SAPPEND)))
+    {
+	return STREAM_MODE;
+    }
     return StreamMethods(nst).seek(nst, pos, whence);
 }
 
@@ -2374,14 +2370,13 @@ _file_truncate(stream_id nst)
 
 
 /*
- * Output to a Prolog stream in the form of printf(). Machines that
- * have no vsprintf() (currently VAX and Sequent) must do some hacking here.
- * It just simulates sprintf().
+ * Output to a Prolog stream in the form of printf().
  */
-#ifdef STDC_HEADERS
+
 #include <stdarg.h>
+
 int
-p_fprintf(stream_id nst, char *fmt, ...)
+p_fprintf(stream_id nst, const char *fmt, ...)
 {
     va_list	args;
     char	ibuf[BUFSIZE];
@@ -2400,45 +2395,11 @@ p_fprintf(stream_id nst, char *fmt, ...)
     va_end(args);
     if (res < 0 || res >= BUFSIZE)
 	res = BUFSIZE;			/* truncate */
-    return ec_outf(nst, ibuf, res);
+    Lock_Stream(nst);
+    res = ec_outf(nst, ibuf, res);
+    Unlock_Stream(nst);
+    return res;
 }
-#else
-#ifndef HAVE_VARARGS
-/*VARARGS2*/
-p_fprintf(nst, fmt, args)
-stream_id	nst; 
-char		*fmt;
-{
-    FILE dummy;		/* needed for _doprnt */
-    char ibuf[BUFSIZE];
-
-    dummy._cnt = 32767;
-    dummy._ptr = ibuf;
-    dummy._base = ibuf;
-    dummy._flag = _IOWRT+_IOSTRG;
-    _doprnt(fmt, &args, &dummy);
-    return ec_outf(nst, ibuf, dummy._ptr - ibuf); 
-}
-#else
-#include <varargs.h>
-/*VARARGS0*/
-p_fprintf(va_alist)
-va_dcl
-{
-    va_list	args;
-    stream_id	nst;
-    char	*fmt;
-    char	ibuf[BUFSIZE];
-
-    va_start(args);
-    nst = va_arg(args,stream_id);
-    fmt = va_arg(args,char *);
-    (void) vsprintf(ibuf,fmt,args);
-    va_end(args);
-    return ec_outf(nst, ibuf,strlen(ibuf));
-}
-#endif /* VARARGS */
-#endif /* STDC_HEADERS */
 
 
 /**************** RAW TTY PRIMITIVES ****************/
@@ -2697,21 +2658,16 @@ ec_tty_out(stream_id nst, int c)
  * A general routine which changes the setting of a symbolic stream.
  * It checks for the system-defined streams and updates them correspondingly.
  * The first argument must be the DID of the symbolic name.
+ * The new stream must already be copied/reference-counted!
+ * Returns PSUCCEED or error.
  */
 int
 set_stream(dident name, stream_id neww)
 {
-    value	vv1;
-    stream_id	old;
-    int		res;
-
-    vv1.did = name;
-    old = get_stream_id(vv1, tdict, 0, &res);
+    int unclosable = 0;
 
     if(!(IsOpened(neww)))
 	return(STREAM_SPEC);
-    if (old == neww)
-	return PSUCCEED;			/* nothing to do */
 
     /* Check the mode of the new channel for special streams */
 
@@ -2776,8 +2732,7 @@ set_stream(dident name, stream_id neww)
 	    return(SYSTEM_STREAM);
 	if(!IsReadStream(neww))
 	    return(STREAM_MODE);
-	if (old->unit != 0) StreamMode(old) &= ~SSYSTEM;
-	StreamMode(neww) |= SSYSTEM;
+	unclosable = 1;
     }
     else if(name == d_.stdout0 || name == d_.stderr0)
     {
@@ -2785,12 +2740,31 @@ set_stream(dident name, stream_id neww)
 	    return(SYSTEM_STREAM);
 	if(!IsWriteStream(neww))
 	    return(STREAM_MODE);
-	if (old->unit != 1 && old->unit != 2) StreamMode(old) &= ~SSYSTEM;
-	StreamMode(neww) |= SSYSTEM;
+	unclosable = 1;
     }
-    /* And now change the stream */
-    Set_Stream(name, neww);
-    return PSUCCEED;
+
+    /* And now change the property setting */
+    {
+	int res;
+	pword old, new;
+	stream_id old_stream;
+	new.tag.kernel = TPTR;
+	new.val.wptr = (uword*) neww;	/* assumed already copied */
+	res = swap_global_property(name, STREAM_PROP, &new, &old);
+	if (res < 0)
+	    return res;
+	old_stream = (res & NEW_PROP) ? NO_STREAM : (stream_id) old.val.wptr;
+	if (unclosable) {
+	    /* make previous target stream closable (unless stdin/out/err) */
+	    if (old_stream  &&  !(0<=old_stream->unit && old_stream->unit<=2))
+	    	StreamMode(old_stream) &= ~SDONTCLOSE;
+	    /* make new target stream unclosable */
+	    StreamMode(neww) |= SDONTCLOSE;
+	}
+	if (old_stream)	/* free old stream, if any */
+	    stream_tid.free(old_stream);
+	return PSUCCEED;
+    }
 }
 
 #if defined(HAVE_PUSHBACK) && !defined(HAVE_READLINE)
@@ -2801,23 +2775,15 @@ pushback_char(int fd, char *p)
 #endif
 
 
-int
-ec_is_sigio_stream(stream_id nst, int sock_dir)
-{
-    if (IsSocket(nst)  &&  IsWriteStream(nst)  &&  sock_dir == SREAD)
-	nst = SocketInputStream(nst);	/* Handle the read direction */
-    return (StreamMode(nst) & SSIGIO);
-}
-
 
 int
-ec_stream_set_sigio(stream_id nst, int sock_dir)
+ec_stream_set_sigio(stream_id nst)
 {
-    if (IsSocket(nst)  &&  IsWriteStream(nst)  &&  sock_dir == SREAD)
-	nst = SocketInputStream(nst);	/* Handle the read direction */
     if (!(StreamMode(nst) & SSIGIO))
     {
-#ifndef _WIN32
+#ifdef USE_REAL_SIGIO
+	if (!(IsSocket(nst) || IsPipe(nst)))
+	    return UNIMPLEMENTED;
 	int res = set_sigio(StreamUnit(nst));
 #else
 	int res = ec_setup_stream_sigio_thread(nst);
@@ -2830,17 +2796,17 @@ ec_stream_set_sigio(stream_id nst, int sock_dir)
 
 
 int
-ec_stream_reset_sigio(stream_id nst, int sock_dir)
+ec_stream_reset_sigio(stream_id nst)
 {
-    if (IsSocket(nst)  &&  IsWriteStream(nst)  &&  sock_dir == SREAD)
-	nst = SocketInputStream(nst);	/* Handle the read direction */
     if (StreamMode(nst) & SSIGIO)
     {
-#ifndef _WIN32
-	int res = reset_sigio(StreamUnit(nst));
-	Return_If_Error(res);
-#endif
 	StreamMode(nst) &= ~SSIGIO;
+#ifdef USE_REAL_SIGIO
+	int res = reset_sigio(StreamUnit(nst));
+#else
+	int res = ec_teardown_stream_sigio_thread(nst, 0);
+#endif
+	Return_If_Error(res);
     }
     return PSUCCEED;
 }

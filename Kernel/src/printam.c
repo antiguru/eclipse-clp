@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.10 2013/04/29 01:02:11 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.11 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -64,7 +64,7 @@ static void	_print_edesc(uword);
 /* this one should also check >= brk(0) */
 #define InvalidAddress(ptr)	((ptr) == NULL || (uword) (ptr) & 0x3)
 #define H_did(start)	*((start) - 1)
-#define Arg(addr)	((pword *) addr - g_emu_.emu_args)
+#define Arg(addr)	(addr)
 #define Atom		{p_fprintf(current_output_,"%s ", DidName(*code)); code++;}
 #define VarOffset	p_fprintf(current_output_,"%d ", (int)(*code++)/(word)sizeof(pword))
 #define Integer		p_fprintf(current_output_,"%d ", (int)(*code++))
@@ -262,9 +262,9 @@ static char  *ec_debug_ports[] =
 #define ALS	1	/* whole procedure being listed, not just one instr */
 #define PROCLAB	2	/* print a symbolic address with each instruction */
 
-vmcode       *
-print_am(register vmcode *code,
-	vmcode **label,
+vmcode *
+print_am(vmcode *code,
+	vmcode **label,		/* next code block */
 	int *res,
 	int option)		/* ALS|PROCLAB */
 {
@@ -1192,16 +1192,6 @@ print_am(register vmcode *code,
 
 	case Try_me_dynamic:
 	case Retry_me_dynamic:
-#ifdef OLD_DYNAMIC
-		Integer;
-		Integer;
-		Save_Label;
-		if (*code == SRC_CLAUSE_ARITY)
-		    p_fprintf(current_output_,"SOURCE ");
-		p_fprintf(current_output_,"%d ",
-			(*code++) & SRC_CLAUSE_ARITY_MASK);
-		Code_Label;
-#endif
 		break;
 
 	case Push_referenceAM:
@@ -1560,6 +1550,14 @@ _switch_on_type_:
     return code;
 }
 
+void
+print_instr(vmcode *code, int option)
+{
+    vmcode	*dummy_l = NULL;
+    int		dummy_r;
+    print_am(code, &dummy_l, &dummy_r, option);
+}
+
 static void
 _print_label(vmcode **ptr)
 {
@@ -1733,9 +1731,8 @@ p_pw(value v, type t)
 }
 
 ppw(pword *pw)				/* print prolog words */
-          
 {
-
+    ec_eng_t *ec_eng = default_eng;	/* TEMPORARY */
     int arity = 1;
     pword *queue_head = (pword *) 0;
     pword *queue_tail = (pword *) 0;

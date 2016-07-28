@@ -26,7 +26,7 @@
 ** System:       ECLiPSe Constraint Logic Programming System
 ** Author/s:     Warwick Harvey, IC-Parc
 ** 
-** $Id: ic.c,v 1.4 2013/02/09 20:27:58 jschimpf Exp $
+** $Id: ic.c,v 1.5 2016/07/28 03:34:37 jschimpf Exp $
 **
 ** This file provides low-level primitives in support of the ic_kernel and
 ** ic_constraints ECLiPSe modules.  This is almost entirely for efficiency
@@ -143,7 +143,7 @@
 ** Create an IC attribute except the reference to the variable.
 */
 #define Create_Default_IC_Attr(attr) \
-	    create_ic_attr(&attr, -HUGE_VAL, HUGE_VAL, 0)
+	    create_ic_attr(ec_eng, &attr, -HUGE_VAL, HUGE_VAL, 0)
 
 
 /*
@@ -175,7 +175,7 @@
 ** dereferenced and 'IsRef'.
 */   
 #define IC_Var_Attr_Vec(var, attr) {	\
-	    (attr) = make_ic_var_attr(var);	\
+	    (attr) = make_ic_var_attr(ec_eng, var);	\
 	    (attr) = (attr)->val.ptr;	\
 	    Dereference(attr);		\
 	}
@@ -300,7 +300,7 @@
 #define Update_Con_Data_Buf_If_Needed(con_info)				\
 	if ((con_info)->term_count < (con_info)->old_term_count) {	\
 	    int result;							\
-	    result = update_con_data_buf(con_info);			\
+	    result = update_con_data_buf(ec_eng, con_info);			\
 	    Return_If_Not_Success(result)				\
 	}
 
@@ -422,7 +422,7 @@ typedef struct prop_info {
 ** Miscellaneous macros.
 */
 
-#define	Type_Is_Int(type)	((type) == d_.integer0)
+#define	Type_Is_Int(type)	((type) == d_ic_integer)
 
 
 /* Round up/down if the type is integer. */
@@ -461,7 +461,7 @@ typedef struct prop_info {
 	    bound = Dbl(vc);					\
 	} else {						\
 	    value	ivl;					\
-	    tag_desc[TagType(tc)].coerce_to[TIVL](vc, &ivl);		\
+	    tag_desc[TagType(tc)].coerce_to[TIVL](ec_eng, vc, &ivl);		\
 	    bound = IvlLwb(ivl.ptr);				\
 	}
 
@@ -471,7 +471,7 @@ typedef struct prop_info {
 	    bound = Dbl(vc);					\
 	} else {						\
 	    value	ivl;					\
-	    tag_desc[TagType(tc)].coerce_to[TIVL](vc, &ivl);		\
+	    tag_desc[TagType(tc)].coerce_to[TIVL](ec_eng, vc, &ivl);		\
 	    bound = IvlUpb(ivl.ptr);				\
 	}
 
@@ -482,7 +482,7 @@ typedef struct prop_info {
 	    integral = 0;					\
 	} else {						\
 	    value	ivl;					\
-	    tag_desc[TagType(tc)].coerce_to[TIVL](vc, &ivl);		\
+	    tag_desc[TagType(tc)].coerce_to[TIVL](ec_eng, vc, &ivl);		\
 	    lwb = IvlLwb(ivl.ptr);				\
 	    upb = IvlUpb(ivl.ptr);				\
 	    integral = (IsInteger(tc) || IsBignum(tc));		\
@@ -495,7 +495,7 @@ typedef struct prop_info {
 	    a.i = 0;					\
 	} else {						\
 	    value	ivl;					\
-	    tag_desc[TagType(tc)].coerce_to[TIVL](vc, &ivl);		\
+	    tag_desc[TagType(tc)].coerce_to[TIVL](ec_eng, vc, &ivl);		\
 	    a.b.l = IvlLwb(ivl.ptr);				\
 	    a.b.u = IvlUpb(ivl.ptr);				\
 	    a.i = (IsInteger(tc) || IsBignum(tc));		\
@@ -562,7 +562,7 @@ typedef struct prop_info {
 	    type	tag;						\
 	    val.wptr = (new_bitmap);					\
 	    tag.kernel = TBITMAP;					\
-	    ec_assign((var_info)->attr + OFF_BITMAP, val, tag);		\
+	    ecl_assign(ec_eng, (var_info)->attr + OFF_BITMAP, val, tag);		\
 	    (var_info)->bitmap = (var_info)->attr + OFF_BITMAP;		\
 	    Dereference((var_info)->bitmap);				\
 	}								\
@@ -618,7 +618,7 @@ typedef struct prop_info {
 	}								\
 	if ((var_info)->tb.i) {						\
 	    /* Bind var to integer/bignum. */				\
-	    result = ec_double_to_int_or_bignum(bound, &res);		\
+	    result = ecl_double_to_int_or_bignum(ec_eng, bound, &res);		\
 	    Return_If_Not_Success(result);				\
 	} else {							\
 	    /* Bind var to bounded real. */				\
@@ -654,7 +654,7 @@ PROBLEM: Cannot deal with word size SIZEOF_WORD
 		&& ((lo) == ceil(lo))) {			\
 	    /* Looks like an integer, so treat it as one. */	\
 	    int result;						\
-	    result = ec_double_to_int_or_bignum(lo, res);	\
+	    result = ecl_double_to_int_or_bignum(ec_eng, lo, res);	\
 	    Return_If_Not_Success(result);			\
 	} else if (DoublesIdentical(lo, hi)) {			\
 	    Make_Double(res, lo);				\
@@ -709,6 +709,8 @@ static dident d_ic_undefined;		/* undefined/0 dict entry */
 static dident d_exclude;		/* exclude/2 dict entry */
 static dident d_exclude_range;		/* exclude_range/3 dict entry */
 static dident d_prop_ic_con;		/* prop_ic_con/1 dict entry */
+static dident d_infq;			/* =</2 dict entry */
+static dident d_supq;			/* >=/2 dict entry */
 static void *proc_exclude;		/* exclude/2 procedure */
 static void *proc_exclude_range;	/* exclude_range/3 procedure */
 static void *proc_prop_ic_con;		/* prop_ic_con/1 procedure */
@@ -739,7 +741,7 @@ static double threshold = 1e-8;
     **      Unify Threshold with the propagation threshold.
     */
 int
-p_get_threshold(value vthreshold, type tthreshold)
+p_get_threshold(value vthreshold, type tthreshold, ec_eng_t *ec_eng)
 {
 	Return_Unify_Double(vthreshold, tthreshold, threshold);
 }
@@ -749,7 +751,7 @@ p_get_threshold(value vthreshold, type tthreshold)
     **      Set the propagation threshold to Threshold.
     */
 int
-p_set_threshold(value vthreshold, type tthreshold)
+p_set_threshold(value vthreshold, type tthreshold, ec_eng_t *ec_eng)
 {
 	Check_Double(tthreshold);
 	threshold = Dbl(vthreshold);
@@ -769,7 +771,7 @@ p_set_threshold(value vthreshold, type tthreshold)
     ** reference to the variable.
     */   
 void
-create_ic_attr(pword **attr, double lwb, double upb, int integral)
+create_ic_attr(ec_eng_t *ec_eng, pword **attr, double lwb, double upb, int integral)
 {
 	pword	*tmp;
 
@@ -793,7 +795,7 @@ create_ic_attr(pword **attr, double lwb, double upb, int integral)
 ** exist.  'var' must be dereferenced and 'IsRef'.
 */   
 pword *
-make_ic_var_attr(pword *var)
+make_ic_var_attr(ec_eng_t *ec_eng, pword *var)
 {
 	pword	*attr;
 
@@ -804,12 +806,12 @@ make_ic_var_attr(pword *var)
 		Create_Default_IC_Attr(pattr);
 		Fill_Var_Field(pw, var);
 		Bind_Var(attr->val, attr->tag, pattr, TCOMP);
-		notify_constrained(var);
+		ecl_notify_constrained(ec_eng, var);
 	    }
 	} else {
 	    pword *pw, *pattr;
 	    Create_Default_IC_Attr(pattr);
-	    pw = (pword *)add_attribute(var->tag.all,
+	    pw = (pword *)add_attribute(ec_eng, var->tag.all,
 		    pattr, TCOMP, ic_domain_slot);
 	    Fill_Var_Field(pw, var);
 	    Bind_Var(var->val, var->tag, pw, TREF);
@@ -843,7 +845,7 @@ get_var_info(pword *x, var_info *vi)
     ** Use this one if it might not have an attribute (it will give it one).
     */
 void
-make_var_info(pword *x, var_info *vi)
+make_var_info(ec_eng_t *ec_eng, pword *x, var_info *vi)
 {
 	dident	ic_type;
 	vi->var = x;
@@ -875,22 +877,22 @@ get_var_info_from_attr(pword *x, pword *attr, var_info *vi)
     ** 	    cf. set_integral(), which also updates the bounds.
     */
 int
-set_type_integral(var_info *vi)
+set_type_integral(ec_eng_t *ec_eng, var_info *vi)
 {
 	value	val;
 	type	tag;
 	int	result;
 
 	/* Update the type. */
-	val.did = d_.integer0;
+	val.did = d_ic_integer;
 	tag.kernel = TDICT;
-	ec_assign(vi->attr + OFF_TYPE, val, tag);
+	ecl_assign(ec_eng, vi->attr + OFF_TYPE, val, tag);
 	vi->tb.i = 1;
 
 	/* Notify constrained / type change. */
-	result = notify_constrained(vi->var);
+	result = ecl_notify_constrained(ec_eng, vi->var);
 	Return_If_Not_Success(result)
-	return ec_schedule_susps(vi->attr + OFF_WAKE_TYPE);
+	return ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_TYPE);
 }
 
     /*
@@ -899,7 +901,7 @@ set_type_integral(var_info *vi)
     **      bound.
     */
 int
-ic_lwb(var_info *vi, double bound)
+ic_lwb(ec_eng_t *ec_eng, var_info *vi, double bound)
 {
 	int	result;
 	double	abs_delta;
@@ -980,7 +982,7 @@ ic_lwb(var_info *vi, double bound)
 
 	Make_Checked_Double_Val(val, bound);
 	tag.kernel = TDBL;
-	ec_assign(vi->attr + OFF_LO, val, tag);
+	ecl_assign(ec_eng, vi->attr + OFF_LO, val, tag);
 	vi->tb.b.l = bound;
 
 	if (!IsAtom(vi->bitmap->tag)) {
@@ -988,7 +990,7 @@ ic_lwb(var_info *vi, double bound)
 	    uword	*new_bitmap;
 
 	    result = set_bitmap_lwb(vi->bitmap->val.wptr, (word) bound,
-			    &new_bitmap);
+			    &new_bitmap, ec_eng);
 
 	    if (Result_Is_Empty(result)) {
 		/* Bound should not be bitmap empty. */
@@ -1000,11 +1002,11 @@ ic_lwb(var_info *vi, double bound)
 	}
 
 	/* Notify constrained. */
-	result = notify_constrained(vi->var);
+	result = ecl_notify_constrained(ec_eng, vi->var);
 	Return_If_Not_Success(result)
 
 	/* Schedule suspensions (lo). */
-	return ec_schedule_susps(vi->attr + OFF_WAKE_LO);
+	return ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_LO);
 }
 
 
@@ -1014,7 +1016,7 @@ ic_lwb(var_info *vi, double bound)
     **      Note that the `Var' must not be ground.
     */
 int
-p_ic_impose_min(value vvar, type tvar, value vc, type tc)
+p_ic_impose_min(value vvar, type tvar, value vc, type tc, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 	double	bound;
@@ -1022,9 +1024,9 @@ p_ic_impose_min(value vvar, type tvar, value vc, type tc)
 	Check_Ref(tvar);
 	Constant_To_Lower_Bound(vc, tc, bound);
 
-	make_var_info(vvar.ptr, &vi);
+	make_var_info(ec_eng, vvar.ptr, &vi);
 
-	return ic_lwb(&vi, bound);
+	return ic_lwb(ec_eng, &vi, bound);
 }
 
 
@@ -1034,7 +1036,7 @@ p_ic_impose_min(value vvar, type tvar, value vc, type tc)
     **      bound.
     */
 int
-ic_upb(var_info *vi, double bound)
+ic_upb(ec_eng_t *ec_eng, var_info *vi, double bound)
 {
 	int	result;
 	double	abs_delta;
@@ -1115,7 +1117,7 @@ ic_upb(var_info *vi, double bound)
 
 	Make_Checked_Double_Val(val, bound);
 	tag.kernel = TDBL;
-	ec_assign(vi->attr + OFF_HI, val, tag);
+	ecl_assign(ec_eng, vi->attr + OFF_HI, val, tag);
 	vi->tb.b.u = bound;
 
 	if (!IsAtom(vi->bitmap->tag)) {
@@ -1123,7 +1125,7 @@ ic_upb(var_info *vi, double bound)
 	    uword	*new_bitmap;
 
 	    result = set_bitmap_upb(vi->bitmap->val.wptr, (word) bound,
-			    &new_bitmap);
+			    &new_bitmap, ec_eng);
 
 	    if (Result_Is_Empty(result)) {
 		/* Bound should not be empty. */
@@ -1135,11 +1137,11 @@ ic_upb(var_info *vi, double bound)
 	}
 
 	/* Notify constrained. */
-	result = notify_constrained(vi->var);
+	result = ecl_notify_constrained(ec_eng, vi->var);
 	Return_If_Not_Success(result)
 
 	/* Schedule suspensions (hi). */
-	return ec_schedule_susps(vi->attr + OFF_WAKE_HI);
+	return ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_HI);
 }
 
 
@@ -1149,7 +1151,7 @@ ic_upb(var_info *vi, double bound)
     **      Note that the `Var' must not be ground.
     */
 int
-p_ic_impose_max(value vvar, type tvar, value vc, type tc)
+p_ic_impose_max(value vvar, type tvar, value vc, type tc, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 	double	bound;
@@ -1157,9 +1159,9 @@ p_ic_impose_max(value vvar, type tvar, value vc, type tc)
 	Check_Ref(tvar);
 	Constant_To_Upper_Bound(vc, tc, bound);
 
-	make_var_info(vvar.ptr, &vi);
+	make_var_info(ec_eng, vvar.ptr, &vi);
 
-	return ic_upb(&vi, bound);
+	return ic_upb(ec_eng, &vi, bound);
 }
 
 
@@ -1169,7 +1171,7 @@ p_ic_impose_max(value vvar, type tvar, value vc, type tc)
     **      variable `Var'.  Note that the `Var' must not be ground.
     */
 int
-p_ic_impose_bounds(value vvar, type tvar, value vlwb, type tlwb, value vupb, type tupb)
+p_ic_impose_bounds(value vvar, type tvar, value vlwb, type tlwb, value vupb, type tupb, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 	double	new_lwb, new_upb;
@@ -1179,11 +1181,11 @@ p_ic_impose_bounds(value vvar, type tvar, value vlwb, type tlwb, value vupb, typ
 	Constant_To_Lower_Bound(vlwb, tlwb, new_lwb);
 	Constant_To_Upper_Bound(vupb, tupb, new_upb);
 
-	make_var_info(vvar.ptr, &vi);
+	make_var_info(ec_eng, vvar.ptr, &vi);
 
-	result = ic_lwb(&vi, new_lwb);
+	result = ic_lwb(ec_eng, &vi, new_lwb);
 	Return_If_Not_Success(result);
-	return ic_upb(&vi, new_upb);
+	return ic_upb(ec_eng, &vi, new_upb);
 }
 
 
@@ -1193,7 +1195,7 @@ p_ic_impose_bounds(value vvar, type tvar, value vlwb, type tlwb, value vupb, typ
     ** 'IsRef'; the function returns a suitably dereferenced copy when done.
     */   
 int
-make_constrained_ic_var(pword **pvar, double lwb, double upb, int integral)
+make_constrained_ic_var(ec_eng_t *ec_eng, pword **pvar, double lwb, double upb, int integral)
 {
 	pword	*var = *pvar;
 	int	result;
@@ -1203,16 +1205,16 @@ make_constrained_ic_var(pword **pvar, double lwb, double upb, int integral)
 	    IC_Var_Get_Attr(var, attr);
 	    if (IsRef(attr->tag)) {
 		pword *pw;
-		create_ic_attr(&pw, lwb, upb, integral);
+		create_ic_attr(ec_eng, &pw, lwb, upb, integral);
 		Fill_Var_Field(pw, var);
 		Bind_Var(attr->val, attr->tag, pw, TCOMP);
-		notify_constrained(var);
+		ecl_notify_constrained(ec_eng, var);
 	    } else {
 		/* Attribute already exists, so must constrain it. */
 		var_info    vi;
 		get_var_info_from_attr(var, attr, &vi);
 		if (integral && !vi.tb.i) {
-		    result = set_type_integral(&vi);
+		    result = set_type_integral(ec_eng, &vi);
 		    Return_If_Not_Success(result)
 		    /* Make sure bounds are not left unrounded. */
 		    if (lwb <= vi.tb.b.l)
@@ -1220,9 +1222,9 @@ make_constrained_ic_var(pword **pvar, double lwb, double upb, int integral)
 		    if (upb >= vi.tb.b.u)
 			upb = floor(vi.tb.b.u);
 		}
-		result = ic_lwb(&vi, lwb);
+		result = ic_lwb(ec_eng, &vi, lwb);
 		Return_If_Not_Success(result)
-		result = ic_upb(&vi, upb);
+		result = ic_upb(ec_eng, &vi, upb);
 		Return_If_Not_Success(result)
 
 		/* In case now ground. */
@@ -1231,8 +1233,8 @@ make_constrained_ic_var(pword **pvar, double lwb, double upb, int integral)
 	    }
 	} else {
 	    pword *pw, *attr;
-	    create_ic_attr(&attr, lwb, upb, integral);
-	    pw = (pword *)add_attribute(var->tag.all,
+	    create_ic_attr(ec_eng, &attr, lwb, upb, integral);
+	    pw = (pword *)add_attribute(ec_eng, var->tag.all,
 		    attr, TCOMP, ic_domain_slot);
 	    Fill_Var_Field(pw, var);
 	    Bind_Var(var->val, var->tag, pw, TREF);
@@ -1248,7 +1250,7 @@ make_constrained_ic_var(pword **pvar, double lwb, double upb, int integral)
     ** Constrain a variable to be a boolean.
     */
 int
-p_make_bool(value vbool, type tbool)
+p_make_bool(value vbool, type tbool, ec_eng_t *ec_eng)
 {
 	if (!IsRef(tbool)) {
 	    Check_Integer(tbool);
@@ -1257,7 +1259,7 @@ p_make_bool(value vbool, type tbool)
 	    }
 	} else {
 	    /* Make sure it's an IC boolean. */
-	    return make_constrained_ic_var(&vbool.ptr, 0.0, 1.0, 1);
+	    return make_constrained_ic_var(ec_eng, &vbool.ptr, 0.0, 1.0, 1);
 	}
 
 	Succeed
@@ -1272,21 +1274,21 @@ p_make_bool(value vbool, type tbool)
     ** 	    cf. set_type_integral(), which does not update the bounds.
     */
 int
-set_integral(var_info *vi)
+set_integral(ec_eng_t *ec_eng, var_info *vi)
 {
 	double	bnd;
 	int	result;
 
-	result = set_type_integral(vi);
+	result = set_type_integral(ec_eng, vi);
 	Return_If_Not_Success(result)
 	bnd = ceil(vi->tb.b.l);
 	if (bnd > vi->tb.b.l) {
-	    result = ic_lwb(vi, bnd);
+	    result = ic_lwb(ec_eng, vi, bnd);
 	    Return_If_Not_Success(result)
 	}
 	bnd = floor(vi->tb.b.u);
 	if (bnd < vi->tb.b.u) {
-	    result = ic_upb(vi, bnd);
+	    result = ic_upb(ec_eng, vi, bnd);
 	    Return_If_Not_Success(result)
 	}
 
@@ -1300,16 +1302,16 @@ set_integral(var_info *vi)
     **      variable must not be ground.
     */
 int
-p_set_var_integer(value vvar, type tvar)
+p_set_var_integer(value vvar, type tvar, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 
 	Check_Ref(tvar);
 
-	make_var_info(vvar.ptr, &vi);
+	make_var_info(ec_eng, vvar.ptr, &vi);
 
 	if (!vi.tb.i) {
-	    return set_integral(&vi);
+	    return set_integral(ec_eng, &vi);
 	}
 
 	Succeed
@@ -1317,7 +1319,7 @@ p_set_var_integer(value vvar, type tvar)
 
 
 int
-set_up_exclude_delayed_goal(var_info *vi, word exclude)
+set_up_exclude_delayed_goal(ec_eng_t *ec_eng, var_info *vi, word exclude)
 {
 	pword	goal, susp, *pw;
 	int	result;
@@ -1331,7 +1333,7 @@ set_up_exclude_delayed_goal(var_info *vi, word exclude)
 	pw[2].tag.kernel = TINT;
 	Make_Struct(&goal, pw);
 
-	result = ec_make_suspension(goal, 3, proc_exclude, &susp);
+	result = ecl_make_suspension(ec_eng, goal, 3, proc_exclude, &susp);
 	if (result == DEBUG_SUSP_EVENT) {
 	    delayed = 1;
 	    result = PSUCCEED;
@@ -1339,9 +1341,9 @@ set_up_exclude_delayed_goal(var_info *vi, word exclude)
 	Return_If_Not_Success(result)
 
 	/* Wake on lower/upper bound changes. */
-	result = ec_enter_suspension(vi->attr + OFF_WAKE_LO, susp.val.ptr);
+	result = ecl_enter_suspension(ec_eng, vi->attr + OFF_WAKE_LO, susp.val.ptr);
 	Return_If_Not_Success(result)
-	result = ec_enter_suspension(vi->attr + OFF_WAKE_HI, susp.val.ptr);
+	result = ecl_enter_suspension(ec_eng, vi->attr + OFF_WAKE_HI, susp.val.ptr);
 	Return_If_Not_Success(result)
 
 	return delayed ? DEBUG_SUSP_EVENT : PSUCCEED;
@@ -1358,7 +1360,7 @@ set_up_exclude_delayed_goal(var_info *vi, word exclude)
     **      too large) then a delayed goal is set up to deal with it later.
     */
 int
-ic_exclude(var_info *vi, word exclude)
+ic_exclude(ec_eng_t *ec_eng, var_info *vi, word exclude)
 {
 	word	int_lwb;
 	word	int_upb;
@@ -1377,7 +1379,7 @@ ic_exclude(var_info *vi, word exclude)
 		Succeed
 	    }
 	    if (exclude == int_lwb) {
-		return ic_lwb(vi, (double) (exclude+1));
+		return ic_lwb(ec_eng, vi, (double) (exclude+1));
 	    }
 	} else {
 	    out_of_range = 1;
@@ -1389,27 +1391,27 @@ ic_exclude(var_info *vi, word exclude)
 		Succeed
 	    }
 	    if (exclude == int_upb) {
-		return ic_upb(vi, (double) (exclude-1));
+		return ic_upb(ec_eng, vi, (double) (exclude-1));
 	    }
 	} else {
 	    out_of_range = 1;
 	}
 
 	if (out_of_range) {
-	    return set_up_exclude_delayed_goal(vi, exclude);
+	    return set_up_exclude_delayed_goal(ec_eng, vi, exclude);
 	}
 
 	/* int_lwb < exclude < int_upb */
 
 	if (IsAtom(vi->bitmap->tag)) {
 	    /* Allocate a new bitmap. */
-	    result = create_bitmap(int_lwb, int_upb, &bitmap);
+	    result = create_bitmap(int_lwb, int_upb, &bitmap, ec_eng);
 	    Return_If_Not_Success(result)
 	} else {
 	    bitmap = vi->bitmap->val.wptr;
 	}
 
-	result = remove_bitmap_element(bitmap, exclude, &new_bitmap);
+	result = remove_bitmap_element(bitmap, exclude, &new_bitmap, ec_eng);
 
 	if (Result_Is_Empty(result)) {
 	    /* Bitmap is empty, so no solution. */
@@ -1420,11 +1422,11 @@ ic_exclude(var_info *vi, word exclude)
 	    Update_Bitmap(vi, new_bitmap)
 
 	    /* Notify constrained. */
-	    result = notify_constrained(vi->var);
+	    result = ecl_notify_constrained(ec_eng, vi->var);
 	    Return_If_Not_Success(result)
 
 	    /* Schedule suspensions (hole). */
-	    result = ec_schedule_susps(vi->attr + OFF_WAKE_HOLE);
+	    result = ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_HOLE);
 	    Return_If_Not_Success(result)
 	}
 
@@ -1439,21 +1441,21 @@ ic_exclude(var_info *vi, word exclude)
     **      ground.
     */
 int
-p_ic_exclude(value vvar, type tvar, value vc, type tc)
+p_ic_exclude(value vvar, type tvar, value vc, type tc, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 
 	Check_Ref(tvar);
 	Check_Integer(tc);
 
-	make_var_info(vvar.ptr, &vi);
+	make_var_info(ec_eng, vvar.ptr, &vi);
 
-	return ic_exclude(&vi, vc.nint);
+	return ic_exclude(ec_eng, &vi, vc.nint);
 }
 
 
 int
-set_up_exclude_range_delayed_goal(var_info *vi, word int_lwb, word int_upb)
+set_up_exclude_range_delayed_goal(ec_eng_t *ec_eng, var_info *vi, word int_lwb, word int_upb)
 {
 	pword	goal, susp, *pw;
 	int	result;
@@ -1469,7 +1471,7 @@ set_up_exclude_range_delayed_goal(var_info *vi, word int_lwb, word int_upb)
 	pw[3].tag.kernel = TINT;
 	Make_Struct(&goal, pw);
 
-	result = ec_make_suspension(goal, 3, proc_exclude_range, &susp);
+	result = ecl_make_suspension(ec_eng, goal, 3, proc_exclude_range, &susp);
 	if (result == DEBUG_SUSP_EVENT) {
 	    delayed = 1;
 	    result = PSUCCEED;
@@ -1477,9 +1479,9 @@ set_up_exclude_range_delayed_goal(var_info *vi, word int_lwb, word int_upb)
 	Return_If_Not_Success(result)
 
 	/* Wake on lower/upper bound changes. */
-	result = ec_enter_suspension(vi->attr + OFF_WAKE_LO, susp.val.ptr);
+	result = ecl_enter_suspension(ec_eng, vi->attr + OFF_WAKE_LO, susp.val.ptr);
 	Return_If_Not_Success(result)
-	result = ec_enter_suspension(vi->attr + OFF_WAKE_HI, susp.val.ptr);
+	result = ecl_enter_suspension(ec_eng, vi->attr + OFF_WAKE_HI, susp.val.ptr);
 	Return_If_Not_Success(result)
 
 	return delayed ? DEBUG_SUSP_EVENT : PSUCCEED;
@@ -1498,7 +1500,7 @@ set_up_exclude_range_delayed_goal(var_info *vi, word int_lwb, word int_upb)
     **      it later.
     */
 int
-ic_exclude_range(var_info *vi, word int_lwb0, word int_upb0)
+ic_exclude_range(ec_eng_t *ec_eng, var_info *vi, word int_lwb0, word int_upb0)
 {
 	word	int_lwb;
 	word	int_upb;
@@ -1520,7 +1522,7 @@ ic_exclude_range(var_info *vi, word int_lwb0, word int_upb0)
 		Bip_Error(RANGE_ERROR)
 	    }
 	    if (int_lwb0 <= int_lwb) {
-		return ic_lwb(vi, (double) (int_upb0 + 1));
+		return ic_lwb(ec_eng, vi, (double) (int_upb0 + 1));
 	    }
 	} else {
 	    out_of_range = 1;
@@ -1535,27 +1537,27 @@ ic_exclude_range(var_info *vi, word int_lwb0, word int_upb0)
 		Bip_Error(RANGE_ERROR)
 	    }
 	    if (int_upb0 >= int_upb) {
-		return ic_upb(vi, (double) (int_lwb0 - 1));
+		return ic_upb(ec_eng, vi, (double) (int_lwb0 - 1));
 	    }
 	} else {
 	    out_of_range = 1;
 	}
 
 	if (out_of_range) {
-	    return set_up_exclude_range_delayed_goal(vi, int_lwb0, int_upb0);
+	    return set_up_exclude_range_delayed_goal(ec_eng, vi, int_lwb0, int_upb0);
 	}
 
 	/* int_lwb < int_lwb0 <= int_upb0 < int_upb */
 
 	if (IsAtom(vi->bitmap->tag)) {
 	    /* Allocate a new bitmap. */
-	    result = create_bitmap(int_lwb, int_upb, &bitmap);
+	    result = create_bitmap(int_lwb, int_upb, &bitmap, ec_eng);
 	    Return_If_Not_Success(result)
 	} else {
 	    bitmap = vi->bitmap->val.wptr;
 	}
 
-	result = remove_bitmap_range(bitmap, int_lwb0, int_upb0, &new_bitmap);
+	result = remove_bitmap_range(bitmap, int_lwb0, int_upb0, &new_bitmap, ec_eng);
 
 	if (Result_Is_Empty(result)) {
 	    /* Bitmap is empty, so no solution. */
@@ -1566,11 +1568,11 @@ ic_exclude_range(var_info *vi, word int_lwb0, word int_upb0)
 	    Update_Bitmap(vi, new_bitmap)
 
 	    /* Notify constrained. */
-	    result = notify_constrained(vi->var);
+	    result = ecl_notify_constrained(ec_eng, vi->var);
 	    Return_If_Not_Success(result)
 
 	    /* Schedule suspensions (hole). */
-	    result = ec_schedule_susps(vi->attr + OFF_WAKE_HOLE);
+	    result = ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_HOLE);
 	    Return_If_Not_Success(result)
 	}
 
@@ -1585,7 +1587,7 @@ ic_exclude_range(var_info *vi, word int_lwb0, word int_upb0)
     **      be integral and must not be ground.
     */
 int
-p_ic_exclude_range(value vvar, type tvar, value vlo, type tlo, value vhi, type thi)
+p_ic_exclude_range(value vvar, type tvar, value vlo, type tlo, value vhi, type thi, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 
@@ -1593,16 +1595,16 @@ p_ic_exclude_range(value vvar, type tvar, value vlo, type tlo, value vhi, type t
 	Check_Integer(tlo);
 	Check_Integer(thi);
 
-	make_var_info(vvar.ptr, &vi);
+	make_var_info(ec_eng, vvar.ptr, &vi);
 
-	return ic_exclude_range(&vi, vlo.nint, vhi.nint);
+	return ic_exclude_range(ec_eng, &vi, vlo.nint, vhi.nint);
 }
 
 
     /* Solves  a * x (op) c  */
     /* op: 1 for lower bound, 2 for upper bound, 3 for both. */
 int
-impose_coef_bounds(int op, int integer_strict, bounds *a, var_info *vi,
+impose_coef_bounds(ec_eng_t *ec_eng, int op, int integer_strict, bounds *a, var_info *vi,
 	bounds *c)
 {
 	bounds	res;
@@ -1615,9 +1617,9 @@ impose_coef_bounds(int op, int integer_strict, bounds *a, var_info *vi,
 	    Div(*c, *a, res);
 
 	    if (OpIsEqual(op)) {
-		result = ic_lwb(vi, res.l);
+		result = ic_lwb(ec_eng, vi, res.l);
 		Return_If_Not_Success(result)
-		result = ic_upb(vi, res.u);
+		result = ic_upb(ec_eng, vi, res.u);
 		Return_If_Not_Success(result)
 	    } else
 	    /* If coef is negative, swap which bounds to impose. */
@@ -1629,7 +1631,7 @@ impose_coef_bounds(int op, int integer_strict, bounds *a, var_info *vi,
 		    res.l += 1;
 		    restore_round_mode();
 		}
-		result = ic_lwb(vi, res.l);
+		result = ic_lwb(ec_eng, vi, res.l);
 		Return_If_Not_Success(result)
 	    } else {
 		/* Impose upper bound. */
@@ -1639,7 +1641,7 @@ impose_coef_bounds(int op, int integer_strict, bounds *a, var_info *vi,
 		    res.u -= 1;
 		    restore_round_mode();
 		}
-		result = ic_upb(vi, res.u);
+		result = ic_upb(ec_eng, vi, res.u);
 		Return_If_Not_Success(result)
 	    }
 	}
@@ -1654,7 +1656,7 @@ impose_coef_bounds(int op, int integer_strict, bounds *a, var_info *vi,
     ** not fully resolved (i.e. a delayed goal should be left behind).
     */
 int
-solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
+solve_equal(ec_eng_t *ec_eng, bounds *a, var_info *vi, bounds *c, int *solved)
 {
 	bounds	res;
 	pword	tmp;
@@ -1663,7 +1665,7 @@ solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
 	Div(*c, *a, res);
 
 	if (vi->prop_int && res.l == res.u && res.l == ceil(res.l)) {
-	    result = ec_double_to_int_or_bignum(res.l, &tmp);
+	    result = ecl_double_to_int_or_bignum(ec_eng, res.l, &tmp);
 	    Return_If_Not_Success(result);
 	    result = Unify_Pw(vi->var->val, vi->var->tag, tmp.val, tmp.tag);
 	    Return_If_Not_Success(result);
@@ -1680,7 +1682,7 @@ solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
 		if (computed_c.l > c->u  ||  computed_c.u < c->l) {
 		    Fail
 		}
-		result = ec_double_to_int_or_bignum(res.l, &tmp);
+		result = ecl_double_to_int_or_bignum(ec_eng, res.l, &tmp);
 		Return_If_Not_Success(result);
 		result = Unify_Pw(vi->var->val, vi->var->tag, tmp.val, tmp.tag);
 		Return_If_Not_Success(result);
@@ -1689,9 +1691,9 @@ solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
 		Fail
 	    } else {
 		/* Should avoid rounding bounds again? */
-		result = ic_lwb(vi, res.l);
+		result = ic_lwb(ec_eng, vi, res.l);
 		Return_If_Not_Success(result)
-		result = ic_upb(vi, res.u);
+		result = ic_upb(ec_eng, vi, res.u);
 		Return_If_Not_Success(result)
 		*solved = 0;
 	    }
@@ -1713,7 +1715,7 @@ solve_equal(bounds *a, var_info *vi, bounds *c, int *solved)
     ** Note does not check for "out of bounds" entailment.
     */
 int
-solve_not_equal(bounds *a, var_info *vi, bounds *c, int *solved)
+solve_not_equal(ec_eng_t *ec_eng, bounds *a, var_info *vi, bounds *c, int *solved)
 {
 	bounds	res;
 	int	result;
@@ -1730,7 +1732,7 @@ solve_not_equal(bounds *a, var_info *vi, bounds *c, int *solved)
 		    /* XXX - update to handle bignums. */
 		    Bip_Error(RANGE_ERROR)
 		}
-		result = ic_exclude(vi, (word) res.l);
+		result = ic_exclude(ec_eng, vi, (word) res.l);
 		Return_If_Not_Success(result);
 		*solved = 1;
 	    } else if (res.u < ceil(res.l) && res.l > floor(res.u)) {
@@ -1766,7 +1768,7 @@ solve_not_equal(bounds *a, var_info *vi, bounds *c, int *solved)
     ** priority should have changed (the constraint has gotten shorter).
     */
 int
-update_con_data_buf(con_info *con_info)
+update_con_data_buf(ec_eng_t *ec_eng, con_info *con_info)
 {
 	pword	*susp;
 	pword	prio;
@@ -1786,7 +1788,7 @@ update_con_data_buf(con_info *con_info)
 	Dereference(susp);
 	prio.val.nint = ConstraintPriority(con_info);
 	prio.tag.kernel = TINT;
-	return p_set_suspension_priority(susp->val, susp->tag, prio.val, prio.tag);
+	return p_set_suspension_priority(susp->val, susp->tag, prio.val, prio.tag, ec_eng);
 }
 
 
@@ -1923,8 +1925,8 @@ start_setting_up_con_struct(con_info *con, int flags, value vbool, type tbool,
     **	constraint structure.
     */
 void
-finish_setting_up_con_struct(con_info *con, pword *lo_buf, pword *hi_buf,
-		pword *var_buf, int count)
+finish_setting_up_con_struct(ec_eng_t *ec_eng, con_info *con,
+		pword *lo_buf, pword *hi_buf, pword *var_buf, int count)
 {
 	dident	did;
 
@@ -2027,7 +2029,7 @@ finish_setting_up_con_struct(con_info *con, pword *lo_buf, pword *hi_buf,
     ** with one at the end of the constraint.
     */
 void
-swap_entries(int idx, con_info *con, bounds *a)
+swap_entries(ec_eng_t *ec_eng, int idx, con_info *con, bounds *a)
 {
 	bounds		b;
 	typed_bounds	ytb;
@@ -2200,7 +2202,7 @@ update_ef(prop_info *prop, con_info *con, bounds *a, bounds *x, int idx)
     ** value and kill the suspension.
     */
 int
-evaluate_reified(con_info *con, prop_info *prop, int *solved)
+evaluate_reified(ec_eng_t *ec_eng, con_info *con, prop_info *prop, int *solved)
 {
 	int	result, inequality;
 
@@ -2246,7 +2248,7 @@ evaluate_reified(con_info *con, prop_info *prop, int *solved)
     ** Determine the status of a 0-variable constraint.
     */
 int
-check_ic_0v_con(con_info *con)
+check_ic_0v_con(ec_eng_t *ec_eng, con_info *con)
 {
 	switch (con->op) {
 	    case UPPER_BOUND + LOWER_BOUND:
@@ -2299,7 +2301,7 @@ check_ic_0v_con(con_info *con)
     ** Propagate a constraint with only 1 variable.
     */
 int
-prop_ic_1v_con(con_info *con, prop_info *prop)
+prop_ic_1v_con(ec_eng_t *ec_eng, con_info *con, prop_info *prop)
 {
 	int	result, solved;
 	pword	*tmp;
@@ -2336,14 +2338,14 @@ prop_ic_1v_con(con_info *con, prop_info *prop)
 #endif
 
 	    if (OpIsEqual(con->op)) {
-		result = solve_equal(&a, &vi, &con->c, &solved);
+		result = solve_equal(ec_eng, &a, &vi, &con->c, &solved);
 		Return_If_Not_Success(result);
 		if (solved) {
 		    Mark_Constraint_Entailed(con);
 		    Succeed
 		}
 	    } else {
-		result = impose_coef_bounds(con->op, OpIsGreater(con->op),
+		result = impose_coef_bounds(ec_eng, con->op, OpIsGreater(con->op),
 		&a, &vi, &con->c);
 		Return_If_Not_Success(result);
 
@@ -2407,7 +2409,7 @@ prop_ic_1v_con(con_info *con, prop_info *prop)
     ** Do the first pass of the two-pass propagation algorithm.
     */
 int
-prop_pass_1(con_info *con, prop_info *prop)
+prop_pass_1(ec_eng_t *ec_eng, con_info *con, prop_info *prop)
 {
 	var_info	vi;
 	bounds	a, res;
@@ -2465,7 +2467,7 @@ prop_pass_1(con_info *con, prop_info *prop)
 		Sub(con->c, res, con->c);
 
 		/* Swap X with a yet-to-be-processed variable. */
-		swap_entries(idx, con, &a);
+		swap_entries(ec_eng, idx, con, &a);
 
 #ifdef IC_DEBUG
 		fprintf(stderr, "   Adjusted c: cl = %f, cu = %f.\n", con->c.l, con->c.u);
@@ -2525,7 +2527,7 @@ prop_pass_1(con_info *con, prop_info *prop)
 		    tmp = con->var_vec + prop->non_int_idx;
 		    Dereference(tmp);
 		    get_var_info(tmp, &vi);
-		    result = set_integral(&vi);
+		    result = set_integral(ec_eng, &vi);
 		    Return_If_Not_Success(result);
 		    /* Integrality propagation now completely dealt with. */
 		    con->flags &= ~CON_INTEGRALITY_PROP;
@@ -2553,7 +2555,7 @@ prop_pass_1(con_info *con, prop_info *prop)
     ** We assume bool is a ground integer.
     */
 int
-prop_pass_2(con_info *con, prop_info *prop)
+prop_pass_2(ec_eng_t *ec_eng, con_info *con, prop_info *prop)
 {
 	pword	*tmp;
 	var_info    vi;
@@ -2579,7 +2581,7 @@ prop_pass_2(con_info *con, prop_info *prop)
 	    get_var_info(tmp, &vi);
 	    vi.prop_int = (prop->non_int_idx == 0);
 
-	    result = solve_equal(&a, &vi, &con->c, &solved);
+	    result = solve_equal(ec_eng, &a, &vi, &con->c, &solved);
 	    Return_If_Not_Success(result);
 	    if (solved) {
 		Mark_Constraint_Entailed(con);
@@ -2666,7 +2668,7 @@ prop_pass_2(con_info *con, prop_info *prop)
 		fprintf(stderr, "   lo = %f, hi = %f.\n", res.l, res.u);
 #endif
 
-		result = impose_coef_bounds(UPPER_BOUND, 0, &a, &vi, &res);
+		result = impose_coef_bounds(ec_eng, UPPER_BOUND, 0, &a, &vi, &res);
 		Return_If_Not_Success(result);
 		/*
 		** Note that the above cannot make X ground, even with
@@ -2726,7 +2728,7 @@ prop_pass_2(con_info *con, prop_info *prop)
 		fprintf(stderr, "   lo = %f, hi = %f.\n", res.l, res.u);
 #endif
 
-		result = impose_coef_bounds(LOWER_BOUND,
+		result = impose_coef_bounds(ec_eng, LOWER_BOUND,
 			OpIsGreater(con->op), &a, &vi, &res);
 		Return_If_Not_Success(result);
 		/*
@@ -2783,7 +2785,7 @@ prop_pass_2(con_info *con, prop_info *prop)
 		fprintf(stderr, "   lo = %f, hi = %f.\n", res.l, res.u);
 #endif
 
-		result = impose_coef_bounds(pseudo_op, OpIsGreater(con->op),
+		result = impose_coef_bounds(ec_eng, pseudo_op, OpIsGreater(con->op),
 			&a, &vi, &res);
 		Return_If_Not_Success(result);
 
@@ -2804,7 +2806,7 @@ prop_pass_2(con_info *con, prop_info *prop)
 		    Sub(con->c, res, con->c);
 
 		    /* Swap X with a yet-to-be-processed variable. */
-		    swap_entries(idx, con, &a);
+		    swap_entries(ec_eng, idx, con, &a);
 
 #ifdef USE_BOUND_SET_SHORTCUT
 		    /* Assume X is integral, so don't update flags. */
@@ -2887,7 +2889,7 @@ prop_pass_2(con_info *con, prop_info *prop)
     ** Propagate a linear disequation (ic_con).
     */
 int
-prop_ic_neq_con(con_info *con)
+prop_ic_neq_con(ec_eng_t *ec_eng, con_info *con)
 {
 	pword	*tmp;
 	bounds	a, res;
@@ -2944,7 +2946,7 @@ prop_ic_neq_con(con_info *con)
 		    /* Second variable is still a variable. */
 		    get_var_info(tmp, &vi);
 
-		    result = solve_not_equal(&a, &vi, &c, &solved);
+		    result = solve_not_equal(ec_eng, &a, &vi, &c, &solved);
 		    Return_If_Not_Success(result);
 		    if (solved) {
 			Mark_Constraint_Entailed(con)
@@ -2976,7 +2978,7 @@ prop_ic_neq_con(con_info *con)
 		    a.l = con->lo_vec[0];
 		    a.u = con->hi_vec[0];
 
-		    result = solve_not_equal(&a, &vi, &c, &solved);
+		    result = solve_not_equal(ec_eng, &a, &vi, &c, &solved);
 		    Return_If_Not_Success(result);
 		    if (solved) {
 			Mark_Constraint_Entailed(con)
@@ -3010,7 +3012,7 @@ prop_ic_neq_con(con_info *con)
 		Sub(con->c, res, con->c);
 
 		/* Swap X with a yet-to-be-processed variable. */
-		swap_entries(idx, con, &a);
+		swap_entries(ec_eng, idx, con, &a);
 	    }
 	}
 
@@ -3031,7 +3033,7 @@ prop_ic_neq_con(con_info *con)
 
 	    get_var_info(tmp, &vi);
 
-	    result = solve_not_equal(&a, &vi, &con->c, &solved);
+	    result = solve_not_equal(ec_eng, &a, &vi, &con->c, &solved);
 	    Return_If_Not_Success(result);
 	    if (solved) {
 		Mark_Constraint_Entailed(con)
@@ -3047,7 +3049,7 @@ prop_ic_neq_con(con_info *con)
 
 #ifdef USE_BOUND_SET_SHORTCUT
 int
-set_vars_to_lwb_list(pword *plin, con_info *con, prop_info *prop)
+set_vars_to_lwb_list(ec_eng_t *ec_eng, pword *plin, con_info *con, prop_info *prop)
 {
 	pword	*pterm, *tmp;
 	int	idx, result;
@@ -3085,7 +3087,7 @@ set_vars_to_lwb_list(pword *plin, con_info *con, prop_info *prop)
 
 	    if (vi.tb.i) {
 		pword	bnd;
-		result = ec_double_to_int_or_bignum(bound_value, &bnd);
+		result = ecl_double_to_int_or_bignum(ec_eng, bound_value, &bnd);
 		Return_If_Not_Success(result);
 		result = Unify_Pw(tmp->val, tmp->tag, bnd.val, bnd.tag);
 		Return_If_Not_Success(result);
@@ -3191,7 +3193,7 @@ short_cuts(con_info *con, prop_info *prop, int *short_cut)
 ** etc. if indicated by result (Result_Is_Slack(), etc.).
 */
 int
-sync_attr_with_new_bitmap(var_info *vi, void *bitmap, int result)
+sync_attr_with_new_bitmap(ec_eng_t *ec_eng, var_info *vi, void *bitmap, int result)
 {
 	double	lwb, upb;
 	word	min, max;
@@ -3220,9 +3222,9 @@ sync_attr_with_new_bitmap(var_info *vi, void *bitmap, int result)
 		/* Lower bound has changed. */
 		Make_Checked_Double_Val(val, lwb);
 		tag.kernel = TDBL;
-		ec_assign(vi->attr + OFF_LO, val, tag);
+		ecl_assign(ec_eng, vi->attr + OFF_LO, val, tag);
 		vi->tb.b.l = lwb;
-		result = ec_schedule_susps(vi->attr + OFF_WAKE_LO);
+		result = ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_LO);
 		Return_If_Not_Success(result)
 	    }
 	    upb = (double) max;
@@ -3230,9 +3232,9 @@ sync_attr_with_new_bitmap(var_info *vi, void *bitmap, int result)
 		/* Upper bound has changed. */
 		Make_Checked_Double_Val(val, upb);
 		tag.kernel = TDBL;
-		ec_assign(vi->attr + OFF_HI, val, tag);
+		ecl_assign(ec_eng, vi->attr + OFF_HI, val, tag);
 		vi->tb.b.u = upb;
-		result = ec_schedule_susps(vi->attr + OFF_WAKE_HI);
+		result = ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_HI);
 		Return_If_Not_Success(result)
 	    }
 	}
@@ -3240,10 +3242,10 @@ sync_attr_with_new_bitmap(var_info *vi, void *bitmap, int result)
 	Update_Bitmap(vi, bitmap);
 	/* Wake things suspended on new holes. */
 	/* XXX - maybe there are no new holes? */
-	result = ec_schedule_susps(vi->attr + OFF_WAKE_HOLE);
+	result = ecl_schedule_susps(ec_eng, vi->attr + OFF_WAKE_HOLE);
 	Return_If_Not_Success(result)
 	/* Notify constrained. */
-	return notify_constrained(vi->var);
+	return ecl_notify_constrained(ec_eng, vi->var);
 }
 
 
@@ -3251,7 +3253,7 @@ sync_attr_with_new_bitmap(var_info *vi, void *bitmap, int result)
 ** Enforces initial consistency for ac_eq(X, Y, C).
 */
 int
-p_ac_eq_init(value vx, type tx, value vy, type ty, value vc, type tc)
+p_ac_eq_init(value vx, type tx, value vy, type ty, value vc, type tc, ec_eng_t *ec_eng)
 {
 	var_info	vix, viy;
 	word	c;
@@ -3306,21 +3308,21 @@ p_ac_eq_init(value vx, type tx, value vy, type ty, value vc, type tc)
 		/* X */
 		lo = max(vix.tb.b.l, viy.tb.b.l + c);
 		hi = min(vix.tb.b.u, viy.tb.b.u + c);
-		result = ic_lwb(&vix, lo);
+		result = ic_lwb(ec_eng, &vix, lo);
 		Return_If_Not_Success(result)
-		result = ic_upb(&vix, hi);
+		result = ic_upb(ec_eng, &vix, hi);
 		Return_If_Not_Success(result)
-		result = create_bitmap((word) lo, (word) hi, &bitmap_x);
+		result = create_bitmap((word) lo, (word) hi, &bitmap_x, ec_eng);
 		Return_If_Not_Success(result)
 		Update_Bitmap(&vix, bitmap_x);
 		/* Y */
 		lo = max(viy.tb.b.l, vix.tb.b.l - c);
 		hi = min(viy.tb.b.u, vix.tb.b.u - c);
-		result = ic_lwb(&viy, lo);
+		result = ic_lwb(ec_eng, &viy, lo);
 		Return_If_Not_Success(result)
-		result = ic_upb(&viy, hi);
+		result = ic_upb(ec_eng, &viy, hi);
 		Return_If_Not_Success(result)
-		result = create_bitmap((word) lo, (word) hi, &bitmap_y);
+		result = create_bitmap((word) lo, (word) hi, &bitmap_y, ec_eng);
 		Return_If_Not_Success(result)
 		Update_Bitmap(&viy, bitmap_y);
 	    } else {
@@ -3333,17 +3335,17 @@ p_ac_eq_init(value vx, type tx, value vy, type ty, value vc, type tc)
 		/* Y */
 		lo = max(viy.tb.b.l, vix.tb.b.l - c);
 		hi = min(viy.tb.b.u, vix.tb.b.u - c);
-		result = ic_lwb(&viy, lo);
+		result = ic_lwb(ec_eng, &viy, lo);
 		Return_If_Not_Success(result)
-		result = ic_upb(&viy, hi);
+		result = ic_upb(ec_eng, &viy, hi);
 		Return_If_Not_Success(result)
 		/* X */
 		if (viy.tb.b.l == viy.tb.b.u) {
 		    /* Y is ground, so just ground X. */
 		    Set_Var_To_Value(&vix, viy.tb.b.l + c);
 		} else {
-		    copy_bitmap_shifted(viy.bitmap->val.wptr, c, &bitmap_x);
-		    result = sync_attr_with_new_bitmap(&vix, bitmap_x,
+		    copy_bitmap_shifted(viy.bitmap->val.wptr, c, &bitmap_x, ec_eng);
+		    result = sync_attr_with_new_bitmap(ec_eng, &vix, bitmap_x,
 			    RES_CHANGED | RES_SLACK);
 		    Return_If_Not_Success(result);
 		}
@@ -3359,29 +3361,29 @@ p_ac_eq_init(value vx, type tx, value vy, type ty, value vc, type tc)
 		/* X */
 		lo = max(vix.tb.b.l, viy.tb.b.l + c);
 		hi = min(vix.tb.b.u, viy.tb.b.u + c);
-		result = ic_lwb(&vix, lo);
+		result = ic_lwb(ec_eng, &vix, lo);
 		Return_If_Not_Success(result)
-		result = ic_upb(&vix, hi);
+		result = ic_upb(ec_eng, &vix, hi);
 		Return_If_Not_Success(result)
 		/* Y */
 		if (vix.tb.b.l == vix.tb.b.u) {
 		    /* X is ground, so just ground Y. */
 		    Set_Var_To_Value(&viy, vix.tb.b.l - c);
 		} else {
-		    copy_bitmap_shifted(vix.bitmap->val.wptr, -c, &bitmap_y);
-		    result = sync_attr_with_new_bitmap(&viy, bitmap_y,
+		    copy_bitmap_shifted(vix.bitmap->val.wptr, -c, &bitmap_y, ec_eng);
+		    result = sync_attr_with_new_bitmap(ec_eng, &viy, bitmap_y,
 			    RES_CHANGED | RES_SLACK);
 		    Return_If_Not_Success(result);
 		}
 	    } else {
 		/* They both have bitmaps: intersect into each other. */
 		result = bitmap_shifted_intersect_into(vix.bitmap->val.wptr,
-			viy.bitmap->val.wptr, c, &bitmap_x);
-		result = sync_attr_with_new_bitmap(&vix, bitmap_x, result);
+			viy.bitmap->val.wptr, c, &bitmap_x, ec_eng);
+		result = sync_attr_with_new_bitmap(ec_eng, &vix, bitmap_x, result);
 		Return_If_Not_Success(result);
 		result = bitmap_shifted_intersect_into(viy.bitmap->val.wptr,
-			bitmap_x, -c, &bitmap_y);
-		result = sync_attr_with_new_bitmap(&viy, bitmap_y, result);
+			bitmap_x, -c, &bitmap_y, ec_eng);
+		result = sync_attr_with_new_bitmap(ec_eng, &viy, bitmap_y, result);
 		Return_If_Not_Success(result);
 	    }
 	}
@@ -3395,7 +3397,7 @@ p_ac_eq_init(value vx, type tx, value vy, type ty, value vc, type tc)
 */
 int
 p_ac_eq_prop(value vx, type tx, value vy, type ty, value vc, type tc,
-	value vsusp, type tsusp)
+	value vsusp, type tsusp, ec_eng_t *ec_eng)
 {
 	var_info	vix, viy;
 	word	c;
@@ -3430,12 +3432,12 @@ p_ac_eq_prop(value vx, type tx, value vy, type ty, value vc, type tc,
 	get_var_info(vy.ptr, &viy);
 
 	result = bitmap_shifted_intersect_into(vix.bitmap->val.wptr,
-		viy.bitmap->val.wptr, c, &bitmap_x);
-	result = sync_attr_with_new_bitmap(&vix, bitmap_x, result);
+		viy.bitmap->val.wptr, c, &bitmap_x, ec_eng);
+	result = sync_attr_with_new_bitmap(ec_eng, &vix, bitmap_x, result);
 	Return_If_Not_Success(result);
 	result = bitmap_shifted_intersect_into(viy.bitmap->val.wptr,
-		bitmap_x, -c, &bitmap_y);
-	result = sync_attr_with_new_bitmap(&viy, bitmap_y, result);
+		bitmap_x, -c, &bitmap_y, ec_eng);
+	result = sync_attr_with_new_bitmap(ec_eng, &viy, bitmap_y, result);
 	Return_If_Not_Success(result);
 
 	Succeed
@@ -3443,7 +3445,7 @@ p_ac_eq_prop(value vx, type tx, value vy, type ty, value vc, type tc,
 
 
 int
-p_prop_ic_con(value vcon, type tcon)
+p_prop_ic_con(value vcon, type tcon, ec_eng_t *ec_eng)
 {
 	con_info	con;
 	prop_info	prop;
@@ -3455,12 +3457,12 @@ p_prop_ic_con(value vcon, type tcon)
 
 	if (OpIsNotEqual(con.op) && !con.reified) {
 	    /* Disequality constraint. */
-	    return prop_ic_neq_con(&con);
+	    return prop_ic_neq_con(ec_eng, &con);
 	}
 
 	/* XXX - Should do first pass of propagation here, for use by all? */
 	/* XXX - Not for short constraints? */
-	result = prop_pass_1(&con, &prop);
+	result = prop_pass_1(ec_eng, &con, &prop);
 	Return_If_Not_Success(result);
 
 #ifdef IC_DEBUG
@@ -3477,7 +3479,7 @@ p_prop_ic_con(value vcon, type tcon)
 
 	if (con.reified) {
 	    /* No propagation, just check entailment/disentailment. */
-	    result = evaluate_reified(&con, &prop, &solved);
+	    result = evaluate_reified(ec_eng, &con, &prop, &solved);
 	    Return_If_Not_Success(result);
 	    if (solved) {
 		Mark_Constraint_Entailed(&con)
@@ -3519,17 +3521,17 @@ p_prop_ic_con(value vcon, type tcon)
 	*/
 	switch (con.term_count) {
 	    case 0:
-		return check_ic_0v_con(&con);
+		return check_ic_0v_con(ec_eng, &con);
 		break;
 	    case 1:
-		return prop_ic_1v_con(&con, &prop);
+		return prop_ic_1v_con(ec_eng, &con, &prop);
 		break;
 /*
 	    case 2:
 		break;
 */
 	    default:
-		return prop_pass_2(&con, &prop);
+		return prop_pass_2(ec_eng, &con, &prop);
 		break;
 	}
 }
@@ -3550,7 +3552,7 @@ p_prop_ic_con(value vcon, type tcon)
     **	aren't any errors we should report instead).
     */
 int
-type_check_lin_terms(pword *plin, int flags)
+type_check_lin_terms(ec_eng_t *ec_eng, pword *plin, int flags)
 {
 	pword	*pterm, *tmp;
 	int	idx;
@@ -3582,7 +3584,7 @@ type_check_lin_terms(pword *plin, int flags)
     **	and counting the number of non-ground terms.  :)
     */
 int
-setup_pass_1(pword *plin, con_info *con, prop_info *prop)
+setup_pass_1(ec_eng_t *ec_eng, pword *plin, con_info *con, prop_info *prop)
 {
 	pword	*pterm, *tmp;
 	int	idx, maybe_prop_int;
@@ -3639,7 +3641,7 @@ setup_pass_1(pword *plin, con_info *con, prop_info *prop)
 		** Make sure it's an IC var, and constrain it to be integral
 		** if necessary.
 		*/
-		result = make_constrained_ic_var(&tmp, -HUGE_VAL, HUGE_VAL, con->flags & CON_INTEGRAL);
+		result = make_constrained_ic_var(ec_eng, &tmp, -HUGE_VAL, HUGE_VAL, con->flags & CON_INTEGRAL);
 		Return_If_Not_Success(result)
 	    }
 
@@ -3730,8 +3732,8 @@ setup_pass_1(pword *plin, con_info *con, prop_info *prop)
     **	constraint data buffer.
     */
 int
-process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
-		prop_info *prop)
+process_lin_terms_to_vectors_and_prop(ec_eng_t *ec_eng,
+		pword *plin, con_info *con, prop_info *prop)
 {
 	pword	*pterm, *tmp;
 	pword	goal;
@@ -3808,7 +3810,7 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 	Push_Struct_Frame(d_prop_ic_con);
 	goal.val.ptr[1].val.ptr = con->con;
 	goal.val.ptr[1].tag.kernel = TCOMP;
-	result = ec_make_suspension(goal, ConstraintPriority(con),
+	result = ecl_make_suspension(ec_eng, goal, ConstraintPriority(con),
 			proc_prop_ic_con, con->con + CON_OFF_SUSP);
 	if (result == DEBUG_SUSP_EVENT) {
 	    delayed = 1;
@@ -3905,10 +3907,10 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 		    ** Reified constraint.
 		    ** Wake on either bound change.
 		    */
-		    result = ec_enter_suspension(vi.attr + OFF_WAKE_LO,
+		    result = ecl_enter_suspension(ec_eng, vi.attr + OFF_WAKE_LO,
 			    con->susp->val.ptr);
 		    Return_If_Not_Success(result)
-		    result = ec_enter_suspension(vi.attr + OFF_WAKE_HI,
+		    result = ecl_enter_suspension(ec_eng, vi.attr + OFF_WAKE_HI,
 			    con->susp->val.ptr);
 		    Return_If_Not_Success(result)
 
@@ -3925,12 +3927,12 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 			    ** Wake on appropriate bound only.
 			    */
 			    if (a.b.l > 0.0) {
-				result = ec_enter_suspension(vi.attr + off_pos,
+				result = ecl_enter_suspension(ec_eng, vi.attr + off_pos,
 					con->susp->val.ptr);
 				Return_If_Not_Success(result)
 				break;
 			    } else if (a.b.u < 0.0) {
-				result = ec_enter_suspension(vi.attr + off_neg,
+				result = ecl_enter_suspension(ec_eng, vi.attr + off_neg,
 					con->susp->val.ptr);
 				Return_If_Not_Success(result)
 				break;
@@ -3944,10 +3946,10 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 			    ** We have an equation.
 			    ** Wake on either bound change.
 			    */
-			    result = ec_enter_suspension(vi.attr + OFF_WAKE_LO,
+			    result = ecl_enter_suspension(ec_eng, vi.attr + OFF_WAKE_LO,
 				    con->susp->val.ptr);
 			    Return_If_Not_Success(result)
-			    result = ec_enter_suspension(vi.attr + OFF_WAKE_HI,
+			    result = ecl_enter_suspension(ec_eng, vi.attr + OFF_WAKE_HI,
 				    con->susp->val.ptr);
 			    Return_If_Not_Success(result)
 			    break;
@@ -3957,7 +3959,7 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 			    ** We have a (non-reified) disequality.
 			    ** Wake on instantiation only.
 			    */
-			    result = insert_suspension(vi.var, 1,
+			    result = insert_suspension(ec_eng, vi.var, 1,
 				    con->susp->val.ptr, suspend_slot);
 			    Return_If_Not_Success(result)
 			    break;
@@ -4007,7 +4009,7 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 			    fprintf(stderr, "   lo = %f, hi = %f.\n", res.l, res.u);
 #endif
 
-			    result = impose_coef_bounds(pseudo_op, strict,
+			    result = impose_coef_bounds(ec_eng, pseudo_op, strict,
 			    &a.b, &vi, &res);
 			    Return_If_Not_Success(result);
 			}
@@ -4025,7 +4027,7 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 #ifdef IC_DEBUG
 			fprintf(stderr, "   Propagating integrality.\n");
 #endif
-			result = set_integral(&vi);
+			result = set_integral(ec_eng, &vi);
 			Return_If_Not_Success(result);
 			con->flags -= CON_INTEGRALITY_PROP;
 		    }
@@ -4098,12 +4100,12 @@ process_lin_terms_to_vectors_and_prop(pword *plin, con_info *con,
 
 	if (con->reified) {
 	    /* Suspend on boolean instantiation. */
-	    result = insert_suspension(con->bool, 1, con->susp->val.ptr,
+	    result = insert_suspension(ec_eng, con->bool, 1, con->susp->val.ptr,
 		    suspend_slot);
 	    Return_If_Not_Success(result)
 	}
 
-	finish_setting_up_con_struct(con, lo_buf, hi_buf, var_buf, count);
+	finish_setting_up_con_struct(ec_eng, con, lo_buf, hi_buf, var_buf, count);
 
 	/* Check for constraints which can be turned into unifications. */
 	Check_Con_Is_Unification(con)
@@ -4176,7 +4178,7 @@ setup_0v_con(con_info *con, prop_info *prop, int *solved)
 
 
 int
-setup_1v_con(pword *plin, con_info *con, prop_info *prop, int *solved)
+setup_1v_con(ec_eng_t *ec_eng, pword *plin, con_info *con, prop_info *prop, int *solved)
 {
 	int	idx, result;
 	pword	*tmp, *pterm;
@@ -4246,11 +4248,11 @@ setup_1v_con(pword *plin, con_info *con, prop_info *prop, int *solved)
 #endif
 
 		if (OpIsEqual(con->op)) {
-		    return solve_equal(&a.b, &vi, &res, solved);
+		    return solve_equal(ec_eng, &a.b, &vi, &res, solved);
 		} else if (OpIsNotEqual(con->op)) {
-		    return solve_not_equal(&a.b, &vi, &res, solved);
+		    return solve_not_equal(ec_eng, &a.b, &vi, &res, solved);
 		} else {
-		    result = impose_coef_bounds(con->op,
+		    result = impose_coef_bounds(ec_eng, con->op,
 		    OpIsGreater(con->op), &a.b, &vi, &res);
 		    Return_If_Not_Success(result);
 		}
@@ -4283,7 +4285,7 @@ setup_1v_con(pword *plin, con_info *con, prop_info *prop, int *solved)
     **	and Bool gives the reification status of the constraint.
     */
 int
-p_set_up_ic_con(value vflags, type tflags, value vbool, type tbool, value vlin, type tlin)
+p_set_up_ic_con(value vflags, type tflags, value vbool, type tbool, value vlin, type tlin, ec_eng_t *ec_eng)
 {
 	int	    result, result2;
 	con_info    con;
@@ -4297,11 +4299,11 @@ p_set_up_ic_con(value vflags, type tflags, value vbool, type tbool, value vlin, 
 	lin.tag = tlin;
 
 	/* Make sure bool is a boolean. */
-	result = p_make_bool(vbool, tbool);
+	result = p_make_bool(vbool, tbool, ec_eng);
 	Return_If_Error(result);
 	if (result != PSUCCEED) {
 	    /* Don't fail until we've finished type checking. */
-	    result2 = type_check_lin_terms(&lin, vflags.nint);
+	    result2 = type_check_lin_terms(ec_eng, &lin, vflags.nint);
 	    Return_If_Not_Success(result2);
 	    return result;
 	}
@@ -4342,14 +4344,14 @@ p_set_up_ic_con(value vflags, type tflags, value vbool, type tbool, value vlin, 
 	con.susp = 0;
 
 	/* Just do a type check and count the terms for now. */
-	result = setup_pass_1(&lin, &con, &prop);
+	result = setup_pass_1(ec_eng, &lin, &con, &prop);
 	Return_If_Not_Success(result);
 
 	if (con.reified) {
 	    /* No propagation, just check entailment/disentailment. */
 	    /* Already know the answer if no_prop has been set. */
 	    if (!prop.no_prop) {
-		result = evaluate_reified(&con, &prop, &solved);
+		result = evaluate_reified(ec_eng, &con, &prop, &solved);
 		Return_If_Not_Success(result);
 		if (solved) {
 		    Succeed
@@ -4408,7 +4410,7 @@ p_set_up_ic_con(value vflags, type tflags, value vbool, type tbool, value vlin, 
 	** after propagation if all constants are zero-width).
 	*/
 	if (!prop.no_prop && !con.reified && con.term_count == 1) {
-	    result = setup_1v_con(&lin, &con, &prop, &solved);
+	    result = setup_1v_con(ec_eng, &lin, &con, &prop, &solved);
 	    Return_If_Not_Success(result)
 	    if (solved) {
 		Succeed
@@ -4431,7 +4433,7 @@ p_set_up_ic_con(value vflags, type tflags, value vbool, type tbool, value vlin, 
 	con.con[CON_OFF_BOOLEAN].tag.all = tbool.all;
 
 	delayed = 0;
-	result = process_lin_terms_to_vectors_and_prop(&lin, &con, &prop);
+	result = process_lin_terms_to_vectors_and_prop(ec_eng, &lin, &con, &prop);
 	if (result == DEBUG_SUSP_EVENT) {
 	    delayed = 1;
 	    result = PSUCCEED;
@@ -4448,7 +4450,7 @@ p_set_up_ic_con(value vflags, type tflags, value vbool, type tbool, value vlin, 
 int
 p_get_print_info(value vcon, type tcon, value vflags, type tflags,
 		value vbool, type tbool, value vcoefs, type tcoefs,
-		value vvars, type tvars, value vc, type tc)
+		value vvars, type tvars, value vc, type tc, ec_eng_t *ec_eng)
 {
 	con_info	con;
 	pword	*dest;
@@ -4546,7 +4548,7 @@ prop_0v(int flags, pword *bool, double cl, double cu, value vsusp, type tsusp, .
     **      extraction/creation from/of an IC variable.
     */
 int
-p_ic_init()
+p_ic_init(ec_eng_t *ec_eng)
 {
 	pword	module;
 	int	result;
@@ -4558,6 +4560,8 @@ p_ic_init()
 	d_ic_real = ec_did("real", 0);
 	d_ic_integer = ec_did("integer", 0);
 	d_ic_undefined = ec_did("undefined", 0);
+	d_supq = ec_did(">=", 2);
+	d_infq = ec_did("=<", 2);
 
 	module.val.did = ec_did("ic_kernel", 0);
 	module.tag.kernel = TDICT;
@@ -4578,9 +4582,9 @@ p_ic_init()
 		&proc_exclude_range);
 	Return_If_Not_Success(result);
 
-	result = ec_visible_procedure(d_.infq, module, &proc_infq);
+	result = ec_visible_procedure(d_infq, module, &proc_infq);
 	Return_If_Not_Success(result);
-	result = ec_visible_procedure(d_.supq, module, &proc_supq);
+	result = ec_visible_procedure(d_supq, module, &proc_supq);
 	Return_If_Not_Success(result);
 
 	Succeed;
@@ -4591,7 +4595,7 @@ p_ic_init()
     **      Initialisation for ic_constraints.
     */
 int
-p_ic_constraints_init()
+p_ic_constraints_init(ec_eng_t *ec_eng)
 {
 	pword	module;
 	int	result;
@@ -4615,7 +4619,7 @@ p_ic_constraints_init()
     **	    fresh variable.
     */   
 int
-p_get_ic_attr(value vvar, type tvar, value vattr, type tattr)
+p_get_ic_attr(value vvar, type tvar, value vattr, type tattr, ec_eng_t *ec_eng)
 {
 	pword *res;
 
@@ -4623,7 +4627,7 @@ p_get_ic_attr(value vvar, type tvar, value vattr, type tattr)
 	    Fail
 	}
 
-	res = make_ic_var_attr(vvar.ptr);
+	res = make_ic_var_attr(ec_eng, vvar.ptr);
 	Return_Bind_Var(vattr, tattr, res->val.all, res->tag.kernel);
 }
 
@@ -4634,7 +4638,7 @@ p_get_ic_attr(value vvar, type tvar, value vattr, type tattr)
     ** Assumes the lower bound cannot be +inf or the upper bound -inf.
     */
 int
-unify_integer_bounds(double lwb, double upb, value vlo, type tlo, value vhi, type thi)
+unify_integer_bounds(ec_eng_t *ec_eng, double lwb, double upb, value vlo, type tlo, value vhi, type thi)
 {
 	value	val;
 	type	tag;
@@ -4646,7 +4650,7 @@ unify_integer_bounds(double lwb, double upb, value vlo, type tlo, value vhi, typ
 	Make_Double_Val(val, lwb);
 	if (lwb != -HUGE_VAL) {
 	    /* Return an integer. */
-	    result = unary_arith_op(val, tag, vlo, tlo, ARITH_FIX, TINT);
+	    result = unary_arith_op(val, tag, vlo, tlo, ec_eng, ARITH_FIX, TINT);
 	} else {
 	    result = Unify_Pw(vlo, tlo, val, tag);
 	}
@@ -4656,7 +4660,7 @@ unify_integer_bounds(double lwb, double upb, value vlo, type tlo, value vhi, typ
 	Make_Double_Val(val, upb);
 	if (upb != HUGE_VAL) {
 	    /* Return an integer. */
-	    result = unary_arith_op(val, tag, vhi, thi, ARITH_FIX,
+	    result = unary_arith_op(val, tag, vhi, thi, ec_eng, ARITH_FIX,
 		    TINT);
 	} else {
 	    result = Unify_Pw(vhi, thi, val, tag);
@@ -4673,7 +4677,7 @@ unify_integer_bounds(double lwb, double upb, value vlo, type tlo, value vhi, typ
     **	    if Var is a ground number.
     */
 int
-p_get_bounds(value vvar, type tvar, value vlo, type tlo, value vhi, type thi)
+p_get_bounds(value vvar, type tvar, value vlo, type tlo, value vhi, type thi, ec_eng_t *ec_eng)
 {
 	value	val;
 	type	tag;
@@ -4684,9 +4688,9 @@ p_get_bounds(value vvar, type tvar, value vlo, type tlo, value vhi, type thi)
 	if (IsRef(tvar)) {
 	    var_info    vi;
 	    /* For variables, extract the bounds and return them. */
-	    make_var_info(vvar.ptr, &vi);
+	    make_var_info(ec_eng, vvar.ptr, &vi);
 	    if (vi.tb.i) {
-		return unify_integer_bounds(vi.tb.b.l, vi.tb.b.u, vlo, tlo, vhi, thi);
+		return unify_integer_bounds(ec_eng, vi.tb.b.l, vi.tb.b.u, vlo, tlo, vhi, thi);
 	    } else {
 		Make_Double_Val(val, vi.tb.b.l);
 		result = Unify_Pw(vlo, tlo, val, tag);
@@ -4702,7 +4706,7 @@ p_get_bounds(value vvar, type tvar, value vlo, type tlo, value vhi, type thi)
 	} else if (IsNumber(tvar)) {
 	    /* For other numbers, coerce to bounded real and return bounds. */
 	    value breal;
-	    result = tag_desc[TagType(tvar)].coerce_to[TIVL](vvar, &breal);
+	    result = tag_desc[TagType(tvar)].coerce_to[TIVL](ec_eng, vvar, &breal);
 	    Return_If_Not_Success(result);
 	    Make_Double_Val(val, IvlLwb(breal.ptr));
 	    result = Unify_Pw(vlo, tlo, val, tag);
@@ -4729,7 +4733,7 @@ p_get_bounds(value vvar, type tvar, value vlo, type tlo, value vhi, type thi)
     */
 int
 p_get_integer_bounds1(value vvar, type tvar, value vfinite, type tfinite,
-	value vlo, type tlo, value vhi, type thi, value vwake, type twake)
+	value vlo, type tlo, value vhi, type thi, value vwake, type twake, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 	int	wake = 0;
@@ -4738,12 +4742,12 @@ p_get_integer_bounds1(value vvar, type tvar, value vfinite, type tfinite,
 	Check_Ref(tvar);
 	Check_Integer(tfinite);
 
-	make_var_info(vvar.ptr, &vi);
+	make_var_info(ec_eng, vvar.ptr, &vi);
 
 	/* Make sure the variable is integral. */
 	if (!vi.tb.i) {
 	    /* Update the type. */
-	    result = set_integral(&vi);
+	    result = set_integral(ec_eng, &vi);
 	    Return_If_Not_Success(result);
 	    wake = 1;
 	}
@@ -4751,19 +4755,19 @@ p_get_integer_bounds1(value vvar, type tvar, value vfinite, type tfinite,
 	/* Make sure the bounds are finite if that's required. */
 	if (vfinite.nint) {
 	    if (vi.tb.b.l == -HUGE_VAL) {
-		result = ic_lwb(&vi, -10000000.0);
+		result = ic_lwb(ec_eng, &vi, -10000000.0);
 		Return_If_Not_Success(result);
 		wake = 1;
 	    }
 	    if (vi.tb.b.u == HUGE_VAL) {
-		result = ic_upb(&vi, 10000000.0);
+		result = ic_upb(ec_eng, &vi, 10000000.0);
 		Return_If_Not_Success(result);
 		wake = 1;
 	    }
 	}
 
 	/* Return the bounds. */
-	result = unify_integer_bounds(vi.tb.b.l, vi.tb.b.u, vlo, tlo, vhi, thi);
+	result = unify_integer_bounds(ec_eng, vi.tb.b.l, vi.tb.b.u, vlo, tlo, vhi, thi);
 	Return_If_Not_Success(result);
 
 	Return_Integer(vwake, twake, wake);
@@ -4779,7 +4783,7 @@ p_get_integer_bounds1(value vvar, type tvar, value vfinite, type tfinite,
     **	    Throws a range error if Var is a real variable.
     */   
 int
-p_get_domain_size(value vvar, type tvar, value vsize, type tsize)
+p_get_domain_size(value vvar, type tvar, value vsize, type tsize, ec_eng_t *ec_eng)
 {
 	pword	*attr;
 	double	lwb, upb;
@@ -4831,7 +4835,7 @@ p_get_domain_size(value vvar, type tvar, value vsize, type tsize)
 		Make_Double_Val(res.val, fsize);
 		res.tag.kernel = TDBL;
 	    } else {
-		result = ec_double_to_int_or_bignum(fsize, &res);
+		result = ecl_double_to_int_or_bignum(ec_eng, fsize, &res);
 		Return_If_Not_Success(result);
 	    }
 	} else {
@@ -4854,7 +4858,7 @@ p_get_domain_size(value vvar, type tvar, value vsize, type tsize)
     ** represented by attr2 and wake any appropriate suspension lists.
     */
 int
-unify_number_ic(value vnum, type tnum, pword *attr2vec)
+unify_number_ic(ec_eng_t *ec_eng, value vnum, type tnum, pword *attr2vec)
 {
 	double	cl, cu;
 	int	ci;
@@ -4903,31 +4907,31 @@ unify_number_ic(value vnum, type tnum, pword *attr2vec)
 
 	/* Check if num implies a type change for attr2. */
 	if (ci && !Type_Is_Int(ic_type)) {
-	    result = ec_schedule_susps(attr2vec + OFF_WAKE_TYPE);
+	    result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_TYPE);
 	    Return_If_Not_Success(result)
 	}
 
 	/* Check if num implies bound changes for attr2. */
 	if (cl > lwb) {
 	    /* Bound change. */
-	    result = ec_schedule_susps(attr2vec + OFF_WAKE_LO);
+	    result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_LO);
 	    Return_If_Not_Success(result)
 	} else {
 	    /* No bound change --- postpone the suspensions. */
 	    result = p_schedule_postponed(attr2vec[OFF_WAKE_LO].val,
-		    attr2vec[OFF_WAKE_LO].tag);
+		    attr2vec[OFF_WAKE_LO].tag, ec_eng);
 	    Return_If_Not_Success(result)
 	    if (cl < lwb) {
 		/* Overlap --- set up delayed goal: Lwb =< Num. */
 		pword	goal, dummy_susp;
 		pw = TG;
-		Push_Struct_Frame(d_.infq);
+		Push_Struct_Frame(d_infq);
 		pw[1].val = attr2vec[OFF_LO].val;
 		pw[1].tag = attr2vec[OFF_LO].tag;
 		pw[2].val = vnum;
 		pw[2].tag = tnum;
 		Make_Struct(&goal, pw);
-		result = ec_make_suspension(goal, 0, proc_infq, &dummy_susp);
+		result = ecl_make_suspension(ec_eng, goal, 0, proc_infq, &dummy_susp);
 		if (result == DEBUG_SUSP_EVENT) {
 		    delayed = 1;
 		    result = PSUCCEED;
@@ -4937,24 +4941,24 @@ unify_number_ic(value vnum, type tnum, pword *attr2vec)
 	}
 	if (cu < upb) {
 	    /* Bound change. */
-	    result = ec_schedule_susps(attr2vec + OFF_WAKE_HI);
+	    result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_HI);
 	    Return_If_Not_Success(result)
 	} else {
 	    /* No bound change --- postpone the suspensions. */
 	    result = p_schedule_postponed(attr2vec[OFF_WAKE_HI].val,
-		    attr2vec[OFF_WAKE_HI].tag);
+		    attr2vec[OFF_WAKE_HI].tag, ec_eng);
 	    Return_If_Not_Success(result)
 	    if (cu > upb) {
 		/* Overlap --- set up delayed goal: Upb >= Num. */
 		pword	goal, dummy_susp;
 		pw = TG;
-		Push_Struct_Frame(d_.supq);
+		Push_Struct_Frame(d_supq);
 		pw[1].val = attr2vec[OFF_HI].val;
 		pw[1].tag = attr2vec[OFF_HI].tag;
 		pw[2].val = vnum;
 		pw[2].tag = tnum;
 		Make_Struct(&goal, pw);
-		result = ec_make_suspension(goal, 0, proc_supq, &dummy_susp);
+		result = ecl_make_suspension(ec_eng, goal, 0, proc_supq, &dummy_susp);
 		if (result == DEBUG_SUSP_EVENT) {
 		    delayed = 1;
 		    result = PSUCCEED;
@@ -5013,7 +5017,7 @@ bitmap	bitmap	Compare bitmaps to check for subsumption of one by the other.
     ** and waking any appropriate suspension lists.
     */
 int
-unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp_attr, type tsusp_attr)
+unify_ic_ic(ec_eng_t *ec_eng, pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp_attr, type tsusp_attr)
 {
 	double	lwb, upb;
 	word	min, max;
@@ -5052,7 +5056,7 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 		if (upb < lwb) {
 		    Fail
 		}
-		result = ec_schedule_susps(attr2vec + OFF_WAKE_TYPE);
+		result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_TYPE);
 		Return_If_Not_Success(result)
 		constrained2 = 1;
 	    }
@@ -5065,13 +5069,13 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 		if (upb < lwb) {
 		    Fail
 		}
-		result = ec_schedule_susps(attr1vec + OFF_WAKE_TYPE);
+		result = ecl_schedule_susps(ec_eng, attr1vec + OFF_WAKE_TYPE);
 		Return_If_Not_Success(result)
 		constrained1 = 1;
 		/* Update the type field. */
-		val.did = d_.integer0;
+		val.did = d_ic_integer;
 		tag.kernel = TDICT;
-		ec_assign(attr1vec + OFF_TYPE, val, tag);
+		ecl_assign(ec_eng, attr1vec + OFF_TYPE, val, tag);
 	    } else {
 		integral = 0;
 	    }
@@ -5081,7 +5085,7 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	harder to check which suspension lists to wake.
 
 	if (Type_Is_Int(ic_type1) || Type_Is_Int(ic_type2)) {
-	    ic_type = d_.integer0;
+	    ic_type = d_ic_integer;
 	} else {
 	    ic_type = ic_type1;
 	}
@@ -5090,13 +5094,13 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	    /* ic_type1 is real, ic_type is integer. */
 	    lwb1 = ceil(lwb1);
 	    upb1 = floor(upb1);
-	    result = ec_schedule_susps(attr1vec + OFF_WAKE_TYPE);
+	    result = ecl_schedule_susps(ec_eng, attr1vec + OFF_WAKE_TYPE);
 	    Return_If_Not_Success(result)
 	} else if (ic_type2 != ic_type) {
 	    /* ic_type2 is real, ic_type is integer. */
 	    lwb2 = ceil(lwb2);
 	    upb2 = floor(upb2);
-	    result = ec_schedule_susps(attr2vec + OFF_WAKE_TYPE);
+	    result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_TYPE);
 	    Return_If_Not_Success(result)
 	}
 
@@ -5126,16 +5130,16 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 		    if (res < 0) {
 			/* Bitmap1 is contained in bitmap2. */
 			/* Wake things suspended on new holes in second var. */
-			result = ec_schedule_susps(attr2vec + OFF_WAKE_HOLE);
+			result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_HOLE);
 			Return_If_Not_Success(result)
 			constrained2 = 1;
 		    } else if (res > 0) {
 			/* Bitmap1 contains bitmap2. */
 			/* Update attr1 to point at bitmap2. */
-			ec_assign(attr1vec + OFF_BITMAP, bitmap2->val,
+			ecl_assign(ec_eng, attr1vec + OFF_BITMAP, bitmap2->val,
 				bitmap2->tag);
 			/* Wake things suspended on new holes in first var. */
-			result = ec_schedule_susps(attr1vec + OFF_WAKE_HOLE);
+			result = ecl_schedule_susps(ec_eng, attr1vec + OFF_WAKE_HOLE);
 			Return_If_Not_Success(result)
 			constrained1 = 1;
 		    } else {
@@ -5146,7 +5150,7 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 		    /* Neither bitmap contains the other. */
 		    /* Intersect the bitmaps. */
 		    res = bitmap_intersect_into(bitmap1->val.wptr,
-			    bitmap2->val.wptr, 0, &bitmap_ptr);
+			    bitmap2->val.wptr, 0, &bitmap_ptr, ec_eng);
 		    if (Result_Is_Empty(res)) {
 			Fail
 		    }
@@ -5160,12 +5164,12 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 		    if (bitmap_ptr != bitmap1->val.wptr) {
 			val.wptr = bitmap_ptr;
 			tag.kernel = TBITMAP;
-			ec_assign(attr1vec + OFF_BITMAP, val, tag);
+			ecl_assign(ec_eng, attr1vec + OFF_BITMAP, val, tag);
 		    }
 		    /* Wake things suspended on new holes. */
-		    result = ec_schedule_susps(attr1vec + OFF_WAKE_HOLE);
+		    result = ecl_schedule_susps(ec_eng, attr1vec + OFF_WAKE_HOLE);
 		    Return_If_Not_Success(result)
-		    result = ec_schedule_susps(attr2vec + OFF_WAKE_HOLE);
+		    result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_HOLE);
 		    Return_If_Not_Success(result)
 		    constrained1 = 1;
 		    constrained2 = 1;
@@ -5178,12 +5182,12 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 		*/
 		bitmap_ptr = bitmap1->val.wptr;
 		min = (word) lwb;
-		res = set_bitmap_lwb(bitmap_ptr, min, &bitmap_ptr);
+		res = set_bitmap_lwb(bitmap_ptr, min, &bitmap_ptr, ec_eng);
 		if (Result_Is_Empty(res)) {
 		    Fail
 		}
 		max = (word) upb;
-		res |= set_bitmap_upb(bitmap_ptr, max, &bitmap_ptr);
+		res |= set_bitmap_upb(bitmap_ptr, max, &bitmap_ptr, ec_eng);
 		if (Result_Is_Empty(res)) {
 		    Fail
 		}
@@ -5197,10 +5201,10 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 		if (bitmap_ptr != bitmap1->val.wptr) {
 		    val.wptr = bitmap_ptr;
 		    tag.kernel = TBITMAP;
-		    ec_assign(attr1vec + OFF_BITMAP, val, tag);
+		    ecl_assign(ec_eng, attr1vec + OFF_BITMAP, val, tag);
 		}
 		/* Wake things suspended on new holes in the second var. */
-		result = ec_schedule_susps(attr2vec + OFF_WAKE_HOLE);
+		result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_HOLE);
 		Return_If_Not_Success(result)
 		constrained2 = 1;
 	    }
@@ -5211,12 +5215,12 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	    */
 	    bitmap_ptr = bitmap2->val.wptr;
 	    min = (word) lwb;
-	    res = set_bitmap_lwb(bitmap_ptr, min, &bitmap_ptr);
+	    res = set_bitmap_lwb(bitmap_ptr, min, &bitmap_ptr, ec_eng);
 	    if (Result_Is_Empty(res)) {
 		Fail
 	    }
 	    max = (word) upb;
-	    res |= set_bitmap_upb(bitmap_ptr, max, &bitmap_ptr);
+	    res |= set_bitmap_upb(bitmap_ptr, max, &bitmap_ptr, ec_eng);
 	    if (Result_Is_Empty(res)) {
 		Fail
 	    }
@@ -5229,9 +5233,9 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	    /* Add bitmap to attr1. */
 	    val.wptr = bitmap_ptr;
 	    tag.kernel = TBITMAP;
-	    ec_assign(attr1vec + OFF_BITMAP, val, tag);
+	    ecl_assign(ec_eng, attr1vec + OFF_BITMAP, val, tag);
 	    /* Wake things suspended on new holes in the first var. */
-	    result = ec_schedule_susps(attr1vec + OFF_WAKE_HOLE);
+	    result = ecl_schedule_susps(ec_eng, attr1vec + OFF_WAKE_HOLE);
 	    Return_If_Not_Success(result)
 	    constrained1 = 1;
 	}
@@ -5241,7 +5245,7 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 
 	    if (integral) {
 		/* Bind var to integer/bignum. */
-		result = ec_double_to_int_or_bignum(lwb, &num);
+		result = ecl_double_to_int_or_bignum(ec_eng, lwb, &num);
 		Return_If_Not_Success(result);
 	    } else {
 		/* Bind var to bounded real. */
@@ -5256,8 +5260,8 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	    /* XXX - Should we avoid creating a new double if lwb == lwb2? */
 	    Make_Checked_Double_Val(val, lwb);
 	    tag.kernel = TDBL;
-	    ec_assign(attr1vec + OFF_LO, val, tag);
-	    result = ec_schedule_susps(attr1vec + OFF_WAKE_LO);
+	    ecl_assign(ec_eng, attr1vec + OFF_LO, val, tag);
+	    result = ecl_schedule_susps(ec_eng, attr1vec + OFF_WAKE_LO);
 	    Return_If_Not_Success(result)
 	    constrained1 = 1;
 	}
@@ -5265,27 +5269,27 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	    /* XXX - Should we avoid creating a new double if upb == upb2? */
 	    Make_Checked_Double_Val(val, upb);
 	    tag.kernel = TDBL;
-	    ec_assign(attr1vec + OFF_HI, val, tag);
-	    result = ec_schedule_susps(attr1vec + OFF_WAKE_HI);
+	    ecl_assign(ec_eng, attr1vec + OFF_HI, val, tag);
+	    result = ecl_schedule_susps(ec_eng, attr1vec + OFF_WAKE_HI);
 	    Return_If_Not_Success(result)
 	    constrained1 = 1;
 	}
 	if (lwb > lwb2) {
-	    result = ec_schedule_susps(attr2vec + OFF_WAKE_LO);
+	    result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_LO);
 	    Return_If_Not_Success(result)
 	    constrained2 = 1;
 	}
 	if (upb < upb2) {
-	    result = ec_schedule_susps(attr2vec + OFF_WAKE_HI);
+	    result = ecl_schedule_susps(ec_eng, attr2vec + OFF_WAKE_HI);
 	    Return_If_Not_Success(result)
 	    constrained2 = 1;
 	}
 
 	if (constrained1) {
-	    notify_constrained(vvar.ptr);
+	    ecl_notify_constrained(ec_eng, vvar.ptr);
 	}
 	if (constrained2 && IsStructure(tsusp_attr)) {
-	    ec_schedule_susps(vsusp_attr.ptr + CONSTRAINED_OFF);
+	    ecl_schedule_susps(ec_eng, vsusp_attr.ptr + CONSTRAINED_OFF);
 	}
 
 	/* Merge the suspension lists. */
@@ -5296,22 +5300,22 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
 	a2val.ptr = attr2vec;
 	result = p_merge_suspension_lists(
 		val, tag, a2val, atag,
-		val, tag, a1val, atag);
+		val, tag, a1val, atag, ec_eng);
 	Return_If_Not_Success(result)
 	val.nint = OFF_WAKE_HI;
 	result = p_merge_suspension_lists(
 		val, tag, a2val, atag,
-		val, tag, a1val, atag);
+		val, tag, a1val, atag, ec_eng);
 	Return_If_Not_Success(result)
 	val.nint = OFF_WAKE_HOLE;
 	result = p_merge_suspension_lists(
 		val, tag, a2val, atag,
-		val, tag, a1val, atag);
+		val, tag, a1val, atag, ec_eng);
 	Return_If_Not_Success(result)
 	val.nint = OFF_WAKE_TYPE;
 	result = p_merge_suspension_lists(
 		val, tag, a2val, atag,
-		val, tag, a1val, atag);
+		val, tag, a1val, atag, ec_eng);
 	Return_If_Not_Success(result)
 
 	Succeed
@@ -5323,7 +5327,7 @@ unify_ic_ic(pword *attr1vec, pword *attr2vec, value vvar, type tvar, value vsusp
     **	Unification handler for IC variables.
     */
 int
-p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, type tsusp_attr)
+p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, type tsusp_attr, ec_eng_t *ec_eng)
 {
 	pword	*attr1;
 	pword	*attr1vec, *attr2vec;
@@ -5338,7 +5342,7 @@ p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, t
 	    if (IsStructure(tsusp_attr) && IsRef(tterm)) {
 		IC_Var_Get_Attr(vterm.ptr, attr1);
 		if (!IsRef(attr1->tag)) {
-		    ec_schedule_susps(vsusp_attr.ptr + CONSTRAINED_OFF);
+		    ecl_schedule_susps(ec_eng, vsusp_attr.ptr + CONSTRAINED_OFF);
 		}
 	    }
 	    Succeed
@@ -5357,7 +5361,7 @@ p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, t
 
 	if (IsNumber(tterm)) {
 	    /* First var is a ground number. */
-	    return unify_number_ic(vterm, tterm, attr2vec);
+	    return unify_number_ic(ec_eng, vterm, tterm, attr2vec);
 	} else if (IsRef(tterm)) {
 	    /* First var is a variable (and we're promised it's meta). */
 	    IC_Var_Get_Attr(vterm.ptr, attr1);
@@ -5367,7 +5371,7 @@ p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, t
 		** one from the second variable.
 		*/
 		Bind_Var(attr1->val, attr1->tag, attr2vec, TCOMP);
-		notify_constrained(vterm.ptr);
+		ecl_notify_constrained(ec_eng, vterm.ptr);
 	    } else {
 		if (!IsStructure(attr1->tag)) {
 		    /* IC attribute of first var is not a structure! */
@@ -5380,7 +5384,7 @@ p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, t
 		}
 
 		/* Have to merge attributes from both vars. */
-		return unify_ic_ic(attr1vec, attr2vec, vterm, tterm,
+		return unify_ic_ic(ec_eng, attr1vec, attr2vec, vterm, tterm,
 			vsusp_attr, tsusp_attr);
 	    }
 	} else {
@@ -5406,7 +5410,7 @@ p_unify_ic(value vterm, type tterm, value vattr, type tattr, value vsusp_attr, t
     ** bitmaps.)
     */
 int
-p_indomain_init(value vx, type tx, value vlo, type tlo)
+p_indomain_init(value vx, type tx, value vlo, type tlo, ec_eng_t *ec_eng)
 {
 	pword	*attr;
 	pword	*tmp;
@@ -5460,7 +5464,7 @@ p_indomain_init(value vx, type tx, value vlo, type tlo)
     /* have become ground since). */
     /* Try gives the next suggested integer to try. */
 int
-p_indomain_try(value vx, type tx, value vtry, type ttry)
+p_indomain_try(value vx, type tx, value vtry, type ttry, ec_eng_t *ec_eng)
 {
 	var_info	vi;
 	word	try;

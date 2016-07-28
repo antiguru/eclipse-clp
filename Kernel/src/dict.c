@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.12 2016/07/24 19:34:45 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.13 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -101,7 +101,6 @@
 
 
 #include	"config.h"
-#include	"os_support.h"
 #include	"sepia.h"
 #include	"types.h"
 #include	"embed.h"
@@ -110,10 +109,24 @@
 #include	"ec_io.h"
 #include	"dict.h"
 #include	"emu_export.h"
+#include	"property.h"
+#include	"os_support.h"
 
-static dident		_in_dict_opt(char *name, register int length, int hval, int arity, int options);
-static void		_std_did_init(void);
-static void		_constant_table_init(int);
+
+#define LogPrintf(s,...) { \
+	if (EclGblFlags & GC_VERBOSE) { \
+	    p_fprintf(log_output_, s, __VA_ARGS__); \
+	    ec_flush(log_output_); \
+	} \
+    }
+
+
+static dident	_in_dict_opt(char *name, int length, int hval, int arity, int options);
+static void	_std_did_init(void);
+static void	_constant_table_init(int);
+static int	_gc_dictionary(int);
+static void	_finish_gc(int);
+
 
 
 /*-----------------------------------------------------------------------------
@@ -123,7 +136,7 @@ A dictionary identifier (DID) is simply the address of such a dict_item.
 A dict_item contains:
 
 	- arity
-	- pointer to a (Sepia-)string representing the name
+	- pointer to an ECLiPSe string buffer representing the name
 	- procedure chain
 	- property chain
 	- collision chain
@@ -135,7 +148,8 @@ DICT_DIRECTORY_SIZE (512). The maximum number of dictionary entries is thus
 DICT_DIRECTORY_SIZE * DICT_ITEM_BLOCK_SIZE (524288).
 This scheme is necessary to have a short 19-bit identifier (9 bits directory index,
 10 bits block index) for DIDs, which is used to store variable names in the tag.
-For all other purposes, a DID is stored directly as its 32-bit-address.
+This index is also used for iterating through the dictionary.
+For all other purposes, a DID is stored directly as its dict_item's address.
 
 For finding DIDs when their name is given, there is a hash table of size
 DICT_HASH_TABLE_SIZE. The hash value is computed from the name only, not
@@ -173,8 +187,6 @@ marks the corresponding atom whenever a persistent string is encountered.
 #define IN_DICT_CHECK	0
 #define IN_DICT_ENTER	1
 
-#define NULL_DID	((dident) D_UNKNOWN)
-
 #define Inc_Ref_Ctr(tag)	{ (tag) += 0x100; }
 #define DecRefCtr(tag)		((tag) -= 0x100, (tag) & 0x0fffff00)
 
@@ -182,20 +194,42 @@ marks the corresponding atom whenever a persistent string is encountered.
 /* DICT_HASH_TABLE_SIZE must be a power of 2 (we use masking) */
 #define DICT_HASH_TABLE_SIZE	8192
 
+#if 1
+#define Combine_(hash, c)	\
+	hash += (hash<<3) + (c);
+
+#define Finish_(hash)
+#else
+/* Jenkins one-at-a-time hash */
+#define Combine_(hash, c)	\
+	hash += (c);		\
+	hash += (hash << 10);	\
+	hash ^= (hash >> 6);
+
+#define Finish_(hash)		\
+	hash += (hash << 3);	\
+	hash ^= (hash >> 11);	\
+	hash += (hash << 15);
+#endif
+
 /* compute hash value and length of a NULL-terminated string */
 #define Hash(id, hash, length) {					\
-	register char *str = (id);					\
-        for (length = hash = 0; *str; str++, length++)			\
-            hash += (hash<<3) + *(unsigned char *)str;			\
+	char *str = (id);						\
+        for (length = hash = 0; *str; str++, length++) {		\
+	    Combine_(hash, *(unsigned char *)str);			\
+	}								\
+	Finish_(hash);							\
         hash &= DICT_HASH_TABLE_SIZE-1;					\
 }
 
 /* compute hash value of a string of given length */
 #define Hashl(id, hash, n) {						\
-	register char *str = (id);					\
-	register int length = (n);					\
-        for (hash = 0; length > 0; str++, --length)			\
-            hash += (hash<<3) + *(unsigned char *)str;			\
+	char *str = (id);						\
+	int length = (n);						\
+        for (hash = 0; length > 0; str++, --length) {			\
+	    Combine_(hash, *(unsigned char *)str);			\
+	}								\
+	Finish_(hash);							\
         hash &= DICT_HASH_TABLE_SIZE-1;					\
 }
 
@@ -205,7 +239,7 @@ marks the corresponding atom whenever a persistent string is encountered.
  * length is decremented and is 0 if the strings were equal
  */
 #define Compare_N_Chars(length, s1, s2) {				\
-	register char *aux1 = (s1), *aux2 = (s2);			\
+	char *aux1 = (s1), *aux2 = (s2);			\
 	while (length) {						\
 	    if (*aux1++ != *aux2++)					\
 		break;							\
@@ -215,6 +249,12 @@ marks the corresponding atom whenever a persistent string is encountered.
 
 #define DidInUse(d)	(DidString(d))
 
+/* We use a few anonymous DIDs to hold:
+ *   - the per-type properties (macros and portrays)
+ *   - an unnamed dummy module
+ */
+#define ANONYMOUS_MODULE	(NTYPES+1)
+#define NANONYMOUS		(ANONYMOUS_MODULE+1)
 
 /*
  * TYPEDEFS and GLOBAL VARIABLES
@@ -223,16 +263,18 @@ marks the corresponding atom whenever a persistent string is encountered.
 static struct dictionary {
 	dident	hash_table[DICT_HASH_TABLE_SIZE];
 	dident	directory[DICT_DIRECTORY_SIZE];	/* table of dict_item blocks */
-	struct dict_item tag_did[NTYPES+1];	/* to hold type properties */
-	a_mutex_t lock;		/* lock for hash table */
+	struct dict_item anonymous_did[NANONYMOUS];/* to hold anon. properties */
+	ec_mutex_t lock;	/* lock for hash table */
+	int	current_season;	/* 0/1, changes on every garbage collection */
+	int	dgc_step_count;	/* >0 if dict gc under way */
 	int	dir_index;	/* next free directory slot */
 	dident	free_item_list;	/* chain of free dict_items */
 	int	items_free;	/* number of elements in this chain */
 	int	table_usage;	/* number of hash slots in use */
 	int	collisions;	/* number of hash collisions */
 	int	gc_countdown;	/* remaining allocations before triggering gc */
-	int	gc_interval;	/* remaining allocations before triggering gc */
-	int	gc_number;	/* number of garbage collections so far */
+	int	gc_interval;	/* allocations between triggering gc */
+	int	gc_number;	/* number of garbage collections so far (statistics only) */
 	word	gc_time;	/* and the time they took */
 	int	string_used;
 	int	string_free;
@@ -244,33 +286,36 @@ dict_init(int flags)
 {
     if (flags & INIT_SHARED)
     {
-	register int i;
+	int i;
 	dict = (struct dictionary *) hg_alloc_size(sizeof(struct dictionary));
 	shared_data->dictionary = (void_ptr) dict;
 	for (i=0; i< DICT_HASH_TABLE_SIZE; i++)
-	    dict->hash_table[i] = NULL_DID;
+	    dict->hash_table[i] = D_UNKNOWN;
 	for (i=0; i< DICT_DIRECTORY_SIZE; i++)
-	    dict->directory[i] = NULL_DID;
-	for (i=0; i <= NTYPES; i++)
+	    dict->directory[i] = D_UNKNOWN;
+	for (i=0; i <= NANONYMOUS; i++)
 	{
-	    dict->tag_did[i].string = 0;
-	    dict->tag_did[i].properties = 0;
-	    dict->tag_did[i].macro = 0;
+	    dict->anonymous_did[i].string = 0;
+	    dict->anonymous_did[i].properties = 0;
+	    dict->anonymous_did[i].macro = 0;
 	}
 	dict->dir_index = 0;
-	dict->free_item_list = NULL_DID;
+	dict->free_item_list = D_UNKNOWN;
 	dict->items_free = 0;
 	dict->string_used = 0;
 	dict->string_free = 0;
 	dict->table_usage = 0;
 	dict->collisions = 0;
 	dict->gc_interval = DICT_ITEM_BLOCK_SIZE/16*15;
-	/* set initial countdown high enough to make sure the first
-	 * collection does not occur too early in the boot phase */
-	dict->gc_countdown = 2*dict->gc_interval;
+	/* Set countdown to 0 to disable collections during the boot phase.
+	 * First collection is triggered manually, then gc_interval is used.
+	 */
+	dict->gc_countdown = 0;
 	dict->gc_number = 0;
 	dict->gc_time = 0;
-	a_mutex_init(&dict->lock);
+	dict->dgc_step_count = 0;
+	dict->current_season = 0;
+	mt_mutex_init(&dict->lock);
     }
     if (flags & INIT_PRIVATE)
     {
@@ -328,7 +373,8 @@ dict_init(int flags)
 dident
 transf_did(word t)
 {
-    return (dident) &dict->tag_did[tag_desc[TagTypeC(t)].super];
+    int i = tag_desc[TagTypeC(t)].super;
+    return (0<=i && i<=NTYPES) ? &dict->anonymous_did[i] : D_UNKNOWN;
 }
 
 
@@ -357,6 +403,7 @@ free_string(pword *ptr)
 
 /*
  * return a new dict_item
+ * This must be called under dict->lock
  *
  * Initializes all fields except .next
  * Free dict_items are in the free list and can be recognised also
@@ -366,12 +413,12 @@ free_string(pword *ptr)
 static dident
 _alloc_dict_item(pword *dict_string, int arity)
 {
-    register dident dip;
+    dident dip;
 
     dip = dict->free_item_list;
     if (!dip)				/* free list empty, allocate a new block */
     {
-	register int i;
+	int i;
 	if (dict->dir_index == DICT_DIRECTORY_SIZE)
 	    ec_panic("dictionary overflow", "atom/functor creation");
 	dip =
@@ -385,7 +432,7 @@ _alloc_dict_item(pword *dict_string, int arity)
 	    dip[i].arity = UNUSED_DID_ARITY;
 	    dip[i].next = &dip[i+1];
 	}
-	dip[i-1].next = NULL_DID;
+	dip[i-1].next = D_UNKNOWN;
 	dict->dir_index++;
 	dict->items_free += DICT_ITEM_BLOCK_SIZE;
     }
@@ -396,7 +443,7 @@ _alloc_dict_item(pword *dict_string, int arity)
     dip->procedure = 0;
     dip->properties = 0;
     dip->macro = 0;
-    dip->attainable = 0;
+    dip->season = dict->current_season;
     dip->module = 0;
     dip->isop = 0;
     dip->head = 0;
@@ -404,12 +451,15 @@ _alloc_dict_item(pword *dict_string, int arity)
 
     dict->free_item_list = dip->next; /* unlink it from the free list */
     dict->items_free--;
+
     if (--dict->gc_countdown == 0)
-    {
-	pword pw;
-	Make_Atom(&pw, d_.garbage_collect_dictionary);
-	ec_post_event(pw);
-    }
+#define DICT_GC_VIA_SIGNAL
+#ifdef DICT_GC_VIA_SIGNAL
+	ec_signal_dict_gc();		/* trigger garbage collection */
+#else
+	_gc_dictionary(0);
+#endif
+
     return dip;
 }
 
@@ -417,8 +467,8 @@ _alloc_dict_item(pword *dict_string, int arity)
 dident
 in_dict(char *name, int arity)
 {
-    register int hval, len;
-    register dident dip;
+    int hval, len;
+    dident dip;
     Hash(name, hval, len);
     dip = _in_dict_opt(name, len, hval, arity, IN_DICT_ENTER);
     Set_Did_Stability(dip, DICT_PERMANENT);
@@ -428,8 +478,8 @@ in_dict(char *name, int arity)
 dident Winapi
 ec_did(const char *name, const int arity)
 {
-    register int hval, len;
-    register dident dip;
+    int hval, len;
+    dident dip;
     Hash((char *)name, hval, len);
     dip = _in_dict_opt((char *) name, len, hval, arity, IN_DICT_ENTER);
     Set_Did_Stability(dip, DICT_PERMANENT);
@@ -439,15 +489,15 @@ ec_did(const char *name, const int arity)
 dident
 enter_dict(char *name, int arity)
 {
-    register int hval, len;
+    int hval, len;
     Hash(name, hval, len);
     return _in_dict_opt(name, len, hval, arity, IN_DICT_ENTER);
 }
 
 dident
-enter_dict_n(char *name, register word len, int arity)
+enter_dict_n(char *name, word len, int arity)
 {
-    register int hval;
+    int hval;
     Hashl(name, hval, len);
     return _in_dict_opt(name, (int) len, hval, arity, IN_DICT_ENTER);
 }
@@ -455,7 +505,7 @@ enter_dict_n(char *name, register word len, int arity)
 dident
 check_did_n(char *name, word len, int arity)
 {
-    register int hval;
+    int hval;
     Hashl(name, hval, len);
     return _in_dict_opt(name, (int) len, hval, arity, IN_DICT_CHECK);
 }
@@ -463,8 +513,8 @@ check_did_n(char *name, word len, int arity)
 pword *
 enter_string_n(char *name, word len, int stability)
 {
-    register int hval;
-    register dident dip;
+    int hval;
+    dident dip;
     Hashl(name, hval, len);
     dip = _in_dict_opt(name, (int) len, hval, 0, IN_DICT_ENTER);
     Set_Did_Stability(dip, stability);
@@ -483,23 +533,21 @@ bitfield_did(word bf)
  *	options are IN_DICT_CHECK or IN_DICT_ENTER
  *
  * We guarantee that functors with the same name always share their name string!
- *
- * We only lock on dictionary modifications, assuming that dids are
- * never removed under our feet. This means that for dictionary gc's
- * we have to stop all workers!
  */
 
 static dident
 _in_dict_opt(char *name,	/* might not be NUL-terminated! */
-	register int length,
+	int length,
 	int hval,
 	int arity,
 	int options)
 {
-    register dident dip;
-    register dident start;
-    register pword *dict_string;
+    int locked = 0;
+    dident dip;
+    dident start;
+    pword *dict_string;
 
+    mt_mutex_lock(&dict->lock);
     start = dict->hash_table[hval];
     dict_string = (pword *) 0;
     if (start)
@@ -511,24 +559,26 @@ _in_dict_opt(char *name,	/* might not be NUL-terminated! */
 	    {
 		if (DidLength(dip) == length)
 		{
-		    register word cmp = length;
+		    word cmp = length;
 		    Compare_N_Chars(cmp, name, DidName(dip));
 		    if (!cmp)		/* name found */
 		    {
 			if (DidArity(dip) == arity)
-			    return (dident) dip;
+			    goto _dict_unlock_return_;
 			else
 			    dict_string = DidString(dip);
 		    }
 		}
 	    }
 	    else if (DidString(dip) == dict_string && DidArity(dip) == arity)
-		return (dident) dip;
+		goto _dict_unlock_return_;
 	    dip = dip->next;
 	} while (dip != start);
     }
-    if (options == IN_DICT_CHECK)
-	return (dident) NULL_DID;
+    if (options == IN_DICT_CHECK) {
+	mt_mutex_unlock(&dict->lock);
+	return D_UNKNOWN;
+    }
 
     if (!dict_string)	/* a functor with a new name */
     {
@@ -542,7 +592,6 @@ _in_dict_opt(char *name,	/* might not be NUL-terminated! */
 	    dict->collisions++;
     }
     dip = _alloc_dict_item(dict_string, arity);
-    a_mutex_lock(&dict->lock);
     if (start)
     {
 	dip->next = start->next;
@@ -555,42 +604,56 @@ _in_dict_opt(char *name,	/* might not be NUL-terminated! */
 	dict->hash_table[hval] = dip;
 	dict->table_usage++;
     }
-    a_mutex_unlock(&dict->lock);
-    return (dident) dip;
+
+_dict_unlock_return_:
+    if (dip->season != dict->current_season)
+	dip->season = dict->current_season;
+    mt_mutex_unlock(&dict->lock);
+    return dip;
 }
 
 
 dident
-add_dict(register dident old_did, register int new_arity)
+add_dict(dident old_did, int new_arity)
 {
-    register dident	dip;
+    dident dip;
 
-    dip = (dident) old_did;
+    mt_mutex_lock(&dict->lock);
+    dip = old_did;
     do {
 	if (DidArity(dip) == new_arity && DidString(dip) == DidString(old_did))
-	    return (dident) dip;
+	    goto _dict_unlock_return_;
 	dip = dip->next;
-    } while (dip != DidPtr(old_did));
+    } while (dip != old_did);
 
     /* not found, make a new entry */
     dip = _alloc_dict_item(DidString(old_did), new_arity);
-    a_mutex_lock(&dict->lock);
-    dip->next = DidNext(old_did);
-    DidNext(old_did) = dip;
-    a_mutex_unlock(&dict->lock);
-    return (dident) dip;
+    dip->next = old_did->next;
+    old_did->next = dip;
+_dict_unlock_return_:
+    if (dip->season != dict->current_season)
+	dip->season = dict->current_season;
+    mt_mutex_unlock(&dict->lock);
+    return dip;
 }
 
 dident
-check_did(register dident old_did, register int new_arity)
+check_did(dident old_did, int new_arity)
 {
-    register dident	dip = (dident) old_did;
+    dident dip;
 
+    mt_mutex_lock(&dict->lock);
+    dip = old_did;
     do {
-	if (DidArity(dip) == new_arity && DidString(dip) == DidString(old_did))
-	    return (dident) dip;
+	if (DidArity(dip) == new_arity && DidString(dip) == DidString(old_did)) {
+	    if (dip->season != dict->current_season)
+		dip->season = dict->current_season;
+	    mt_mutex_unlock(&dict->lock);
+	    return dip;
+	}
 	dip = dip->next;
     } while (dip != DidPtr(old_did));
+    mt_mutex_unlock(&dict->lock);
     return D_UNKNOWN;
 }
 
@@ -602,7 +665,7 @@ check_did(register dident old_did, register int new_arity)
  * current_functor/1 and the like.
  * The update semantics of this function is unclear (i.e. if a new
  * functor is entered between successive calls of next_functor(),
- * it will be returned or not, depending of where it is inserted).
+ * it will be returned or not, depending on where it is inserted).
  * Note also that dictionary GCs might happen between successive calls
  * to this function, which has similar consequences.
  * However, the function is at least robust and will not crash.
@@ -612,20 +675,24 @@ check_did(register dident old_did, register int new_arity)
  *	int	idx = 0;
  *	dident	did;
  *
- *	while (next_functor(&idx, &did))
+ *	while (next_functor(&idx, &did, 0))
  *	{
  *		<use did>
  *	}
  */
 
-int
-next_functor(			/* returns 0 when dictionary exhausted	*/
+static int
+_next_functor(			/* returns 0 when dictionary exhausted	*/
     	int *pidx,		/* in/out: current dict index		*/
-	dident *pdid)		/* output: valid did			*/
+	dident *pdid,		/* output: valid did			*/
+	int weak_access,	/* do not consider lookup as a "use"	*/
+	int not_locked		/* need dictionary locking */
+	)
 {
-    register dident dip;
-    register int idx = *pidx;
+    dident dip;
+    int idx = *pidx;
 
+    if (not_locked) mt_mutex_lock(&dict->lock);
     while (DidBlock(idx) < dict->dir_index)
     {
 	dip = dict->directory[DidBlock(idx)];
@@ -637,8 +704,17 @@ next_functor(			/* returns 0 when dictionary exhausted	*/
 		idx++;
 		if (DidInUse(dip))
 		{
-		    *pdid = (dident) dip;
+		    if (!weak_access) {
+			/* if the result is going to be returned to Prolog,
+			 * it must be updated, because we may be during a GC
+			 * and the engine marking may have happened already.
+			 */
+			if (dip->season != dict->current_season)
+			    dip->season = dict->current_season;
+		    }
+		    *pdid = dip;
 		    *pidx = idx;
+		    if (not_locked) mt_mutex_unlock(&dict->lock);
 		    return 1;
 		}
 		dip++;
@@ -647,9 +723,20 @@ next_functor(			/* returns 0 when dictionary exhausted	*/
 	else
 	    idx = (DidBlock(idx) + 1) * DICT_ITEM_BLOCK_SIZE;
     }
+    if (not_locked) mt_mutex_unlock(&dict->lock);
     return 0;
 }
 
+
+int
+next_functor(			/* returns 0 when dictionary exhausted	*/
+    	int *pidx,		/* in/out: current dict index		*/
+	dident *pdid,		/* output: valid did			*/
+	int weak_access		/* do not consider lookup as a "use"	*/
+	)
+{
+    return _next_functor(pidx, pdid, weak_access, 1);
+}
 
 
 /*--------------------------------------------------------------
@@ -660,7 +747,8 @@ next_functor(			/* returns 0 when dictionary exhausted	*/
  * _tidy_dictionary()
  */
 
-#define Useful(d)	((d)->attainable || (d)->stability > DICT_VOLATILE \
+#define Useful(d)	(  (d)->season == dict->current_season \
+ 			|| (d)->stability > DICT_VOLATILE \
 			|| (d)->procedure || (d)->properties)
 
 #if 0
@@ -677,10 +765,10 @@ static void
 _tidy_dictionary0(void)
 {
     int block, idx;
-    register dident dip, aux;
-    register dident *free_list_tail = &dict->free_item_list;
+    dident dip, aux;
+    dident *free_list_tail = &dict->free_item_list;
 
-    *free_list_tail = NULL_DID;
+    *free_list_tail = D_UNKNOWN;
     for (block = 0; block < dict->dir_index; block++)
     {
 	dip = dict->directory[block];
@@ -688,7 +776,6 @@ _tidy_dictionary0(void)
 	{
 	    if (DidInUse(dip) && Useful(dip))
 	    {
-		dip->attainable = 0;
 		continue;
 	    }
 	    else if (DidInUse(dip))		/* a garbage did, unlink it */
@@ -696,7 +783,7 @@ _tidy_dictionary0(void)
 		/* Tidy the collision chain in which dip occurs. This assumes that
 		 * all DIDs with this name are in the same chain!
 		 */
-		register dident prev = dip;
+		dident prev = dip;
 		int head_removed = 0;
 
 		do
@@ -711,7 +798,7 @@ _tidy_dictionary0(void)
 		    {
 			pword *str = DidString(aux);
 			prev->next = aux->next;
-			aux->next = NULL_DID;
+			aux->next = D_UNKNOWN;
 			dict->items_free++;
 			if (DecRefCtr(str->tag.kernel) == 0)
 			{
@@ -738,9 +825,9 @@ _tidy_dictionary0(void)
 
 		if (head_removed)
 		{
-		    register char *dummy1;
-		    register int dummy2;
-		    register hval;
+		    char *dummy1;
+		    int dummy2;
+		    hval;
 		    Hash(DidName(dip), hval, dummy2, dummy1);
 		    if (prev != dip)
 		    {
@@ -749,7 +836,7 @@ _tidy_dictionary0(void)
 		    }
 		    else	/* we removed all chain elements */
 		    {
-			dict->hash_table[hval] = NULL_DID;
+			dict->hash_table[hval] = D_UNKNOWN;
 			dict->table_usage--;
 		    }
 		}
@@ -758,7 +845,7 @@ _tidy_dictionary0(void)
 	    free_list_tail = &dip->next;
 	}
     }
-    *free_list_tail = NULL_DID;
+    *free_list_tail = D_UNKNOWN;
     Succeed_;
 }
 
@@ -772,8 +859,8 @@ static void
 _tidy_dictionary(void)
 {
     int idx;
-    register dident dip;
-    register dident prev;
+    dident dip;
+    dident prev;
 
     for (idx = 0; idx < DICT_HASH_TABLE_SIZE; idx++)
     {
@@ -785,13 +872,12 @@ _tidy_dictionary(void)
 		dip = prev->next;
 		if (Useful(dip))
 		{
-		    dip->attainable = 0;
 		    prev = dip;
 		}
 		else		/* a garbage did, unlink it */
 		{
 		    pword *str = DidString(dip);
-		    prev->next = dip->next;
+		    atomic_store(&prev->next, dip->next);
 		    /*
 		    p_fprintf(current_err_, "\n%s/%d", DidName(dip), DidArity(dip));
 		    */
@@ -824,7 +910,7 @@ _tidy_dictionary(void)
 			}
 			else	/* we removed all chain elements */
 			{
-			    dict->hash_table[idx] = NULL_DID;
+			    dict->hash_table[idx] = D_UNKNOWN;
 			    dict->collisions++;	/* was not a collision */
 			    dict->table_usage--;
 			}
@@ -834,6 +920,61 @@ _tidy_dictionary(void)
 	}
     }
 }
+
+
+/**
+ * Mark a dictionary item
+ */
+void
+ec_mark_did(dident d)
+{
+    d->season = dict->current_season;
+}
+
+
+/**
+ * Mark a pointer that *may* refer to a dict_item
+ */
+void
+ec_mark_did_conservative(void *p)
+{
+    int block;
+
+    for(block=0; block < dict->dir_index; ++block)
+    {
+	dident dip = dict->directory[block];
+	if ((char*)dip <= (char*)p  &&  (char*)p <= (char*)(dip+DICT_ITEM_BLOCK_SIZE-1))
+	{
+	    /* p points into this block - is it correctly aligned? */
+	    if (((char*)p - (char*)dip) % sizeof(dident) == 0  &&  DidInUse(dip))
+		dip->season = dict->current_season;
+	    return;
+	}
+    }
+}
+
+
+/**
+ * Mark a pointer that *may* refer to a dictionary string.
+ * This is terribly expensive, but we don't know whether the pointer
+ * is a valid pointer at all, and whether it can be dereferenced.
+ */
+void
+ec_mark_string_conservative(void *p)
+{
+    int block;
+    for(block=0; block < dict->dir_index; ++block) {
+	int i;
+	for(i=0; i < DICT_ITEM_BLOCK_SIZE; ++i) {
+	    dident dip = &dict->directory[block][i];
+	    if (DidInUse(dip)  &&  (p == dip->string)) {
+		dip->season = dict->current_season;
+		return;
+	    }
+	}
+    }
+}
+
 
 static void
 _mark_dids_from_procs(pri *proc)
@@ -853,44 +994,139 @@ _mark_dids_from_procs(pri *proc)
     }
 }
 
+
+/**
+ * Change the dictionary "season" and trigger garbage collection,
+ * if not already running.
+ *
+ * Meaning of dgc_step_count:
+ *	>=2	engine marking phase (dgc_step_count-2 engines pending)
+ *	1	final gc phase (global marking + tidying)
+ *	0	gc finished/no gc running
+ *
+ * If defined(DICT_GC_VIA_SIGNAL) and triggered by the countdown, the
+ * initial call will be made from the signal engine.  But it may be
+ * called explicitly from any engine via garbage_collect_dictionary/0.
+ */
+
 int
-ec_gc_dictionary(void)
+p_gc_dictionary(ec_eng_t *ec_eng)
 {
-    int		usage_before, garbage, idx = 0;
-    dident	d;
-    word	gc_time;
-    extern int	in_exception(void);
-    extern void mark_dids_from_properties(property *prop_list),
-		mark_dids_from_stacks(word arity),
-		mark_dids_from_streams(void);
+    return _gc_dictionary(1);
+}
 
-    dict->gc_countdown = dict->gc_interval;
+int
+_gc_dictionary(int not_locked)
+{
+    ec_eng_t *eng;
+    int engine_markings_required = 0;
 
-    if (!(GlobalFlags & GC_ENABLED)	/* if switched off */
-	|| ec_options.parallel_worker	/* or heap is shared */
-	|| g_emu_.nesting_level > 1	/* or when emulators are nested */
-	|| in_exception())		/* or inside exception */
-    {
-	Succeed_;			/* then don't gc (not implemented) */
+    if (not_locked) mt_mutex_lock(&dict->lock);
+    if (dict->dgc_step_count > 0) {
+	/* If dictionary GC is currently under way, just succeed */
+	if (not_locked) mt_mutex_unlock(&dict->lock);
+	Succeed_;
     }
-    
-#ifndef PRINTAM
-    Disable_Int()
-#endif
+    /* Incremening dgc_step_count from 0 is under lock.  For other
+     * operations on dgc_step_count atomic_add() is sufficient. */
+    dict->dgc_step_count = 2;
 
-    if (GlobalFlags & GC_VERBOSE)
-    {
-	(void) ec_outfs(log_output_,"DICTIONARY GC .");
-	ec_flush(log_output_);
-    }
+    /* Change season.  The lock is needed to make sure that no slow
+     * dict-enter operations are in progress with the old season tag.
+     * After unlocking, any new dictionary entries will tagged with
+     * the new season value.  Old entries require update via marking.
+     */
+    dict->current_season ^= 1;
+    dict->gc_number++;
+    if (not_locked) mt_mutex_unlock(&dict->lock);
 
-    usage_before = dict->dir_index * DICT_ITEM_BLOCK_SIZE -
-			dict->items_free;
-    gc_time = user_time();
+    LogPrintf("DICTIONARY GC #%d start (season=%d)\n", dict->gc_number, dict->current_season);
 
-    mark_dids_from_stacks(0L);		/* mark the abstract machine's data */
+    /* Send marking request to every engine (including aux/sig/timer engine) */
+    mt_mutex_lock(&shared_data->engine_list_lock);	/* protect engine list */
+    eng = eng_chain_header;
+    do {
+	++engine_markings_required;
+	assert(!eng->needs_dgc_marking);
+	eng->needs_dgc_marking = 1;
+	eng = eng->next;
+    } while(eng != eng_chain_header);
+    atomic_add(&dict->dgc_step_count, engine_markings_required);
+    do {
+	/*
+	 * Counter will decrement atomically as soon as request is handled.
+	 * This can happen either directly inside ecl_request, or much
+	 * later when the engine handles the request via an event.
+	 */
+	if (ecl_request(eng, DICT_GC_REQUEST) == PEXITED) {
+	    /* no request to handle */
+	    atomic_add(&dict->dgc_step_count, -1);
+	}
+	eng = eng->next;
+    } while(eng != eng_chain_header);
+    mt_mutex_unlock(&shared_data->engine_list_lock);
 
-    while (next_functor(&idx, &d))	/* mark from all the properties */
+    /* If all engine markings are already done, finish gc now.
+     * Otherwise, leave it to the engine marker that finishes last.
+     */
+    assert(dict->dgc_step_count >= 2);
+    if (atomic_add(&dict->dgc_step_count, -1) == 1)
+	_finish_gc(not_locked);
+
+    Succeed_;
+}
+
+
+/**
+ * Mark dict entries accessible from the given engine (and its parents).
+ * We do have exclusive access to these engines, there should not be
+ * any races to access an engine for marking.  The parent_engine links
+ * form disjoint linear chains, starting with an active engine, and
+ * ending in an engine invoked from the host program or via resume_async.
+ * However, there will be redundant invocations of this function for
+ * parent engines that have already been marked via their descendants.
+ * This is detected by looking at needs_dgc_marking.
+ * If we detect that we have just marked the last engine that needed
+ * marking for the current collection, we continue into _finish_gc()
+ * to do global marking and tidying.
+ */
+void
+ecl_mark_engine(ec_eng_t *ec_eng, word arity)
+{
+    ec_eng_t *eng = ec_eng;
+
+    LogPrintf("DICTIONARY GC #%d marking engine %x\n", dict->gc_number, ec_eng);
+
+    do {
+	if (eng->needs_dgc_marking) {
+	    int dgc_step;
+	    eng->needs_dgc_marking = 0;
+	    mark_dids_from_stacks(eng, arity);
+	    dgc_step = atomic_add(&dict->dgc_step_count, -1);
+	    assert(dgc_step >= 1);
+	    if (dgc_step == 1)
+		return _finish_gc(1);
+	}
+    } while (eng = eng->parent_engine);
+}
+
+
+/**
+ * This is invoked after all engines have done their dictionary marking.
+ * We mark from all the global items, then tidy the dictionary, and finish.
+ */
+static void
+_finish_gc(int not_locked)
+{
+    int i = 0;
+    long usage_before, garbage;
+    dident d;
+
+    /* We just marked the last engine, now proceed to global marking */
+
+    LogPrintf("DICTIONARY GC #%d global marking\n", dict->gc_number);
+
+    while (_next_functor(&i, &d, 1, not_locked))	/* mark from all the properties */
     {
 	if (DidProc(d))
 	    _mark_dids_from_procs(DidProc(d));
@@ -898,45 +1134,30 @@ ec_gc_dictionary(void)
 	    mark_dids_from_properties(DidProperties(d));
     }
 
-    for (idx=0; idx <= NTYPES; idx++)	/* mark from the type properties */
+    for (i=0; i <= NANONYMOUS; i++)	/* mark from the anonymous DIDs */
     {
-	d = &dict->tag_did[idx];
+	d = &dict->anonymous_did[i];
 	if (DidProperties(d))
 	    mark_dids_from_properties(DidProperties(d));
     }
 
     mark_dids_from_streams();		/* mark from the stream descriptors */
 
-    if (GlobalFlags & GC_VERBOSE)
-    {
-	(void) ec_outfs(log_output_,"."); ec_flush(log_output_);
-    }
+    LogPrintf("DICTIONARY GC #%d cleanup\n", dict->gc_number);
+    usage_before = dict->dir_index * DICT_ITEM_BLOCK_SIZE -
+			dict->items_free;
 
+    if (not_locked) mt_mutex_lock(&dict->lock);
     _tidy_dictionary();
-
-    gc_time = user_time() - gc_time;
-    dict->gc_number++;
-    dict->gc_time += gc_time;
     garbage = usage_before - (dict->dir_index * DICT_ITEM_BLOCK_SIZE -
 				dict->items_free);
-
-#ifndef PRINTAM
-    Enable_Int()
-#endif
-
-    if (GlobalFlags & GC_VERBOSE)
-    {
-	p_fprintf(log_output_, ". %d - %d, (%.1f %%), time: %.3f\n",
-	    usage_before,
-	    garbage,
-	    (100.0*garbage)/usage_before,
-	    (float)gc_time/clock_hz);
-	ec_flush(log_output_);
-    }
-
-    Succeed_;
+    LogPrintf("DICTIONARY GC #%d done (%d-%d, %.1f%%)\n", dict->gc_number,
+    		usage_before, garbage, (100.0*garbage)/usage_before);
+    dict->gc_countdown = dict->gc_interval;
+    atomic_add(&dict->dgc_step_count, -1);
+    assert(dict->dgc_step_count == 0);
+    if (not_locked) mt_mutex_unlock(&dict->lock);
 }
-
 
 
 /*--------------------------------------------------------------
@@ -945,7 +1166,7 @@ ec_gc_dictionary(void)
 
 /*ARGSUSED*/
 int
-ec_dict_param(value vwhat, type twhat, value vval, type tval)
+p_dict_param(value vwhat, type twhat, value vval, type tval, ec_eng_t *ec_eng)
 {
     pword result;
 
@@ -972,14 +1193,22 @@ ec_dict_param(value vwhat, type twhat, value vval, type tval)
 	result.val.nint = dict->gc_number;
 	break;
     case 6:	/* gc time */
+	Fail_;
 	Return_Unify_Float(vval, tval, dict->gc_time/clock_hz);
     case 7:	/* set or get the gc interval */
 	if (IsInteger(tval))
 	{
-	    dict->gc_countdown = dict->gc_interval = vval.nint;
+	    dict->gc_interval = vval.nint;
+	    if (dict->gc_countdown > 0)		/* only update if not expired */
+		dict->gc_countdown = vval.nint;
 	}
-	result.tag.kernel = TINT;
 	result.val.nint = dict->gc_interval;
+	break;
+    case 8:	/* countdown */
+	result.val.nint = dict->gc_countdown;
+	break;
+    case 9:	/* remaining steps in current GC (0 = no GC running) */
+	result.val.nint = dict->dgc_step_count;
 	break;
     default:
 	Fail_;
@@ -997,7 +1226,7 @@ ec_dict_param(value vwhat, type twhat, value vval, type tval)
 
 pr_functors(value v, type t)
 {
-    register dident dip;
+    dident dip;
     int index, len;
 
     Check_Integer(t);
@@ -1046,6 +1275,8 @@ pr_dict(void)
     p_fprintf(current_output_, "gc number = %d\n", dict->gc_number);
     p_fprintf(current_output_, "gc time = %.3f\n",
 				(float)dict->gc_time/clock_hz);
+    p_fprintf(current_output_, "season = %d\n", dict->current_season);
+    p_fprintf(current_output_, "pending gc steps = %d\n", dict->dgc_step_count);
     Succeed_;
 }
 
@@ -1063,7 +1294,7 @@ _pdict(dident entry)
     p_fprintf(current_err_, "\n length=%d ", DidLength(entry));
     p_fprintf(current_err_, "module=%d ", DidModule(entry));
     p_fprintf(current_err_, "macro=%d ", DidMacro(entry));
-    p_fprintf(current_err_, "attainable=%d ", DidAttainable(entry));
+    p_fprintf(current_err_, "attainable=%d ", entry->season==dict->current_season);
     p_fprintf(current_err_, "stability=%d ", DidStability(entry));
     p_fprintf(current_err_, "head=%d ", DidPtr(entry)->head);
     p_fprintf(current_err_, "isop=%d", DidIsOp(entry));
@@ -1115,6 +1346,7 @@ _std_did_init(void)
 	d_.grammar = 	in_dict("-->", 2);
 	d_.nil = 	in_dict( "[]", 0);
 	d_.fail = 	in_dict("fail",0);
+	d_.false0 = 	in_dict("false",0);
 	d_.nilcurbr = 	in_dict( "{}", 0);
 	d_.nilcurbr1 = 	in_dict( "{}", 1);
 	d_.eoi = 	in_dict( "\004", 0);
@@ -1220,7 +1452,6 @@ _std_did_init(void)
 	d_.answer = 	in_dict("answer",0);
 	d_.dummy_call =	in_dict("dummy_call",0);
 	d_.no_err_handler =	in_dict("no_err_handler",2);
-	d_.exit_postponed =	in_dict("exit_postponed",0);
 	d_.error_handler =	in_dict("error_handler",2);
 	d_.call_explicit =	in_dict("call_explicit",2);
 	d_.garbage_collect_dictionary = in_dict("garbage_collect_dictionary",0);
@@ -1238,7 +1469,6 @@ _std_did_init(void)
 	d_.flush = 		in_dict("flush",0);
 	d_.emulate = 		in_dict("Emulate",0);
 	d_.abort = 		in_dict("abort",0);
-	d_.eerrno =		in_dict("sys_errno", 0);
 	d_.cprolog = 		in_dict("cprolog", 0);
 	d_.bsi = 		in_dict("bsi", 0);
 	d_.quintus = 		in_dict("quintus", 0);
@@ -1274,6 +1504,7 @@ _std_did_init(void)
 	d_.module_directive = 	in_dict("module_directive", 4);
 
 		/* module names */
+	d_.dummy_module =	&dict->anonymous_did[ANONYMOUS_MODULE];
 	d_.default_module =	in_dict(ec_options.default_module, 0);
 	d_.eclipse_home =	in_dict(ec_eclipse_home, 0);
 	d_.kernel_sepia = in_dict("sepia_kernel", 0);
@@ -1513,7 +1744,7 @@ _constant_table_expand(struct constant_table *table)
  */
 
 int
-ec_constant_table_enter(value v, type t, pword *presult)
+ec_constant_table_enter(ec_eng_t *ec_eng, value v, type t, pword *presult)
 {
     int res = PSUCCEED;		/* initialise for ec_term_hash() */
     t_constant_entry *pelem;
@@ -1562,7 +1793,7 @@ ec_constant_table_enter(value v, type t, pword *presult)
     {
 	/* insert new entry */
 	pelem = (t_constant_entry *) hg_alloc_size(sizeof(t_constant_entry));
-	if ((res = create_heapterm(&pelem->value, v, t)) != PSUCCEED)
+	if ((res = create_heapterm(ec_eng, &pelem->value, v, t)) != PSUCCEED)
 	{
 	    hg_free_size(pelem, sizeof(t_constant_entry));
 	    return res;

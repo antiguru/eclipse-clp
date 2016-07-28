@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.43 2015/01/14 01:31:10 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.44 2016/07/28 03:34:37 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -44,7 +44,7 @@
 
 package provide eclipse_tools 1.0
 
-set tkecl(version) 6.2 ;# update also in tkeclipse and examples!
+set tkecl(version) 7.0 ;# update also in tkeclipse and examples!
 # including mapdebugdemo.tcl in <ECLiPSe>/document/tutorial/mapdebugdemo.tcl
 
 

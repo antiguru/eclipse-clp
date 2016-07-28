@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.7 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.8 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -59,49 +59,13 @@
 #include <string.h>
 #endif
 
-int 		p_exit(value v, type t);
+#include <assert.h>
 
-static int	p_dbgcomp(void),
-		p_nodbgcomp(void),
-		p_timestamp_init(value vstruct, type tstruct, value varg, type targ),
-		p_timestamp_update(value vstruct, type tstruct, value varg, type targ),
-		p_timestamp_older(value vstruct1, type tstruct1, value varg1, type targ1, value vstruct2, type tstruct2, value varg2, type targ2),
-		p_timestamp_age(value vstruct, type tstruct, value varg, type targ, value vstate, type tstate),
-		p_request_cut_fail_event(value vevent, type tevent),
-		p_request_fail_event(value v, type t, value varg, type targ, value vevent, type tevent),
-		p_request_fail_event4(value v, type t, value varg, type targ, value vevent, type tevent, value vitem, type titem),
-		p_request_fail_write(value v, type t, value varg, type targ, value vstream, type tstream, value vterm, type tterm),
-		p_failure_culprit(value vf, type tf, value vi, type ti),
-		p_new_invoc(value v, type t),
-		p_disable_tracing(void),
-		p_events_nodefer(void),
-		p_events_defer(void),
-		p_raise_init_event(void),
-		p_current_td(value v, type t),
-		p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, type tdepth, value vproc, type tproc, value vbrkpt, type tbrkpt),
-		p_trace_mode(value v, type t, value vmode, type tmode),
-		p_tracing(void),
-		p_delay_port_susps(value v, type t),
-		p_get_fail_info(value vi, type ti, value vf, type tf),
-		p_susp_to_tf(value vs, type ts, value vf, type tf),
-		p_make_tf(value vpush, type tpush, value vi, type ti, value vg, type tg, value vm, type tm, value vlm, type tlm, value vp, type tp, value vf, type tf),
-		p_pop_tf(void),
-		p_get_tf_prop(value vf, type tf, value vwhat, type twhat, value v, type t),
-#ifdef PRINTAM
-		p_systrace(void),
-#endif
-		p_spied(value v1, type t1, value v2, type t2, value vm, type tm),
-		p_global_flags(value vc, type tc, value vs, type ts, value v, type t),
-		p_vm_flags(value vc, type tc, value vs, type ts, value v, type t),
-		p_sys_flags(value vf, type tf, value vval, type tval),
-		p_extension(value vext, type text, value v, type t),
-		p_prof(value v, type t, value vf, type tf, value vs, type ts);
 
-stream_id	profile_stream_;
-int		profile_flags_;
+stream_id	profile_stream_ = 0;
 
 static dident
-	d_chip_,
+	d_threads_,
 	d_current_,
 	d_objects_,
 	d_development_,
@@ -115,125 +79,53 @@ static dident
 	d_mps_;
 
 
-void
-bip_control_init(int flags)
-{
-    d_chip_ = in_dict("chip",0);
-    d_objects_ = in_dict("objects",0);
-    d_development_ = in_dict("development",0);
-    d_seduce_ = in_dict("seduce",0);
-    d_opium_ = in_dict("opium",0);
-    d_occur_check_ = in_dict("occur_check", 0);
-    d_dfid_ = in_dict("dfid", 0);
-    d_megalog_ = in_dict("megalog",0);
-    d_parallel_ = in_dict("parallel",0);
-    d_mps_ = in_dict("mps",0);
-    d_current_ = in_dict("current",0);
-    d_old_ = in_dict("old",0);
-
-    if (flags & INIT_SHARED)
-    {
-	(void) built_in(in_dict("dbgcomp", 0),		p_dbgcomp,	B_SAFE);
-	(void) built_in(in_dict("nodbgcomp", 0),	p_nodbgcomp,	B_SAFE);
-#ifdef PRINTAM
-	(void) built_in(in_dict("systrace", 0),	p_systrace,	B_SAFE);
-#endif
-	(void) local_built_in(in_dict("exit0", 1),	p_exit,		B_SAFE);
-	(void) local_built_in(in_dict("spied_", 3),	p_spied,	B_SAFE);
-	(void) local_built_in(in_dict("global_flags", 3), p_global_flags, B_SAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("vm_flags", 3), p_vm_flags, B_SAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("sys_flags", 2), p_sys_flags, B_SAFE|U_SIMPLE);
-	(void) b_built_in(in_dict("extension", 2), p_extension,
-			  d_.kernel_sepia);
-	(void) exported_built_in(in_dict("prof", 3), p_prof, B_SAFE);
-
-	(void) built_in(in_dict("timestamp_init", 2), p_timestamp_init, B_UNSAFE);
-	(void) built_in(in_dict("timestamp_update", 2), p_timestamp_update, B_UNSAFE);
-	(void) built_in(in_dict("timestamp_older", 4), p_timestamp_older, B_UNSAFE);
-	(void) built_in(in_dict("timestamp_age", 3), p_timestamp_age, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("request_cut_fail_event", 1), p_request_cut_fail_event, B_SAFE);
-	(void) built_in(in_dict("request_fail_event", 3), p_request_fail_event, B_SAFE);
-	(void) built_in(in_dict("request_fail_event", 4), p_request_fail_event4, B_SAFE);
-	(void) built_in(in_dict("request_fail_write", 4), p_request_fail_write, B_SAFE);
-	(void) built_in(in_dict("events_nodefer", 0), p_events_nodefer, B_SAFE);
-	(void) built_in(in_dict("events_defer", 0), p_events_defer, B_SAFE);
-
-	(void) local_built_in(in_dict("failure_culprit", 2), p_failure_culprit, B_UNSAFE);
-	(void) local_built_in(in_dict("new_invoc", 1), p_new_invoc, B_UNSAFE);
-	(void) local_built_in(in_dict("tracing", 0), p_tracing, B_SAFE);
-	(void) local_built_in(in_dict("disable_tracing", 0), p_disable_tracing, B_SAFE);
-	(void) local_built_in(in_dict("raise_init_event", 0), p_raise_init_event, B_SAFE);
-	(void) local_built_in(in_dict("current_td", 1), p_current_td, B_UNSAFE);
-	(void) local_built_in(in_dict("trace_mode", 2), p_trace_mode, B_SAFE);
-	(void) local_built_in(in_dict("of_interest", 5), p_of_interest, B_SAFE);
-	(void) local_built_in(in_dict("get_fail_info", 2), p_get_fail_info, B_UNSAFE);
-	(void) local_built_in(in_dict("susp_to_tf", 2), p_susp_to_tf, B_UNSAFE);
-	(void) local_built_in(in_dict("make_tf", 7), p_make_tf, B_UNSAFE);
-	(void) local_built_in(in_dict("pop_tf", 0), p_pop_tf, B_UNSAFE);
-	(void) local_built_in(in_dict("get_tf_prop", 3), p_get_tf_prop, B_UNSAFE);
-	(void) local_built_in(in_dict("delay_port_susps", 1), p_delay_port_susps, B_UNSAFE);
-    }
-}
-
-
-#ifdef PRINTAM
-static int
-p_systrace(void)
-{
-	VM_FLAGS ^= TRACE;
-	Succeed_;
-}
-#endif
 
 int
-p_exit(value v, type t)
+p_exit(value v, type t, ec_eng_t *ec_eng)
 {
-    extern void ec_cleanup1(int exit_code);
-
     Check_Integer(t);
-    ec_cleanup1((int) v.nint);
-    exit((int) v.nint);
-    Succeed_;		/* for lint */
+    ec_exit((int) v.nint); /* will not return */
 }
 
 
 static int
-p_dbgcomp(void)
+p_dbgcomp(ec_eng_t *ec_eng)
 {
-    GlobalFlags = (GlobalFlags & ~GOALEXPAND)|DBGCOMP;
+    EclGblFlags = (EclGblFlags & ~GOALEXPAND)|DBGCOMP;
     Succeed_;
 }
 
 static int
-p_nodbgcomp(void)
+p_nodbgcomp(ec_eng_t *ec_eng)
 {
-	GlobalFlags &= ~(DBGCOMP|VARIABLE_NAMES|SINGLETON_CHECK);
-	GlobalFlags |= GOALEXPAND;
+	EclGblFlags &= ~(DBGCOMP|VARIABLE_NAMES|SINGLETON_CHECK);
+	EclGblFlags |= GOALEXPAND;
 	Succeed_;
 }
 
 /*ARGSUSED*/
 static int
-p_prof(value v, type t, value vf, type tf, value vs, type ts)
+p_prof(value v, type t, value vf, type tf, value vs, type ts, ec_eng_t *ec_eng)
 {
-    int			res;
+    int			err_or_copied;
     stream_id		nst;
 
     Check_Atom(t);
     if (v.did == d_.on) {
-	nst = get_stream_id(vs, ts, SWRITE, &res);
-	if (nst == NO_STREAM) {
-	    Bip_Error(res)
-	}
 	if (VM_FLAGS & PROFILING) {
 	    Fail_;
 	}
-	profile_stream_ = nst;
-	profile_flags_ = vf.nint;
+	nst = get_stream_id(vs, ts, SWRITE, 0, NULL, &err_or_copied);
+	if (nst == NO_STREAM) {
+	    Bip_Error(err_or_copied)
+	}
+	if (profile_stream_) stream_tid.free(profile_stream_);
+	profile_stream_ = err_or_copied? nst : stream_tid.copy(nst);
 	VM_FLAGS |= PROFILING;
     } else if (v.did == d_.off) {
 	VM_FLAGS &= ~PROFILING;
-	profile_flags_ = 0;
+	if (profile_stream_) stream_tid.free(profile_stream_);
+	profile_stream_ = NULL;
     } else {
 	Bip_Error(RANGE_ERROR)
     }
@@ -246,7 +138,7 @@ p_prof(value v, type t, value vf, type tf, value vs, type ts)
 	just tells you whether a predicate is spied
 */
 static int
-p_spied(value v1, type t1, value v2, type t2, value vm, type tm)
+p_spied(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng_t *ec_eng)
 {
 	dident		wdid;
 	pri		*proc;
@@ -255,10 +147,9 @@ p_spied(value v1, type t1, value v2, type t2, value vm, type tm)
 	Check_Module(tm, vm);
 	Get_Did(v1, t1, v2, t2, wdid);
 	/* is functor/arity defined */
-	proc = visible_procedure(wdid, vm.did, tm, PRI_DONTIMPORT);
+	proc = visible_procedure(wdid, vm.did, tm, PRI_DONTIMPORT, &err);
 	if (! proc)
 	{
-	    Get_Bip_Error(err);
 	    Bip_Error(err);
 	}
 	Succeed_If(PriFlags(proc) & DEBUG_SP);
@@ -266,7 +157,7 @@ p_spied(value v1, type t1, value v2, type t2, value vm, type tm)
 
 
 /*
- * manipulation of the global status words GlobalFlags and VM_FLAGS
+ * manipulation of the global status words EclGblFlags and VM_FLAGS
  * vc,tv	mask defining bits to clear
  * vs,ts	mask defining bits to set
  * vc,tc	returns the new value of the flag word
@@ -275,11 +166,11 @@ p_spied(value v1, type t1, value v2, type t2, value vm, type tm)
 int
 global_flags(int clear, int set)
 {
-    return (GlobalFlags = (GlobalFlags & ~clear) | set);
+    return (EclGblFlags = (EclGblFlags & ~clear) | set);
 }
 
 static int
-p_global_flags(value vc, type tc, value vs, type ts, value v, type t)
+p_global_flags(value vc, type tc, value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
 	Check_Integer(tc)
 	Check_Integer(ts)
@@ -291,7 +182,7 @@ p_global_flags(value vc, type tc, value vs, type ts, value v, type t)
 #define ALLOWED_TO_SET	(TRACE|STATISTICS|GLOBAL_NO_IT|WAS_EXIT|NO_EXIT)
 
 static int
-p_vm_flags(value vc, type tc, value vs, type ts, value v, type t)
+p_vm_flags(value vc, type tc, value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
 	int was_global_no_it;
 	Check_Integer(tc)
@@ -326,7 +217,7 @@ p_vm_flags(value vc, type tc, value vs, type ts, value v, type t)
  * DESCRIPTION:
  */
 static int
-p_sys_flags(value vf, type tf, value vval, type tval)
+p_sys_flags(value vf, type tf, value vval, type tval, ec_eng_t *ec_eng)
 {
     Check_Integer(tf);
     switch (vf.nint)
@@ -385,7 +276,7 @@ p_sys_flags(value vf, type tf, value vval, type tval)
     }
 }
 
-#define MAX_EXTENSIONS		       12
+
 /*
  * FUNCTION NAME:		extension/2 predicate
  *
@@ -399,26 +290,23 @@ p_sys_flags(value vf, type tf, value vval, type tval)
  *				appropriate name is returned.
  */
 static int
-p_extension(value vext, type text, value v, type t)
+p_extension(value vext, type text, value v, type t, ec_eng_t *ec_eng)
 {
     dident	ext = (dident)0;
-    int		i;
-    value	v1;
+    int		i = v.nint;
 
     Check_Integer(t);
     Check_Output_Atom(text);
 
-    for (i = v.nint; i < MAX_EXTENSIONS; i++)
+    for(;;)
     {
-	switch(i)
+	switch(i++)
 	{
 	case 0:
 	    break;
-#ifdef CHIP
 	case 1:
-	    ext = d_chip_;
+	    ext = d_threads_;
 	    break;
-#endif
 #ifdef OBJECTS
 	case 2:
 	    ext = d_objects_;
@@ -462,15 +350,21 @@ p_extension(value vext, type text, value v, type t)
 	    if (mps_present())
 		ext = d_mps_;
 	    break;
+
+	/* insert new cases here, and renumber the termination case accordingly */
+
+	case 11:	/* this must be the highest case number! */
+	    Cut_External;
+	    Fail_;
 	}
 	if (ext) {
-	    v1.nint = i + 1;
+	    value v1;
+	    v1.nint = i;
 	    Remember(2, v1, tint);
-	Return_Unify_Atom(vext, text, ext);
+	    Return_Unify_Atom(vext, text, ext);
 	}
     }
-    Cut_External;
-    Fail_;
+    /*NOTREACHED*/
 }
 
 
@@ -481,7 +375,7 @@ p_extension(value vext, type text, value v, type t)
  */
 
 static int
-p_events_defer(void)
+p_events_defer(ec_eng_t *ec_eng)
 {
     /* no nesting: fail if already deferred */
     if (VM_FLAGS & EVENTS_DEFERRED)
@@ -491,7 +385,7 @@ p_events_defer(void)
 }
 
 static int
-p_events_nodefer(void)
+p_events_nodefer(ec_eng_t *ec_eng)
 {
     VM_FLAGS &= ~EVENTS_DEFERRED;
     if (EVENT_FLAGS & EVENT_POSTED) {
@@ -506,17 +400,17 @@ p_events_nodefer(void)
  */
 
 static void
-_post_cut_fail_event(value v, type t)
+_post_cut_fail_event(value v, type t, ec_eng_t *ec_eng)
 {
     pword event;
     event.val.all = v.all;
     event.tag.all = t.all;
-    if (ec_post_event(event) != PSUCCEED)
+    if (ecl_post_event(ec_eng, event) != PSUCCEED)
 	ec_panic("Could not post event", "_post_cut_fail_event()");
 }
 
 static int
-p_request_cut_fail_event(value vevent, type tevent)
+p_request_cut_fail_event(value vevent, type tevent, ec_eng_t *ec_eng)
 {
     pword event;
 
@@ -534,8 +428,7 @@ p_request_cut_fail_event(value vevent, type tevent)
 	Bip_Error(TYPE_ERROR);
     }
 
-    schedule_cut_fail_action((void (*)(value,type)) _post_cut_fail_event,
-    		event.val, event.tag);
+    ecl_schedule_cut_fail_action(ec_eng, _post_cut_fail_event, event.val, event.tag);
     Succeed_;
 }
 
@@ -559,7 +452,7 @@ p_request_cut_fail_event(value vevent, type tevent)
  */
 
 static void
-_post_fail_event(pword *pitem, word *pdata, int size, int undo_context)
+_post_fail_event(pword *pitem, word *pdata, int size, int undo_context, ec_eng_t *ec_eng)
 {
     /*
      * Only post the fail event if we are actually failing. Do nothing when
@@ -567,7 +460,7 @@ _post_fail_event(pword *pitem, word *pdata, int size, int undo_context)
      */
     if (undo_context == UNDO_FAIL)
     {
-	if (ec_post_event(*(pword *)pdata) != PSUCCEED)
+	if (ecl_post_event(ec_eng, *(pword *)pdata) != PSUCCEED)
 	{
 	    p_fprintf(current_err_, "\nEvent queue overflow in request_fail_event/1");
 	    ec_flush(current_err_);
@@ -577,17 +470,8 @@ _post_fail_event(pword *pitem, word *pdata, int size, int undo_context)
 
 
 static int
-p_request_fail_event(value v, type t, value varg, type targ, value vevent, type tevent)
-{
-    value vitem;
-    vitem.nint = 0;
-    return p_request_fail_event4(vitem, tint, v, t, varg, targ, vevent, tevent);
-}
-
-
-static int
 p_request_fail_event4(value vitem, type titem, value v, type t,
-	value varg, type targ, value vevent, type tevent)
+	value varg, type targ, value vevent, type tevent, ec_eng_t *ec_eng)
 {
     pword event;
     pword *pstamp;
@@ -619,10 +503,19 @@ p_request_fail_event4(value vitem, type titem, value v, type t,
 	Bip_Error(TYPE_ERROR);
     }
 
-    ec_trail_undo(_post_fail_event,
+    ecl_trail_undo(ec_eng, _post_fail_event,
     	ISPointer(titem.kernel) ? vitem.ptr : NULL, pstamp,
 	(word*) &event, sizeof(pword)/sizeof(word), TRAILED_PWORD);
     Succeed_;
+}
+
+
+static int
+p_request_fail_event(value v, type t, value varg, type targ, value vevent, type tevent, ec_eng_t *ec_eng)
+{
+    value vitem;
+    vitem.nint = 0;
+    return p_request_fail_event4(vitem, tint, v, t, varg, targ, vevent, tevent, ec_eng);
 }
 
 
@@ -635,16 +528,19 @@ p_request_fail_event4(value vitem, type titem, value v, type t,
  */
 
 static void
-_fail_write_stream(pword *pitem, word *pdata, int size, int flags)
+_fail_write_stream(pword *pitem, word *pdata, int size, int flags, ec_eng_t *ec_eng)
 {
     int res;
     pword *data = (pword *) pdata;
-    stream_id out = get_stream_id(data[0].val, data[0].tag, SWRITE, &res);
+    stream_id out = get_stream_id(data[0].val, data[0].tag, SWRITE, 1, NULL, &res);
     if (out != NO_STREAM)
     {
-	res = ec_pwrite(0, FULLDEPTH|VAR_NUMBERS|NO_MACROS|CANONICAL,
-	    out, data[1].val, data[1].tag, 1200, 1,
-	    d_.default_module, tdict);
+	int stream_copied = res;
+	res = ec_pwrite(ec_eng, 0, FULLDEPTH|VAR_NUMBERS|NO_MACROS|CANONICAL,
+	    out, data[1].val, data[1].tag, 1200, 1, d_.dummy_module, tdict);
+	Unlock_Stream(out);	/* locked by get_stream_id() */
+	if (stream_copied)
+	    stream_tid.free(out);
     }
     if (res != PSUCCEED)
     {
@@ -655,7 +551,7 @@ _fail_write_stream(pword *pitem, word *pdata, int size, int flags)
 
 
 static int
-p_request_fail_write(value v, type t, value varg, type targ, value vstream, type tstream, value vterm, type tterm)
+p_request_fail_write(value v, type t, value varg, type targ, value vstream, type tstream, value vterm, type tterm, ec_eng_t *ec_eng)
 {
     pword data[2];
     pword *pstamp;
@@ -679,7 +575,7 @@ p_request_fail_write(value v, type t, value varg, type targ, value vstream, type
     data[0].tag.all = tstream.all;
     data[1].val.all = vterm.all;
     data[1].tag.all = tterm.all;
-    ec_trail_undo(_fail_write_stream, NULL, pstamp, (word *) &data,
+    ecl_trail_undo(ec_eng, _fail_write_stream, NULL, pstamp, (word *) &data,
 	sizeof(data)/sizeof(word), TRAILED_PWORD);
     Succeed_;
 }
@@ -701,7 +597,7 @@ p_request_fail_write(value v, type t, value varg, type targ, value vstream, type
 
 
 static int
-p_timestamp_init(value vstruct, type tstruct, value varg, type targ)
+p_timestamp_init(value vstruct, type tstruct, value varg, type targ, ec_eng_t *ec_eng)
 {
     pword *pstamp;
     Check_Integer(targ);
@@ -721,7 +617,7 @@ p_timestamp_init(value vstruct, type tstruct, value varg, type targ)
 
 
 static int
-p_timestamp_update(value vstruct, type tstruct, value varg, type targ)
+p_timestamp_update(value vstruct, type tstruct, value varg, type targ, ec_eng_t *ec_eng)
 {
     pword *pstamp;
     Check_Integer(targ);
@@ -745,7 +641,7 @@ p_timestamp_update(value vstruct, type tstruct, value varg, type targ)
 
 
 static int
-p_timestamp_age(value vstruct, type tstruct, value varg, type targ, value vstate, type tstate)
+p_timestamp_age(value vstruct, type tstruct, value varg, type targ, value vstate, type tstate, ec_eng_t *ec_eng)
 {
     pword *pstamp;
     Check_Ref(tstate);	/* it makes no sense to use it as a test! */
@@ -762,7 +658,7 @@ p_timestamp_age(value vstruct, type tstruct, value varg, type targ, value vstate
 
 
 static int
-p_timestamp_older(value vstruct1, type tstruct1, value varg1, type targ1, value vstruct2, type tstruct2, value varg2, type targ2)
+p_timestamp_older(value vstruct1, type tstruct1, value varg1, type targ1, value vstruct2, type tstruct2, value varg2, type targ2, ec_eng_t *ec_eng)
 {
     Check_Integer(targ1);
     Check_Integer(targ2);
@@ -789,7 +685,7 @@ p_timestamp_older(value vstruct1, type tstruct1, value varg1, type targ1, value 
  * marking the top frame.
  */
 static int
-p_disable_tracing(void)
+p_disable_tracing(ec_eng_t *ec_eng)
 {
     if (TD) {
 	Set_Tf_Flag(TD, TF_INTRACER);
@@ -808,7 +704,7 @@ p_disable_tracing(void)
 
 
 static int
-p_tracing(void)
+p_tracing(ec_eng_t *ec_eng)
 {
     Succeed_If(Tracing);
 }
@@ -819,7 +715,7 @@ p_tracing(void)
  * DEBUG_INIT_EVENT if it is the first event in a new debug session.
  */
 static int
-p_raise_init_event(void)
+p_raise_init_event(ec_eng_t *ec_eng)
 {
     if (TRACEMODE & TR_STARTED)
     {
@@ -834,7 +730,7 @@ p_raise_init_event(void)
  * return the current debug stack
  */
 static int
-p_current_td(value v, type t)
+p_current_td(value v, type t, ec_eng_t *ec_eng)
 {
     Return_Unify_Pw(v, t, TAGGED_TD.val, TAGGED_TD.tag);
 }
@@ -844,7 +740,7 @@ p_current_td(value v, type t)
  * generate the next incocation number
  */
 static int
-p_new_invoc(value v, type t)
+p_new_invoc(value v, type t, ec_eng_t *ec_eng)
 {
     word i = NINVOC++;
     Return_Unify_Integer(v, t, i);
@@ -857,7 +753,7 @@ p_new_invoc(value v, type t)
  * goal responsible for the most recent failure.
  */
 static int
-p_failure_culprit(value vf, type tf, value vi, type ti)
+p_failure_culprit(value vf, type tf, value vi, type ti, ec_eng_t *ec_eng)
 {
     Prepare_Requests;
     if (FCULPRIT < 0)
@@ -872,7 +768,7 @@ p_failure_culprit(value vf, type tf, value vi, type ti)
  * Check whether the given data matches the current prefilter conditions
  */
 static int
-p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, type tdepth, value vproc, type tproc, value vbrkpt, type tbrkpt)
+p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, type tdepth, value vproc, type tproc, value vbrkpt, type tbrkpt, ec_eng_t *ec_eng)
 {
     word flags = vproc.priptr ? PriFlags(vproc.priptr) : DEBUG_TR;
     word port = IsInteger(tport) ? vport.nint : OTHER_PORT;
@@ -888,7 +784,7 @@ p_of_interest(value vport, type tport, value vinvoc, type tinvoc, value vdepth, 
  * Set the tracer modes and prefiltering parameters
  */
 static int
-p_trace_mode(value v, type t, value vmode, type tmode)
+p_trace_mode(value v, type t, value vmode, type tmode, ec_eng_t *ec_eng)
 {
     switch (v.nint) {
     case 0:				/* creep */
@@ -982,7 +878,7 @@ p_trace_mode(value v, type t, value vmode, type tmode)
  * fake trace frame.
  */
 static int
-p_get_fail_info(value vi, type ti, value vf, type tf)
+p_get_fail_info(value vi, type ti, value vf, type tf, ec_eng_t *ec_eng)
 {
     pword goal;
     pword *pw;
@@ -1036,7 +932,7 @@ p_get_fail_info(value vi, type ti, value vf, type tf)
  * Construct a trace frame from a suspension
  */
 static int
-p_susp_to_tf(value vs, type ts, value vf, type tf)
+p_susp_to_tf(value vs, type ts, value vf, type tf, ec_eng_t *ec_eng)
 {
     pword *pw;
 
@@ -1052,8 +948,9 @@ p_susp_to_tf(value vs, type ts, value vf, type tf)
  * If tg/vg is not a proper goal, we use true/0 for proc
  */
 static int
-p_make_tf(value vpush, type tpush, value vi, type ti, value vg, type tg, value vm, type tm, value vlm, type tlm, value vp, type tp, value vf, type tf)
+p_make_tf(value vpush, type tpush, value vi, type ti, value vg, type tg, value vm, type tm, value vlm, type tlm, value vp, type tp, value vf, type tf, ec_eng_t *ec_eng)
 {
+    int err;
     pword *pw;
     pri *proc = NULL;
     uword depth;
@@ -1077,10 +974,9 @@ p_make_tf(value vpush, type tpush, value vi, type ti, value vg, type tg, value v
 		: IsNil(tg) ? d_.nil
 		: D_UNKNOWN;
     if (goal_did)
-	proc = qualified_procedure(goal_did, vlm.did, vm.did, tm);
+	proc = qualified_procedure(goal_did, vlm.did, vm.did, tm, &err);
     if (!proc)
     {
-	Set_Bip_Error(0);			/* reset error code */
     	proc = true_proc_;
     }
     if (IsRef(ti))				/* new invoc if none given */
@@ -1104,7 +1000,7 @@ p_make_tf(value vpush, type tpush, value vi, type ti, value vg, type tg, value v
 }
 
 static int
-p_pop_tf(void)
+p_pop_tf(ec_eng_t *ec_eng)
 {
     Pop_Dbg_Frame();
     /* Since we've popped the top frame, we need to set the TF_INTRACER bit
@@ -1121,7 +1017,7 @@ p_pop_tf(void)
  * get hidden information from the trace frame
  */
 static int
-p_get_tf_prop(value vf, type tf, value vwhat, type twhat, value v, type t)
+p_get_tf_prop(value vf, type tf, value vwhat, type twhat, value v, type t, ec_eng_t *ec_eng)
 {
     Check_Structure(tf);
     Check_Atom(twhat);
@@ -1173,7 +1069,7 @@ p_get_tf_prop(value vf, type tf, value vwhat, type twhat, value v, type t)
  */
 
 int
-p_delay_port_susps(value v, type t)
+p_delay_port_susps(value v, type t, ec_eng_t *ec_eng)
 {
     pword list;
     pword *pld = LD;
@@ -1211,7 +1107,7 @@ p_delay_port_susps(value v, type t)
  */
 
 int Winapi
-ec_make_suspension(pword goal, int prio, void *proc, pword *psusp)
+ecl_make_suspension(ec_eng_t *ec_eng, pword goal, int prio, void *proc, pword *psusp)
 {
     pword *susp = TG;
     psusp->val.ptr = susp;
@@ -1243,3 +1139,96 @@ ec_make_suspension(pword goal, int prio, void *proc, pword *psusp)
     return PSUCCEED;
 }
 
+
+/*----------------------------------------------------------------------
+ * Debugging tools
+ *----------------------------------------------------------------------*/
+
+#ifdef PRINTAM
+static int
+p_systrace(ec_eng_t *ec_eng)
+{
+    VM_FLAGS ^= TRACE;
+    Succeed_;
+}
+
+
+static int
+p_sanity_check(value v, type t, ec_eng_t *ec_eng)
+{
+    Check_Integer(t);
+    if (v.nint & 1) check_global(ec_eng);
+    if (v.nint & 2) check_trail1(v.nint & 4, ec_eng);
+    Succeed_;
+}
+
+#endif
+
+
+
+/*----------------------------------------------------------------------
+ * Initialisation
+ *----------------------------------------------------------------------*/
+
+void
+bip_control_init(int flags)
+{
+    d_threads_ = in_dict("threads",0);
+    d_objects_ = in_dict("objects",0);
+    d_development_ = in_dict("development",0);
+    d_seduce_ = in_dict("seduce",0);
+    d_opium_ = in_dict("opium",0);
+    d_occur_check_ = in_dict("occur_check", 0);
+    d_dfid_ = in_dict("dfid", 0);
+    d_megalog_ = in_dict("megalog",0);
+    d_parallel_ = in_dict("parallel",0);
+    d_mps_ = in_dict("mps",0);
+    d_current_ = in_dict("current",0);
+    d_old_ = in_dict("old",0);
+
+    if (flags & INIT_SHARED)
+    {
+	(void) built_in(in_dict("dbgcomp", 0),		p_dbgcomp,	B_SAFE);
+	(void) built_in(in_dict("nodbgcomp", 0),	p_nodbgcomp,	B_SAFE);
+#ifdef PRINTAM
+	(void) built_in(in_dict("systrace", 0),	p_systrace,	B_SAFE);
+	(void) built_in(in_dict("sanity_check", 1),	p_sanity_check,	B_SAFE);
+#endif
+	(void) local_built_in(in_dict("exit0", 1),	p_exit,		B_SAFE);
+	(void) local_built_in(in_dict("spied_", 3),	p_spied,	B_SAFE);
+	(void) local_built_in(in_dict("global_flags", 3), p_global_flags, B_SAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("vm_flags", 3), p_vm_flags, B_SAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("sys_flags", 2), p_sys_flags, B_SAFE|U_SIMPLE);
+	(void) b_built_in(in_dict("extension", 2), p_extension,
+			  d_.kernel_sepia);
+	(void) exported_built_in(in_dict("prof", 3), p_prof, B_SAFE);
+
+	(void) built_in(in_dict("timestamp_init", 2), p_timestamp_init, B_UNSAFE);
+	(void) built_in(in_dict("timestamp_update", 2), p_timestamp_update, B_UNSAFE);
+	(void) built_in(in_dict("timestamp_older", 4), p_timestamp_older, B_UNSAFE);
+	(void) built_in(in_dict("timestamp_age", 3), p_timestamp_age, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("request_cut_fail_event", 1), p_request_cut_fail_event, B_SAFE);
+	(void) built_in(in_dict("request_fail_event", 3), p_request_fail_event, B_SAFE);
+	(void) built_in(in_dict("request_fail_event", 4), p_request_fail_event4, B_SAFE);
+	(void) built_in(in_dict("request_fail_write", 4), p_request_fail_write, B_SAFE);
+	(void) built_in(in_dict("events_nodefer", 0), p_events_nodefer, B_SAFE);
+	(void) built_in(in_dict("events_defer", 0), p_events_defer, B_SAFE);
+
+	(void) local_built_in(in_dict("failure_culprit", 2), p_failure_culprit, B_UNSAFE);
+	(void) local_built_in(in_dict("new_invoc", 1), p_new_invoc, B_UNSAFE);
+	(void) local_built_in(in_dict("tracing", 0), p_tracing, B_SAFE);
+	(void) local_built_in(in_dict("disable_tracing", 0), p_disable_tracing, B_SAFE);
+	(void) local_built_in(in_dict("raise_init_event", 0), p_raise_init_event, B_SAFE);
+	(void) local_built_in(in_dict("current_td", 1), p_current_td, B_UNSAFE);
+	(void) local_built_in(in_dict("trace_mode", 2), p_trace_mode, B_SAFE);
+	(void) local_built_in(in_dict("of_interest", 5), p_of_interest, B_SAFE);
+	(void) local_built_in(in_dict("get_fail_info", 2), p_get_fail_info, B_UNSAFE);
+	(void) local_built_in(in_dict("susp_to_tf", 2), p_susp_to_tf, B_UNSAFE);
+	(void) local_built_in(in_dict("make_tf", 7), p_make_tf, B_UNSAFE);
+	(void) local_built_in(in_dict("pop_tf", 0), p_pop_tf, B_UNSAFE);
+	(void) local_built_in(in_dict("get_tf_prop", 3), p_get_tf_prop, B_UNSAFE);
+	(void) local_built_in(in_dict("delay_port_susps", 1), p_delay_port_susps, B_UNSAFE);
+    }
+}
+
+/* Add all new code in front of the initialization function! */

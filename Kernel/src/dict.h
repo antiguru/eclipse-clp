@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.5 2009/03/09 05:29:48 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.6 2016/07/28 03:34:36 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -43,7 +43,7 @@
  */
 
 /* Dictionary Related Definitions */
-#define		D_UNKNOWN	0L	/* unknown did */
+#define		D_UNKNOWN	0	/* unknown did */
 
 /* values for the stability field */
 #define		DICT_VOLATILE	0	/* has only stack & property references	*/
@@ -59,7 +59,6 @@
 
 /* dictionary definitions */
 #define		DidPtr(D)	((dident) (D))
-#define		DidAttainable(D) DidPtr(D)->attainable
 #define		DidMacro(D)	DidPtr(D)->macro
 #define		DidModule(D)	DidPtr(D)->module
 #define		DidIsOp(D)	DidPtr(D)->isop
@@ -74,8 +73,8 @@
 		DidPtr(D)->stability = (NewStability); }
 
 /* marking for dictionary GC */
-#define	Mark_Did(D)	DidAttainable(D) = 1
-#define	Mark_VarName(t)	DidAttainable(TagDid(t)) = 1
+#define	Mark_Did(D)	ec_mark_did(D)
+#define	Mark_VarName(t)	ec_mark_did(TagDid(t))
 
 /* convert a given functor to another arity */
 #define Add_Dict(d, new_arity) 	d = add_dict(d, new_arity)
@@ -293,7 +292,7 @@ typedef struct pri
 #define TR_STARTED	DEBUG_ST	/* arbitrary */
 
 /*
-#define UNUSED_BITS	0X0000F000
+#define UNUSED_BITS	0X0000E000
 */
 
 
@@ -313,11 +312,10 @@ typedef struct pri
 #define	VMCODE		0X00000200	/* virtual machine code		*/
 #define	FUNPTR		0X00000000	/* function pointer		*/
 
-#define B_SAFE		VMCODE		/* obsolete built-in classification */
-#define B_UNSAFE	VMCODE		/* obsolete built-in classification */
+#define B_SAFE		0		/* obsolete built-in classification */
+#define B_UNSAFE	0		/* obsolete built-in classification */
 
 #define CODE_DEFINED	0x00800000	/* has non-default code		*/
-
 
 /* ARGPASSING describes the calling convention of the predicate */
 #define ARGPASSING	0X00000001
@@ -326,6 +324,7 @@ typedef struct pri
 /* #define ARGSTACK	0X00000002	Args on local stack (obsolete)	*/
 /* #define ARGSTRUCT	0X00000003	future extension */
 
+#define PL_C_ARGS	0X00001000	/* arguments in C arguments (obsolescent) */
 
 
 /* Unification types: used in the compiler (conditions),
@@ -456,7 +455,7 @@ typedef struct macro_desc
 /* ---------------------------- OPERATORS -----------------------------	*/
 
 /* an operator item is put in a pword: the tag part contains the prolog
-   tag (8 bits), the associativity (3 bits), the precedence (11 bits)
+   tag (8 bits), the associativity (4 bits), the precedence (11 bits)
    and bits for the garbage collector; the value part stores the did
    needed by the parser							*/
 typedef pword opi;
@@ -469,15 +468,17 @@ typedef pword opi;
 #define		SHIFTED_ASSOC_MASK	(ASSOC_MASK >> ASSOC_SHIFT)
 #define		SHIFTED_PRECED_MASK	(PRECED_MASK >> PRECED_SHIFT)
 
-#define		OpiDid(O)	(O)->val.did
-#define		GetOpiAssoc(O) \
-    (((O)->tag.kernel >> ASSOC_SHIFT) & SHIFTED_ASSOC_MASK)
-#define		GetOpiPreced(O)	\
-    (((O)->tag.kernel >> PRECED_SHIFT) & SHIFTED_PRECED_MASK)
+#define		OpiDid(O)	(O).val.did
+#define		OpiAssoc(O) \
+    (((O).tag.kernel >> ASSOC_SHIFT) & SHIFTED_ASSOC_MASK)
+#define		OpiPreced(O)	\
+    (((O).tag.kernel >> PRECED_SHIFT) & SHIFTED_PRECED_MASK)
 #define		Set_Opi_Assoc(O, V) \
-    (O)->tag.kernel = ((O)->tag.kernel & ~ASSOC_MASK) | ((V) << ASSOC_SHIFT)
+    (O).tag.kernel = ((O).tag.kernel & ~ASSOC_MASK) | ((V) << ASSOC_SHIFT)
 #define		Set_Opi_Preced(O, V) \
-    (O)->tag.kernel = ((O)->tag.kernel & ~PRECED_MASK) | ((V) << PRECED_SHIFT)
+    (O).tag.kernel = ((O).tag.kernel & ~PRECED_MASK) | ((V) << PRECED_SHIFT)
+#define		Set_Opi_Invalid(O) \
+    (O).tag.kernel = TEND
 
 /* Operator Associativities						*/
 #define		NIL_OP		0
@@ -494,34 +495,34 @@ typedef pword opi;
 
 /* Tests for Associativity */
 
-#define IsPrefix2(op)		(GetOpiAssoc(op) >= FXX)
+#define IsPrefix2(op)		(OpiAssoc(op) >= FXX)
 #define IsPostfixAss(ass)	((ass) == XF || (ass) == YF)
 
 /* Get precedences */
 
 #define Get_Prefix_Prec(op_desc, oprec, rprec) \
-	oprec = GetOpiPreced(op_desc); \
-	rprec = GetOpiAssoc(op_desc) == FY ? oprec : oprec - 1;
+	oprec = OpiPreced(op_desc); \
+	rprec = OpiAssoc(op_desc) == FY ? oprec : oprec - 1;
 
 #define Get_Postfix_Prec(op_desc, lprec, oprec) \
-	oprec = GetOpiPreced(op_desc); \
-	lprec = GetOpiAssoc(op_desc) == YF ? oprec : oprec - 1;
+	oprec = OpiPreced(op_desc); \
+	lprec = OpiAssoc(op_desc) == YF ? oprec : oprec - 1;
 
 #define Get_Infix_Prec(op_desc, lprec, oprec, rprec) \
-	oprec = GetOpiPreced(op_desc); \
-	lprec = GetOpiAssoc(op_desc) == YFX ? oprec : oprec - 1; \
-	rprec = GetOpiAssoc(op_desc) == XFY ? oprec : oprec - 1;
+	oprec = OpiPreced(op_desc); \
+	lprec = OpiAssoc(op_desc) == YFX ? oprec : oprec - 1; \
+	rprec = OpiAssoc(op_desc) == XFY ? oprec : oprec - 1;
 
 #define Get_Prefix2_Prec(op_desc, oprec, lprec, rprec) \
-	oprec = GetOpiPreced(op_desc); \
+	oprec = OpiPreced(op_desc); \
 	lprec = oprec - 1; \
-	rprec = GetOpiAssoc(op_desc) == FXY ? oprec : oprec - 1;
+	rprec = OpiAssoc(op_desc) == FXY ? oprec : oprec - 1;
 
 #define InfixLeftPrecedence(op_desc) \
-	( GetOpiAssoc(op_desc) == YFX ? GetOpiPreced(op_desc) : GetOpiPreced(op_desc) - 1 )
+	( OpiAssoc(op_desc) == YFX ? OpiPreced(op_desc) : OpiPreced(op_desc) - 1 )
 
 #define PostfixLeftPrecedence(op_desc) \
-	( GetOpiAssoc(op_desc) == YF  ? GetOpiPreced(op_desc) : GetOpiPreced(op_desc) - 1 )
+	( OpiAssoc(op_desc) == YF  ? OpiPreced(op_desc) : OpiPreced(op_desc) - 1 )
 
 
 
@@ -535,24 +536,28 @@ Extern dident	add_dict ARGS((dident,int));
 Extern dident	check_did ARGS((dident,int));
 Extern dident	check_did_n ARGS((char*,word,int));
 Extern dident	bitfield_did ARGS((word));
+Extern void	ec_mark_did ARGS((dident));
+Extern void	ec_mark_did_conservative ARGS((void*));
+Extern void	ec_mark_string_conservative ARGS((void*));
+Extern void	ecl_mark_engine ARGS((ec_eng_t*,word));
 
-Extern int	next_functor ARGS((int *index, dident *did));
-Extern int	ec_gc_dictionary ARGS((void));
-Extern int	ec_dict_param ARGS((value,type,value,type));
+Extern int	next_functor ARGS((int *index, dident *did, int weak));
+Extern int	p_gc_dictionary ARGS((ec_eng_t*));
+Extern int	p_dict_param ARGS((value,type,value,type,ec_eng_t*));
 
 Extern pword	*enter_string_n ARGS((char*,word,int));
 
-Extern int	ec_constant_table_enter ARGS((value,type,pword*));
+Extern int	ec_constant_table_enter ARGS((ec_eng_t*,value,type,pword*));
 
 /* procedure descriptor handling */
-Extern pri	*local_procedure ARGS((dident,dident,type,int));
-Extern pri	*export_procedure ARGS((dident,dident,type));
-Extern pri	*reexport_procedure ARGS((dident,dident,type,dident));
-Extern pri	*global_procedure ARGS((dident,dident,type));
-Extern pri	*import_procedure ARGS((dident,dident,type,dident));
-Extern pri	*visible_procedure ARGS((dident,dident,type,int));
-Extern pri	*qualified_procedure ARGS((dident,dident,dident,type));
-Extern pri	*pri_home ARGS((pri*));
+Extern pri	*local_procedure ARGS((dident,dident,type,int,int*));
+Extern pri	*export_procedure ARGS((dident,dident,type,int*));
+Extern pri	*reexport_procedure ARGS((dident,dident,type,dident,int*));
+Extern pri	*global_procedure ARGS((dident,dident,type,int*));
+Extern pri	*import_procedure ARGS((dident,dident,type,dident,int*));
+Extern pri	*visible_procedure ARGS((dident,dident,type,int,int*));
+Extern pri	*qualified_procedure ARGS((dident,dident,dident,type,int*));
+Extern pri	*pri_home ARGS((pri*,int*));
 Extern int	pri_compatible_flags ARGS((pri*,uint32,uint32));
 Extern void	pri_change_flags ARGS((pri*,uint32,uint32));
 Extern void	pri_init_code ARGS((pri*,int));
@@ -606,10 +611,12 @@ Extern pri
 	*make_suspension_proc_;
 
 /* operator lookup */
-Extern opi *	visible_op ARGS((dident atom, dident module, type mod_tag, int *res));
-Extern opi *	visible_prefix_op ARGS((dident atom, dident module, type mod_tag, int *res));
-Extern opi *	visible_infix_op ARGS((dident atom, dident module, type mod_tag, int *res));
-Extern opi *	visible_postfix_op ARGS((dident atom, dident module, type mod_tag, int *res));
+Extern opi	visible_op ARGS((dident atom, dident module, type mod_tag, int *res));
+Extern opi	visible_prefix_op ARGS((dident atom, dident module, type mod_tag, int *res));
+Extern opi	visible_infix_op ARGS((dident atom, dident module, type mod_tag, int *res));
+Extern opi	visible_postfix_op ARGS((dident atom, dident module, type mod_tag, int *res));
+Extern int	is_visible_op(dident atom, dident module, type mod_tag);
+Extern int	visible_operator(dident atom, dident module, type mod_tag);
 
 /* ------------------------- STORE TABLE -----------------------*/
 
@@ -626,6 +633,7 @@ typedef struct {
     uword		nentries;
     uword		internal;
     t_htable_elem	**htable;
+    ec_mutex_t		lock;
 } t_heap_htable;
 
 #define HTABLE_INTERNAL 1

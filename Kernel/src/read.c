@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.11 2013/03/08 13:47:19 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.12 2016/07/28 03:34:36 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -209,17 +209,11 @@
 #include 	"read.h"
 #include	"module.h"
 #include	"property.h"
+#include	"os_support.h"
 
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-
-
-/*
- * EXTERNALS
- */
-
-extern pword	*p_meta_arity_;
 
 
 /*
@@ -258,6 +252,7 @@ typedef struct parse_desc {
 	pword		*var_list_tail;	/* tail of varlist (readvar)	*/
 
 	temp_area	string_store;	/* temp store for strings	*/
+	ec_eng_t	*engine;	/* engine for compound data creation */
 } parse_desc;
 
 
@@ -276,20 +271,17 @@ static dident	d_anonymous_;
  */
 
 static parse_desc
-	*_alloc_parse_env(int caller, stream_id nst, dident module, type mod_tag);
+	*_alloc_parse_env(ec_eng_t *, int options, stream_id nst, dident module, type mod_tag);
 
 static vword *
 	_var_table_entry(parse_desc *pd, char *varname, word lenght);
 
-int
-	do_trafo(pword *),
-	p_read3(value vs, type ts, value v, type t, value vm, type tm);
-
 static int
-	_pread3(value v, type t, stream_id nst, value vm, type tm),
-	p_read2(value v, type t, value vm, type tm),
-	p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm),
-	p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm);
+	_pread3(value v, type t, stream_id nst, value vm, type tm, ec_eng_t*),
+	p_read2(value v, type t, value vm, type tm, ec_eng_t*),
+	p_read3(value vs, type ts, value v, type t, value vm, type tm, ec_eng_t*),
+	p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm, ec_eng_t*),
+	p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm, ec_eng_t*);
 
 static uword
 	hashfunction(char *id);
@@ -343,7 +335,7 @@ static int
 
 #define	Next_Token(pd) \
 	if (pd->next_token.class == NO_TOKEN) { \
-	    (void) lex_an(pd->nst, pd->sd, &pd->token); \
+	    (void) lex_an(pd->nst, pd->sd, ec_eng, &pd->token); \
 	} else { \
 	    pd->token = pd->next_token; \
 	    pd->next_token.class = NO_TOKEN; \
@@ -571,6 +563,7 @@ static source_pos_t no_pos_ = {D_UNKNOWN,0,0,0};
 static void
 _build_list_from_token(parse_desc *pd, pword *pw)
 {
+    ec_eng_t *ec_eng = pd->engine;
     int i;
     Flag_Type_Macro(pd, TINT);
     Flag_Type_Macro(pd, TDICT);
@@ -602,6 +595,7 @@ _build_list_from_token(parse_desc *pd, pword *pw)
 static pword *
 _make_variable_from_token(parse_desc *pd, pword *pvar)
 {
+    ec_eng_t *ec_eng = pd->engine;
     dident did0 = D_UNKNOWN;
     /*
      * Non-anonymous variables are always allocated separately and referenced
@@ -648,6 +642,7 @@ _make_variable_from_token(parse_desc *pd, pword *pvar)
 static int
 _delimiter_follows(parse_desc *pd)
 {
+    ec_eng_t *ec_eng = pd->engine;
     int res;
     Lookahead_Next_Token(pd);
     switch(pd->token.class)
@@ -697,7 +692,8 @@ static int
 _cant_follow_prefix(parse_desc *pd, int context_flags,
 	int oprec, int rprec, int prefix_arity)
 {
-    opi *pre_op, *follow_op;
+    ec_eng_t *ec_eng = pd->engine;
+    opi pre_op, follow_op;
     dident did0;
     int status, class;
 
@@ -752,7 +748,7 @@ _check_precedence_:			/* (did0,class) */
 	 * prefix with lower priority CAN follow first prefix
 	 */
 	pre_op = visible_prefix_op(did0, pd->module, pd->module_tag, &status);
-	if (pre_op && (GetOpiPreced(pre_op) <= rprec))
+	if (OpiPreced(pre_op) && (OpiPreced(pre_op) <= rprec))
 	    goto _return_0_;
 
 	if (prefix_arity == 1)
@@ -777,10 +773,10 @@ _check_precedence_:			/* (did0,class) */
 	     *	fy9  yf9	->	fy9 (yf9)	i.e. prefer prefix
 	     *	fy10 yf9	->	fy10 (yf9)
 	     */
-	    if (((follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
+	    if ((OpiPreced(follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
 		    && (oprec <= InfixLeftPrecedence(follow_op)
 			    || CantFollowTerm(pd->token.class)))
-	     || ((follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
+	     || (OpiPreced(follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
 		    && oprec < PostfixLeftPrecedence(follow_op))
 	       )
 	    {
@@ -805,9 +801,9 @@ _check_precedence_:			/* (did0,class) */
 	     * we prefer the postfix only if it binds weaker than the prefix
 	     * (analogous to prefix/infix and prefix/postfix disambiguation).
 	     */
-	    if (((follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
+	    if ((OpiPreced(follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
 		    /* && (oprec <= InfixLeftPrecedence(follow_op)) */ )
-	     || ((follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
+	     || (OpiPreced(follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
 		    && (oprec < PostfixLeftPrecedence(follow_op)
 			|| IsDelimiter(pd->token.class)))
 	       )
@@ -835,6 +831,7 @@ _return_0_:
 static int
 _read_list(parse_desc *pd, pword *result, source_pos_t *ppos)
 {
+    ec_eng_t *ec_eng = pd->engine;
     source_pos_t pos = *ppos;
 
     for(;;)
@@ -899,6 +896,7 @@ _read_list(parse_desc *pd, pword *result, source_pos_t *ppos)
 static int
 _read_sequence_until(parse_desc *pd, pword *result, int terminator)
 {
+    ec_eng_t *ec_eng = pd->engine;
     for(;;)
     {
 	int status;
@@ -945,6 +943,7 @@ static int
 _read_struct(parse_desc *pd, char *name, uword length, pword *result,
 	source_pos_t *ppos)
 {
+    ec_eng_t *ec_eng = pd->engine;
     int status;
     dident functor;
     pword all_args;
@@ -1019,12 +1018,13 @@ _read_next_term(parse_desc *pd,
 	int context_flags,	/* terminators, ARGOFOP */
 	pword *result)
 {
+    ec_eng_t	*ec_eng = pd->engine;
     int		status, class;
     pword	term;
     char	*name;
     uword	length;
     dident	did0;
-    opi		*pre_op;
+    opi		pre_op;
     source_pos_t	pos;
 
     pos = pd->token.pos;
@@ -1096,7 +1096,7 @@ _treat_as_functor_:
                 {
                     /* - followed by number: treat as a sign */
                     tag_desc[pd->token.term.tag.kernel].arith_op[ARITH_CHGSIGN]
-                            (pd->token.term.val, &pd->token.term);
+                            (ec_eng, pd->token.term.val, &pd->token.term);
                     Merge_Source_Pos(pos, pd->token.pos, pos);
                     goto _make_number_;
                 }
@@ -1113,7 +1113,7 @@ _treat_as_functor_:
 	/* none of the special cases above - check if prefix */
 	did0 = enter_dict_n(name, length, 0);
 	pre_op = visible_prefix_op(did0, pd->module, pd->module_tag, &status);
-	if (pre_op)
+	if (OpiPreced(pre_op))
 	{
 	    if (!IsPrefix2(pre_op))	/* unary prefix */
 	    {
@@ -1161,7 +1161,7 @@ _treat_as_functor_:
 
 	/* ISO does not allow operators as arguments of operators */
 	if (context_flags & ARGOFOP  &&  pd->sd->options & ISO_RESTRICTIONS
-	    &&  DidIsOp(did0) &&  visible_operator(did0, pd->module, pd->module_tag))
+	    &&  DidIsOp(did0) &&  is_visible_op(did0, pd->module, pd->module_tag))
 	    return BRACKET;
 	/* treat as a simple atom */
 	Build_Atom_Or_Nil(&term, did0, pos);
@@ -1339,11 +1339,12 @@ _read_after_term(parse_desc *pd, int context_prec,
 	int lterm_prec,
 	pword *result)		/* in: lterm, out: result */
 {
+    ec_eng_t	*ec_eng = pd->engine;
     int		status;
     pword	term;
     dident	did0;
-    opi		*in_op;
-    opi		*post_op;
+    opi		in_op;
+    opi		post_op;
 
     for(;;)				/* for removing tail recursion */
     {
@@ -1356,7 +1357,7 @@ _read_after_term(parse_desc *pd, int context_prec,
 _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 	    in_op = visible_infix_op(did0, pd->module, pd->module_tag, &status);
 	    post_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status);
-	    if (in_op && !(post_op && _delimiter_follows(pd)))
+	    if (OpiPreced(in_op) && !(OpiPreced(post_op) && _delimiter_follows(pd)))
 	    {
 		/* treat as infix */
 		pword *pw;
@@ -1369,7 +1370,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		/* ISO does not allow operators as arguments of operators */
 		if (context_flags & FZINC_SUBSCRIPTABLE && pd->sd->options & ISO_RESTRICTIONS
 			&&  DidIsOp(result->val.did)
-			&&  visible_operator(result->val.did, pd->module, pd->module_tag))
+			&&  is_visible_op(result->val.did, pd->module, pd->module_tag))
 		    return BRACKET;
 		Build_Struct_Or_List(&term, pw, OpiDid(in_op), pd->token.pos);
 		/* Use Move_Pword() to move possible self-refs in result
@@ -1383,7 +1384,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		*result = term; lterm_prec = oprec;
 		break;	/* tail recursion */
 	    }
-	    else if (post_op)
+	    else if (OpiPreced(post_op))
 	    {
 		/* treat as postfix */
 		pword *pw;
@@ -1396,7 +1397,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		/* ISO does not allow operators as arguments of operators */
 		if (context_flags & FZINC_SUBSCRIPTABLE && pd->sd->options & ISO_RESTRICTIONS
 			&&  DidIsOp(result->val.did)
-			&&  visible_operator(result->val.did, pd->module, pd->module_tag))
+			&&  is_visible_op(result->val.did, pd->module, pd->module_tag))
 		    return BRACKET;
 		Build_Struct(&term, pw, OpiDid(post_op), pd->token.pos);
 		/* Use Move_Pword() to move possible self-refs in result
@@ -1510,6 +1511,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 
 int
 ec_read_term(
+	ec_eng_t *ec_eng,	/* engine for result creation */
     	stream_id nst,		/* the stream to read from */
 	int options,		/* options (VARNAMES_PLEASE etc) */
 	pword *result,		/* where to store the parsed term */
@@ -1527,7 +1529,7 @@ ec_read_term(
     if (StreamMode(nst) & REPROMPT_ONLY)
 	StreamMode(nst) |= DONT_PROMPT;
 
-    pd = _alloc_parse_env(options, nst, vm.did, tm);
+    pd = _alloc_parse_env(ec_eng, options, nst, vm.did, tm);
     pd->var_list_tail = varlist;
 
     Next_Token(pd);
@@ -1571,7 +1573,7 @@ ec_read_term(
     }
 
     /* expand (read) macros if there were any (and expansion is not disabled) */
-    if (pd->macro && (GlobalFlags & MACROEXP) && !(StreamMode(pd->nst) & SNOMACROEXP)
+    if (pd->macro && (EclGblFlags & MACROEXP) && !(StreamMode(pd->nst) & SNOMACROEXP)
     	&& !(options & LAYOUT_PLEASE))
     {
 	pw = result;
@@ -1584,7 +1586,7 @@ ec_read_term(
 	    Make_Var(&pw[2]);
 	    pw[3].val.all = vm.all;
 	    pw[3].tag.all = tm.all;
-	    status = do_trafo(pw);
+	    status = do_trafo(ec_eng, pw);
 	    Return_If_Error(status);
 	    *result = pw[2];
 	}
@@ -1633,12 +1635,12 @@ read_init(int flags)
  *	reads a term from the current input
 */
 static int
-p_read2(value v, type t, value vm, type tm)
+p_read2(value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     int     status;
 
     Check_Module(tm, vm);
-    status = _pread3(v, t, current_input_, vm, tm);
+    status = _pread3(v, t, current_input_, vm, tm, ec_eng);
     if (status < 0)
     {
 	Bip_Error(status)
@@ -1651,23 +1653,16 @@ p_read2(value v, type t, value vm, type tm)
  *	reads a termfrom the current input and unifies it with its argument.
  *	The unification/dereferencing is done by the emulator on Request_unify
 */
-int
-p_read3(value vs, type ts, value v, type t, value vm, type tm)
+static int
+p_read3(value vs, type ts, value v, type t, value vm, type tm, ec_eng_t *ec_eng)
 {
     int     	status;
-    stream_id	nst = get_stream_id(vs, ts, SREAD, &status);
+    stream_id	nst;
 
     Check_Module(tm, vm);
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(status)
-    }
-    if(!(IsReadStream(nst)))
-    {
-	Bip_Error(STREAM_MODE);
-    }
+    Get_Locked_Stream(vs, ts, SREAD, nst);
 
-    status = _pread3(v, t, nst, vm, tm);
+    status = _pread3(v, t, nst, vm, tm, ec_eng);
     if (status < 0)
     {
 	Bip_Error(status)
@@ -1677,7 +1672,7 @@ p_read3(value vs, type ts, value v, type t, value vm, type tm)
 
 
 static int
-_pread3(value v, type t, stream_id nst, value vm, type tm)
+_pread3(value v, type t, stream_id nst, value vm, type tm, ec_eng_t *ec_eng)
 {
     int  	status;
     pword	*pw;
@@ -1685,8 +1680,8 @@ _pread3(value v, type t, stream_id nst, value vm, type tm)
 				 * e.g. when calling a macro transformation
 				 * (cf. bug #560), or when returning (see below).
 				 */
-    status = ec_read_term(nst,
-    		(GlobalFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
+    status = ec_read_term(ec_eng, nst,
+    		(EclGblFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
 		&result, 0, 0, vm, tm);
 
     if (status != PSUCCEED)
@@ -1709,29 +1704,21 @@ _pread3(value v, type t, stream_id nst, value vm, type tm)
  *	[namevar|adrvar].
 */
 static int
-p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm)
+p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm, ec_eng_t *ec_eng)
 {
     pword	*pw;
     pword	result;
     pword	vars;
-    int		 status;
-    stream_id	 nst = get_stream_id(vs, ts, SREAD, &status);
+    int		status;
+    stream_id	nst;
     Prepare_Requests
 
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(status)
-    }
-
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     Check_Ref(tv);
     Check_Module(tm, vm);
-    if(!(IsReadStream(nst)))
-    {
-	Bip_Error(STREAM_MODE);
-    }
 
-    status = ec_read_term(nst,
-    		(GlobalFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
+    status = ec_read_term(ec_eng, nst,
+    		(EclGblFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
 		&result, &vars, 0, vm, tm);
 
     if (status != PSUCCEED)
@@ -1752,28 +1739,20 @@ p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type 
 
 
 static int
-p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm)
+p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm, ec_eng_t *ec_eng)
 {
     pword	*pw;
     pword	result;
-    int		 status;
+    int		status;
     int		has_macro = 0;
-    stream_id	 nst = get_stream_id(vs, ts, SREAD, &status);
+    stream_id	nst;
     Prepare_Requests
 
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(status)
-    }
-
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     Check_Module(tm, vm);
-    if(!(IsReadStream(nst)))
-    {
-	Bip_Error(STREAM_MODE);
-    }
 
-    status = ec_read_term(nst, LAYOUT_PLEASE |
-    		(GlobalFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
+    status = ec_read_term(ec_eng, nst, LAYOUT_PLEASE |
+    		(EclGblFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
 		&result, 0, &has_macro, vm, tm);
 
     if (status != PSUCCEED)
@@ -1782,7 +1761,7 @@ p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, valu
     }
 
     /* return flag indicating request for macro expansion */
-    if (!(GlobalFlags & MACROEXP) || (StreamMode(nst) & SNOMACROEXP))
+    if (!(EclGblFlags & MACROEXP) || (StreamMode(nst) & SNOMACROEXP))
     	has_macro = 0;
     Request_Unify_Integer(vf, tf, has_macro)
 
@@ -1809,7 +1788,7 @@ p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, valu
  */
 
 static parse_desc *
-_alloc_parse_env(int options, stream_id nst, dident module, type mod_tag)
+_alloc_parse_env(ec_eng_t *ec_eng, int options, stream_id nst, dident module, type mod_tag)
 {
     register parse_desc	*pd = (parse_desc *) PARSENV;
 
@@ -1830,6 +1809,7 @@ _alloc_parse_env(int options, stream_id nst, dident module, type mod_tag)
 	pd->var_table_size = NUMBER_VAR;
 	pd->var_table = (vword *) hp_alloc_size((int)NUMBER_VAR * sizeof(vword));
 	pd->counter = 0;
+	pd->engine = ec_eng;
 	Temp_Create(pd->string_store, 1024);
 	PARSENV = (void_ptr) pd;	/* store it globally */
     }
@@ -1855,7 +1835,7 @@ _alloc_parse_env(int options, stream_id nst, dident module, type mod_tag)
 
 
 int
-destroy_parser_env(void)			/* called when exiting emulators */
+destroy_parser_env(ec_eng_t *ec_eng)	/* called when exiting emulators */
 {
     register parse_desc	*pd = (parse_desc *) PARSENV;
 
@@ -1874,11 +1854,11 @@ destroy_parser_env(void)			/* called when exiting emulators */
 
 /*
  * Run transformation goal, catch aborts,
- * turn numeric exit_block tags into negative error return code.
+ * turn numeric throw-tags into negative error return code.
  * Returns PSUCCEED, PFAIL or error code
 */
 int
-do_trafo(pword *term)	/* goal to call */
+do_trafo(ec_eng_t *ec_eng, pword *term)	/* goal to call */
 {
     pword	saved_a1;
     int		res;
@@ -1889,9 +1869,11 @@ do_trafo(pword *term)	/* goal to call */
     v1.ptr = term;
     v2.did = d_.kernel_sepia;
     t2.kernel = ModuleTag(d_.kernel_sepia);
-    /* hack to preserve A[1] in case it gets overwritten by exit_block/1 */
+    /* hack to preserve A[1] in case it gets overwritten by throw/1 */
+    /* TODO: not safe wrt dictionary GC */
     saved_a1 = A[1];
-    res = sub_emulc_noexit(v1, tcomp, v2, t2);
+    res = sub_emulc_opt(ec_eng, v1, tcomp, v2, t2, GOAL_CUT|GOAL_CATCH);
+
     if (res == PTHROW)
     {
 	pword ball = A[1];
@@ -1909,7 +1891,9 @@ do_trafo(pword *term)	/* goal to call */
  * no transformation possible/necessary.
  */
 pword *
-trafo_term(dident tr_did,	/* the functor of the term to transform	*/
+trafo_term(
+	ec_eng_t *ec_eng,
+    	dident tr_did,		/* the functor of the term to transform	*/
 	int flags,		/* conditions for the macro		*/
 	dident mv,		/* current module	*/
 	type mt,		/* its tag		*/
@@ -1917,8 +1901,7 @@ trafo_term(dident tr_did,	/* the functor of the term to transform	*/
 {
     pword	*pw;
     pword	*prop;
-    macro_desc	*md;
-    int		err;
+    macro_desc	md;
     int		propid;
 
     /* for input goal and clause macros we don't build the goal */
@@ -1936,16 +1919,19 @@ trafo_term(dident tr_did,	/* the functor of the term to transform	*/
 	propid = TRANS_PROP;
     if (flags & TR_WRITE)
 	propid++;
-    prop = get_modular_property(tr_did, propid, mv, mt, VISIBLE_PROP, &err);
-    if (!prop) {
+    mt_mutex_lock(&PropertyLock);
+    if (get_property_ref(tr_did, propid, mv, mt, VISIBLE_PROP, &prop) < 0)
+    {
+	mt_mutex_unlock(&PropertyLock);
 	*tr_flags = 0;
 	return 0;
     }
+    md = *(macro_desc*)prop->val.ptr;
+    mt_mutex_unlock(&PropertyLock);
 
-    md = (macro_desc *) prop->val.ptr;
-    *tr_flags = md->flags;
+    *tr_flags = md.flags;
     /* check if the type is ok */
-    if ((md->flags & flags) != (md->flags & TR_TYPE))
+    if ((md.flags & flags) != (md.flags & TR_TYPE))
 	return 0;
 
     /* create a goal of the form:
@@ -1953,20 +1939,20 @@ trafo_term(dident tr_did,	/* the functor of the term to transform	*/
      *  AnnIn,AnnOut are always uninstantiated here
      */
     pw = Gbl_Tg;
-    Gbl_Tg += DidArity(md->trans_function) + 4;
+    Gbl_Tg += DidArity(md.trans_function) + 4;
     Check_Gc;
     pw->tag.all		= TDICT;
     pw->val.did		= d_.trans_term;
     (pw+1)->tag.kernel	= TCOMP;
     (pw+1)->val.ptr	= pw+3;
     (pw+2)->tag.kernel	= ModuleTag(tr_did);
-    (pw+2)->val.did	= md->module;
+    (pw+2)->val.did	= md.module;
     (pw+3)->tag.kernel	= TDICT;
-    (pw+3)->val.did	= md->trans_function;
+    (pw+3)->val.did	= md.trans_function;
 
     (pw+5)->tag.kernel	= TREF;
     (pw+5)->val.ptr	= (pw+5);
-    switch (DidArity(md->trans_function))
+    switch (DidArity(md.trans_function))
     {
     case 2: /* <trans>(In, Out) */
 	break;
@@ -1986,7 +1972,7 @@ trafo_term(dident tr_did,	/* the functor of the term to transform	*/
 	break;
     default:
 	/* incorrect arity for <trans> */
-	Gbl_Tg = Gbl_Tg - DidArity(md->trans_function) - 4;
+	Gbl_Tg = Gbl_Tg - DidArity(md.trans_function) - 4;
 	return 0;
     }
 
@@ -1998,18 +1984,17 @@ trafo_term(dident tr_did,	/* the functor of the term to transform	*/
  * Transform the metaterm attribute into the internal form.
  */
 pword *
-transf_meta_in(pword *pw, dident mod, int *err)
+transf_meta_in(ec_eng_t *ec_eng, pword *pw, dident mod, int *err)
 {
-    int			arity = p_meta_arity_->val.nint;
     int			i;
     register pword	*r;
 
     r = TG;
-    TG += 1 + arity;
+    TG += 1 + MetaArity;
     Check_Gc;
-    r[0].val.did = in_dict("meta", arity);
+    r[0].val.did = in_dict("meta", MetaArity);
     r[0].tag.kernel = TDICT;
-    for (i = 1; i <= arity; i++) {
+    for (i = 1; i <= MetaArity; i++) {
 	r[i].val.ptr = r + i;
 	r[i].tag.kernel = TREF;
     }
@@ -2065,7 +2050,9 @@ _transf_attribute(register pword *pw, pword *r, int def)
  * The function returns the end of the memory actually used.
  */
 pword *
-transf_meta_out(value val,	/* attribute term to transform */
+transf_meta_out(
+	ec_eng_t *ec_eng,
+    	value val,		/* attribute term to transform */
 	type tag,
 	pword *top,		/* where to build the the resulting term */
 	dident mod,		/* context module (or D_UNKNOWN) */
@@ -2093,7 +2080,7 @@ transf_meta_out(value val,	/* attribute term to transform */
 		    pword *pw = top;		/* construct name:AttrI */
 		    top += 3;
 		    Make_Struct(&attr, pw);
-		    Make_Atom(&pw[0], d_.colon); /* should be Make_Functor() */
+		    Make_Functor(&pw[0], d_.colon);
 		    Make_Atom(&pw[1], wd);
 		    pw[2] = val.ptr[i];
 		}
@@ -2103,7 +2090,7 @@ transf_meta_out(value val,	/* attribute term to transform */
 		} else {
 		    pword *pw = top;		/* construct QAttrI,Others */
 		    top += 3;
-		    Make_Atom(&pw[0], d_.comma); /* should be Make_Functor() */
+		    Make_Functor(&pw[0], d_.comma);
 		    pw[1] = attr;
 		    pw[2] = *presult;
 		    Make_Struct(presult, pw);

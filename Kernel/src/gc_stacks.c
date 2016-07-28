@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.6 2013/03/17 12:09:59 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -75,7 +75,6 @@
  */
 
 #include "config.h"
-#include "os_support.h"
 #include "sepia.h"
 #include "types.h"
 #include "embed.h"
@@ -85,6 +84,7 @@
 #include "ec_io.h"
 #include "opcode.h"
 #include "emu_export.h"
+#include "os_support.h"
 
 /*
  * extern declarations
@@ -112,21 +112,21 @@ double	average_ratio_ = 1.0,
  */
 
 static void
-	make_choicepoint(word ar),
-	pop_choicepoint(void),
-	non_marking_reference(pword **ref),
-	mark_from_trail(control_ptr GCB),
-	_mark_from_global_variables(void),
-	mark_from(word tag, pword *ref, int ref_in_segment),
-	compact_and_update(void),
-	compact_trail(register pword **garbage_list),
-	reset_env_marks(control_ptr GCB),
-	update_trail_ptrs(control_ptr GCB),
-	ov_reset(void);
+	make_choicepoint(ec_eng_t*,word ar),
+	pop_choicepoint(ec_eng_t*),
+	non_marking_reference(ec_eng_t*,pword **ref),
+	mark_from_trail(ec_eng_t*,control_ptr GCB),
+	mark_from_references(ec_eng_t*),
+	mark_from(ec_eng_t*,word tag, pword *ref, int ref_in_segment),
+	compact_and_update(ec_eng_t*),
+	compact_trail(ec_eng_t*,register pword **garbage_list),
+	reset_env_marks(ec_eng_t*,control_ptr GCB),
+	update_trail_ptrs(ec_eng_t*,control_ptr GCB),
+	ov_reset(ec_eng_t*);
 
 static pword
-	** early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, word *trail_garbage),
-	** mark_from_control_frames(control_ptr GCB, word *trail_garb_count);
+	** early_untrail(ec_eng_t*,control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, word *trail_garbage),
+	** mark_from_control_frames(ec_eng_t*,control_ptr GCB, word *trail_garb_count);
 
 
 /*
@@ -175,12 +175,12 @@ static pword
 #define Mark_from(tag, ref, in_seg) \
 {\
     if (ISPointer(tag))\
-	mark_from(tag,ref,in_seg);\
+	mark_from(ec_eng,tag,ref,in_seg);\
 }
 
 #define Mark_from_pointer(tag, ref, in_seg) \
 {\
-    mark_from((word) (tag),(pword *)(ref),in_seg);\
+    mark_from(ec_eng,(word) (tag),(pword *)(ref),in_seg);\
 }
 
 
@@ -295,7 +295,7 @@ _gc_error1(char *msg, word arg)
  */
 
 static int
-p_gc_interval(value val, type tag)
+p_gc_interval(value val, type tag, ec_eng_t *ec_eng)
 {
     if (IsRef(tag))
     {
@@ -321,7 +321,7 @@ p_gc_interval(value val, type tag)
 
 /*ARGSUSED*/
 static int
-p_gc_stat(value vwhat, type twhat, value vval, type tval)
+p_gc_stat(value vwhat, type twhat, value vval, type tval, ec_eng_t *ec_eng)
 {
     pword result;
 
@@ -419,7 +419,7 @@ p_gc_stat(value vwhat, type twhat, value vval, type tval)
 }
 
 static int
-p_stat_reset(void)
+p_stat_reset(ec_eng_t *ec_eng)
 {
     collections_ = 0;
     total_garbage_ = 0.0;
@@ -438,7 +438,7 @@ p_stat_reset(void)
 /*------------------------------------------------------------------
  * The toplevel function for collecting the global stack:
  *
- * collect_stacks(arity)
+ * collect_stacks(engine, arity, forced)
  *	arity gives the number of active argument registers.
  *	All VM registers have to be exported.
  *	TG, TT and GB must be imported after the collection.
@@ -447,8 +447,8 @@ p_stat_reset(void)
  *	environment.
  *------------------------------------------------------------------*/
 
-
-collect_stacks(word arity, word gc_forced)
+int
+collect_stacks(ec_eng_t *ec_eng, word arity, word gc_forced)
 {
     word total, garbage, trail_garb_count, gc_time;
     pword **trail_garb_list;
@@ -491,7 +491,7 @@ collect_stacks(word arity, word gc_forced)
 
     if (!gc_forced &&           /* not triggered by garbage_collect/0 */
         (NbStreamsFree > 0) &&  /* not triggered by running out of streams */
-        ( ( GlobalFlags & GC_ADAPTIVE
+        ( ( EclGblFlags & GC_ADAPTIVE
             && TG < ideal_gc_trigger  &&  TG < max_gc_trigger )
         || TG < min_gc_trigger
         ))
@@ -499,7 +499,7 @@ collect_stacks(word arity, word gc_forced)
 	/*
 	 * Try to expand the stack rather than doing gc
 	 */
-	trim_global_trail(TG_SEG);
+	trim_global_trail(ec_eng, TG_SEG);
 
 	/*
 	 * trim_global_trail() may expand the stack less than desired,
@@ -512,7 +512,7 @@ collect_stacks(word arity, word gc_forced)
 	    Set_Tg_Soft_Lim(TG_LIM);
 	    return 0;
 	}
-	if (GlobalFlags & GC_VERBOSE)
+	if (EclGblFlags & GC_VERBOSE)
 	{
 	    (void) ec_outfs(log_output_,"GC: couldn't grow global stack as requested, forcing gc\n");
 	    ec_flush(log_output_);
@@ -523,11 +523,11 @@ collect_stacks(word arity, word gc_forced)
     /*
      * Do the garbage collection, if enabled
      */
-    if (GlobalFlags & GC_ENABLED)
+    if (EclGblFlags & GC_ENABLED)
     {
 	gc_time = user_time();
 
-	if (GlobalFlags & GC_VERBOSE) {
+	if (EclGblFlags & GC_VERBOSE) {
 	    (void) ec_outfs(log_output_,"GC ."); ec_flush(log_output_);
 	}
 #ifdef DEBUG_GC
@@ -559,11 +559,7 @@ collect_stacks(word arity, word gc_forced)
 	GCTG = Chp_Tg(GCB);
 	total = TG - Chp_Tg(GCB);
 
-	make_choicepoint(arity);
-		/*
-		 * disallow exit_block while GC is runnning
-		 */
-	Disable_Exit();
+	make_choicepoint(ec_eng, arity);
 		/*
 		 * Mark GCB's witness pword first (This should normally be
 		 * Mark_from_pointer(TREF, (pword *) &Chp_Tg(GCB), NO);
@@ -573,7 +569,7 @@ collect_stacks(word arity, word gc_forced)
 		/*
 		 * mark what is reachable from variables older than GCB
 		 */
-	mark_from_trail(GCB);
+	mark_from_trail(ec_eng, GCB);
 		/*
 		 * Take care of the coroutining registers.
 		 * The LD list is handled separately.
@@ -582,7 +578,6 @@ collect_stacks(word arity, word gc_forced)
 	Mark_from_pointer(TLIST, (pword *) &MU, NO);
 	Mark_from(TAGGED_WL.tag.kernel, &TAGGED_WL, NO);
 	Mark_from(POSTED.tag.kernel, &POSTED, NO);
-	Mark_from(POSTED_LAST.tag.kernel, &POSTED_LAST, NO);
 	Mark_from_pointer(WP_STAMP.tag.kernel, &WP_STAMP, NO);
 	Mark_from_pointer(PostponedList.tag.kernel, &PostponedList, NO);
 		/*
@@ -596,35 +591,34 @@ collect_stacks(word arity, word gc_forced)
 	if (TO) Mark_from_pointer(TCOMP, (pword *) &TO, NO);
 #endif
 		/*
-		 * Mark the explicit global variables
+		 * Mark from global and external references
 		 */
-	Mark_from_pointer(TCOMP, (pword *) &g_emu_.global_variable, NO);
-	_mark_from_global_variables();
+	mark_from_references(ec_eng);
 		/*
 		 * process control frames and the related environments,
 		 * do virtual backtracking and trail garbage detection
 		 */
-	trail_garb_list = mark_from_control_frames(GCB, &trail_garb_count);
-	reset_env_marks(GCB);
+	trail_garb_list = mark_from_control_frames(ec_eng, GCB, &trail_garb_count);
+	reset_env_marks(ec_eng, GCB);
 		/*
 		 * end of the marking phase
 		 */
-	if (GlobalFlags & GC_VERBOSE) {
+	if (EclGblFlags & GC_VERBOSE) {
 	    (void) ec_outfs(log_output_,"."); ec_flush(log_output_);
 	}
 		/*
 		 * compact global stack and trail
 		 */
-	compact_and_update();
-	if (trail_garb_count) compact_trail(trail_garb_list);
+	compact_and_update(ec_eng);
+	if (trail_garb_count) compact_trail(ec_eng, trail_garb_list);
 		/*
 		 * scan the choicepoints and update the tt entries
 		 */
-	update_trail_ptrs(GCB);
+	update_trail_ptrs(ec_eng, GCB);
 		/*
 		 * restore the (updated) machine state
 		 */
-	pop_choicepoint();
+	pop_choicepoint(ec_eng);
 		/*
 		 * statistics
 		 */
@@ -640,7 +634,7 @@ collect_stacks(word arity, word gc_forced)
 	gc_time = user_time() - gc_time;
 	collection_time_ += gc_time;
 
-	if (GlobalFlags & GC_VERBOSE)
+	if (EclGblFlags & GC_VERBOSE)
 	{
 	    word trail_total = Chp_Tt(GCB) - TT + trail_garb_count;
 
@@ -666,32 +660,26 @@ collect_stacks(word arity, word gc_forced)
 	     * no garbage trail entries pointing above the top of SP !
 	     * This is the case after a gc.
 	     */
-	(void) trim_control_local();
+	(void) trim_control_local(ec_eng);
 
 	/* Shrink the dynamic event queue to at least
 	 *  MIN_DYNAMIC_EVENT_SLOTS free
 	 */
-	trim_dynamic_event_queue();
+	trim_dynamic_event_queue(ec_eng);
     }
 
 
     /*
      * re-adjust the stacks
      */
-    trim_global_trail(TG_SEG);
+    trim_global_trail(ec_eng, TG_SEG);
     if (TG_LIM - TG < TG_MIN_SEG)
     {
 	VM_FLAGS &= ~(NO_EXIT|WAS_EXIT);
-	ov_reset();		/* overflow even after collection */
+	ov_reset(ec_eng);		/* overflow even after collection */
     }
     Set_Tg_Soft_Lim(TG_LIM);
 
-
-    /*
-     * release the exit_block protection and execute a
-     * delayed exit, if necessary
-     */
-    Enable_Exit()
     return leave_choicepoint;
 }
 
@@ -702,7 +690,7 @@ collect_stacks(word arity, word gc_forced)
  */
 
 static void
-make_choicepoint(word ar)
+make_choicepoint(ec_eng_t *ec_eng, word ar)
 {
     chp_ptr chp;
     top_ptr top;
@@ -740,7 +728,7 @@ make_choicepoint(word ar)
  */
 
 static void
-pop_choicepoint(void)
+pop_choicepoint(ec_eng_t *ec_eng)
 {
     control_ptr chp;
     top_ptr top;
@@ -782,7 +770,7 @@ pop_choicepoint(void)
  * - link other entries into relocation chains
  */
 static pword **
-early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, word *trail_garbage)
+early_untrail(ec_eng_t *ec_eng, control_ptr GCB, register pword **tr, control_ptr fp, pword **garbage_list, word *trail_garbage)
 {
     register pword *trailed_item;
     register word i, what, trailed_tag;
@@ -1109,7 +1097,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 		{
 		    if (!Marked(trailed_item->tag.kernel))
 		    {
-			untrail_ext(tr, UNDO_GC);	/* early untrail */
+			untrail_ext(ec_eng, tr, UNDO_GC);	/* early untrail */
 			*trail_garbage += TrailedEsize(i);
 			*(tr+1) = (pword *)garbage_list;
 			garbage_list = tr;
@@ -1170,7 +1158,7 @@ early_untrail(control_ptr GCB, register pword **tr, control_ptr fp, pword **garb
 		{
 		    /* early untrail: item not reachable until after failure */
 		    /* Above comment on timestamp applies here as well */
-		    untrail_ext(tr, UNDO_GC);
+		    untrail_ext(ec_eng, tr, UNDO_GC);
 		    *trail_garbage += TrailedEsize(i);
 		    *(tr+1) = (pword *)garbage_list;
 		    garbage_list = tr;
@@ -1313,7 +1301,7 @@ Code Template:
  */
 
 static pword **
-mark_from_control_frames(control_ptr GCB, word *trail_garb_count)
+mark_from_control_frames(ec_eng_t *ec_eng, control_ptr GCB, word *trail_garb_count)
 {
     control_ptr		fp, top, pfp;
     register pword	*env, *pw, *prev_de;
@@ -1336,9 +1324,7 @@ mark_from_control_frames(control_ptr GCB, word *trail_garb_count)
     do	/* loop through control frames until we reach GCB */
     {
 #ifdef DEBUG_GC
-	if (IsInterruptFrame(top.top)
-	    || IsRecursionFrame(top.top)
-	    || IsExceptionFrame(top.top))
+	if (IsRecursionFrame(top.top) || IsExceptionFrame(top.top))
 	{
 	    Print_Err("bad frame in mark_from_choicepoints\n");
 	}
@@ -1477,7 +1463,7 @@ Code Template:
 	 * It is only necessary to collect trail cut garbage!
 	 */
 	trail_garb_list =
-	    early_untrail(GCB, tr, fp, trail_garb_list, trail_garb_count);
+	    early_untrail(ec_eng, GCB, tr, fp, trail_garb_list, trail_garb_count);
 
     } while (fp.top >= GCB.top);
 
@@ -1496,7 +1482,7 @@ Code Template:
 
 
 static void
-reset_env_marks(control_ptr GCB)
+reset_env_marks(ec_eng_t *ec_eng, control_ptr GCB)
 {
     control_ptr		fp, top;
     register pword	*env, *pw;
@@ -1511,9 +1497,7 @@ reset_env_marks(control_ptr GCB)
     do	/* loop through control frames until we reach GCB */
     {
 #ifdef DEBUG_GC
-	if (IsInterruptFrame(top.top)
-	    || IsRecursionFrame(top.top)
-	    || IsExceptionFrame(top.top))
+	if (IsRecursionFrame(top.top) || IsExceptionFrame(top.top))
 	{
 	    Print_Err("bad frame in mark_from_choicepoints\n");
 	    edesc = EnvDesc(fp.chp->sp);
@@ -1573,7 +1557,7 @@ Code Template:
 
 
 static void
-non_marking_reference(pword **ref)
+non_marking_reference(ec_eng_t *ec_eng, pword **ref)
 {
     pword *pw = *ref;
 
@@ -1609,7 +1593,7 @@ non_marking_reference(pword **ref)
  */
 
 static void
-mark_from_trail(control_ptr GCB)
+mark_from_trail(ec_eng_t *ec_eng, control_ptr GCB)
 {
     register pword *gc_tg = Chp_Tg(GCB);
     register pword **limit_tt = Chp_Tt(GCB);
@@ -1768,14 +1752,22 @@ Code Template:
 }
 
 static void
-_mark_from_global_variables(void)
+mark_from_references(ec_eng_t *ec_eng)
 {
-    ec_ref ref = g_emu_.allrefs.next;
-
-    while(ref != &g_emu_.allrefs)
     {
-	Mark_from(ref->var.tag.kernel, &ref->var, NO)
-	ref = ref->next;
+	ec_ref ref = g_emu_.allrefs.next;
+	while(ref != &g_emu_.allrefs)
+	{
+	    Mark_from(ref->var.tag.kernel, &ref->var, NO)
+	    ref = ref->next;
+	}
+    }
+    {
+	globalref *ref = ec_eng->references;
+	for(; ref; ref=ref->next)
+	{
+	    Mark_from_pointer(TREF, &ref->ptr, NO)
+	}
     }
 }
 
@@ -1802,7 +1794,7 @@ _mark_from_global_variables(void)
 #define Pdl_Target()	SP->val.ptr
 #define Pdl_Pop()	++SP
 #define Pdl_Push(i,t) { \
-	if (--SP <= g_emu_.sp_limit && local_ov()) \
+	if (--SP <= g_emu_.sp_limit && local_ov(ec_eng)) \
 	    ec_panic("Out of local stack space","garbage collection"); \
 	SP->tag.kernel = (i); \
 	SP->val.ptr = (t); \
@@ -1811,6 +1803,7 @@ _mark_from_global_variables(void)
 
 static void
 mark_from(
+	ec_eng_t *ec_eng,	/* engine */
 	word tag,		/* type of the reference */
 	pword *ref,		/* location of the reference */
 	int ref_in_segment)	/* true if ref is in the current segment */
@@ -2014,7 +2007,7 @@ _mark_pwords_:			/* (i, target) */
  */
 
 static void
-compact_and_update(void)
+compact_and_update(ec_eng_t *ec_eng)
 {
     register pword *current, *compact, *ref;
     register word link_or_tag, current_tag;
@@ -2150,7 +2143,7 @@ Code Template:
  * the elements of the garbage list.
  */
 static void
-compact_trail(register pword **garbage_list)
+compact_trail(ec_eng_t *ec_eng,  pword **garbage_list)
 {
     register pword **compact, **from, **to;
 
@@ -2175,7 +2168,7 @@ compact_trail(register pword **garbage_list)
  * Set the tt fields of the control frames to their new values
  */
 static void
-update_trail_ptrs(control_ptr GCB)
+update_trail_ptrs(ec_eng_t *ec_eng, control_ptr GCB)
 {
     register control_ptr fp, top;
 
@@ -2203,7 +2196,7 @@ update_trail_ptrs(control_ptr GCB)
 #define	TRAIL_GAP	(GLOBAL_TRAIL_GAP + 128)
 
 void
-trail_ov(void)
+trail_ov(ec_eng_t *ec_eng)
 {
     TT_LIM = (pword **)
 	    ((pword *) g_emu_.global_trail[1].end + GLOBAL_TRAIL_GAP);
@@ -2228,7 +2221,7 @@ trail_ov(void)
 		(uword *) (TG + GLOBAL_TRAIL_GAP),
 		(uword *) ((pword *) TT - TRAIL_GAP), 0))
 	{
-	    ov_reset();		/* give up */
+	    ov_reset(ec_eng);		/* give up */
 	}
 	Set_Tg_Lim((pword *) g_emu_.global_trail[0].end - GLOBAL_TRAIL_GAP)
     }
@@ -2245,10 +2238,10 @@ trail_ov(void)
  * without, and if that fails, with shrinking the trail.
  */
 void
-global_ov(void)
+global_ov(ec_eng_t *ec_eng)
 {
-    if (final_overflow())
-	ov_reset();
+    if (final_overflow(ec_eng))
+	ov_reset(ec_eng);
 }
 
 
@@ -2257,7 +2250,7 @@ global_ov(void)
  */
 
 int
-final_overflow(void)
+final_overflow(ec_eng_t *ec_eng)
 {
     if (!adjust_stacks(g_emu_.global_trail,
 	    (uword *) (TG + GLOBAL_TRAIL_GAP + 1), /* +1 to avoid looping */
@@ -2283,7 +2276,7 @@ final_overflow(void)
  */
 
 int
-local_ov(void)
+local_ov(ec_eng_t *ec_eng)
 {
     if (!adjust_stacks(g_emu_.control_local,
 	    g_emu_.control_local[0].end,
@@ -2303,7 +2296,7 @@ local_ov(void)
 }
 
 int
-control_ov(void)
+control_ov(ec_eng_t *ec_eng)
 {
     if (!adjust_stacks(g_emu_.control_local,
 	    (uword *) (B.args + LOCAL_CONTROL_GAP),
@@ -2330,7 +2323,7 @@ control_ov(void)
  */
 
 int
-trim_global_trail(uword margin)
+trim_global_trail(ec_eng_t *ec_eng, uword margin)
 {
     pword *tg_new, *tt_new, *split_at;
     uword ratio;
@@ -2371,7 +2364,7 @@ trim_global_trail(uword margin)
  */
 #define LOCAL_CONTROL_DEFAULT	LOCAL_CONTROL_GAP
 int
-trim_control_local(void)
+trim_control_local(ec_eng_t *ec_eng)
 {
     if (!adjust_stacks(g_emu_.control_local,
 	    (uword *) (B.args + LOCAL_CONTROL_DEFAULT),
@@ -2384,8 +2377,9 @@ trim_control_local(void)
     return 1;
 }
 
+
 static void
-ov_reset(void)
+ov_reset(ec_eng_t *ec_eng)
 {
     pword exit_tag;
     Make_Atom(&exit_tag, d_.global_trail_overflow);
@@ -2405,7 +2399,7 @@ ov_reset(void)
  */
 
 void
-mark_dids_from_pwords(pword *from, register pword *to)
+mark_dids_from_pwords(/*noengine*/ pword *from, register pword *to)
 {
     register pword *pw = from;
     dident a;
@@ -2501,9 +2495,32 @@ Code Template:
 
 
 void
-mark_dids_from_stacks(word arity)
+mark_local_conservative(/*noengine*/ pword *from, pword *to)
 {
-    make_choicepoint(arity);
+    word *p;
+
+    for(p = (word*) from; p <= (word*)(to-1); ++p)
+    {
+	switch (TagType(((pword*)p)->tag))
+	{
+	case TDICT:			/* mark atoms */
+	    ec_mark_did_conservative(((pword*)p)->val.did);
+	    break;
+
+	case TSTRG:
+	    ec_mark_string_conservative(((pword*)p)->val.ptr);
+	    break;
+
+	/* we assume no TNAME (or other named variable) tags in environments */
+	}
+    }
+}
+
+
+void
+mark_dids_from_stacks(ec_eng_t *ec_eng, word arity)
+{
+    make_choicepoint(ec_eng, arity);
 
     /* global */
 
@@ -2604,16 +2621,26 @@ mark_dids_from_stacks(word arity)
 	    {
 		edesc = EnvDescPP(top.top->backtrack + TRUST_INLINE_SIZE - 1);
 	    }
-	    else if (IsInterruptFrame(top.top) || IsRecursionFrame(top.top))
+	    else if (IsNestingFrame(top.top))
+	    {
+		/* a Prolog call from within a C external */
+		mark_dids_from_pwords(&fp.invoc->arg_0, top.args);
+		edesc = EnvDesc(fp.chp->sp);
+	    }
+	    else if (IsRecursionFrame(top.top))
 	    {
 		break;
 	    }
 	    else if (IsExceptionFrame(top.top))
 	    {
-		break;	/* must not occur. problem: size cannot be determined! */
-		/* mark the saved waking stack and the saved arguments
-		 * mark_dids_from_pwords((pword *)(fp.exception + 1), top.args);
+		/* This is different because we don't know the size and activity
+		 * of the first environment.  We therefore employ "conservative"
+		 * marking over the whole space fp->sp..fp->e, i.e. mark anything
+		 * that "looks like" a valid dictionary reference.
 		 */
+		mark_dids_from_pwords((pword *)(fp.exception + 1), top.args);
+		mark_local_conservative(fp.exception->sp, fp.exception->e);
+		edesc = Esize(0);	/* taken care of above */
 	    }
 	    else if (IsParallelFrame(top.top))
 	    {
@@ -2645,16 +2672,17 @@ mark_dids_from_stacks(word arity)
 	}
     }
 
-    pop_choicepoint();
+    pop_choicepoint(ec_eng);
 }
 
-in_exception(void)
+int
+in_exception(ec_eng_t *ec_eng)
 {
     control_ptr		top;
 
     for(top.top = B.top - 1; ; top.top = top.top->frame.top - 1)
     {
-	if (IsInterruptFrame(top.top) || IsRecursionFrame(top.top))
+	if (IsRecursionFrame(top.top))
 	{
 	    break;
 	}
@@ -2681,12 +2709,5 @@ bip_gc_init(int flags)
 				p_gc_stat,	B_UNSAFE|U_SIMPLE);
 	(void) local_built_in(in_dict("gc_interval", 1),
 				p_gc_interval,	B_UNSAFE|U_SIMPLE);
-    }
-
-    if (flags & INIT_PRIVATE)
-    {
-	Make_Ref(&g_emu_.allrefs.var,NULL);
-	g_emu_.allrefs.next = & g_emu_.allrefs ;
-	g_emu_.allrefs.prev = & g_emu_.allrefs ;
     }
 }

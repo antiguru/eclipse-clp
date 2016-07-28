@@ -22,7 +22,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: gencode.h,v 1.4 2009/02/27 21:01:04 kish_shen Exp $
+ * VERSION	$Id: gencode.h,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
 *
  * IDENTIFICATION		gencode.h
  *
@@ -40,9 +40,7 @@
 
 #define FailCode		fail_code_
 
-#define Esize(size)		((vmcode)((size) * (word)sizeof(pword)))
-
-#define Address(arg)		(&g_emu_.emu_args[arg])
+#define ArgReg(arg)		(arg)
 
 
 /* macro for generating vmcode data words */

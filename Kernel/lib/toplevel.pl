@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.7 2013/03/06 21:51:14 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.8 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2013/03/06 21:51:14 $").
+:- comment(date, "$Date: 2016/07/28 03:34:35 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -134,16 +134,14 @@
 	get_cut/1,
 	compiled_file_handler/3,
 	set_default_error_handler/2,
-	mutex_one/2,
 	stack_overflow_message/1,
-	printf_goal/2,
+	printf_goal/3,
 	sepia_version_banner/2,
 	call_local/1
    from sepia_kernel.
 
 
 :- local variable(toplevel_type).	% 'tty' or 'gui'
-:- local variable(toplevel_lock).	% for parallelism
 
 :- local variable(history_index).	% query history
 :- local variable(history_length).
@@ -241,6 +239,8 @@ tty_toplevel_init :-
 	% optional: init debugging tools and interrupt handling
 	ensure_loaded(library(tracer_tty)),
 
+	disable_console_interrupt,
+
 	% toplevel event handlers
 	set_default_error_handler(139, compiled_file_handler/3),
 	reset_event_handler(139),
@@ -260,6 +260,133 @@ tty_toplevel_init :-
 	reset_event_handler(164),
 	set_default_error_handler(273, delayed_goals_handler/3),
 	reset_event_handler(273).
+
+
+enable_console_interrupt :-
+%	( get_flag(system_object_suffix, ".dll") ->	% Windows
+%	( true ->
+	( false ->
+	    % Handle interrupt at least synchronously
+	    set_interrupt_handler(int, event/1),
+	    set_event_handler(int, interrupt_prolog/0)
+	;
+	    set_interrupt_handler(int, interrupt_prolog/0)
+	).
+
+disable_console_interrupt :-
+	set_interrupt_handler(int, true/0).
+
+
+interrupt_prolog :-
+	get_stream(toplevel_input, Handle),
+	with_mutex(Handle, (
+	    ask_option(Option),
+	    do_option(Option, _Worker)
+	)).
+
+% move printing of interrupt message to warning_output and receive option
+% on input, as debug_input and debug_output may be used differently by
+% user's application. Kish Shen 2000-8-11
+ask_option(Option) :-
+	repeat,
+	nl(debug_output),
+	write(warning_output, 'Interrupt: type '),
+	write_options,
+	write(warning_output, 'or h for help : ? '),
+	flush(warning_output),
+	tyi(input, AnyCase),
+	lower_case(AnyCase, Option),
+	option_message(Option, Error, Message),
+	writeln(warning_output, Message),
+	(Error = (help) -> help_debug ; true),
+	Error = valid,	% repeat if 'help' or 'invalid'
+	!.		% quit loop if valid
+
+lower_case(Case, LowerCase) :-
+	(Case >= 0'a ->
+	    LowerCase = Case
+	;
+	    LowerCase is Case + (0'a - 0'A)
+	).
+
+current_option(0'a, valid, abort).
+current_option(0'b, valid, 'break level').
+current_option(0'c, valid, continue).
+current_option(0'd, Error, Message) :-
+	( get_flag(worker, 0) ->		% sequential
+	    (get_flag(debugging, nodebug) ->
+		Error = invalid,
+		Message = 'debugger is off'
+	    ;
+		Error = valid,
+		Message = 'switch debugger to creep mode'
+	    )
+	;
+	    Error = invalid,
+	    Message = 'not available in parallel execution'
+	).
+current_option(0'e, valid, 'show engines').
+current_option(0'h, help, help).
+current_option(0'x, valid, exit).
+
+
+option_message(Option, Error, Message) :-
+	current_option(Option, Error, Message), !.
+option_message(_, invalid, 'invalid option').
+
+% Option handling:
+%	abort	- post abort to all engines
+%	break	- get a toplevel on the signal engine
+%	debug	- ?
+%	cont	- 
+%	exit	- halt/0
+do_option(0'a, _) :-
+	%abort.
+	sepia_kernel:current_engines(Es),
+	Exit = abort,
+	( foreach(E,Es), count(I,1,_), param(Exit,AbortLast) do
+	    ( engine_self(E) ->
+		% shouldn't happen if self is signal engine
+	    	AbortLast = E
+	    ; engine_status(E, running) ->
+		printf(warning_output, 'Posting abort to running engine %d%n', [I]),
+	    	engine_post_event(E, Exit)
+	    ;
+		true
+	    )
+	),
+	( var(AbortLast) -> true ;
+	    engine_post_event(AbortLast, Exit)
+	).
+do_option(0'b, Worker) :- (get_flag(worker, Worker) -> break ; true).
+do_option(0'c, _).
+do_option(0'd, 0) :-
+	tracer_tty:async_force_creep_mode.
+do_option(0'e, _) :-
+	sepia_kernel:current_engines(Es),
+	( foreach(E,Es), count(I,1,_) do
+	    engine_properties(E, Ps),
+	    memberchk(status(Status),Ps),
+	    ( I==1 -> This=" (main)"
+	    ; This=""
+	    ),
+	    printf(log_output, "%w: %w%s%n", [E,Status,This])
+	).
+do_option(0'x, Worker) :- (get_flag(worker, Worker) -> halt ; true).
+
+write_options :-
+	current_option(Option, valid, _),
+	printf(warning_output, '%c, ', Option),
+	fail.
+write_options.
+
+help_debug :-
+	current_option(Option, valid, Message),
+	printf(debug_output, '	%c : %w\n', [Option, Message]),
+	fail.
+help_debug :-
+	writeln(debug_output, '	h : help\n'),
+	flush(debug_output).
 
 
 
@@ -282,11 +409,13 @@ tty_abort_loop :-
 	    set_stream_property(toplevel_input, prompt, '\t'),
 	    set_stream_property(toplevel_input, prompt_stream, toplevel_output),
 	    catch(tty_fail_loop, Tag, top_abort(Tag)),
+	    enable_console_interrupt,	% in case it was disabled
 	!.
 
 
 tty_fail_loop :-
 	repeat,				% we start here after every query
+	    disable_console_interrupt,	% while no goal running
 	    (get_flag(break_level, 0) -> trimcore ; true),
 	    (				% flush all tty streams
 		current_stream(S),
@@ -298,10 +427,18 @@ tty_fail_loop :-
 		true
 	    ),
 	    get_flag(toplevel_module, M),
-	    error(153, M, M),		% extension hook: toplevel prompt
-	    set_stream_property(toplevel_input, reprompt_only, on),
-
-	    readvar(toplevel_input, Goal, VL)@M,
+	    % print prompt and read next goal/command
+	    get_stream(toplevel_input, Handle),
+	    with_mutex(Handle, (
+		( get_stream_info(toplevel_input, prompt_stream, Out) ->
+		    history_next(I),
+		    printf(Out, "[%a %d]: %b", [M,I])@M
+		;
+		    true
+		),
+		set_stream_property(toplevel_input, reprompt_only, on),
+		readvar(toplevel_input, Goal, VL)@M
+	    )),
 	    tty_run_command(Goal, VL, M),
 	fail.
 
@@ -316,9 +453,7 @@ tty_run_command(N, _, M) :-
         integer(N),
         !,
         ( history_retrieve(N, Goal-VL) ->
-	    printf_goal(toplevel_output, Goal)@M,
-	    put(toplevel_output, 0'.),
-	    nl(toplevel_output),
+	    printf_goal(toplevel_output, "FL", Goal)@M,
             tty_run_command(Goal, VL, M)
         ;
             history_print(M)
@@ -335,6 +470,7 @@ tty_run_command(Goal0, VL0, M) :-
         history_append(Goal0-VL0),
 	error(154, goal(Goal0, VL0, NewGoal, NewVL), M), % extension hook
 	( is_list(NewVL) -> Goal1=NewGoal, VL=NewVL ; Goal1=Goal0,VL=VL0 ),
+	enable_console_interrupt,
 	( get_flag(goal_expansion,on) ->
 	    expand_goal(Goal1, Goal2)@M,
 	    tty_run_command1(Goal2, VL, M)
@@ -458,8 +594,8 @@ gui_toplevel_init :-
 
 	% make the three streams for the toplevel protocol
 	peer_queue_create(toplevel_in, host, sync, toec, ''),
-	peer_queue_create(toplevel_out, host, sync, fromec, ''),
-	peer_queue_create(answer_output, host, sync, fromec, ''),
+%	peer_queue_create(toplevel_out, host, sync, fromec, ''),
+%	peer_queue_create(answer_output, host, sync, fromec, ''),
 
 	% redirect standard i/o streams to queues if not already done
 	( peer_queue_get_property(output, peer_type, _) ->
@@ -719,8 +855,7 @@ print_values(_, Vars, Module) :-		% handler for 155
 
 
 run_goal(TransGoal, Vars, Module, RunMode) :-
-	shelf_create(count(0), Count),
-	mutex_init(toplevel_lock),
+	shelf_create(count(0,false), Count),
 	% reset invocation numbers etc. unless in break level
 	( debug_reset -> true ; true ),
 	cputime(Tstart),
@@ -729,28 +864,31 @@ run_goal(TransGoal, Vars, Module, RunMode) :-
 	    top_call_local(TransGoal, Module, RunMode),
 	    Time is cputime-Tstart,
 	    get_cut(After),
-	    shelf_get(Count, 1, NSol0),
-	    NSol is NSol0+1,
-	    shelf_set(Count, 1, NSol),
 	    % reporting a solution and prompting for more
 	    % is in a mutex region for the parallel system
-	    mutex_one(toplevel_lock, (
-		error(155, Vars, Module),
-		suspensions(Susps),
-		error(273, Susps, Module),
-		( Before == After ->
-		    ( NSol == 1 ->
-			printf(answer_output, "Yes (%.2fs cpu)%n%b", [Time])
+	    with_mutex(Count, (
+		( shelf_get(Count, 2, false) ->
+		    shelf_inc_and_get(Count, 1, NSol),
+		    error(155, Vars, Module),	% print bindings
+		    suspensions(Susps),
+		    error(273, Susps, Module),	% print delayed goals
+		    ( Before == After ->
+			( NSol == 1 ->
+			    printf(answer_output, "Yes (%.2fs cpu)%n%b", [Time])
+			;
+			    printf(answer_output, "Yes (%.2fs cpu, solution %d)%n%b", [Time,NSol])
+			)
 		    ;
-			printf(answer_output, "Yes (%.2fs cpu, solution %d)%n%b", [Time,NSol])
-		    )
+			printf(answer_output, "Yes (%.2fs cpu, solution %d, maybe more)", [Time,NSol]),
+			( getval(toplevel_type, tty) -> true ; nl(answer_output) ),
+			flush(answer_output)
+		    ),
+		    answer(Vars, Before, After, AnswerCode),
+		    error(156, AnswerCode),		% fail if 'more' requested
+		    shelf_set(Count, 2, true)
 		;
-		    printf(answer_output, "Yes (%.2fs cpu, solution %d, maybe more)", [Time,NSol]),
-		    ( getval(toplevel_type, tty) -> true ; nl(answer_output) ),
-		    flush(answer_output)
-		),
-		answer(Vars, Before, After, AnswerCode),
-		error(156, AnswerCode)
+		    true
+		)
 	    ))
 	->
 	    true
@@ -862,9 +1000,7 @@ history_print(I, N, M) :-
 	    history_retrieve(I, Goal-_),
 	    write(toplevel_output, I),
 	    put(toplevel_output, 0'	),
-	    printf_goal(toplevel_output, Goal)@M,
-	    put(toplevel_output, 0'.),
-	    nl(toplevel_output),
+	    printf_goal(toplevel_output, "FL", Goal)@M,
 	    I1 is I+1,
 	    history_print(I1, N, M)
 	;

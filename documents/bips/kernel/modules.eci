@@ -746,9 +746,6 @@ Error:
 <DT><STRONG>variable(Name,InitialValue)</STRONG><DD>
 	non-logical variable declaration with initial value
 
-<DT><STRONG>reference(Name)</STRONG><DD>
-	reference declaration
-
 <DT><STRONG>reference(Name,InitialValue)</STRONG><DD>
 	reference declaration with initial value (ground term)
 
@@ -893,7 +890,7 @@ Error:
   :- (import p/0 from m), local(p/0)    (Error 94).
 ",
 	see_also:[(export) / 1, (reexport) / 1, (import) / 1, module/1,
-	    array/1, array/2, domain/1, macro/3, op/3, portray/3, reference/1,
+	    array/1, array/2, domain/1, macro/3, op/3, portray/3,
 	    reference/2, set_flag/2,
 	    store/1, struct/1, variable/1, variable/2]]).
 

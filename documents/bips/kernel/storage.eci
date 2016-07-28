@@ -28,8 +28,10 @@
 :- tool(erase_array / 1).
 :- tool(current_store / 1).
 :- tool(decval / 1).
+:- tool(getref / 2).
 :- tool(getval / 2).
 :- tool(incval / 1).
+:- tool(setref / 2).
 :- tool(setval / 2).
 :- tool(shelf_dec / 2).
 :- tool(shelf_get / 3).
@@ -80,6 +82,9 @@
     ----------------------------------------------------------------
 </PRE>
     ")).
+
+
+%------------------------- bags -------------------------
 
 :- comment(bag_create/1, [
     summary:"Create a bag object which can store data across failures",
@@ -276,6 +281,9 @@
     ",
     see_also:[bag_create / 1, bag_enter / 2, bag_count/2, bag_erase/1, bag_retrieve/2, bag_abolish/1]
     ]).
+
+
+%------------------------- shelves -------------------------
 
 :- comment(shelf_create/2, [
     summary:"Create a shelf object which can store data across failures",
@@ -668,10 +676,12 @@ visibility as given in the list Options.
 	amode:(current_array(-,-) is nondet),
 	amode:(current_array(+,-) is semidet),
 	desc:html("\
-   current_array/2 is used to retrieve information about existing
-   visible arrays, non-logical variables and references.  Array is a
-   term denoting the array's name and dimensions and Options is a list
-   describing the array's type (prolog, float, integer or byte) and visibility.
+   current_array/2 is used to retrieve information about existing visible
+   arrays and non-logical variables.  Array is a term denoting the array's
+   name and dimensions and Options is a list describing the array's type
+   (prolog, float, integer or byte) and visibility (local, global).
+<P>
+   Note: Up to ECLiPSe version 6.1 this predicate worked also on references.
 "),
 	args:["Array" : "Atom or compound term.",
 	"Options" : "Variable or list."],
@@ -705,6 +715,9 @@ Error:
 ",
 	see_also:[array / 1, array / 2, variable / 1]]).
 
+
+%------------------------- arrays and variables -------------------------
+
 :- comment(decval / 1, [
 	summary:"Decrements the contents of the visible non-logical variable or array element ElemSpec by one.",
 	amode:(decval(++) is det),
@@ -718,6 +731,7 @@ Error:
    array.  All its arguments must be non negative integer smallers than the
    bound specified with array/1/2 or variable/1.
 <P>
+   In a multithreaded setting, this operation can be considered atomic.
 "),
 	args:["ElemSpec" : "Atom or ground compound term whose arguments are non negative integers."],
 	exceptions:[4 : "ElemSpec is not instantiated.",
@@ -725,7 +739,7 @@ Error:
 	    5 : "ElemSpec is neither an atom nor a ground structure.",
 	    5 : "The value or type of ElemSpec is not integer.",
 	    6 : "Array index in ElemSpec is out of bounds.",
-	    41 : "ElemSpec does not designate an existing array, variable or reference."],
+	    41 : "ElemSpec does not designate an existing array or variable."],
 	eg:"
 Success:
       [eclipse]: local(array(a(4), prolog)),
@@ -764,20 +778,22 @@ Error:
 	see_also:[getval / 2, incval / 1, array / 1, array / 2, variable / 1, setval / 2]]).
 
 :- comment(erase_array / 1, [
-	summary:"Erases existing visible array, non-logical variable or reference.",
+	summary:"Erases existing visible array or non-logical variable.",
 	amode:(erase_array(++) is det),
 	desc:html("\
    Used to erase the visible array uniquely specified by ArraySpec.
 <P>
-   Also used to erase the existing non-logical variable or reference ArraySpec.
+   Also used to erase the existing non-logical variable ArraySpec, if
    ArraySpec is of the form Atom/0, or just Atom.
 <P>
    Erasing reclaims the memory occupied by the array or variable.
+<P>
+   Note: Up to ECLiPSe version 6.1 this predicate worked also on references.
 "),
 	args:["ArraySpec" : "Of the form Atom/Integer or just atom."],
 	exceptions:[4 : "ArraySpec is not instantiated.",
 	    5 : "ArraySpec is not an atom or of the form Atom/Integer.",
-	    41 : "ArraySpec specifies an array, variable or reference which does not exist."],
+	    41 : "ArraySpec specifies an array or variable which does not exist."],
 	eg:"
 Success:
       local(array(a(4,3))), erase_array(a/2).
@@ -797,7 +813,7 @@ Error:
 	see_also:[current_array / 2, array / 1, array / 2, variable / 1, setval / 2]]).
 
 :- comment(getval / 2, [
-	summary:"Retrieves the value of the visible array element, non-logical variable or reference ElemSpec",
+	summary:"Retrieves the value of the visible array element or non-logical variable ElemSpec",
 	amode:(getval(++,-) is det),
 	desc:html("\
    If ElemSpec is the name of a visible non-logical variable, it unifies
@@ -808,14 +824,15 @@ Error:
    than the bounds specified with array/1/2 or variable/1. The copied value
    of the array element is unified with Value.
 <P>
-   If Element is the name of a reference, Value is unified with
-   the actual term the reference refers to (no copying involved).
+   Deprecated functionality: If Element is the name of a reference, Value is
+   unified with the actual term the reference refers to (no copying involved).
+   Please use getref/2 for this purpose.
 "),
 	args:["ElemSpec" : "Atom or ground compound term with non negative integer arguments.", "Value" : "Prolog term."],
 	exceptions:[4 : "ElemSpec is not ground.",
 	    5 : "ElemSpec is neither an atom nor a structure whose arguments are integers.",
 	    6 : "An array index in ElemSpec is out of bounds",
-	    41 : "ElemSpec does not designate an existing array, variable or reference."],
+	    41 : "ElemSpec does not designate an existing array or variable."],
 	eg:"
 Success:
       local(array(a(4), float)),
@@ -858,6 +875,8 @@ Error:
    If ElemSpec is a compound term, it must specify a visible array element.
    all its arguments must be non negative integers smaller than the bounds
    specified with array/1/2 or variable/1.
+<P>
+   In a multithreaded setting, this operation can be considered atomic.
 "),
 	args:["ElemSpec" : "Atom or ground compound term with non negative integer arguments."],
 	exceptions:[4 : "ElemSpec is not instantiated.",
@@ -865,7 +884,7 @@ Error:
 	    5 : "ElemSpec is neither an atom nor a ground structure.",
 	    5 : "The value or type of ElemSpec is not integer.",
 	    6 : "Array index in ElemSpec is out of range.",
-	    41 : "ElemSpec does not designate an existing array, variable or reference."],
+	    41 : "ElemSpec does not designate an existing array or variable."],
 	eg:"
 Success:
       [eclipse]: local(array(a(4), prolog)),
@@ -1045,7 +1064,7 @@ Error:
       :- local variable(X).                        (Error 4).
       :- local variable(6).                        (Error 5).
 ",
-	see_also:[current_array/2, array/1, array / 2, decval / 1, incval / 1, bag_create / 1, getval / 2, setval / 2, reference/1, reference/2, variable/2]]).
+	see_also:[current_array/2, array/1, array / 2, decval / 1, incval / 1, bag_create / 1, getval / 2, setval / 2, reference/2, variable/2]]).
 
 
 :- comment(variable / 2, [
@@ -1079,124 +1098,11 @@ Error:
       :- local variable(X, []).                      (Error 4).
       :- local variable(6, 0).                       (Error 5).
 ",
-	see_also:[current_array/2, array/1, array / 2, decval / 1, incval / 1, bag_create / 1, getval / 2, setval / 2, reference/1, reference/2, variable/1]]).
-
-
-:- comment(reference / 1, [
-	summary:"Creates a named reference called Name.",
-	template:"local reference(+Name)",
-	amode:(reference(+) is det),
-	desc:html("\
-   This creates a named reference with the atomic name Name.  A named
-   reference can be used to hold a reference to a term in the same way
-   as a logical variable.  Unlike the non-logical variables, the value
-   of a reference is not a copy, but identical to the original term it
-   was set to.  This implies that the value behaves logically, i.e. 
-   it disappears on backtracking, bindings to the variables inside it
-   are undone on backtracking etc.  A typical example of it use is global
-   state that a set of predicates wants to share without having to
-   pass an argument pair through all the predicate invocations. 
-<P>
-   Changing the value of a reference is similar to changing an argument
-   of a compound term using setarg/3.
-<P>
-   The initial value of a reference is the integer 0. To have a different
-   initial value, use reference/2.
-<P>
-   There are no arrays of references, but the same effect can be
-   achieved by storing a structure in a reference and using the
-   structure's arguments.  The arguments can then be accessed and
-   modified using arg/3 and setarg/3 respectively. 
-<P>
-   Note: Declaring a reference twice is silently accepted, and the second
-   declaration is ignored.
-"),
-	args:["Name" : "An atom."],
-	exceptions:[4 : "Name is not instantiated.",
-	    5 : "Name is not an atom."],
-	eg:"
-% comparison between references and nonlogical variables
-
-      [eclipse 1]: local reference(a), variable(b).
-
-      yes.
-      [eclipse 2]: Term = p(X), setval(a, Term), getval(a, Y), Y == Term.
-      X = X
-      Y = p(X)
-      Term = p(X)
-      yes.
-      [eclipse 3]: Term = p(X), setval(b, Term), getval(b, Y), Y == Term.
-
-      no (more) solution.
-
-% values of references are subject to backtracking:
-
-    [eclipse 4]: setval(a, 1), (setval(a, 2), getval(a, X); getval(a, Y)).
-      X = 2
-      Y = Y     More? (;) 
-
-      X = X
-      Y = 1
-
-",
-	see_also:[reference/2, setval/2, getval/2, setarg / 3, arg/3]]).
-
-
-:- comment(reference / 2, [
-	summary:"Creates a named reference called Name with intial value Init.",
-	template:"local reference(+Name, ++Init)",
-	amode:(reference(+,++) is det),
-	desc:html("\
-   This creates a named reference with the atomic name Name.  A named
-   reference can be used to hold a reference to a term in the same way
-   as a logical variable.  Unlike the non-logical variables, the value
-   of a reference is not a copy, but identical to the original term it
-   was set to.  This implies that the value behaves logically, i.e. 
-   it disappears on backtracking, bindings to the variables inside it
-   are undone on backtracking etc.  A typical example of it use is global
-   state that a set of predicates wants to share without having to
-   pass an argument pair through all the predicate invocations. 
-<P>
-   Changing the value of a reference is similar to changing an argument
-   of a compound term using setarg/3.
-<P>
-   The initial value of the reference is Init, which must be a ground term.
-<P>
-   There are no arrays of references, but the same effect can be
-   achieved by storing a structure in a reference and using the
-   structure's arguments.  The arguments can then be accessed and
-   modified using arg/3 and setarg/3 respectively. 
-<P>
-   Note: Declaring a reference twice is silently accepted, and the second
-   declaration is ignored.
-"),
-	args:["Name" : "An atom.", "Init":"A ground term"],
-	exceptions:[4 : "Name is not instantiated.",
-	    4 : "Init is not a ground term.",
-	    5 : "Name is not an atom."],
-	eg:"
-
-      [eclipse 1]: local reference(a,0).
-
-      yes.
-      [eclipse 2]: ( getval(a, Old), setval(a, 27), getval(a, New)
-		   ; getval(a, Then) ).
-      Old = 0
-      New = 27
-      Then = Then
-      Yes (0.00s cpu, solution 1, maybe more) ? ;
-
-      Old = Old
-      New = New
-      Then = 0
-      Yes (0.00s cpu, solution 2)
-
-",
-	see_also:[reference/1, setval/2, getval/2, setarg / 3, arg/3]]).
+	see_also:[current_array/2, array/1, array / 2, decval / 1, incval / 1, bag_create / 1, getval / 2, setval / 2, reference/2, variable/1]]).
 
 
 :- comment(setval / 2, [
-	summary:"Sets the value of a non-logical variable, array element, or reference to the value Value.",
+	summary:"Sets the value of a non-logical variable or array element to the value Value.",
 	amode:(setval(++,?) is det),
 	desc:html("\
    If ElemSpec is the name of a visible non-logical variable, its
@@ -1216,13 +1122,11 @@ Error:
    Values of non-logical arrays are copies of the original term and persist
    across failures.
 <P>
-   If ElemSpec is the name of a visible reference, its value will be set
-   to the term value.  Unlike for non-logical variables, the value of a
-   reference is the original term, not a copy. Setting the value of a
-   reference is undone on backtracking, i.e. the value of the reference
-   reverts to what it was before being changed.
+   Deprecated functionality:  If ElemSpec is the name of a visible
+   reference, its value will be set to the term value.  Please use
+   setref/2 for this purpose.
 "),
-	args:["ElemSpec" : "Atom (non-logical variable or reference) or fully instantiated compound term with positive integer arguments (array element specification).",
+	args:["ElemSpec" : "Atom (non-logical variable) or fully instantiated compound term with positive integer arguments (array element specification).",
 	    "Value" : "Prolog term."],
 	exceptions:[4 : "ElemSpec is not ground", 4 : "ElemSpec is of an array of type integer, float or byte and Value is not instantiated", 5 : "the type of Value is not of the declared type of ElemSpec.", 5 : "ElemSpec is a structure whose arguments are not all integers.", 5 : "ElemSpec is neither an atom nor a ground structure.", 6 : "Array index in ElemSpec is out of bounds.", 41:"ElemSpec is an element of an array which does not exist."],
 	eg:"
@@ -1253,23 +1157,22 @@ Error:
 
 
 ",
-	see_also:[decval / 1, erase_array / 1, incval / 1, array / 1, array / 2, variable / 1, getval / 2]]).
+	see_also:[getval / 2, decval / 1, incval / 1, setref/2, erase_array / 1, array / 1, array / 2, variable / 1]]).
 
 :- comment(test_and_setval / 3, [
 	summary:"Test whether a non-logical variable has value Old and if so, set it to New.",
 	amode:(test_and_setval(+,?,?) is semidet),
 	desc:html("\
    VarName must be the name of a non-logical variable (not an array
-   element and not a reference).  If the current value of this
-   variable is not identical to Old, the predicate fails.  If it is
-   identical, the variable's value gets changed to the value New. 
-   Test and set is done as an atomic operation.
+   element).  If the current value of this variable is not identical
+   to Old, the predicate fails.  If it is identical, the variable's
+   value gets changed to the value New.  Test and set is done as an
+   atomic operation in a multithreaded setting.
 "),
 	args:["VarName" : "An atom", "Old" : "A term", "New":"A term"],
 	fail_if:"Fails it the current value of the variable is not identical to Old",
 	exceptions:[4 : "VarName is not ground",
 	    5 : "VarName not an atom",
-	    5 : "VarName is the name of a reference",
 	    41: "VarName is not the name of a non-logical variable."],
 	eg:"
 Success:
@@ -1288,7 +1191,199 @@ Fail:
 	see_also:[decval / 1, incval / 1, variable / 1, setval/2, getval / 2]]).
 
 
+%------------------------- references -------------------------
 
+:- comment(reference / 2, [
+	summary:"Creates a named reference called Name with intial value Init.",
+	template:"local reference(+Name, ++Init)",
+	amode:(reference(+,++) is det),
+	desc:html("\
+   This creates a named reference with the atomic name Name and initial
+   value Init.  Usually, this would be done in a directive.
+<P>
+   A named reference can be used to hold a reference to a term in the same
+   way as a logical variable.  Unlike a non-logical variable, the value
+   of a reference is not a copy, but identical to the original term it
+   was set to.  This implies that the value behaves logically, i.e. 
+   it disappears on backtracking, bindings to the variables inside it
+   are undone on backtracking etc.  A typical example of its use is global
+   state that a set of predicates wants to share without having to
+   pass an argument pair through all the predicate invocations. 
+<P>
+   Changing the value of a reference is similar to changing an argument
+   of a compound term using setarg/3.
+<P>
+   The initial value of the reference is Init, which must be a ground term.
+<P>
+   There are no arrays of references, but the same effect can be
+   achieved by storing a structure in a reference and using the
+   structure's arguments.  The arguments can then be accessed and
+   modified using arg/3 and setarg/3 respectively. 
+<P>
+   Reference names are visible in the module where they are declared.
+   Furthermore every ECLiPSe engine has its own reference store,
+   meaning that the values are engine/thread-local and cannot be shared.
+<P>
+   Side note: When a reference is re-declared with a different Init value
+   during execution, the effect only becomes visible once execution fails
+   back to the reference's initial state.  A current value that is the
+   result of a setref/2 is not affected.
+"),
+	args:["Name" : "An atom.", "Init":"A ground term"],
+	exceptions:[4 : "Name is not instantiated.",
+	    4 : "Init is not a ground term.",
+	    5 : "Name is not an atom."],
+	eg:"
+% declaring a reference
+
+      :- local reference(a,0).
+      yes.
+
+% values of references are subject to backtracking:
+
+      ?- ( getref(a, Old), setref(a, 27), getref(a, New)
+	 ; getref(a, Then)
+	 ).
+      Old = 0
+      New = 27
+      Then = Then
+      Yes (0.00s cpu, solution 1, maybe more) ? ;
+
+      Old = Old
+      New = New
+      Then = 0
+      Yes (0.00s cpu, solution 2)
+
+
+% comparison between references and nonlogical variables.
+
+      :- local reference(r), variable(v).
+      yes.
+
+% references are subject to backtracking, nonlogical variables survive:
+
+      ?- ( setref(r, 27), fail
+         ; getref(r, New)
+	 ).
+      New = 0
+      Yes (0.00s cpu)
+
+      ?- ( setval(v, 27), fail
+         ; getval(v, New)
+	 ).
+      New = 27
+      Yes (0.00s cpu)
+
+% references refer to the original term, nonlogical variables to copies:
+
+      ?- Term = p(X), setref(r, Term), getref(r, Y), Y == Term.
+      X = X
+      Y = p(X)
+      Term = p(X)
+      yes.
+
+      ?- Term = p(X), setval(v, Term), getval(v, Y), Y == Term.
+      no (more) solution.
+
+",
+	see_also:[setref/2, getref/2, setarg / 3, arg/3]]).
+
+
+:- comment(setref / 2, [
+    summary:"Sets the value of the named reference to Value.",
+    amode:(setref(+,?) is det),
+    args:["Name" : "Atom (name of a reference).",
+	"Value" : "Prolog term."],
+    desc:html("\
+   If Name is the name of a (previously declared) reference, its value
+   will be set to the term Value.
+<P>
+   A named reference can be used to hold a reference to a term, in the
+   same way as a logical variable.  Unlike a logical variable, the
+   reference has a name under which it can be looked up.  Unlike a
+   named non-logical variable, the value of a reference is not a copy,
+   but identical to the original term it was set to.  This implies that
+   the value behaves logically, i.e. it disappears on backtracking,
+   bindings to the variables inside it are undone on backtracking etc.
+<P>
+   Changing the value of a reference is similar to changing an argument of
+   a compound term using setarg/3.  The change is undone on backtracking,
+   i.e. the value of the reference reverts to what it was before being
+   changed.  A reference that has never been set (or whose settings were
+   all undone by backtracking) has its declared initialization value.
+<P>
+   Reference names are visible in the module where they are declared.
+   Furthermore every ECLiPSe engine has its own reference store,
+   meaning that the values are engine/thread-local and cannot be shared.
+"),
+    exceptions:[4 : "Name is uninstantiated",
+	5 : "Name is not an atom.",
+	45: "Name has not been declared as a reference."],
+    eg:"
+    ?- local reference(r, hello).
+    Yes (0.00s cpu)
+
+    ?- getref(r,X), setref(r,world), getref(r,Y).
+    X = hello
+    Y = world
+    Yes (0.00s cpu)
+
+    ?- getref(r,X), ( setref(r,world), fail ; getref(r,Y) ).      
+    X = hello
+    Y = hello
+    Yes (0.00s cpu)
+",
+	see_also:[reference/2, getref/2, setarg/3]]).
+
+
+:- comment(getref / 2, [
+    summary:"Gets the value of the named reference.",
+    amode:(getref(+,-) is det),
+    args:["Name" : "Atom (name of a reference).",
+	"Value" : "Output variable."],
+    desc:html("\
+   If Name is the name of a (previously declared) reference, the value
+   it refers to will be unified with Value.
+<P>
+   A named reference can be used to hold a reference to a term, in the
+   same way as a logical variable.  Unlike a logical variable, the
+   reference has a name under which it can be looked up.  Unlike a
+   named non-logical variable, the value of a reference is not a copy,
+   but identical to the original term it was set to.  This implies that
+   the value behaves logically, i.e. it disappears on backtracking,
+   bindings to the variables inside it are undone on backtracking etc.
+<P>
+   Changing the value of a reference is similar to changing an argument of
+   a compound term using setarg/3.  The change is undone on backtracking,
+   i.e. the value of the reference reverts to what it was before being
+   changed.  A reference that has never been set (or whose settings were
+   all undone by backtracking) has its declared initialization value.
+<P>
+   Reference names are visible in the module where they are declared.
+   Furthermore every ECLiPSe engine has its own reference store,
+   meaning that the values are engine/thread-local and cannot be shared.
+"),
+    exceptions:[4 : "Name is uninstantiated",
+	5 : "Name is not an atom.",
+	45: "Name has not been declared as a reference."],
+    eg:"
+    ?- local reference(r, hello).
+    Yes (0.00s cpu)
+
+    ?- getref(r,X), setref(r,world), getref(r,Y).
+    X = hello
+    Y = world
+    Yes (0.00s cpu)
+
+    ?- getref(r,X), ( setref(r,world), fail ; getref(r,Y) ).      
+    X = hello
+    Y = hello
+    Yes (0.00s cpu)
+",
+	see_also:[reference/2, setref/2]]).
+
+
+%------------------------- stores -------------------------
 
 :- comment(store/1, [
     summary:"Create a named store object which can store indexed data across failures",

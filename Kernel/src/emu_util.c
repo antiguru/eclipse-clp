@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.8 2015/04/04 23:09:42 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.9 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -49,9 +49,14 @@
 #include "module.h"
 #include "emu_export.h"
 #include "ec_io.h"
+#include "os_support.h"
 
-extern int 	p_exit(value v, type t);		/* to stop in a clean way */
-extern int 	ec_init_postponed(void);
+#if 0
+#define DbgPrintf(s,...) p_fprintf(current_err_,s,__VA_ARGS__);ec_flush(current_err_);
+#else
+#define DbgPrintf(s,...)
+#endif
+
 
 fail_data_t	fail_trace_[MAX_FAILTRACE];
 
@@ -77,39 +82,39 @@ pword	*spmax_; /* not for overflow checks, just to know if an address
  * the pointers to their borders
  */
 
-
-allocate_stacks(void)
+static void
+allocate_stacks(ec_eng_t *ec_eng)
 {
     extern void alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct **descr);
     static char *names[4] = { "global","trail","control","local" };
     uword sizes[4];
     struct stack_struct *stacks[4];
 
-    stacks[0] = &g_emu_.global_trail[0];
-    stacks[1] = &g_emu_.global_trail[1];
-    stacks[2] = &g_emu_.control_local[0];
-    stacks[3] = &g_emu_.control_local[1];
+    stacks[0] = &ec_eng->global_trail[0];
+    stacks[1] = &ec_eng->global_trail[1];
+    stacks[2] = &ec_eng->control_local[0];
+    stacks[3] = &ec_eng->control_local[1];
 
-    sizes[0] = ec_options.globalsize;
+    sizes[0] = ec_eng->options.globalsize;
     sizes[1] = 0;
-    sizes[2] = ec_options.localsize;
+    sizes[2] = ec_eng->options.localsize;
     sizes[3] = 0;
 
     TG_SEG =
-    	( ec_options.globalsize/GC_INTERVAL_FRACTION > MIN_GC_INTERVAL ?
-	  ec_options.globalsize/GC_INTERVAL_FRACTION : MIN_GC_INTERVAL ) /sizeof(pword);
+    	( ec_eng->options.globalsize/GC_INTERVAL_FRACTION > MIN_GC_INTERVAL ?
+	  ec_eng->options.globalsize/GC_INTERVAL_FRACTION : MIN_GC_INTERVAL ) /sizeof(pword);
 
     alloc_stack_pairs( 4, names, sizes, stacks);
 
 #ifdef AS_EMU
 
     /* differences with the assembler emulator:
-     * - g_emu_.sporigin is set in main() to point into the C stack
+     * - ec_eng->sporigin is set in main() to point into the C stack
      * - B is checked against bmax_ in overflow checks (there is always
      *   room left for one frame of the biggest size (invocation frame))
      */
 
-    bmax_ = (pword *) ((char *) g_emu_.blimit - NARGREGS * sizeof(pword)
+    bmax_ = (pword *) ((char *) ec_eng->blimit - NARGREGS * sizeof(pword)
             - sizeof(struct invocation_frame));
 
 #if defined(RLIMIT_STACK)
@@ -117,31 +122,30 @@ allocate_stacks(void)
 	struct rlimit rlp;
 	getrlimit(RLIMIT_STACK, &rlp);
 
-	spmax_ = g_emu_.sporigin - rlp.rlim_cur/sizeof(pword);
+	spmax_ = ec_eng->sporigin - rlp.rlim_cur/sizeof(pword);
     }
 #else /* don't know how to find the stack size in SYS_V */
-    spmax_ = g_emu_.sporigin - 0x1000000;	/* 16MB */
+    spmax_ = ec_eng->sporigin - 0x1000000;	/* 16MB */
 #endif
 
 #endif /* AS_EMU */
 
 }
 
-/*
- * p_print_stacks()
- * prints out the memory layout of the stacks
+/**
+ * Prints out the memory layout of the stacks.
  */
 int
-p_print_stacks(void)
+p_print_stacks(ec_eng_t *ec_eng)
 {
     struct stack_struct *stacks[4];
     struct stack_struct *s;
     int i;
 
-    stacks[0] = &g_emu_.global_trail[0];
-    stacks[1] = &g_emu_.global_trail[1];
-    stacks[2] = &g_emu_.control_local[0];
-    stacks[3] = &g_emu_.control_local[1];
+    stacks[0] = &ec_eng->global_trail[0];
+    stacks[1] = &ec_eng->global_trail[1];
+    stacks[2] = &ec_eng->control_local[0];
+    stacks[3] = &ec_eng->control_local[1];
 
     p_fprintf(current_err_,"Name\t\tStart\t\tEnd\t\tPeak\n");
     for(i=0 ; i<4 ; i++)
@@ -160,18 +164,18 @@ p_print_stacks(void)
  * Caution: pushes stuff on global stack
  */
 void
-ec_init_globvars(void)
+ec_init_globvars(ec_eng_t *ec_eng)
 {
+#ifdef DFID
     pword  *p;
     int	i;
 
-    g_emu_.global_variable = TG;
+    ec_eng->global_variable = TG;
     Push_Struct_Frame(in_dict("gv",GLOBAL_VARS_NO));
     for (i = 0; i < GLOBAL_VARS_NO; i++)
     {
 	Make_Integer(&GLOBVAR[i], 0);
     }
-#ifdef DFID
     p = TG;				/* DFID vars */
     TG += 4;
     for (i = 0; i < 4; i++) {
@@ -182,6 +186,8 @@ ec_init_globvars(void)
     p[0].val.nint = p[3].val.nint = 0;
     p[1].val.nint = p[2].val.nint = 1000000;
 #endif
+
+    ec_eng->references = NULL;
 }
 
 
@@ -193,7 +199,7 @@ ec_init_globvars(void)
  */
 
 void
-emu_init(int flags, int vm_options)
+emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
 {
     int		i;
 #ifdef lint
@@ -201,26 +207,40 @@ emu_init(int flags, int vm_options)
     uword *find_word();
 
     v1.all = 0;
-    (void) schedule_cut_fail_action(emu_init, v1, tint);
     (void) lastpp(0);
     (void) find_word((uword) 0);
     (void) check_global();
 #endif /* lint */
 
-    if (flags & INIT_PRIVATE)
-	allocate_stacks();
+    ec_eng->ref_ctr = 1;
+    ec_eng->needs_dgc_marking = 0;
+    mt_mutex_init_recursive(&ec_eng->lock);
+    ec_cond_init(&ec_eng->cond);
+    allocate_stacks(ec_eng);
+
+    if (parent_eng)
+	ec_eng->frand_state = parent_eng->frand_state;	/* inherit */
+    else
+	ec_frand_init(&ec_eng->frand_state);
+
+    if (ec_eng->options.default_module)
+	ec_eng->default_module = in_dict(ec_eng->options.default_module, 0);
+    else if (parent_eng) 
+	ec_eng->default_module = parent_eng->default_module;
+    else
+	ec_eng->default_module = d_.default_module;
 
     /* the stack pointers */
-    TG = GCTG = GB = (pword *) g_emu_.global_trail[0].start;
-    TT = (pword **) g_emu_.global_trail[1].start;
-    if (!trim_global_trail(TG_SEG))		/* sets TG_LIM and TT_LIM */
+    TG = GCTG = GB = (pword *) ec_eng->global_trail[0].start;
+    TT = (pword **) ec_eng->global_trail[1].start;
+    if (!trim_global_trail(ec_eng, TG_SEG))		/* sets TG_LIM and TT_LIM */
 	ec_panic(MEMORY_P, "emu_init()");
 
-    B.args = PB = PPB = (pword *) g_emu_.control_local[0].start;
+    B.args = PB = PPB = (pword *) ec_eng->control_local[0].start;
 #ifndef AS_EMU
-    E = SP = EB = (pword *) g_emu_.control_local[1].start;
+    E = SP = EB = (pword *) ec_eng->control_local[1].start;
 #endif
-    if (!trim_control_local())		/* sets b_limit and sp_limit */
+    if (!trim_control_local(ec_eng))		/* sets b_limit and sp_limit */
 	ec_panic(MEMORY_P, "emu_init()");
 
     /* some other registers */
@@ -237,8 +257,7 @@ emu_init(int flags, int vm_options)
 
     Make_Struct(&TAGGED_WL, (pword*)0);	/* WL */
     Make_Ref(&WP_STAMP, (pword*)0);	/* Make_Stamp(&WP_STAMP) */
-    Make_Var(&POSTED);			/* difference list of posted goals */
-    POSTED_LAST = POSTED;
+    Make_Atom(&POSTED, d_.true0);	/* init posted goals with true */
     PARSENV = NULL;
     Set_Bip_Error(0);
 
@@ -248,12 +267,18 @@ emu_init(int flags, int vm_options)
 	A[i].tag.kernel = TEND;
     }
 
-    g_emu_.nesting_level = 0;
-    g_emu_.it_buf = (jmp_buf *) NULL; /* overwritten in emulc() */
-    VM_FLAGS = vm_options;
+    ec_eng->nesting_level = 0;
+    ec_eng->it_buf = NULL; /* overwritten in emulc() */
+    ec_eng->run_thread = NULL; /* overwritten in emulc() */
+    ec_eng->own_thread = NULL;
+    ec_eng->owner_thread = ec_thread_self();
+    ec_eng->paused = 0;
+    VM_FLAGS = ec_eng->options.vm_options;
     EVENT_FLAGS = 0;
 
-    ec_init_dynamic_event_queue();
+    ec_init_dynamic_event_queue(ec_eng);
+
+    Init_Cleanup();
 
     Make_Integer(&TAGGED_TD, 0);
     FTRACE = fail_trace_;
@@ -263,22 +288,75 @@ emu_init(int flags, int vm_options)
     if (!ec_options.parallel_worker)
 	LEAF = 0;
 
-    ec_init_globvars();
-    ec_init_postponed();
+    ec_init_globvars(ec_eng);
+    ec_init_postponed(ec_eng);
+
+    Make_Ref(&ec_eng->allrefs.var,NULL);
+    ec_eng->allrefs.next = & ec_eng->allrefs ;
+    ec_eng->allrefs.prev = & ec_eng->allrefs ;
+
+    ec_eng->next = ec_eng->prev = NULL;
 
     TracerInit;
+
+#ifdef PRINTAM
+    /* WAM level debugging support */
+    ec_eng->stop_address = NULL;
+    for(i=0; i<MAX_BACKTRACE; i++)
+	ec_eng->backtrace[i] = NULL;
+    ec_eng->bt_index = 0;
+#endif
 }
 
 
 /*
  * Finalize the engine
+ * Expected state on entry:
+ *   - we have a strong reference
+ *   - we own the engine
+ *   - engine is exited
+ *   - engine is in chain
+ * After:
+ *   - no longer in chain
+ *   - engine dead (no stacks)
  */
 
 void
-ec_emu_fini()
+ec_emu_fini(ec_eng_t *ec_eng)
 {
     extern void dealloc_stack_pairs(struct stack_struct *, struct stack_struct *);
-    dealloc_stack_pairs(g_emu_.global_trail, g_emu_.control_local);
+
+    assert(!EngIsDead(ec_eng));
+
+    DbgPrintf("Finalizing engine %x\n", ec_eng);
+
+    /* release any objects/locks the engine may still be holding */
+    /* TODO: move this to exit? */
+    Do_Cleanup();
+    Fini_Cleanup();
+
+#ifdef UNCHAIN_ENGINES_WHEN_DEAD
+    /* unchain engine, unless it is the header */
+    if (ec_eng != eng_list_header) {
+	mt_mutex_lock(&shared_data->engine_list_lock);
+	ec_eng->next->prev = ec_eng->prev;
+	ec_eng->prev->next = ec_eng->next;
+	ec_eng->prev = ec_eng->next = ec_eng;
+	mt_mutex_unlock(&shared_data->engine_list_lock);
+
+    }
+#endif
+    ec_eng->tg = NULL;	/* indicates engine is dead */
+    dealloc_stack_pairs(ec_eng->global_trail, ec_eng->control_local);
+
+    /* make sure other attached memory is gone */
+    destroy_parser_env(ec_eng);
+    ec_fini_dynamic_event_queue(ec_eng);
+    assert(!ec_eng->references);
+    assert(ec_eng->allrefs.next == &ec_eng->allrefs
+    	&& ec_eng->allrefs.prev == &ec_eng->allrefs);
+
+    EngLogMsg(ec_eng, "exited", 0);
 }
 
 
@@ -337,7 +415,15 @@ _compare_pointers(value v1, value v2)
 
 /*ARGSUSED*/
 static int
-_lex_error(char* s, pword* result, int base)
+_arith_compare_pointers(value v1, value v2, int *res)
+{
+    *res = v1.ptr - v2.ptr;
+    Succeed_;
+}
+
+/*ARGSUSED*/
+static int
+_lex_error(ec_eng_t *ec_eng, char* s, pword* result, int base)
 {
     return BAD_NUMERIC_CONSTANT;
 }
@@ -412,7 +498,7 @@ opaddr_init(void)
 #ifdef THREADED
 #if defined(__GNUC__) || defined(_WIN32)
     op_addr[0] = 0;
-    (void) ec_emulate();	/* will init op_addr[] */
+    (void) ec_emulate(NULL);	/* to init op_addr[] */
     if (op_addr[Retry] == op_addr[Retry_inline]
      || op_addr[Trust] == op_addr[Trust_inline])
      {
@@ -450,21 +536,15 @@ opaddr_init(void)
  * can be called from dbx etc.
  */
 
-lastpp(int n)
+lastpp(ec_eng_t *ec_eng, int n)
 {
-    extern vmcode *ec_backtrace[];
-    extern int bt_index, bt_max;
-    extern vmcode *print_am(register vmcode *code, vmcode **label, int *res, int option);
     int i;
-    vmcode	*dummy_l = NULL;
-    int		dummy_r;
-
-    if (n >= bt_max) i = bt_index;
-    else i = (bt_index + bt_max - n) % bt_max;
+    if (n >= MAX_BACKTRACE) i = ec_eng->bt_index;
+    else i = (ec_eng->bt_index + MAX_BACKTRACE - n) % MAX_BACKTRACE;
     do {
-	(void) print_am(ec_backtrace[i], &dummy_l, &dummy_r, 2 /*PROCLAB*/);
-	i = (i+1) % bt_max;
-    } while (i != bt_index);
+	print_instr(ec_eng->backtrace[i], 2 /*PROCLAB*/);
+	i = (i+1) % MAX_BACKTRACE;
+    } while (i != ec_eng->bt_index);
 }
 
 #endif /* PRINTAM */
@@ -472,31 +552,35 @@ lastpp(int n)
 #if defined(PRINTAM)
 
 uword *
-find_word(uword w)	/* scan Prolog data areas for a particular uword */
+find_word(ec_eng_t *ec_eng, uword w)	/* scan Prolog data areas for a particular uword */
 {
     uword *p;
-    for(p = g_emu_.global_trail[0].start; p < g_emu_.global_trail[0].end; p++)
+    for(p = ec_eng->global_trail[0].start; p < ec_eng->global_trail[0].end; p++)
 	if (*p == w) p_fprintf(current_err_, "global 0x%x\n", p);
-    for(p = g_emu_.global_trail[1].end; p < g_emu_.global_trail[1].start; p++)
+    for(p = ec_eng->global_trail[1].end; p < ec_eng->global_trail[1].start; p++)
 	if (*p == w) p_fprintf(current_err_, "trail 0x%x\n", p);
-    for(p = g_emu_.control_local[0].start; p < g_emu_.control_local[0].end; p++)
+    for(p = ec_eng->control_local[0].start; p < ec_eng->control_local[0].end; p++)
 	if (*p == w) p_fprintf(current_err_, "control 0x%x\n", p);
-    for(p = g_emu_.control_local[1].end; p < g_emu_.control_local[1].start; p++)
+    for(p = ec_eng->control_local[1].end; p < ec_eng->control_local[1].start; p++)
 	if (*p == w) p_fprintf(current_err_, "local 0x%x\n", p);
-    for(p = (uword *) &g_emu_.emu_args[0];
-				p < (uword *) &g_emu_.emu_args[NARGREGS]; p++)
+    for(p = (uword *) &ec_eng->emu_args[0];
+				p < (uword *) &ec_eng->emu_args[NARGREGS]; p++)
 	if (*p == w) p_fprintf(current_err_, "arg 0x%x\n", p);
     ec_flush(current_err_);
 }
 
 void
-print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
+print_chp(ec_eng_t *ec_eng, pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 {
     extern vmcode par_fail_code_[];
     control_ptr fp;
     fp.args = b ? b : B.args;
     do
     {
+	if (fp.args <= B_ORIG) {
+	    p_fprintf(current_err_, "0x%x --- bottom of control stack\n", fp.args);
+	    break;
+	}
 	p_fprintf(current_err_, "0x%x --- ", fp.args);
 	if (BPrev(fp.args) == (pword *) (fp.top - 1))
 	{
@@ -504,10 +588,17 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 	}
 	else
 	{
-	    if (IsInterruptFrame(BTop(fp.args)))
+	    int arity = (pword*)BTop(fp.args) - (pword*)(BChp(fp.args)+1);
+
+	    if (IsNestingFrame(BTop(fp.args)))
 	    {
-		p_fprintf(current_err_, "interrupt:\n");
-		n=1;
+		p_fprintf(current_err_, "recursion:\n");
+		p_fprintf(current_err_,
+			"    ppb=0x%x alt=%d node={0x%x,0x%x,0x%x}\n",
+			BPar(fp.args)->ppb, BPar(fp.args)->alt,
+			BPar(fp.args)->node.site, BPar(fp.args)->node.edge,
+			BPar(fp.args)->node.knot);
+		arity = (pword*)BTop(fp.args) - (pword*)(BInvoc(fp.args)+1);
 	    }
 	    else if (IsRecursionFrame(BTop(fp.args)))
 	    {
@@ -518,9 +609,13 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 			BPar(fp.args)->ppb, BPar(fp.args)->alt,
 			BPar(fp.args)->node.site, BPar(fp.args)->node.edge,
 			BPar(fp.args)->node.knot);
+		arity = (pword*)BTop(fp.args) - (pword*)(BInvoc(fp.args)+1);
 	    }
 	    else if (IsExceptionFrame(BTop(fp.args)))
+	    {
 		p_fprintf(current_err_, "exception:\n");
+		arity = (pword*)BTop(fp.args) - (pword*)(BException(fp.args)+1);
+	    }
 	    else if (IsCatchFrame(BTop(fp.args)))
 		p_fprintf(current_err_, "catch:\n");
 	    else if (IsGcFrame(BTop(fp.args)))
@@ -538,6 +633,7 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 			BPar(fp.args)->ppb, BPar(fp.args)->alt,
 			BPar(fp.args)->node.site, BPar(fp.args)->node.edge,
 			BPar(fp.args)->node.knot);
+		arity = (pword*)BTop(fp.args) - (pword*)(BPar(fp.args)+1);
 	    }
 	    else if (IsPubParFrame(BTop(fp.args)))
 	    {
@@ -547,6 +643,7 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 			BPar(fp.args)->ppb, BPar(fp.args)->alt,
 			BPar(fp.args)->node.site, BPar(fp.args)->node.edge,
 			BPar(fp.args)->node.knot);
+		arity = (pword*)BTop(fp.args) - (pword*)(BPar(fp.args)+1);
 	    }
 	    else if (BBp(fp.args) == par_fail_code_)
 	    {
@@ -556,6 +653,7 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 			BPar(fp.args)->ppb, BPar(fp.args)->alt,
 			BPar(fp.args)->node.site, BPar(fp.args)->node.edge,
 			BPar(fp.args)->node.knot);
+		arity = (pword*)BTop(fp.args) - (pword*)(BPar(fp.args)+1);
 	    }
 	    else
 	    {
@@ -563,10 +661,10 @@ print_chp(pword *b, int n)	/* print the n topmost choicepoints (0 = all) */
 	    }
 
 	    p_fprintf(current_err_,
-			"    sp=0x%x tg=0x%x tt=0x%x e=0x%x ld=0x%x\n",
+			"    sp=0x%x tg=0x%x tt=0x%x e=0x%x ld=0x%x /%d\n",
 			BChp(fp.args)->sp, BChp(fp.args)->tg,
 			BChp(fp.args)->tt, BChp(fp.args)->e,
-			BChp(fp.args)->ld);
+			BChp(fp.args)->ld, arity);
 	}
 	fp.args = BPrev(fp.args);
     }
@@ -594,7 +692,7 @@ static _print_code_address(stream_id nst, vmcode *code)
  */
 
 void
-print_control(pword *e, pword *sp)
+print_control(ec_eng_t *ec_eng, pword *e, pword *sp)
 {
     control_ptr		fp;
     pword               *b, *env;
@@ -621,7 +719,12 @@ print_control(pword *e, pword *sp)
         ec_newline(current_err_);
         fp.args = BPrev(b);
 
-	if (IsInterruptFrame(BTop(b)) || IsRecursionFrame(BTop(b)))
+	if (IsNestingFrame(BTop(b)))
+	{
+            p_fprintf(current_err_, "recursion");
+            break;
+	}
+	if (IsRecursionFrame(BTop(b)))
 	{
             p_fprintf(current_err_, "invoc");
             break;

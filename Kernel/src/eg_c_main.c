@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eg_c_main.c,v 1.1 2008/06/30 17:43:53 jschimpf Exp $
+ * $Id: eg_c_main.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	minimain.c
@@ -37,6 +37,7 @@
  *	Example of minimal main useing external embed interface.
  */
 
+#define USES_NO_ENGINE_HANDLE
 #include	"eclipse.h"
 
 

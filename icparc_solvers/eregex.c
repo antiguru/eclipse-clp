@@ -23,9 +23,10 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author:	J Chamois
  * Licence:	This code is in the public domain
- * Version:	$Id: eregex.c,v 1.1 2006/09/23 01:53:30 snovello Exp $
+ * Version:	$Id: eregex.c,v 1.2 2016/07/28 03:34:37 jschimpf Exp $
  *----------------------------------------------------------------------*/
 
+#define _WIN32_WINNT 0x600	/* if including windows.h before eclipse.h */
 #include <sys/types.h>
 #include <stdlib.h>	/* for malloc() */
 #include <string.h>
@@ -33,12 +34,7 @@
 #include "eclipse.h"
 
 
-Extern stream_id Winapi	ec_stream_id(int);
-Extern int ec_outf(stream_id, const char*, int);
-Extern int ec_newline(stream_id);
-
 #define MAXMSGSIZE 512
-#define EC_EXTERNAL_ERROR -213
 
 
 static void
@@ -107,7 +103,7 @@ _get_compiled_pattern(pword arg, int cflags, regex_t *pcompiled_reg, regex_t **p
 
 
 int
-ec_regcomp()		/* (+Pattern,+Flags,-CompiledPattern) */
+ec_regcomp(ec_eng_t *ec_eng)	/* (+Pattern,+Flags,-CompiledPattern) */
 {
     int err, cflags, eflags;
     char *pattern;
@@ -127,7 +123,7 @@ ec_regcomp()		/* (+Pattern,+Flags,-CompiledPattern) */
 
 
 int
-ec_regmatch()		/* (+Pattern,+String,+Flags) */
+ec_regmatch(ec_eng_t *ec_eng)	/* (+Pattern,+String,+Flags) */
 {
     int err, cflags, eflags;
     regex_t compiled_reg, *preg;
@@ -151,7 +147,7 @@ ec_regmatch()		/* (+Pattern,+String,+Flags) */
 
 
 int
-ec_regmatch4()		/* (+Pattern,+String,+Flags,-Match) */
+ec_regmatch4(ec_eng_t *ec_eng)	/* (+Pattern,+String,+Flags,-Match) */
 {
     int err, cflags, eflags;
     regex_t compiled_reg, *preg;
@@ -177,7 +173,7 @@ ec_regmatch4()		/* (+Pattern,+String,+Flags,-Match) */
 
 
 int
-ec_regmatchsub()	/* (+Pattern,+String,+Flags,-ListOfSubMatches) */
+ec_regmatchsub(ec_eng_t *ec_eng)	/* (+Pattern,+String,+Flags,-ListOfSubMatches) */
 {
     int err, cflags, eflags;
     regex_t compiled_reg, *preg;
@@ -230,7 +226,7 @@ ec_regmatchsub()	/* (+Pattern,+String,+Flags,-ListOfSubMatches) */
 
 
 int
-ec_regmatchall()	/* (+Pattern,+String,+Flags,-ListOfFullMatches) */
+ec_regmatchall(ec_eng_t *ec_eng)	/* (+Pattern,+String,+Flags,-ListOfFullMatches) */
 {
     int err, cflags, eflags;
     regex_t compiled_reg, *preg;
@@ -287,7 +283,7 @@ ec_regmatchall()	/* (+Pattern,+String,+Flags,-ListOfFullMatches) */
 
 
 int
-ec_regsplit()	/* (+Pattern,+String,+Flags,-SplitString) */
+ec_regsplit(ec_eng_t *ec_eng)	/* (+Pattern,+String,+Flags,-SplitString) */
 {
     int err, cflags, eflags;
     regex_t compiled_reg, *preg;

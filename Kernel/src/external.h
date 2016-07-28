@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: external.h,v 1.2 2012/02/25 13:36:44 jschimpf Exp $
+ * VERSION	$Id: external.h,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -87,8 +87,8 @@
 #define Write(val, tag, stream)					\
 	{							\
 		int	res;					\
-		res = ec_pwrite(2, stream, val, tag, 1200, PrintDepth,	\
-			d_.default_module, tdict, 0);		\
+		res = ec_pwrite(default_eng, 2, stream, val, tag, 1200, PrintDepth,	\
+			d_.dummy_module, tdict, 0);		\
 		if (res != PSUCCEED)				\
 		    { Bip_Error(res);}				\
 	}
@@ -96,13 +96,13 @@
 #define Writeq(val, tag, stream)		\
 	{							\
 		int	res;					\
-		res = ec_pwrite(3, stream, val, tag, 1200, PrintDepth,	\
-			d_.default_module, tdict, 0);		\
+		res = ec_pwrite(default_eng, 3, stream, val, tag, 1200, PrintDepth,	\
+			d_.dummy_module, tdict, 0);		\
 		if (res != PSUCCEED)				\
 		    { Bip_Error(res);}				\
 	}
 
-
+#if 0	/* no longer supported */
 #define Get_Array_Address(adid, address)				\
 	Get_Array_Header(adid, address)					\
 	if (DidArity(adid) != 0)					\
@@ -135,6 +135,8 @@
 		Error(res);						\
 	    }								\
 	}
+#endif
+
 
 #define Mark_Suspending_Variable(vptr) {        \
         register pword *pw = TG;                \
@@ -154,13 +156,13 @@
 	Mark_Suspending_Variable(var)
 
 #define Check_Gc \
-	if (TG >= TG_LIM) global_ov();
+	if (TG >= TG_LIM) global_ov(ec_eng);
 
 #define Prolog_Call(goal_val, goal_tag, mod_val, mod_tag) \
-	sub_emulc(goal_val, goal_tag, mod_val, mod_tag)
+	sub_emulc_opt(ec_eng, goal_val, goal_tag, mod_val, mod_tag, GOAL_CUT)
 
 #define Prolog_Call_Nobind(goal_val, goal_tag, mod_val, mod_tag) \
-	query_emulc(goal_val, goal_tag, mod_val, mod_tag)
+	sub_emulc_opt(ec_eng, goal_val, goal_tag, mod_val, mod_tag, GOAL_NOTNOT)
 
 
 /*
@@ -168,11 +170,12 @@
  */
 
 Extern dident	bitfield_did(Dots);
+#if 0
 Extern pword	*get_array_header(Dots),
 		*get_visible_array_header(Dots);
+#endif
 Extern int	ec_pwrite(Dots),
-		sub_emulc(Dots),
-		query_emulc(Dots);
+		sub_emulc_opt(Dots);
 
 Extern stream_id	get_stream_id();
 
@@ -181,7 +184,7 @@ Extern stream_id	get_stream_id();
 #define Get_Stream(vs, ts, typ, nst)				\
 	{							\
 	    int			res;				\
-	    nst = get_stream_id(vs, ts, typ, &res);		\
+	    nst = get_stream_id(vs, ts, typ, 0, ec_eng, &res);	\
 	    if (nst == 0)					\
 		{ Error(res); }					\
 	}

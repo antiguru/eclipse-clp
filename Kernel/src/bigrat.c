@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.10 2013/02/10 03:48:37 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.11 2016/07/28 03:34:35 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -55,7 +55,7 @@ bigrat_init(void)
 }
 
 extern int
-ec_double_to_int_or_bignum(double f, pword *pres)
+ecl_double_to_int_or_bignum(ec_eng_t *ec_eng, double f, pword *pres)
 {
 	if (MIN_S_WORD_DBL <= (f) && (f) < MAX_S_WORD_1_DBL)
 	{
@@ -71,16 +71,34 @@ ec_double_to_int_or_bignum(double f, pword *pres)
 }
 
 extern int
-ec_array_to_big(const void *p, int count, int order, int size, int endian, unsigned nails, pword *result)
+ec_array_to_big(ec_eng_t *ec_eng, const void *p, int count, int order, int size, int endian, unsigned nails, pword *result)
 {
     Bip_Error(ARITH_EXCEPTION);
 }
 
 extern int
-ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
+ec_big_to_chunks(ec_eng_t *ec_eng, pword *pw1, uword chunksize, pword *result)
 {
     Bip_Error(ARITH_EXCEPTION);
 }
+
+#ifdef HAVE_LONG_LONG
+
+pword Winapi
+ecl_long_long(ec_eng_t *ec_eng, const long long int l)
+{
+    pword pw;
+    Make_Integer(&pw, 0);
+    return pw;
+}
+
+int Winapi
+ec_get_long_long(const pword w, long long int *l)
+{
+    Bip_Error(RANGE_ERROR);
+}
+
+#endif
 
 
 #else
@@ -188,7 +206,7 @@ typedef __int64 long_long;
 
 /* Create a properly normalized TINT or TBIG pword from the MP_INT mpi */
 /* Clears the MP_INT! */
-#define Pw_From_Mpi(pw, mpi)	_pw_from_mpi(pw, mpi)
+#define Pw_From_Mpi(pw, mpi)	_pw_from_mpi(ec_eng, pw, mpi)
 
 /* produces a buffer holding the bignum (know not to be zero) */
 /* Clears the MP_INT! */
@@ -279,7 +297,7 @@ PROBLEM: No code to cope with MP_LIMB size for this platform!
 	do { *_to++ = *_from++; } while (--_i);		\
 	}
 
-#define Normalize_Big(pw, pbig) _pw_from_big(pw, pbig)
+#define Normalize_Big(pw, pbig) _pw_from_big(ec_eng, pw, pbig)
 
 #define Rat_To_Mpr(prat, mpr) {				\
 	pword *_pw = (prat)[0].val.ptr;			\
@@ -628,7 +646,7 @@ mpq_set_double(MP_RAT *q, double f)
 static void *
 _rat_alloc(int size)
 {
-    void *ptr = hp_alloc_size(size);
+    void *ptr = hg_alloc_size(size);
     p_fprintf(current_err_, "alloc %d at 0x%x\n", size, ptr);
     ec_flush(current_err_);
     return ptr;
@@ -637,7 +655,7 @@ _rat_alloc(int size)
 static void *
 _rat_realloc(void *ptr, int oldsize, int newsize)
 {
-    void *newptr = hp_realloc_size(ptr, oldsize, newsize);
+    void *newptr = hg_realloc_size(ptr, oldsize, newsize);
     p_fprintf(current_err_, "reall %d at 0x%x to %d at 0x%x\n", oldsize, ptr,
 		newsize, newptr);
     ec_flush(current_err_);
@@ -649,12 +667,12 @@ _rat_free(void *ptr, int size)
 {
     p_fprintf(current_err_, "free  %d at 0x%x\n", size, ptr);
     ec_flush(current_err_);
-    hp_free_size(ptr, size);
+    hg_free_size(ptr, size);
 }
 #endif /* DEBUG_RAT_ALLOC */
 
 static void
-_pw_from_mpi(pword *pw, MP_INT *mpi)
+_pw_from_mpi(ec_eng_t *ec_eng, pword *pw, MP_INT *mpi)
 {
     if (mpi->_mp_size == 1) {
 	if (mpi->_mp_d[0] < MIN_S_WORD) {	
@@ -681,7 +699,7 @@ _pw_from_mpi(pword *pw, MP_INT *mpi)
 }
 
 static void
-_pw_from_big(pword *pw, pword *pbig)
+_pw_from_big(ec_eng_t *ec_eng, pword *pw, pword *pbig)
 {
     /* BigZero not handled specially here! */
     if (BufferSize(pbig) == sizeof(mp_limb_t))
@@ -713,19 +731,18 @@ _pw_from_big(pword *pw, pword *pbig)
 static int
 _write_big(int quoted, stream_id stream, value vbig, type tbig)
 {
-    pword	*old_tg = TG;
-    int		len;
-    value	v;
-    char	*s;
+    int		len1;
     MP_INT	a;
 
     Big_To_Mpi(vbig.ptr, &a);
-    len = mpz_sizeinbase(&a, 10) + (mpz_sgn(&a) < 0 ? 1 : 0);
-    Make_Stack_String(len, v, s)
-    (void) mpz_get_str(s, 10, &a);
-    (void) ec_outfs(stream, s);	/* len is not precise! */
-    TG = old_tg;
-    Succeed_;
+    len1 = mpz_sizeinbase(&a, 10) + (mpz_sgn(&a) < 0 ? 1 : 0) + 1;
+    {
+	New_Array(char, s, len1);
+	(void) mpz_get_str(s, 10, &a);
+	(void) ec_outfs(stream, s);	/* length is not precise! */
+	Delete_Array(char, s, len1);
+	Succeed_;
+    }
 }
 
 /*ARGSUSED*/
@@ -812,7 +829,7 @@ _copy_heap_big(value v1, type t1, pword *top, pword *dest)
 
 
 static int
-_big_from_string(char *s, pword *result, int base)
+_big_from_string(ec_eng_t *ec_eng, char *s, pword *result, int base)
 {
     MP_INT a;
     if (mpz_init_set_str(&a, s, base))
@@ -823,7 +840,7 @@ _big_from_string(char *s, pword *result, int base)
 
 
 extern int
-ec_array_to_big(const void *p, int count, int order, int size, int endian, unsigned nails, pword *result)
+ec_array_to_big(ec_eng_t *ec_eng, const void *p, int count, int order, int size, int endian, unsigned nails, pword *result)
 {
 #ifndef _WIN32
     MP_INT z;
@@ -856,7 +873,7 @@ ec_array_to_big(const void *p, int count, int order, int size, int endian, unsig
 #endif
 
 extern int
-ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
+ec_big_to_chunks(ec_eng_t *ec_eng, pword *pw1, uword chunksize, pword *result)
 {
     unsigned long pos = 0;
     unsigned long offset = 0;
@@ -894,6 +911,77 @@ ec_big_to_chunks(pword *pw1, uword chunksize, pword *result)
     Make_Nil(result);
     Succeed_;
 }
+
+
+#ifdef HAVE_LONG_LONG
+#ifndef SIZEOF_LONG_LONG
+#ifdef __SIZEOF_LONG_LONG__
+#define SIZEOF_LONG_LONG __SIZEOF_LONG_LONG__
+#else
+#define SIZEOF_LONG_LONG 8
+#endif
+#endif
+
+pword Winapi
+ecl_long_long(ec_eng_t *ec_eng, const long long int l)
+{
+    pword w;
+    if (l >= MIN_S_WORD && l <= MAX_S_WORD) {
+        Make_Integer(&w, l);
+    }
+    else {
+        Make_Big(&w, TG);
+        Push_Big_Int64(l < 0, l);
+    }
+    return w;
+}
+
+
+int Winapi
+ec_get_long_long(const pword w, long long int *l)
+{
+    const pword *pw = &w;
+    Dereference_(pw);
+
+    if (IsInteger(pw->tag))
+    {
+#if SIZEOF_WORD > SIZEOF_LONG_LONG
+	/* range error if val.nint is too large for long long */
+	if (pw->val.nint > LLONG_MAX || pw->val.nint < LLONG_MIN)
+	    return RANGE_ERROR;
+#endif
+	*l = pw->val.nint;
+    }
+    else if (IsBignum(pw->tag))
+    {
+	int _limbs = BufferSize(pw)/sizeof(mp_limb_t);
+	switch(_limbs) {
+	    case 1:
+		*l = ((mp_limb_t *) BufferStart(pw))[0];
+		if (BigNegative(pw)) {
+		    *l = -*l;
+		}
+		break;
+	    case 2:
+		*l = ((mp_limb_t *) BufferStart(pw))[1];
+		if (BigNegative(pw)) {
+		    *l = -((*l << 32) | (((mp_limb_t *) BufferStart(pw))[0]));
+		}
+		else {
+		    *l = ((*l << 32) | ((mp_limb_t *) BufferStart(pw))[0]);
+		}
+		break;
+	    default:
+		return RANGE_ERROR;
+	}
+    }
+    else if (IsRef(pw->tag))
+	return INSTANTIATION_FAULT;
+    else
+	return TYPE_ERROR;
+    return PSUCCEED;
+}
+#endif
 
 
 /*--------------------------------------------------------------------------
@@ -1009,7 +1097,8 @@ _copy_heap_rat(value v1, type t1, pword *top, pword *dest)
 }
 
 static int
-_rat_from_string(char *s,	/* points to valid rational representation */
+_rat_from_string(ec_eng_t *ec_eng,
+	char *s,	/* points to valid rational representation */
 	pword *result,
 	int base)
 {
@@ -1051,7 +1140,7 @@ _unimp_err(void)
 }
 
 static int
-_int_big(value in, value *out)	/* CAUTION: we allow out == &in */
+_int_big(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     /* this is the only place where we create unnormalized bignums */
     out->ptr = TG;
@@ -1060,49 +1149,7 @@ _int_big(value in, value *out)	/* CAUTION: we allow out == &in */
 }
 
 static int
-_big_boxlonglong(long_long in, pword *out)
-{
-    if (in >= MIN_S_WORD && in <= MAX_S_WORD) {
-        Make_Integer(out, in);
-    }
-    else {
-        Make_Big(out, TG);
-        Push_Big_Int64(in < 0, in);
-    }
-    Succeed_;
-}
-
-static int
-_big_toclonglong(pword *in, long_long *out)
-{
-    int _limbs = BufferSize(in)/sizeof(mp_limb_t);
-    switch(_limbs) {
-        case 1:
-            *out = ((mp_limb_t *) BufferStart(in))[0];
-            if (BigNegative(in)) {
-                *out = -*out;
-            }
-            break;
-	case 2:
-            *out = ((mp_limb_t *) BufferStart(in))[1];
-            if (BigNegative(in)) {
-                *out = -((*out << 32) | (((mp_limb_t *) BufferStart(in))[0]));
-            }
-	    else {
-                *out = ((*out << 32) | ((mp_limb_t *) BufferStart(in))[0]);
-            }
-            break;
-        default:
-	    Bip_Error(INTEGER_OVERFLOW);
-            break;
-    }
-    
-    Succeed_;
-}
-
-
-static int
-_int_rat(value in, value *out)	/* CAUTION: we allow out == &in */
+_int_rat(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     pword *pw = TG;
     Push_Rat_Frame();
@@ -1115,14 +1162,14 @@ _int_rat(value in, value *out)	/* CAUTION: we allow out == &in */
 }
 
 static int
-_int_nicerat(value in, pword *pres)
+_int_nicerat(ec_eng_t *ec_eng, value in, pword *pres)
 {
     pres->tag.kernel = TRAT;
-    return _int_rat(in, &pres->val);
+    return _int_rat(ec_eng, in, &pres->val);
 }
 
 static int
-_big_rat(value in, value *out)	/* CAUTION: we allow out == &in */
+_big_rat(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     pword *pw = TG;
     Push_Rat_Frame();
@@ -1134,14 +1181,14 @@ _big_rat(value in, value *out)	/* CAUTION: we allow out == &in */
 }
 
 static int
-_big_nicerat(value in, pword *pres)
+_big_nicerat(ec_eng_t *ec_eng, value in, pword *pres)
 {
     pres->tag.kernel = TRAT;
-    return _big_rat(in, &pres->val);
+    return _big_rat(ec_eng, in, &pres->val);
 }
 
 static int
-_big_dbl(value in, value *out)	/* CAUTION: we allow out == &in */
+_big_dbl(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     MP_INT a;
     Big_To_Mpi(in.ptr, &a);
@@ -1150,7 +1197,7 @@ _big_dbl(value in, value *out)	/* CAUTION: we allow out == &in */
 }
 
 static int
-_rat_dbl(value in, value *out)	/* CAUTION: we allow out == &in */
+_rat_dbl(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     MP_RAT a;
     Rat_To_Mpr(in.ptr, &a);
@@ -1159,7 +1206,7 @@ _rat_dbl(value in, value *out)	/* CAUTION: we allow out == &in */
 }
 
 static int
-_rat_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
+_rat_ivl(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     pword *pw;
     value dval;
@@ -1187,7 +1234,7 @@ _rat_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
 
 /*ARGSUSED*/
 static int
-_dbl_rat(value in, value *out)	/* CAUTION: we allow out == &in */
+_dbl_rat(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     MP_RAT c;
     if (!finite(Dbl(in)))
@@ -1200,7 +1247,7 @@ _dbl_rat(value in, value *out)	/* CAUTION: we allow out == &in */
 }
 
 static int
-_dbl_nicerat(value in, pword *pres)
+_dbl_nicerat(ec_eng_t *ec_eng, value in, pword *pres)
 {
     MP_RAT c;
     if (!finite(Dbl(in)))
@@ -1224,14 +1271,14 @@ _dbl_nicerat(value in, pword *pres)
  *--------------------------------------------------------------------------*/
 
 static int
-_big_nop(value v1, pword *pres)
+_big_nop(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Big(pres, v1.ptr);
     Succeed_;
 }
 
 static int
-_big_add(value v1, value v2, pword *pres)
+_big_add(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     mpz_init(&c);
@@ -1243,7 +1290,7 @@ _big_add(value v1, value v2, pword *pres)
 }
 
 static int
-_big_next(value v1, pword *pres)
+_big_next(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     MP_INT a,c;
     if (BigNegative(v1.ptr)) {
@@ -1257,7 +1304,7 @@ _big_next(value v1, pword *pres)
 }
 
 static int
-_big_prev(value v1, pword *pres)
+_big_prev(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     MP_INT a,c;
     if (BigNegative(v1.ptr) /*|| BigZero(v1.ptr)*/) {
@@ -1271,7 +1318,7 @@ _big_prev(value v1, pword *pres)
 }
 
 static int
-_big_sub(value v1, value v2, pword *pres)
+_big_sub(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     mpz_init(&c);
@@ -1283,7 +1330,7 @@ _big_sub(value v1, value v2, pword *pres)
 }
 
 static int
-_big_mul(value v1, value v2, pword *pres)
+_big_mul(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     mpz_init(&c);
@@ -1295,7 +1342,7 @@ _big_mul(value v1, value v2, pword *pres)
 }
 
 static int
-_big_idiv(value v1, value v2, pword *pres)
+_big_idiv(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     if (BigZero(v2.ptr))
@@ -1309,7 +1356,7 @@ _big_idiv(value v1, value v2, pword *pres)
 }
 
 static int
-_big_rem(value v1, value v2, pword *pres)
+_big_rem(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     if (BigZero(v2.ptr))
@@ -1323,7 +1370,7 @@ _big_rem(value v1, value v2, pword *pres)
 }
 
 static int
-_big_floordiv(value v1, value v2, pword *pres)
+_big_floordiv(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     if (BigZero(v2.ptr))
@@ -1337,7 +1384,7 @@ _big_floordiv(value v1, value v2, pword *pres)
 }
 
 static int
-_big_floorrem(value v1, value v2, pword *pres)
+_big_floorrem(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     if (BigZero(v2.ptr)) {
@@ -1353,7 +1400,7 @@ _big_floorrem(value v1, value v2, pword *pres)
 }
 
 static int
-_big_pow(value v1, value v2, pword *pres)
+_big_pow(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,c;
     mpz_init(&c);
@@ -1377,7 +1424,8 @@ _big_pow(value v1, value v2, pword *pres)
 }
 
 static int
-_big_min(value v1,	/* CAUTION: One of the inputs may be unnormalized */
+_big_min(ec_eng_t *ec_eng,
+	value v1,	/* CAUTION: One of the inputs may be unnormalized */
 	value v2,
 	pword *pres)
 {
@@ -1390,7 +1438,8 @@ _big_min(value v1,	/* CAUTION: One of the inputs may be unnormalized */
 }
 
 static int
-_big_max(value v1,	/* CAUTION: One of the inputs may be unnormalized */
+_big_max(ec_eng_t *ec_eng,
+	value v1,	/* CAUTION: One of the inputs may be unnormalized */
 	value v2,
 	pword *pres)
 {
@@ -1403,7 +1452,8 @@ _big_max(value v1,	/* CAUTION: One of the inputs may be unnormalized */
 }
 
 static int
-_big_neg(value v1,	/* can't be zero */
+_big_neg(ec_eng_t *ec_eng,
+	value v1,	/* can't be zero */
 	pword *pres)
 {
     pword *pw;
@@ -1418,18 +1468,18 @@ _big_neg(value v1,	/* can't be zero */
 }
 
 static int
-_big_abs(value v1, pword *pres)
+_big_abs(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (BigNegative(v1.ptr))
     {
-	return _big_neg(v1, pres);
+	return _big_neg(ec_eng, v1, pres);
     }
     Make_Big(pres, v1.ptr);
     Succeed_;
 }
 
 static int
-_big_sgn(value v1,	/* can't be zero */
+_big_sgn(ec_eng_t *ec_eng, value v1,	/* can't be zero */
 	pword *pres)
 {
     Make_Integer(pres, BigNegative(v1.ptr) ? -1: 1);
@@ -1437,7 +1487,7 @@ _big_sgn(value v1,	/* can't be zero */
 }
 
 static int
-_big_and(value v1, value v2, pword *pres)
+_big_and(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     mpz_init(&c);
@@ -1449,7 +1499,7 @@ _big_and(value v1, value v2, pword *pres)
 }
 
 static int
-_big_or(value v1, value v2, pword *pres)
+_big_or(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     mpz_init(&c);
@@ -1461,7 +1511,7 @@ _big_or(value v1, value v2, pword *pres)
 }
 
 static int
-_big_xor(value v1, value v2, pword *pres)
+_big_xor(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
 #if __GNU_MP_VERSION < 3
     Bip_Error(UNIMPLEMENTED);
@@ -1477,7 +1527,7 @@ _big_xor(value v1, value v2, pword *pres)
 }
 
 static int
-_big_com(value v1, pword *pres)
+_big_com(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     MP_INT a,c;
     mpz_init(&c);
@@ -1488,7 +1538,7 @@ _big_com(value v1, pword *pres)
 }
 
 static int
-_big_shl(value v1, value v2, pword *pres)	/* big x int -> big */
+_big_shl(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* big x int -> big */
 {
     MP_INT a,c;
     mpz_init(&c);
@@ -1506,7 +1556,7 @@ _big_shl(value v1, value v2, pword *pres)	/* big x int -> big */
 }
 
 static int
-_big_shr(value v1, value v2, pword *pres)	/* big x int -> big */
+_big_shr(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* big x int -> big */
 {
     MP_INT a,c;
     mpz_init(&c);
@@ -1524,7 +1574,7 @@ _big_shr(value v1, value v2, pword *pres)	/* big x int -> big */
 }
 
 static int
-_big_setbit(value v1, value v2, pword *pres)	/* big x int -> big */
+_big_setbit(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* big x int -> big */
 {
     MP_INT a,c;
     Big_To_Mpi(v1.ptr, &a);
@@ -1535,7 +1585,7 @@ _big_setbit(value v1, value v2, pword *pres)	/* big x int -> big */
 }
 
 static int
-_big_clrbit(value v1, value v2, pword *pres)	/* big x int -> big */
+_big_clrbit(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* big x int -> big */
 {
     MP_INT a,c;
     Big_To_Mpi(v1.ptr, &a);
@@ -1546,7 +1596,7 @@ _big_clrbit(value v1, value v2, pword *pres)	/* big x int -> big */
 }
 
 static int
-_big_getbit(value v1, value v2, pword *pres)	/* big x int -> int */
+_big_getbit(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* big x int -> int */
 {
     MP_INT a;
     if (BigNegative(v1.ptr))
@@ -1557,7 +1607,7 @@ _big_getbit(value v1, value v2, pword *pres)	/* big x int -> int */
 }
 
 static int
-_big_gcd(value v1, value v2, pword *pres)
+_big_gcd(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     mpz_init(&c);
@@ -1569,7 +1619,7 @@ _big_gcd(value v1, value v2, pword *pres)
 }
 
 static int
-_big_gcd_ext(value v1, value v2, pword *ps, pword *pt, pword *pg)
+_big_gcd_ext(ec_eng_t *ec_eng, value v1, value v2, pword *ps, pword *pt, pword *pg)
 {
   MP_INT a,b,g,s,t;
   mpz_init(&g);
@@ -1588,7 +1638,7 @@ _big_gcd_ext(value v1, value v2, pword *ps, pword *pt, pword *pg)
 
   
 static int
-_big_lcm(value v1, value v2, pword *pres)
+_big_lcm(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b,c;
     mpz_init(&c);
@@ -1600,7 +1650,7 @@ _big_lcm(value v1, value v2, pword *pres)
 }
 
 static int
-_big_powm(value vbase, value vexp, value vmod, pword *pres)
+_big_powm(ec_eng_t *ec_eng, value vbase, value vexp, value vmod, pword *pres)
 {
     MP_INT a,b,c,d;
     if (BigNegative(vexp.ptr)) { Bip_Error(UNIMPLEMENTED); }
@@ -1614,7 +1664,7 @@ _big_powm(value vbase, value vexp, value vmod, pword *pres)
 }
 
 static int
-_big_atan2(value v1, value v2, pword *pres)
+_big_atan2(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_INT a,b;
     Big_To_Mpi(v1.ptr, &a);
@@ -1629,7 +1679,7 @@ _big_atan2(value v1, value v2, pword *pres)
  *--------------------------------------------------------------------------*/
 
 static int
-_int_neg(value v1, pword *pres)
+_int_neg(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (v1.nint == MIN_S_WORD)
     {
@@ -1671,7 +1721,7 @@ _int_neg(value v1, pword *pres)
     }
 
 static int
-_dbl_fix(value v1, pword *pres)
+_dbl_fix(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double f = Dbl(v1);
     Dbl_Fix(f, pres);
@@ -1679,7 +1729,7 @@ _dbl_fix(value v1, pword *pres)
 }
 
 static int
-_dbl_int2(value v1, pword *pres)
+_dbl_int2(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double ipart;
     double fpart = modf(Dbl(v1), &ipart);
@@ -1709,7 +1759,7 @@ _dbl_int2(value v1, pword *pres)
 }
 
 extern int
-ec_double_to_int_or_bignum(double f, pword *pres)
+ecl_double_to_int_or_bignum(ec_eng_t *ec_eng, double f, pword *pres)
 {
     Dbl_Fix(f, pres);
     Succeed_;
@@ -1720,14 +1770,14 @@ ec_double_to_int_or_bignum(double f, pword *pres)
  *--------------------------------------------------------------------------*/
 
 static int
-_rat_nop(value v1, pword *pres)
+_rat_nop(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Rat(pres, v1.ptr);
     Succeed_;
 }
 
 static int
-_rat_neg(value v1, pword *pres)
+_rat_neg(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (RatZero(v1.ptr))
     {
@@ -1747,25 +1797,25 @@ _rat_neg(value v1, pword *pres)
 }
 
 static int
-_rat_abs(value v1, pword *pres)
+_rat_abs(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (RatNegative(v1.ptr))
     {
-	return _rat_neg(v1, pres);
+	return _rat_neg(ec_eng, v1, pres);
     }
     Make_Rat(pres, v1.ptr);
     Succeed_;
 }
 
 static int
-_rat_sgn(value v1, pword *pres)
+_rat_sgn(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Integer(pres, RatNegative(v1.ptr) ? -1: RatZero(v1.ptr)? 0: 1);
     Succeed_;
 }
 
 static int
-_rat_add(value v1, value v2, pword *pres)
+_rat_add(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_RAT a,b,c;
     mpq_init(&c);
@@ -1777,7 +1827,7 @@ _rat_add(value v1, value v2, pword *pres)
 }
 
 static int
-_rat_sub(value v1, value v2, pword *pres)
+_rat_sub(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_RAT a,b,c;
     mpq_init(&c);
@@ -1789,7 +1839,7 @@ _rat_sub(value v1, value v2, pword *pres)
 }
 
 static int
-_rat_mul(value v1, value v2, pword *pres)
+_rat_mul(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_RAT a,b,c;
     mpq_init(&c);
@@ -1802,7 +1852,7 @@ _rat_mul(value v1, value v2, pword *pres)
 
 /* only used if PREFER_RATIONALS */
 static int
-_int_div(value v1, value v2, pword *pres)	/* int x int -> rat */
+_int_div(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* int x int -> rat */
 {
     MP_RAT c;
     mpz_init_set_si(mpq_numref(&c), v1.nint);
@@ -1815,12 +1865,12 @@ _int_div(value v1, value v2, pword *pres)	/* int x int -> rat */
 
 
 static int
-_big_div(value v1, value v2, pword *pres)	/* big x big -> rat */
+_big_div(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* big x big -> rat */
 {
     MP_INT a,b;
     Big_To_Mpi(v1.ptr, &a);
     Big_To_Mpi(v2.ptr, &b);
-    if (GlobalFlags & PREFER_RATIONALS)
+    if (EclGblFlags & PREFER_RATIONALS)
     {
 	MP_RAT c;
 	mpz_init_set(mpq_numref(&c), &a);
@@ -1837,7 +1887,7 @@ _big_div(value v1, value v2, pword *pres)	/* big x big -> rat */
 }
 
 static int
-_rat_div(value v1, value v2, pword *pres)
+_rat_div(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_RAT a,b,c;
     if (RatZero(v2.ptr))
@@ -1851,7 +1901,7 @@ _rat_div(value v1, value v2, pword *pres)
 }
 
 static int
-_rat_pow(value v1, value v2, pword *pres)		/* rat x int -> rat */
+_rat_pow(ec_eng_t *ec_eng, value v1, value v2, pword *pres)		/* rat x int -> rat */
 {
     MP_RAT c;
     mpq_init(&c);
@@ -1885,7 +1935,7 @@ _rat_pow(value v1, value v2, pword *pres)		/* rat x int -> rat */
 }
 
 static int
-_rat_min(value v1, value v2, pword *pres)
+_rat_min(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_RAT a,b;
     Rat_To_Mpr(v1.ptr, &a);
@@ -1895,7 +1945,7 @@ _rat_min(value v1, value v2, pword *pres)
 }
 
 static int
-_rat_max(value v1, value v2, pword *pres)
+_rat_max(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_RAT a,b;
     Rat_To_Mpr(v1.ptr, &a);
@@ -1905,7 +1955,7 @@ _rat_max(value v1, value v2, pword *pres)
 }
 
 static int
-_rat_fix(value v1, pword *pres)
+_rat_fix(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     MP_INT a,b,c;
     Big_To_Mpi(Numer(v1.ptr)->val.ptr, &a);
@@ -1917,7 +1967,7 @@ _rat_fix(value v1, pword *pres)
 }
 
 static int
-_rat_int2(value v1, pword *pres)
+_rat_int2(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (!RatIntegral(v1.ptr))
     {
@@ -1928,7 +1978,7 @@ _rat_int2(value v1, pword *pres)
 }
 
 static int
-_rat_f_c(value v1, pword *pres, void (*div_function) (MP_INT*, const MP_INT*, const MP_INT*))
+_rat_f_c(ec_eng_t *ec_eng, value v1, pword *pres, void (*div_function) (MP_INT*, const MP_INT*, const MP_INT*))
 {
     MP_INT a,b,c;
     Big_To_Mpi(Denom(v1.ptr)->val.ptr, &b);
@@ -1952,39 +2002,39 @@ _rat_f_c(value v1, pword *pres, void (*div_function) (MP_INT*, const MP_INT*, co
 }
 
 static int
-_rat_floor(value v1, pword *pres)
+_rat_floor(ec_eng_t *ec_eng, value v1, pword *pres)
 {
-    return _rat_f_c(v1, pres, mpz_fdiv_q);
+    return _rat_f_c(ec_eng, v1, pres, mpz_fdiv_q);
 }
 
 static int
-_rat_ceil(value v1, pword *pres)
+_rat_ceil(ec_eng_t *ec_eng, value v1, pword *pres)
 {
-    return _rat_f_c(v1, pres, mpz_cdiv_q);
+    return _rat_f_c(ec_eng, v1, pres, mpz_cdiv_q);
 }
 
 static int
-_rat_truncate(value v1, pword *pres)
+_rat_truncate(ec_eng_t *ec_eng, value v1, pword *pres)
 {
-    return _rat_f_c(v1, pres, mpz_tdiv_q);
+    return _rat_f_c(ec_eng, v1, pres, mpz_tdiv_q);
 }
 
 static int
-_rat_num(value v1, pword *pres)
+_rat_num(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Normalize_Big(pres, Numer(v1.ptr)->val.ptr);
     Succeed_;
 }
 
 static int
-_rat_den(value v1, pword *pres)
+_rat_den(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Normalize_Big(pres, Denom(v1.ptr)->val.ptr);
     Succeed_;
 }
 
 static int
-_rat_atan2(value v1, value v2, pword *pres)
+_rat_atan2(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     MP_RAT a,b;
     Rat_To_Mpr(v1.ptr, &a);
@@ -2004,9 +2054,9 @@ bigrat_init(void)
 #ifdef DEBUG_RAT_ALLOC
     mp_set_memory_functions(_rat_alloc, _rat_realloc, _rat_free);
 #else
-    mp_set_memory_functions((void*(*)(size_t)) hp_alloc_size,
-		(void*(*)(void*, size_t, size_t)) hp_realloc_size,
-		(void(*)(void*, size_t)) hp_free_size);
+    mp_set_memory_functions((void*(*)(size_t)) hg_alloc_size,
+		(void*(*)(void*, size_t, size_t)) hg_realloc_size,
+		(void(*)(void*, size_t)) hg_free_size);
 #endif
 
     tag_desc[TINT].coerce_to[TBIG] = _int_big;		/* 32 bit integers */
@@ -2064,8 +2114,6 @@ bigrat_init(void)
     tag_desc[TBIG].arith_op[ARITH_SETBIT] = _big_setbit;
     tag_desc[TBIG].arith_op[ARITH_GETBIT] = _big_getbit;
     tag_desc[TBIG].arith_op[ARITH_CLRBIT] = _big_clrbit;
-    tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG] = _big_boxlonglong;
-    tag_desc[TBIG].arith_op[ARITH_TOCLONGLONG] = _big_toclonglong;
     tag_desc[TBIG].arith_op[ARITH_NICERAT] = _big_nicerat;
     tag_desc[TBIG].arith_op[ARITH_GCD] = _big_gcd;
     tag_desc[TBIG].arith_op[ARITH_GCD_EXT] = _big_gcd_ext;

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.16 2013/02/12 00:41:44 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.17 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -82,6 +82,7 @@ do_get_flag(break_level, X, _) :- getval(break_level, X).
 do_get_flag(coroutine,X, _) :-
 	global_flags(0,0,F),
 	(F /\ 16'00000100 =:= 0 -> X=off ; X=on).
+do_get_flag(cpu_count,N, _) :-	get_sys_flag(15, N).
 do_get_flag(cwd,X, _) :- getcwd(X).
 do_get_flag(cwd_scope, X, _) :-
 	sys_flags(4, Y), (Y = 0 -> X = process; X = separate).
@@ -126,8 +127,8 @@ do_get_flag(hostid,X, _) :-	get_sys_flag(1, X).
 do_get_flag(hostname,X, _) :-	get_sys_flag(2, X).
 do_get_flag(hostarch,X, _) :-	get_sys_flag(8, X).
 do_get_flag(ignore_eof,X, _) :-	getval(ignore_eof, X).
-do_get_flag(after_event_timer,X, _) :- getval(after_event_timer, X).
-do_get_flag(installation_directory,X, _) :-	getval(sepiadir, X).
+do_get_flag(after_event_timer, real, _). % no longer any alternatives
+do_get_flag(installation_directory,X, _) :-	get_sys_flag(13, X).
 do_get_flag(last_errno, X, _) :-	get_last_errno(X).
 do_get_flag(loaded_library, LibName, _) :-
 	getval(library_path, LibPath),
@@ -178,7 +179,7 @@ do_get_flag(remote_protocol_version, X, _) :- remote_version(X).
 %	global_flags(0,0,F),
 %	(F /\ 16'10000000 =:= 0 -> X=off ; X=on).
 do_get_flag(syntax_option, X, M) :- get_syntax_(X, 0, M).
-do_get_flag(toplevel_module, X, _) :-	default_module(X).
+do_get_flag(toplevel_module, X, _) :-	getval(toplevel_module, X).
 do_get_flag(unix_time, X, _) :-	get_sys_flag(5, X).
 do_get_flag(variable_names, X, _) :-
 	global_flags(0,0,F),
@@ -287,11 +288,8 @@ do_set_flag(break_level, X, _) :- !,
 	(integer(X) -> setval(break_level, X) ; set_bip_error(5)).
 do_set_flag(all_dynamic, X, _) :- !,
 	( X == off -> true ; set_bip_error(141) ).	% unimplemented
-do_set_flag(after_event_timer, T, _) :-
-	(
-	    try_set_after_timer(T) -> true ;
-	    wrong_atom(T)
-	).
+do_set_flag(after_event_timer, T, _) :- !,
+	( T==real -> true ; wrong_atom(T) ).
 do_set_flag(ignore_eof, X, _) :- !,
 	(
 	    X == off ->	setval(ignore_eof, off) ;
@@ -387,7 +385,8 @@ do_set_flag(float_precision, X, _) :-
 	( X == double -> true ; wrong_atom(X) ).
 do_set_flag(breal_exceptions, X, _) :-
 	(
-	    X == on ->	global_flags(0,16'00000001,_) ;
+	    X == on ->	set_bip_error(141) ;	% unimplemented
+%	    X == on ->	global_flags(0,16'00000001,_) ;
 	    X == off ->	global_flags(16'00000001,0,_) ;
 	    wrong_atom(X)
 	).
@@ -665,12 +664,7 @@ statistics(Name, Value) :-
 get_stat(times, [User, System, Real], seconds, sepia) :-
 	all_times(User, System, Real).
 get_stat(session_time, Time, seconds, sepia) :-	session_time(Time).
-get_stat(event_time, EventTime, seconds, sepia) :-
-	( get_flag(after_event_timer, real) ->
-	    session_time(EventTime)
-	;
-	    cputime(EventTime)
-	).
+get_stat(event_time, EventTime, seconds, sepia) :- session_time(EventTime).
 get_stat(hr_time, HiresTime, seconds, sepia) :- get_hr_time(HiresTime).
 
 get_stat(global_stack_used, X, bytes, sepia) :-		gc_stat(8, X).
@@ -708,6 +702,9 @@ get_stat(dictionary_entries, X, '', sepia) :-	dict_param(0, X).
 get_stat(dict_hash_usage, U/T, '', sepia) :-	dict_param(3, U), dict_param(2, T).
 get_stat(dict_hash_collisions, C/U, '', sepia) :- dict_param(4, C), dict_param(3, U).
 get_stat(dict_gc_number, X, '', sepia) :-	dict_param(5, X).
+get_stat(dict_gc_countdown, X, '', sepia) :-	dict_param(8, X).
+get_stat(dict_gc_running, X, '', sepia) :-	dict_param(9, Steps),
+	( Steps>0 -> X=true ; X=false ).
 get_stat(dict_gc_time, X, seconds, sepia) :-	dict_param(6, X).
 
 get_stat(runtime, [Total, Last], '', quintus) :-	% compatibility, very common
@@ -793,9 +790,9 @@ find_match(Type, Name, Arity, Bip) :-		% find bip matching Pred
 print_help([BipInfo], _) :-
         BipInfo = bip(Name, Arity, System, Type, _),
 	!,				% single match, print full description
-	getval(sepiadir, Dir),
+	get_sys_flag(13, EclipseDir),
         get_bip_file_name(desc, BipInfo, File),
-	concat_string([Dir,'/doc/bips/',System,/,Type,/,File,'.txt'], HelpFile),
+	concat_string([EclipseDir,'/doc/bips/',System,/,Type,/,File,'.txt'], HelpFile),
 	(existing_file(HelpFile, [""], [], _) ->
 	    ( get_stream_info(output, device, tty) ->
 		( get_pager(Pager) ->		% only if there is a paging program
@@ -837,8 +834,8 @@ print_headers([]) :-
 print_headers([BipInfo|Preds]) :-
         BipInfo = bip(Name, Arity, System, Type, _),
         get_bip_file_name(summary, BipInfo, File),
-	getval(sepiadir, Dir),
-	concat_string([Dir,'/doc/bips/',System,/,Type,/,File,'.txt'], HelpFile),
+	get_sys_flag(13, EclipseDir),
+	concat_string([EclipseDir,'/doc/bips/',System,/,Type,/,File,'.txt'], HelpFile),
 	(exists(HelpFile) ->
 	    writeln(----),
 	    ( System == kernel -> true
@@ -889,8 +886,8 @@ get_pager(Pager) :-
 	exists(Pager), !.
 
 open_index_file(S) :-
-	getval(sepiadir, Sepiadir),
-	concat_atom([Sepiadir, '/doc/bips/index.pl'], Index),
+	get_sys_flag(13, EclipseDir),
+	concat_atom([EclipseDir, '/doc/bips/index.pl'], Index),
 	(current_stream(Index, read, S) ->
 	    seek(S, 0)
 	;

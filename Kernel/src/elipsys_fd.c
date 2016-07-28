@@ -31,17 +31,20 @@
 /**************************************************************************/
 
 #include <stdio.h>
+#include <assert.h>
+
 #include "config.h"
 #include "sepia.h"
 #include "types.h"
-#include        "embed.h"
+#include "embed.h"
 #include "mem.h"
 #include "dict.h"
 #include "fd.h"
 #include "error.h"
 
 
-#define Assert(ex)	{if (!(ex)){(void) p_fprintf(current_err_, "Elipsys FD internal error: file \"%s\":%d\n", __FILE__, __LINE__); p_reset();}}
+
+#define Assert(ex)	assert(ex)
 
 
 #define Append_List3(fct, tag1,val1,tag2,val2,tag3,val3, list) {\
@@ -95,8 +98,10 @@
 
 
 #define INLINE
+#undef FALSE
 #define FALSE PFAIL
 #define FAIL  PFAIL
+#undef TRUE
 #define TRUE  PSUCCEED
 #define SUCCEED PSUCCEED
 #define _False(v) ((v) == FALSE)
@@ -118,81 +123,23 @@
 #define MetaTerm(pw)                       ((pw) + 1)
 
 
-#ifdef __STDC__
-static PrologWord       *dereference(PrologWord *);
-static Int              dmax(PrologWord *);
-static Int              dmin(PrologWord *);
-static BOOLEAN          dupdate_min(PrologWord *,Int, pword **);
-static BOOLEAN          dupdate_max(PrologWord *,Int, pword **);
-static Int              gmin(PrologWord *);
-static Int              gmax(PrologWord *);
-
-#else
-static PrologWord       *dereference();
-static Int              dmax();
-static Int              dmin();
-static BOOLEAN          dupdate_min();
-static BOOLEAN          dupdate_max();
-static Int              gmin();
-static Int              gmax(); 
-
-#endif
-
-static BOOLEAN		contigs(pword *StructTable, pword *Sequences, pword *Item, pword *Occurences, pword *Contigs, pword **list);
-static BOOLEAN		disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientations, pword **list);
-static BOOLEAN		disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pword *branch, pword **list);
-static BOOLEAN		sequences(pword *StructTable, pword *Sequences, pword *Item, pword *Occurences, pword **list);
-
-/*
- * EXTERNAL VARIABLE DEFINITIONS:
- */
-static int UNI_RESULT;
-
-
-/*
- * EXTERNAL VARIABLE DECLARATIONS:
- */
 
 /*
  * STATIC VARIABLE DEFINITIONS:
  */
-static int	p_disjunctive_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value vl, type tl),
-		p_disjunction_choose_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value Val5, type Tag5, value vl, type tl),
-		p_contigs_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value Val5, type Tag5, value vl, type tl),
-		p_sequences_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value vl, type tl);
 
 static dident	d_update_min,
 		d_update_max,
 		d_update_any,
 		d_greatereq;
 
-void
-bip_elipsys_fd_init(int flags)
-{
-    d_update_min = in_dict("update_min", 2);
-    d_update_max = in_dict("update_max", 2);
-    d_update_any = in_dict("update_any", 2);
-    d_greatereq = in_dict("greatereq", 3);
 
-    if (!(flags & INIT_SHARED))
-	return;
-
-    (void) exported_built_in(in_dict("disjunctive_interface", 4),
-		p_disjunctive_interface, B_UNSAFE);
-    (void) exported_built_in(in_dict("disjunction_choose_interface", 6),
-		p_disjunction_choose_interface, B_UNSAFE);
-    (void) exported_built_in(in_dict("contigs_interface", 6),
-		p_contigs_interface, B_UNSAFE);
-    (void) exported_built_in(in_dict("sequences_interface", 5),
-		p_sequences_interface, B_UNSAFE);
-}
-
-static void
-FunifyIntLocal(pword *p, word i)
+static int
+FunifyIntLocal(ec_eng_t *ec_eng, pword *p, word i)
 {
   PrologWord temp_unify_int;                                                              
   Make_Integer(&temp_unify_int,(i));
-  UNI_RESULT = ec_unify(*p, temp_unify_int);
+  return ecl_unify(ec_eng, *p, temp_unify_int);
 }
 
     
@@ -233,7 +180,7 @@ static INLINE Int dmin(pword *p)
 }
 
 static INLINE BOOLEAN
-dupdate_min(pword *p, word newmin, pword **list)
+dupdate_min(ec_eng_t *ec_eng, pword *p, word newmin, pword **list)
 {
   Append_List(d_update_min,TINT,newmin,p->tag.kernel,p->val.all, list);
   return TRUE;
@@ -241,14 +188,14 @@ dupdate_min(pword *p, word newmin, pword **list)
 
 
 static INLINE BOOLEAN
-dupdate_max(pword *p, word newmax, pword **list)
+dupdate_max(ec_eng_t *ec_eng, pword *p, word newmax, pword **list)
 {
     Append_List(d_update_max,TINT,newmax,p->tag.kernel,p->val.all, list);
     return TRUE;
 }
 
 
-static BOOLEAN setup_domain_greatereq(pword *ArgX, pword *ArgY, pword *ArgNb, pword **list)
+static BOOLEAN setup_domain_greatereq(ec_eng_t *ec_eng, pword *ArgX, pword *ArgY, pword *ArgNb, pword **list)
 {
 
   Append_List3(d_greatereq,ArgX->tag.kernel, ArgX->val.all,
@@ -259,7 +206,7 @@ static BOOLEAN setup_domain_greatereq(pword *ArgX, pword *ArgY, pword *ArgNb, pw
 
 
 static INLINE BOOLEAN
-dremove_value(pword *p, word v, pword **list)
+dremove_value(ec_eng_t *ec_eng, pword *p, word v, pword **list)
 {
   int res;
   PrologWord *domain;
@@ -267,7 +214,7 @@ dremove_value(pword *p, word v, pword **list)
 
   domain = _Ptrbody(p);
 
-  res = dom_remove_element(domain, v, (word) TINT, &inst);
+  res = dom_remove_element(ec_eng, domain, v, (word) TINT, &inst);
 
   /* Debbugging phase only */
   Assert(res == RES_ANY || res == RES_MIN || res == RES_MAX || res == RES_INSTANTIATED);
@@ -286,7 +233,7 @@ dremove_value(pword *p, word v, pword **list)
       break;
     }
     case RES_INSTANTIATED:{
-      FunifyIntLocal(p,dmax(domain));
+      FunifyIntLocal(ec_eng,p,dmax(domain));
       break;
     }
   }
@@ -333,34 +280,6 @@ static INLINE Int gmax(pword *p)
 
 
 /* disjunctive/3 core constraint */
-
-
-static int
-p_disjunctive_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value vl, type tl)
-{
-
-  pword P1,P2,P3;
-  pword		*list = 0;
-  int		res;
-
-  CopyToPrologWord(P1,Val1.all,Tag1.kernel);
-  CopyToPrologWord(P2,Val2.all,Tag2.kernel);
-  CopyToPrologWord(P3,Val3.all,Tag3.kernel);
-
-    res = disjunctive(&P1,&P2,&P3, &list);
-    if (res == PSUCCEED) {
-	if (list == (pword *) 0) {
-	    Return_Unify_Nil(vl, tl)
-	} else {
-	    Return_Unify_List(vl, tl, list)
-	}
-    } else
-	return res;
-}
-
-
-
-
 
 
 #define DOMAIN_MAX     200000000
@@ -447,19 +366,13 @@ static INLINE BOOLEAN false(void)
 #define PREEMPTION     0
 
 
-#if __STDC__
-BOOLEAN schedule_as_before(PrologWord *,PrologWord *,PrologWord *,Int,Int);
-BOOLEAN schedule_as_after(PrologWord *,PrologWord *,PrologWord *,Int,Int);
-#else
-BOOLEAN schedule_as_before();
-BOOLEAN schedule_as_after();
-#endif
-
+BOOLEAN schedule_as_before(ec_eng_t *,PrologWord *,PrologWord *,PrologWord *,Int,Int);
+BOOLEAN schedule_as_after(ec_eng_t *,PrologWord *,PrologWord *,PrologWord *,Int,Int);
 
 
 
 static BOOLEAN
-disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientations, pword **list)
+disjunctive(ec_eng_t *ec_eng, pword *StructStarts, pword *StructDurations, pword *StructOrientations, pword **list)
 {
   Int arity,sum_subset,n_tasks_to_schedule,n_partial_schedule;
   Int i,k;
@@ -951,7 +864,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 		if (_False(already_scheduled)) {
 		  for (i = n_partial_schedule - 1; i >= 0; i --) {
 		    Int index_i = partial_index[i];
-		    if (_False(schedule_as_after(StructOrientations,StructStarts,StructDurations,
+		    if (_False(schedule_as_after(ec_eng, StructOrientations,StructStarts,StructDurations,
 						 index_k,index_i)))
 		       return false();
 		  }
@@ -972,7 +885,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 		  }
 		  else {
 
-		    if (_False(dupdate_min(AuxStart,earliest_start + sum_subset, list)))
+		    if (_False(dupdate_min(ec_eng, AuxStart,earliest_start + sum_subset, list)))
 		       return false();
 
 		    /* Maintain the coherence of the auxilliary data structures */
@@ -997,7 +910,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 		if (_False(already_scheduled)) {
 		  for ( i = n_partial_schedule -1 ; i >= 0; i --) {
 		    Int index_i = partial_index[i];
-		    if (_False(schedule_as_before(StructOrientations,StructStarts,StructDurations,
+		    if (_False(schedule_as_before(ec_eng, StructOrientations,StructStarts,StructDurations,
 						  index_k,index_i)))
 		       return false();
 		  }
@@ -1017,7 +930,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 
 		  else {
 
-		    if (_False(dupdate_max(AuxStart,latest_end - sum_subset - durations[index_k], list)))
+		    if (_False(dupdate_max(ec_eng, AuxStart,latest_end - sum_subset - durations[index_k], list)))
 		       return false();
 
 		    /* Maintain the coherence of the auxilliary data structures */
@@ -1084,7 +997,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 		     return false();
 		}
 		else {
-		  if (_False(dupdate_max(AuxStart,max_start_possible_lasts-durations[index_i], list)))
+		  if (_False(dupdate_max(ec_eng, AuxStart,max_start_possible_lasts-durations[index_i], list)))
 		     return false();
 
 		  /* Maintain the coherence of the cache data structures */
@@ -1101,7 +1014,7 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 		     return false();
 		}
 		else {
-		  if (_False(dupdate_min(AuxStart, min_end_possible_firsts, list)))
+		  if (_False(dupdate_min(ec_eng, AuxStart, min_end_possible_firsts, list)))
 		     return false();
 
 
@@ -1148,6 +1061,29 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 }
 
 
+static int
+p_disjunctive_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value vl, type tl, ec_eng_t *ec_eng)
+{
+
+  pword P1,P2,P3;
+  pword		*list = 0;
+  int		res;
+
+  CopyToPrologWord(P1,Val1.all,Tag1.kernel);
+  CopyToPrologWord(P2,Val2.all,Tag2.kernel);
+  CopyToPrologWord(P3,Val3.all,Tag3.kernel);
+
+    res = disjunctive(ec_eng,&P1,&P2,&P3, &list);
+    if (res == PSUCCEED) {
+	if (list == (pword *) 0) {
+	    Return_Unify_Nil(vl, tl)
+	} else {
+	    Return_Unify_List(vl, tl, list)
+	}
+    } else
+	return res;
+}
+
 
 
 
@@ -1158,12 +1094,9 @@ disjunctive(pword *StructStarts, pword *StructDurations, pword *StructOrientatio
 
 
 
-
-
-
 /* i before j */
 /*ARGSUSED*/
-BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword *StructDurations, word i, word j)
+BOOLEAN schedule_as_before(ec_eng_t *ec_eng, pword *StructOrientations, pword *StructStarts, pword *StructDurations, word i, word j)
 {
   Int index;
   Int arity;
@@ -1179,8 +1112,7 @@ BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword
   if (j < i) {
     index = j*arity + i;
 
-    FunifyIntLocal(StrArg(StructOrientations,index),2);
-    if (_False(UNI_RESULT))
+    if (_False(FunifyIntLocal(ec_eng,StrArg(StructOrientations,index),2)))
        return false();
 
   }
@@ -1189,8 +1121,7 @@ BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword
   else  {
     index = i*arity + j;
 
-    FunifyIntLocal(StrArg(StructOrientations,index),1);
-    if (_False(UNI_RESULT))
+    if (_False(FunifyIntLocal(ec_eng,StrArg(StructOrientations,index),1)))
        return false();
 
   }
@@ -1199,7 +1130,7 @@ BOOLEAN schedule_as_before(pword *StructOrientations, pword *StructStarts, pword
 
 /* i after j */
 /*ARGSUSED*/
-BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword *StructDurations, word i, word j)
+BOOLEAN schedule_as_after(ec_eng_t *ec_eng, pword *StructOrientations, pword *StructStarts, pword *StructDurations, word i, word j)
 {
   Int index;
   Int arity;
@@ -1214,8 +1145,7 @@ BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword 
   /* j < i */
   if (j < i) {
     index = j*arity + i;
-    FunifyIntLocal(StrArg(StructOrientations,index),1);
-    if (_False(UNI_RESULT))
+    if (_False(FunifyIntLocal(ec_eng,StrArg(StructOrientations,index),1)))
        return false();
 
 
@@ -1225,8 +1155,7 @@ BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword 
   else {
     index = i*arity + j;
 
-    FunifyIntLocal(StrArg(StructOrientations,index),2);
-    if (_False(UNI_RESULT))
+    if (_False(FunifyIntLocal(ec_eng,StrArg(StructOrientations,index),2)))
        return false();
 
   }
@@ -1235,30 +1164,6 @@ BOOLEAN schedule_as_after(pword *StructOrientations, pword *StructStarts, pword 
 }
 
 
-static int
-p_contigs_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value Val5, type Tag5, value vl, type tl)
-{
-
-  pword P1,P2,P3,P4,P5;
-  pword		*list = 0;
-  int		res;
-
-  CopyToPrologWord(P1,Val1.all,Tag1.kernel);
-  CopyToPrologWord(P2,Val2.all,Tag2.kernel);
-  CopyToPrologWord(P3,Val3.all,Tag3.kernel);
-  CopyToPrologWord(P4,Val4.all,Tag4.kernel);
-  CopyToPrologWord(P5,Val5.all,Tag5.kernel);
-
-    res = contigs(&P1,&P2,&P3,&P4,&P5, &list);
-    if (res == PSUCCEED) {
-	if (list == (pword *) 0) {
-	    Return_Unify_Nil(vl, tl)
-	} else {
-	    Return_Unify_List(vl, tl, list)
-	}
-    } else
-	return res;
-}
 
 
 static INLINE BOOLEAN false_contigs(void)
@@ -1268,7 +1173,7 @@ static INLINE BOOLEAN false_contigs(void)
 
 
 
-static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword *Occurences, pword *Contigs, pword **list)
+static BOOLEAN contigs(ec_eng_t *ec_eng, pword *StructTable, pword *Sequences, pword *Item, pword *Occurences, pword *Contigs, pword **list)
 {
   PrologWord * Table;
   Int end;
@@ -1534,8 +1439,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	     /* Hence the current element can not have the item as value.     */
 
 	     if (remaining_values == 0) {
-	       /* Satisfy lint */
-	       if (dremove_value(temp_item,item_value, list)) {;}
+	       (void) dremove_value(ec_eng, temp_item,item_value, list);
 	       iterate = TRUE;
 	       
 	       /* Start a new sequence */
@@ -1560,8 +1464,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	     /* possible.                                             */
 
 	     if (length_current_sequence == upper_limit_length_subsequence) {
-	       /* Satisfy lint */
-	       if (dremove_value(temp_item,item_value, list)){;}
+	       (void) dremove_value(ec_eng, temp_item,item_value, list);
 	       iterate = TRUE;
 	       
 	       /* Start a new sequence */
@@ -1587,8 +1490,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	     if (remaining_values < lower_limit_length_subsequence &&
 		 at_least_length < lower_limit_length_subsequence) {
 
-	       FunifyIntLocal(temp_item,item_value);
-	       if (_False(UNI_RESULT))
+	       if (_False(FunifyIntLocal(ec_eng,temp_item,item_value)))
 		  return false_contigs();
 
 	       iterate = TRUE;
@@ -1698,8 +1600,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	 for ( i = 0; i <= end; i ++) {
 	   temp_item = dereference(&Table[i]);
 	   if (IsDvar(temp_item)) {
-	     /* Satisfy lint */
-	     if (dremove_value(temp_item,item_value, list)) {;}
+	     (void) dremove_value(ec_eng, temp_item,item_value, list);
 	     iterate = TRUE;
 	   }
 	 }
@@ -1716,8 +1617,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	   temp_item = dereference(&Table[i]);
 	   if (IsDvar(temp_item)) {
 	     if (_True(present(_Ptrbody(temp_item),item_value))) {
-	       FunifyIntLocal(temp_item,item_value);
-	       if (_False(UNI_RESULT))
+	       if (_False(FunifyIntLocal(ec_eng,temp_item,item_value)))
 		  return false_contigs();
 	       iterate = TRUE;
 	     }
@@ -1767,8 +1667,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 
 		 temp_ppw = dereference(&Table[j]);
 		 if (!IsInt(temp_ppw)) {
-		   FunifyIntLocal(temp_ppw,item_value);
-		   if (_False(UNI_RESULT))
+		   if (_False(FunifyIntLocal(ec_eng,temp_ppw,item_value)))
 		      return false_contigs();
 		   iterate = TRUE;
 		 }
@@ -1801,7 +1700,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
     /* is known and can propagated to the domain variable which   */
     /* gives the possible values for this length.                 */
 
-    if (_False(dupdate_min(Sequences,at_least_length, list)))
+    if (_False(dupdate_min(ec_eng, Sequences,at_least_length, list)))
        return false_contigs();
     
     Sequences = dereference(Sequences);
@@ -1821,7 +1720,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
     }
 
     if (IsDvar(Sequences)){
-      if (_False(dupdate_max(Sequences,at_most_length, list)))
+      if (_False(dupdate_max(ec_eng, Sequences,at_most_length, list)))
 	 return false_contigs();
     }
   }
@@ -1844,8 +1743,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	   PrologWord *temp;
 	   temp = dereference(&Table[i]);
 	   if (IsDvar(temp)) {
-	     FunifyIntLocal(temp,item_value);
-	     if (_False(UNI_RESULT))
+	     if (_False(FunifyIntLocal(ec_eng,temp,item_value)))
 		return false_contigs();
 	   }
 	 }
@@ -1895,8 +1793,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
     /* sequence is known.                                                     */
     if (count_dvars == 0) {
       if (_True(present(_Ptrbody(Occurences), at_least_occurences))) {
-	FunifyIntLocal(Occurences,at_least_occurences);
-	if (_False(UNI_RESULT))
+	if (_False(FunifyIntLocal(ec_eng,Occurences,at_least_occurences)))
 	   return false_contigs();
       }
       else 
@@ -1909,7 +1806,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
       /* propagated to the domain variable describing the     */
       /* possible occurences number.                          */
 
-      if (_False(dupdate_min(Occurences,at_least_occurences, list)))
+      if (_False(dupdate_min(ec_eng, Occurences,at_least_occurences, list)))
 	 return false_contigs();
 
       Occurences= dereference(Occurences);
@@ -1919,7 +1816,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	    return false_contigs();
 
       if (IsDvar(Occurences)) 
-	 if _False(dupdate_max(Occurences,at_most_occurences, list))
+	 if _False(dupdate_max(ec_eng, Occurences,at_most_occurences, list))
 	    return false_contigs();
     }
   }
@@ -1940,7 +1837,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
        return false_contigs();
   }
   else {
-    if (_False(dupdate_min(Contigs,at_least_contigs, list)))
+    if (_False(dupdate_min(ec_eng, Contigs,at_least_contigs, list)))
        return false_contigs();
 
     Contigs = dereference(Contigs);
@@ -1950,7 +1847,7 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 	  return false_contigs();
      }
     else {
-      if (_False(dupdate_max(Contigs,at_most_contigs, list)))
+      if (_False(dupdate_max(ec_eng, Contigs,at_most_contigs, list)))
 	 return false_contigs();
     }
        
@@ -1964,12 +1861,11 @@ static BOOLEAN contigs(pword *StructTable, pword *Sequences, pword *Item, pword 
 }
 
 
-
 static int
-p_sequences_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value vl, type tl)
+p_contigs_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value Val5, type Tag5, value vl, type tl, ec_eng_t *ec_eng)
 {
 
-  pword P1,P2,P3,P4;
+  pword P1,P2,P3,P4,P5;
   pword		*list = 0;
   int		res;
 
@@ -1977,8 +1873,9 @@ p_sequences_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, 
   CopyToPrologWord(P2,Val2.all,Tag2.kernel);
   CopyToPrologWord(P3,Val3.all,Tag3.kernel);
   CopyToPrologWord(P4,Val4.all,Tag4.kernel);
+  CopyToPrologWord(P5,Val5.all,Tag5.kernel);
 
-    res = sequences(&P1,&P2,&P3,&P4, &list);
+    res = contigs(ec_eng,&P1,&P2,&P3,&P4,&P5, &list);
     if (res == PSUCCEED) {
 	if (list == (pword *) 0) {
 	    Return_Unify_Nil(vl, tl)
@@ -1996,7 +1893,7 @@ static INLINE BOOLEAN false_sequences(void)
   return FALSE;
 }
 
-static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pword *Occurences, pword **list)
+static BOOLEAN sequences(ec_eng_t *ec_eng, pword *StructTable, pword *Sequences, pword *Item, pword *Occurences, pword **list)
 {
   PrologWord * Table;
   Int end;
@@ -2235,8 +2132,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 	     /* Hence the current element can not have the item as value.     */
 
 	     if (remaining_values == 0) {
-	       /* Satisfy lint */
-	       if (dremove_value(temp_item,item_value, list)) {;}
+	       (void) dremove_value(ec_eng, temp_item,item_value, list);
 	       iterate = TRUE;
 	       
 	       /* Start a new sequence */
@@ -2261,8 +2157,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 	     /* possible.                                             */
 
 	     if (length_current_sequence == upper_limit_length_subsequence) {
-	       /* Satisfy lint */
-	       if (dremove_value(temp_item,item_value, list)){;}
+	       (void) dremove_value(ec_eng, temp_item,item_value, list);
 	       iterate = TRUE;
 	       
 	       /* Start a new sequence */
@@ -2288,8 +2183,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 	     if (remaining_values < lower_limit_length_subsequence &&
 		 at_least_length < lower_limit_length_subsequence) {
 
-	       FunifyIntLocal(temp_item,item_value);
-	       if (_False(UNI_RESULT))
+	       if (_False(FunifyIntLocal(ec_eng,temp_item,item_value)))
 		  return false_sequences();
 
 	       iterate = TRUE;
@@ -2400,8 +2294,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 	 for ( i = 0; i <= end; i ++) {
 	   temp_item = dereference(&Table[i]);
 	   if (IsDvar(temp_item)) {
-	     /* Satisfy lint */
-	     if (dremove_value(temp_item,item_value, list)) {;}
+	     (void) dremove_value(ec_eng, temp_item,item_value, list);
 	     iterate = TRUE;
 	   }
 	 }
@@ -2417,8 +2310,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 	 for ( i = 0; i <= end; i ++) {
 	   temp_item = dereference(&Table[i]);
 	   if (IsDvar(temp_item)) {
-	     FunifyIntLocal(temp_item,item_value);
-	     if (_False(UNI_RESULT))
+	     if (_False(FunifyIntLocal(ec_eng,temp_item,item_value)))
 		return false_sequences();
 	     iterate = TRUE;
 	   }
@@ -2449,7 +2341,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
     /* is known and can propagated to the domain variable which   */
     /* gives the possible values for this length.                 */
 
-    if (_False(dupdate_min(Sequences,at_least_length, list)))
+    if (_False(dupdate_min(ec_eng, Sequences,at_least_length, list)))
        return false_sequences();
     
     Sequences = dereference(Sequences);
@@ -2469,7 +2361,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
     }
 
     if (IsDvar(Sequences)){
-      if (_False(dupdate_max(Sequences,at_most_length, list)))
+      if (_False(dupdate_max(ec_eng, Sequences,at_most_length, list)))
 	 return false_sequences();
     }
   }
@@ -2492,8 +2384,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 	   PrologWord *temp;
 	   temp = dereference(&Table[i]);
 	   if (IsDvar(temp)) {
-	     FunifyIntLocal(temp,item_value);
-	     if (_False(UNI_RESULT))
+	     if (_False(FunifyIntLocal(ec_eng,temp,item_value)))
 		return false_sequences();
 	   }
 	 }
@@ -2543,8 +2434,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
     /* sequence is known.                                                     */
     if (count_dvars == 0) {
       if (_True(present(_Ptrbody(Occurences), at_least_occurences))) {
-	FunifyIntLocal(Occurences,at_least_occurences);
-	if (_False(UNI_RESULT))
+	if (_False(FunifyIntLocal(ec_eng,Occurences,at_least_occurences)))
 	   return false_sequences();
       }
       else 
@@ -2557,7 +2447,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
       /* propagated to the domain variable describing the     */
       /* possible occurences number.                          */
 
-      if (_False(dupdate_min(Occurences,at_least_occurences, list)))
+      if (_False(dupdate_min(ec_eng, Occurences,at_least_occurences, list)))
 	 return false_sequences();
 
       Occurences = dereference(Occurences);
@@ -2567,7 +2457,7 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 	    return false_sequences();
 
       if (IsDvar(Occurences)) 
-	 if _False(dupdate_max(Occurences,at_most_occurences, list))
+	 if _False(dupdate_max(ec_eng, Occurences,at_most_occurences, list))
 	    return false_sequences();
     }
   }
@@ -2585,10 +2475,10 @@ static BOOLEAN sequences(pword *StructTable, pword *Sequences, pword *Item, pwor
 
 
 static int
-p_disjunction_choose_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value Val5, type Tag5, value vl, type tl)
+p_sequences_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value vl, type tl, ec_eng_t *ec_eng)
 {
 
-  pword P1,P2,P3,P4,P5;
+  pword P1,P2,P3,P4;
   pword		*list = 0;
   int		res;
 
@@ -2596,9 +2486,8 @@ p_disjunction_choose_interface(value Val1, type Tag1, value Val2, type Tag2, val
   CopyToPrologWord(P2,Val2.all,Tag2.kernel);
   CopyToPrologWord(P3,Val3.all,Tag3.kernel);
   CopyToPrologWord(P4,Val4.all,Tag4.kernel);
-  CopyToPrologWord(P5,Val5.all,Tag5.kernel);
 
-    res = disjunction_choose(&P1,&P2,&P3,&P4,&P5, &list);
+    res = sequences(ec_eng,&P1,&P2,&P3,&P4, &list);
     if (res == PSUCCEED) {
 	if (list == (pword *) 0) {
 	    Return_Unify_Nil(vl, tl)
@@ -2611,7 +2500,7 @@ p_disjunction_choose_interface(value Val1, type Tag1, value Val2, type Tag2, val
 
 
 
-static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pword *branch, pword **list)
+static BOOLEAN disjunction_choose(ec_eng_t *ec_eng, pword *x, pword *Dx, pword *y, pword *Dy, pword *branch, pword **list)
 {
   PrologWord *X,*Y,*Branch;
   BOOLEAN x_after_y = FALSE;
@@ -2639,7 +2528,7 @@ static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pwor
       /* a true inequality which is less reactive to the updates of its  */
       /* arguments. Useless wake-ups will then be avoided.               */
 
-      res = setup_domain_greatereq(y,x,dx, list);
+      res = setup_domain_greatereq(ec_eng, y,x,dx, list);
 
       /* Solve this constraint */
       if (res == DELAY) 
@@ -2653,7 +2542,7 @@ static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pwor
       /* a true inequality which is less reactive to the updates of its  */
       /* arguments. Useless wake-ups will then be avoided.               */
 
-      res = setup_domain_greatereq(x,y,dy, list);
+      res = setup_domain_greatereq(ec_eng, x,y,dy, list);
 
       /* Solve this constraint */
       if (res == DELAY) 
@@ -2681,9 +2570,9 @@ static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pwor
      return FAIL;
   
   if (_False(y_after_x)) {
-    FunifyIntLocal(Branch,2);
+    FunifyIntLocal(ec_eng,Branch,2);
 
-    res = setup_domain_greatereq(x,y,dy, list);
+    res = setup_domain_greatereq(ec_eng, x,y,dy, list);
 
     /* Solve this constraint */
     if (res == DELAY) 
@@ -2692,9 +2581,9 @@ static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pwor
   }
 
   if (_False(x_after_y)) {
-    FunifyIntLocal(Branch,1);
+    FunifyIntLocal(ec_eng,Branch,1);
 
-    res = setup_domain_greatereq(y,x,dx, list);
+    res = setup_domain_greatereq(ec_eng, y,x,dx, list);
 
     /* Solve this constraint */
     if (res == DELAY) 
@@ -2704,5 +2593,53 @@ static BOOLEAN disjunction_choose(pword *x, pword *Dx, pword *y, pword *Dy, pwor
 
 
   return DELAY;
+}
+
+
+static int
+p_disjunction_choose_interface(value Val1, type Tag1, value Val2, type Tag2, value Val3, type Tag3, value Val4, type Tag4, value Val5, type Tag5, value vl, type tl, ec_eng_t *ec_eng)
+{
+
+  pword P1,P2,P3,P4,P5;
+  pword		*list = 0;
+  int		res;
+
+  CopyToPrologWord(P1,Val1.all,Tag1.kernel);
+  CopyToPrologWord(P2,Val2.all,Tag2.kernel);
+  CopyToPrologWord(P3,Val3.all,Tag3.kernel);
+  CopyToPrologWord(P4,Val4.all,Tag4.kernel);
+  CopyToPrologWord(P5,Val5.all,Tag5.kernel);
+
+    res = disjunction_choose(ec_eng,&P1,&P2,&P3,&P4,&P5, &list);
+    if (res == PSUCCEED) {
+	if (list == (pword *) 0) {
+	    Return_Unify_Nil(vl, tl)
+	} else {
+	    Return_Unify_List(vl, tl, list)
+	}
+    } else
+	return res;
+}
+
+
+void
+bip_elipsys_fd_init(int flags)
+{
+    d_update_min = in_dict("update_min", 2);
+    d_update_max = in_dict("update_max", 2);
+    d_update_any = in_dict("update_any", 2);
+    d_greatereq = in_dict("greatereq", 3);
+
+    if (!(flags & INIT_SHARED))
+	return;
+
+    (void) exported_built_in(in_dict("disjunctive_interface", 4),
+		p_disjunctive_interface, B_UNSAFE);
+    (void) exported_built_in(in_dict("disjunction_choose_interface", 6),
+		p_disjunction_choose_interface, B_UNSAFE);
+    (void) exported_built_in(in_dict("contigs_interface", 6),
+		p_contigs_interface, B_UNSAFE);
+    (void) exported_built_in(in_dict("sequences_interface", 5),
+		p_sequences_interface, B_UNSAFE);
 }
 

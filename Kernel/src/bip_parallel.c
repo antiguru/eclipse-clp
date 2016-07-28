@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_parallel.c,v 1.3 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: bip_parallel.c,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -116,7 +116,7 @@ dbag_port_upcall(aport_id_t bag_aport_id)
 }
 
 static int
-p_dbag_create(value vbag, type tbag)
+p_dbag_create(value vbag, type tbag, ec_eng_t *ec_eng)
 {
     dbag_descr_t *dbag_descr;
     aport_id_t bag_aport_id;
@@ -145,7 +145,7 @@ p_dbag_create(value vbag, type tbag)
 }
 
 static int
-p_dbag_enter(value vbag, type tbag, value vterm, type tterm)
+p_dbag_enter(value vbag, type tbag, value vterm, type tterm, ec_eng_t *ec_eng)
 {
     aport_id_t	bag_aport_id;
     pword	term, *term_as_bytes;
@@ -160,7 +160,7 @@ p_dbag_enter(value vbag, type tbag, value vterm, type tterm)
     /* encode the term */
     term.val.all = vterm.all;
     term.tag.kernel = tterm.kernel;
-    term_as_bytes = term_to_dbformat(&term, D_UNKNOWN);
+    term_as_bytes = term_to_dbformat(ec_eng, &term, D_UNKNOWN);
 
     /* fill into a message buffer */
     msg_size = BufferSize(term_as_bytes) + sizeof(amsg_ref_t);
@@ -185,7 +185,7 @@ p_dbag_enter(value vbag, type tbag, value vterm, type tterm)
  * Must be called on the worker that created the bag, no check yet!
  */
 static int
-p_dbag_dissolve(value vdbag, type tdbag, value vl, type tl)
+p_dbag_dissolve(value vdbag, type tdbag, value vl, type tl, ec_eng_t *ec_eng)
 {
     aport_id_t bag_aport_id;
     dbag_descr_t *dbag_descr;
@@ -217,12 +217,10 @@ p_dbag_dissolve(value vdbag, type tdbag, value vl, type tl)
         Make_List(cdr, car);
 	cdr = car + 1;
 
-	pw1 = dbformat_to_term((char*)(this_msg_data_hdr+1), D_UNKNOWN, tdict);
+	pw1 = dbformat_to_term(ec_eng, (char*)(this_msg_data_hdr+1), D_UNKNOWN, tdict);
 	if (!pw1)
 	{
-	    value va;
-	    va.did = d_.abort;
-	    Bip_Throw(va, tdict);
+	    Bip_Error(BAD_FORMAT_STRING);
 	}
 	car->val.ptr = pw1->val.ptr;
 	car->tag.kernel = pw1->tag.kernel;
@@ -255,7 +253,7 @@ p_dbag_dissolve(value vdbag, type tdbag, value vl, type tl)
  */
 /*ARGSUSED*/
 static int
-p_get_oracle3(value vfrom, type tfrom, value vto, type tto, value v, type t)
+p_get_oracle3(value vfrom, type tfrom, value vto, type tto, value v, type t, ec_eng_t *ec_eng)
 {
     pword *b_aux;
     char *buf;
@@ -278,7 +276,7 @@ p_get_oracle3(value vfrom, type tfrom, value vto, type tto, value v, type t)
 }
 
 static int
-p_install_oracle(value v, type t)
+p_install_oracle(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Integer(t);
     PO = FO = v.str;
@@ -291,7 +289,7 @@ p_install_oracle(value v, type t)
  * executed and the proper reexecution starts. It sets the FO register.
  */
 static int
-p_install_pending_oracle(void)
+p_install_pending_oracle(ec_eng_t *ec_eng)
 {
     if (FO || !PO)
     {
@@ -307,7 +305,7 @@ p_install_pending_oracle(void)
  * the execution of the initialization goal)
  */
 static int
-p_recomputing(void)
+p_recomputing(ec_eng_t *ec_eng)
 {
     Succeed_If(PO);
 }
@@ -319,7 +317,7 @@ p_recomputing(void)
  * checked, which helps tracking down where the oracle gets out of phase.
  */
 static int
-p_oracle_check(value v, type t)
+p_oracle_check(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Integer(t);
     if (FO)
@@ -340,7 +338,7 @@ p_oracle_check(value v, type t)
 }
 
 static int
-p_set_par_goal(value v, type t)
+p_set_par_goal(value v, type t, ec_eng_t *ec_eng)
 {
     pword *old_tg = TG;
     pword term, *term_as_bytes;
@@ -352,7 +350,7 @@ p_set_par_goal(value v, type t)
     /* encode the term */
     term.val.all = v.all;
     term.tag.kernel = t.kernel;
-    term_as_bytes = term_to_dbformat(&term, D_UNKNOWN);
+    term_as_bytes = term_to_dbformat(ec_eng, &term, D_UNKNOWN);
 
     /* fill into a message buffer */
     if (amsg_alloc((amsg_size_t) BufferSize(term_as_bytes), &msg_data, &par_goal_msg_)
@@ -368,13 +366,13 @@ p_set_par_goal(value v, type t)
 }
 
 static int
-p_get_par_goal(value v, type t)
+p_get_par_goal(value v, type t, ec_eng_t *ec_eng)
 {
     pword *pw1;
 
     if (!par_goal_msg_) { Fail_; }
 
-    pw1 = dbformat_to_term((char*) amsg_data(par_goal_msg_), D_UNKNOWN, tdict);
+    pw1 = dbformat_to_term(ec_eng, (char*) amsg_data(par_goal_msg_), D_UNKNOWN, tdict);
     if (!pw1)
     {
 	value va;

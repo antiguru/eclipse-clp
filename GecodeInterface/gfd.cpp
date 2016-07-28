@@ -20,16 +20,18 @@
  * 
  * END LICENSE BLOCK */
 
-#define SIZEOF_CHAR_P 4
-#define SIZEOF_INT 4
-#define SIZEOF_LONG 4
+
+#define USES_NO_ENGINE_HANDLE	// TODO: port to multi-engine interface
+
+#ifdef _WIN32
+// make sure gfd.hpp includes a high enough version of windows.h
+#define _WIN32_WINNT 0x600
+#endif
 
 #include <queue>
 #include "gfd.hpp"
-#include <eclipseclass.h>
-#include <sepia.h>
+#include "eclipseclass.h"
 
-#define EC_EXTERNAL_ERROR  -213  // from error.h
 
 // these must correspond to the gfd_space struct in gfd.ecl
 #define SPACE_HANDLE_POS   1
@@ -74,7 +76,7 @@ EC_argument(EC_word t, int i)
     else if (ldid == d_vc) cl = ICL_VAL;			  \
     else Exception					  	  \
 
-// get the interger consistency level cl from argument N 
+// get the integer consistency level cl from argument N 
 #define Get_Consistency_Level(N, cl) {		\
     EC_atom atm;   \
     if (EC_arg(N).is_atom(&atm) != EC_succeed) return TYPE_ERROR; \
@@ -131,21 +133,6 @@ EC_argument(EC_word t, int i)
         return TYPE_ERROR; \
 }
 
-extern "C" VisAtt stream_id log_output_, warning_output_, current_err_;
-
-extern "C" VisAtt void ec_trail_undo(void(*f)(pword*,word*,int,int), pword*, pword*, word*, int, int);
-
-extern "C" VisAtt int ec_flush(stream_id);
-
-extern "C" VisAtt int p_fprintf(stream_id, const char*, ...);
-
-#if defined(WIN32)
-
-extern "C" VisAtt stream_id Winapi ec_stream_id(int);
-# define log_output_ ec_stream_id(ec_stream_nr("log_output"))
-# define current_err_ ec_stream_id(ec_stream_nr("current_err"))
-
-#endif
 
 static dident d_max_wdeg2, d_min_wdeg2, 
     d_max_wdeg_per_val2, d_min_wdeg_per_val2,
@@ -278,7 +265,8 @@ t_ext_type gfdsearch_method = {
    undo function will not be called during GC, but this is also unafe as
    *solverp might be deleted early by garbage collecting of the phandle.
 */
-static void _g_delete_space(pword* phandle, word * dummy, int size, int context)
+static void _g_delete_space(pword* phandle, word * dummy, int size, int context,
+	ec_eng_t *dummy_ec_eng /*while defined(USES_NO_ENGINE_HANDLE)*/ )
 {
     GecodeSpace** solverp;
 

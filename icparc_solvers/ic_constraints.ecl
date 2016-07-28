@@ -95,24 +95,24 @@
 % declare the bits we want.
 %
 
-:- external(ic_constraints_init/0, p_ic_constraints_init).
-:- external(set_up_ic_con/3, p_set_up_ic_con).
-:- external(make_bool/1, p_make_bool).
-:- external(indomain_init/2, p_indomain_init).
-:- b_external(indomain_try/2, p_indomain_try).
-:- external(get_print_info/6, p_get_print_info).
-:- external(ac_eq_init/3, p_ac_eq_init).
+:- external(ic_constraints_init/0, p_ic_constraints_init(args)).
+:- external(set_up_ic_con/3, p_set_up_ic_con(args)).
+:- external(make_bool/1, p_make_bool(args)).
+:- external(indomain_init/2, p_indomain_init(args)).
+:- b_external(indomain_try/2, p_indomain_try(args)).
+:- external(get_print_info/6, p_get_print_info(args)).
+:- external(ac_eq_init/3, p_ac_eq_init(args)).
 
 % Hack to get around not being able to declare external predicates demons.
 
-:- external(dummy_prop_ic_con/1, p_prop_ic_con).
+:- external(dummy_prop_ic_con/1, p_prop_ic_con(args)).
 :- demon prop_ic_con/1.
 prop_ic_con(Con) :-
 	ic_event(ic_lin_prop),
 	dummy_prop_ic_con(Con).
 
 :- demon ac_eq_prop/4.
-:- external(ac_eq_prop/4, p_ac_eq_prop).
+:- external(ac_eq_prop/4, p_ac_eq_prop(args)).
 
 
 % Don't ask me why this has to be down here instead of just after the

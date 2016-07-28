@@ -25,7 +25,7 @@
 % ECLiPSe II debugger -- Tcl/Tk Interface
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tcl.pl,v 1.14 2013/02/23 00:23:18 jschimpf Exp $
+% Version:	$Id: tracer_tcl.pl,v 1.15 2016/07/28 03:34:35 jschimpf Exp $
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
 %               Josh Singer, Parc Technologies
@@ -2070,9 +2070,9 @@ install_guitools :-
 		% on Unix, execute on their own sigstack. Otherwise they
 		% wouldn't work on C stack overflow.
 		( current_interrupt(_, segv) ->
-		    set_interrupt_handler(segv, catch_fatal/0) ; true ),
+		    set_interrupt_handler(segv, internal/0) ; true ),
 		( current_interrupt(_, bus) ->
-		    set_interrupt_handler(bus, catch_fatal/0) ; true )
+		    set_interrupt_handler(bus, internal/0) ; true )
 	    )
 	).
 

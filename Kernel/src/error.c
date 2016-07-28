@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.7 2013/02/04 14:51:13 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.8 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -63,7 +63,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 /* 1 */
 "general error",				/* PERROR		*/
 "term of an unknown type",			/* UNIFY_OVNI		*/
-0,
+"Error in external function",			/* EC_EXTERNAL_ERROR	*/
 "instantiation fault",				/* INSTANTIATION_FAULT	*/
 "type error",					/* TYPE_ERROR		*/
 "out of range",					/* RANGE_ERROR	 	*/
@@ -115,8 +115,8 @@ char *	ec_error_message[MAX_ERRORS] = {
 "array or global variable does not exist",	/* NOGLOBAL		*/
 "redefining an existing array",			/* ARRAY_EXISTS		*/
 "illegal operator definition",			/* ILLEGAL_OP_DEF	*/
-"record already exists",			/* LOCAL_REC		*/
-"record does not exist",			/* NO_LOCAL_REC		*/
+"named object already exists",			/* LOCAL_REC		*/
+"named object does not exist",			/* NO_LOCAL_REC		*/
 0,
 0,
 0,
@@ -283,11 +283,11 @@ char *	ec_error_message[MAX_ERRORS] = {
 0,
 0,
 /* -180 */
-0,
-0,
-0,
-0,
-0,
+"engine not ready",				/* ENGINE_BUSY */
+"engine not joinable",				/* ENGINE_NOT_ASYNC */
+"engine dead/exited",				/* ENGINE_DEAD */
+"could not create/initialize engine",		/* ENGINE_NOT_UP */
+"engine not owned by thread",			/* ENGINE_NOT_OWNED */
 0,
 0,
 0,
@@ -321,7 +321,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "Remember() not inside a backtracking predicate",/* REMEMBER		*/
 "External function does not exist",		/* NOCODE		*/
 "External function returned invalid code",	/* ILLEGAL_RETURN	*/
-"Error in external function",			/* EC_EXTERNAL_ERROR	*/
+0,
 "Licensing problem",				/* EC_LICENSE_ERROR	*/
 0,
 0,
@@ -397,7 +397,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 "bad format of the variable attribute",		/* ATTR_FORMAT		*/
 "delay clause may cause indefinite delay",
 "delayed goals left",				/* LEFT_DELAYED_GOAL	*/
-"woken lists not empty",	 		/* BAD_RESTORE_WL	*/
+"woken lists not empty",	 		/* was: BAD_RESTORE_WL	*/
 0,					 	/* was DELAY_SIMPLE	*/
 0,
 0,
@@ -520,7 +520,7 @@ char *	ec_error_message[MAX_ERRORS] = {
  *		can be used to check whether the given error exists.
  */
 static int
-p_error_id(value valn, type tagn, value vale, type tage)
+p_error_id(value valn, type tagn, value vale, type tage, ec_eng_t *ec_eng)
 {
     Error_If_Ref(tagn);
     Check_Output_String(tage);
@@ -563,13 +563,13 @@ ec_error_string(int n)
 }
 
 static int
-p_get_last_errno(value v, type t)
+p_get_last_errno(value v, type t, ec_eng_t *ec_eng)
 {
     Return_Unify_Integer(v, t, ec_os_errno_);
 }
 
 static int
-p_set_last_errno(value v, type t)
+p_set_last_errno(value v, type t, ec_eng_t *ec_eng)
 {
     Check_Integer(t);
     ec_os_errno_ = v.nint;
@@ -578,7 +578,7 @@ p_set_last_errno(value v, type t)
 }
 
 static int
-p_max_error(value val1, type tag1)
+p_max_error(value val1, type tag1, ec_eng_t *ec_eng)
 {
 	Check_Output_Integer(tag1);
 	Return_Unify_Integer(val1, tag1, MAX_ERRORS - 1);
@@ -586,7 +586,7 @@ p_max_error(value val1, type tag1)
 
 
 static int
-p_errno_id(value eval, type etag, value sval, type stag)
+p_errno_id(value eval, type etag, value sval, type stag, ec_eng_t *ec_eng)
 {
     pword	pw;
     char	buf[1024];
@@ -599,7 +599,7 @@ p_errno_id(value eval, type etag, value sval, type stag)
 }
 
 static int
-p_errno_id1(value sval, type stag)
+p_errno_id1(value sval, type stag, ec_eng_t *ec_eng)
 {
     pword	pw;
     char	buf[1024];

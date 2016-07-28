@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.19 2014/02/07 15:04:40 jschimpf Exp $
+# $Id: Makefile.in,v 1.20 2016/07/28 03:34:35 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -130,14 +130,15 @@ OPTIMIZE = @OPTIMIZE@
 
 # *************** FLAGS ***************
 
-CPPFLAGS  = $(LOCAL_FLAGS) -I. -I$(SEPIA)/src -I$(SYS_INCL) @OS_INCLUDES@ -DOC -DDFID
+CPPFLAGS  = $(LOCAL_FLAGS) -I. -I$(SEPIA)/src -I$(SYS_INCL) @OS_INCLUDES@
 LINTFLAGS = -b -h -x -DNEW_ORACLE
 
 
 # *************** INCLUDES ***************
 
 EXT_INCLUDES =	external.h error.h sepia.h ec_public.h types.h config.h \
-		embed.h eclipse_cc.h eclipseclass.h eclipse.h intervals.h
+		ec_general.h embed.h eclipse_cc.h eclipseclass.h eclipse.h \
+		os_support.h
 
 
 # *************** LIBRARIES ***************
@@ -162,11 +163,11 @@ COMMON_OBJECTS =	dict.o read.o lex.o \
 		procedure.o \
 		handle.o intervals.o \
 		bip_arith.o bigrat.o bip_module.o bip_control.o bip_delay.o \
-		bip_domain.o bip_misc.o elipsys_fd.o \
+		bip_engines.o bip_domain.o bip_misc.o elipsys_fd.o \
 		bip_load.o code.o init.o \
 		emu_c_env.o emu_util.o error.o external.o gc_stacks.o \
 		handlers.o printam.o \
-		addrmap.o eclipsedir.o embed.o os_support.o
+		addrmap.o eclipsedir.o embed.o engines.o os_support.o
 
 DEVSYS_OBJECTS = main.o
 
@@ -433,12 +434,14 @@ whereami.c:
 #
 
 # cc/cxx -> i (uses suffix rule above)
-eclipse_cc.i:	config.h ec_public.h types.h embed.h
+eclipse_cc.i:	config.h ec_general.h ec_public.h types.h embed.h
 
 # i -> h
-eclipse_cc.h:		eclipse_cc.i
-	/bin/cp eclipse_cc.i eclipse_cc.h
+#eclipse_cc.h:		eclipse_cc.i
+#	/bin/cp eclipse_cc.i eclipse_cc.h
 
+eclipse_cc.h:		eclipse_cc.cc
+	/bin/cp $< eclipse_cc.h
 
 #
 # Some files that need special compilation flags etc
@@ -964,139 +967,159 @@ $(PRETTY_DIR)/%.html:	$(SEPIA)/lib/%.ecl $(PRETTY_DIR)/.stamp
 
 # DO NOT DELETE
 
-Test_script.o: config.h
 addrmap.o: config.h
-bigrat.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-bigrat.o: emu_export.h
-bip_arith.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h
-bip_arith.o: dict.h emu_export.h rounding_control.h
-bip_array.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h
-bip_array.o: dict.h emu_export.h property.h module.h
-bip_bag.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-bip_comp.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-bip_comp.o: opcode.h emu_export.h
-bip_control.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
-bip_control.o: ec_io.h dict.h emu_export.h debug.h module.h property.h
-bip_control.o: os_support.h
-bip_db.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h ec_io.h
-bip_db.o: opcode.h gencode.h dict.h database.h emu_export.h
-bip_db.o: module.h debug.h property.h
-bip_delay.o: config.h sepia.h ec_public.h types.h embed.h mem.h debug.h
-bip_delay.o: error.h dict.h emu_export.h property.h
-bip_domain.o: config.h sepia.h ec_public.h types.h embed.h mem.h dict.h
-bip_domain.o: error.h emu_export.h fd.h
-bip_heapevents.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-bip_io.o: config.h os_support.h sepia.h ec_public.h types.h embed.h mem.h
-bip_io.o: error.h ec_io.h dict.h lex.h emu_export.h property.h
-bip_load.o: config.h sepia.h ec_public.h types.h embed.h mem.h dict.h
-bip_load.o: emu_export.h error.h opcode.h ec_io.h property.h module.h
+bigrat.o: config.h sepia.h ec_public.h ec_general.h types.h error.h embed.h
+bigrat.o: mem.h dict.h emu_export.h rounding_control.h
+bip_arith.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_arith.o: error.h mem.h dict.h emu_export.h rounding_control.h
+bip_array.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_array.o: error.h mem.h dict.h emu_export.h property.h module.h
+bip_array.o: os_support.h
+bip_bag.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_bag.o: error.h dict.h emu_export.h property.h os_support.h
+bip_comp.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_comp.o: error.h dict.h opcode.h emu_export.h
+bip_control.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_control.o: mem.h error.h ec_io.h dict.h emu_export.h debug.h module.h
+bip_control.o: property.h os_support.h
+bip_db.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_db.o: error.h ec_io.h opcode.h gencode.h dict.h database.h emu_export.h
+bip_db.o: module.h debug.h property.h os_support.h
+bip_delay.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_delay.o: debug.h error.h dict.h emu_export.h property.h
+bip_domain.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_domain.o: dict.h error.h emu_export.h fd.h
+bip_engines.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_engines.o: mem.h error.h ec_io.h dict.h emu_export.h module.h property.h
+bip_engines.o: os_support.h
+bip_heapevents.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_heapevents.o: mem.h error.h dict.h property.h
+bip_io.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_io.o: error.h ec_io.h dict.h lex.h emu_export.h property.h os_support.h
+bip_load.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_load.o: dict.h emu_export.h error.h opcode.h ec_io.h property.h module.h
 bip_load.o: os_support.h
-bip_misc.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-bip_misc.o: emu_export.h os_support.h
-bip_module.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h ec_io.h
-bip_module.o: dict.h database.h emu_export.h debug.h gencode.h module.h
-bip_module.o: opcode.h property.h
-bip_mps.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-bip_parallel.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
-bip_parallel.o: ec_io.h dict.h emu_export.h property.h module.h opcode.h
-bip_record.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
-bip_record.o: dict.h property.h module.h
-bip_serialize.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-bip_serialize.o: ec_io.h emu_export.h module.h
-bip_shelf.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
-bip_shelf.o: dict.h property.h
-bip_store.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
-bip_store.o: dict.h property.h
-bip_strings.o: config.h sepia.h ec_public.h types.h embed.h mem.h dict.h
-bip_strings.o: emu_export.h error.h sha.c
-bip_tconv.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
-bip_tconv.o: dict.h emu_export.h ec_io.h lex.h property.h module.h
-code.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-code.o: emu_export.h opcode.h gencode.h debug.h module.h database.h
-dict.o: config.h os_support.h sepia.h ec_public.h types.h embed.h error.h
-dict.o: mem.h ec_io.h dict.h emu_export.h
-dummy_bigrat.o: config.h sepia.h ec_public.h types.h error.h
-dummy_par.o: config.h ec_public.h error.h
-eclipsedir.o: config.h os_support.h
-eg_c_basic.o: eclipse.h config.h ec_public.h types.h embed.h
-eg_c_external.o: eclipse.h config.h ec_public.h types.h embed.h
-eg_c_fail_loop.o: eclipse.h config.h ec_public.h types.h embed.h
-eg_c_handle.o: eclipse.h config.h ec_public.h types.h embed.h
-eg_c_main.o: eclipse.h config.h ec_public.h types.h embed.h
-eg_c_mip.o: eclipse.h config.h ec_public.h types.h embed.h
-eg_c_sendmore.o: eclipse.h config.h ec_public.h types.h embed.h
-eg_c_test.o: eclipse.h config.h ec_public.h types.h embed.h
-elipsys_fd.o: config.h sepia.h ec_public.h types.h embed.h mem.h dict.h fd.h
-elipsys_fd.o: error.h
-embed.o: config.h sepia.h ec_public.h types.h error.h mem.h dict.h module.h
-embed.o: emu_export.h embed.h os_support.h
-emu.o: config.h sepia.h ec_public.h types.h error.h mem.h dict.h emu_export.h
-emu.o: embed.h opcode.h database.h module.h debug.h property.h ec_io.h
-emu_c_env.o: config.h sepia.h ec_public.h types.h error.h embed.h mem.h ec_io.h
-emu_c_env.o: dict.h emu_export.h module.h debug.h opcode.h
-emu_par.o: config.h sepia.h ec_public.h types.h embed.h error.h ec_io.h mem.h
-emu_par.o: dict.h emu_export.h opcode.h wm.h sch_eng_interface.h trace.h
-emu_util.o: config.h sepia.h ec_public.h types.h debug.h embed.h error.h
-emu_util.o: mem.h opcode.h dict.h module.h emu_export.h ec_io.h
-error.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-error.o: emu_export.h ec_io.h os_support.h
-example.o: external.h config.h sepia.h ec_public.h types.h error.h embed.h
-external.o: config.h sepia.h ec_public.h types.h embed.h mem.h dict.h error.h
-external.o: emu_export.h
-gc_stacks.o: config.h os_support.h sepia.h ec_public.h types.h embed.h
-gc_stacks.o: error.h mem.h dict.h ec_io.h opcode.h emu_export.h
-handle.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h ec_io.h
-handle.o: dict.h database.h emu_export.h
-handlers.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-handlers.o: emu_export.h ec_io.h module.h property.h os_support.h
-init.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-init.o: module.h os_support.h ec_io.h
-intervals.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h
-intervals.o: dict.h emu_export.h opcode.h intervals.h rounding_control.h
-io.o: config.h os_support.h sepia.h ec_public.h types.h embed.h mem.h error.h
-io.o: dict.h lex.h ec_io.h emu_export.h property.h module.h
-lex.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-lex.o: lex.h ec_io.h emu_export.h module.h property.h os_support.h
-lex.o: rounding_control.h
-main.o: config.h os_support.h sepia.h ec_public.h types.h embed.h error.h
-main.o: mem.h dict.h emu_export.h module.h property.h
-manual_examples.o: external.h config.h sepia.h ec_public.h types.h error.h
-manual_examples.o: embed.h
-mem.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h ec_io.h
-mem.o: emu_export.h os_support.h
-operator.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-operator.o: emu_export.h property.h module.h lex.h
-os_support.o: config.h os_support.h
-printam.o: config.h names.h sepia.h ec_public.h types.h embed.h error.h mem.h
-printam.o: opcode.h ec_io.h dict.h emu_export.h database.h gencode.h
-printam.o: module.h debug.h
-proc_desc.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h
-proc_desc.o: opcode.h dict.h emu_export.h database.h module.h
+bip_misc.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+bip_misc.o: mem.h dict.h emu_export.h os_support.h
+bip_module.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_module.o: error.h ec_io.h dict.h database.h emu_export.h debug.h
+bip_module.o: gencode.h module.h opcode.h property.h os_support.h
+bip_mps.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_mps.o: error.h dict.h
+bip_parallel.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_parallel.o: mem.h error.h ec_io.h dict.h emu_export.h property.h module.h
+bip_parallel.o: opcode.h
+bip_record.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_record.o: error.h dict.h emu_export.h property.h module.h os_support.h
+bip_serialize.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_serialize.o: error.h mem.h dict.h ec_io.h module.h emu_export.h read.h
+bip_shelf.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_shelf.o: error.h dict.h emu_export.h property.h os_support.h
+bip_store.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_store.o: error.h mem.h dict.h emu_export.h property.h os_support.h
+bip_strings.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+bip_strings.o: mem.h dict.h emu_export.h error.h sha.c
+bip_tconv.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+bip_tconv.o: error.h dict.h emu_export.h ec_io.h lex.h property.h module.h
+code.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+code.o: error.h dict.h emu_export.h opcode.h gencode.h debug.h module.h
+code.o: database.h
+dict.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+dict.o: mem.h ec_io.h dict.h emu_export.h property.h os_support.h
+dlfcn_simple.o: dlfcn_simple.h
+dummy_bigrat.o: config.h sepia.h ec_public.h ec_general.h types.h error.h
+dummy_par.o: config.h ec_public.h ec_general.h error.h
+eclipsedir.o: config.h ec_public.h ec_general.h os_support.h
+eg_c_basic.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+eg_c_external.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+eg_c_fail_loop.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+eg_c_handle.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+eg_c_main.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+eg_c_mip.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+eg_c_sendmore.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+eg_c_test.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+elipsys_fd.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+elipsys_fd.o: dict.h fd.h error.h
+embed.o: config.h sepia.h ec_public.h ec_general.h types.h error.h mem.h
+embed.o: dict.h module.h emu_export.h embed.h os_support.h
+emu.o: config.h sepia.h ec_public.h ec_general.h types.h error.h mem.h dict.h
+emu.o: ec_io.h emu_export.h embed.h opcode.h database.h module.h debug.h
+emu.o: property.h
+emu_c_env.o: config.h sepia.h ec_public.h ec_general.h types.h error.h
+emu_c_env.o: embed.h mem.h ec_io.h dict.h emu_export.h module.h debug.h
+emu_c_env.o: opcode.h os_support.h
+emu_par.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+emu_par.o: ec_io.h mem.h dict.h emu_export.h opcode.h wm.h
+emu_par.o: sch_eng_interface.h trace.h
+emu_util.o: config.h sepia.h ec_public.h ec_general.h types.h debug.h embed.h
+emu_util.o: error.h mem.h opcode.h dict.h module.h emu_export.h ec_io.h
+emu_util.o: os_support.h
+engines.o: config.h sepia.h ec_public.h ec_general.h types.h error.h mem.h
+engines.o: dict.h module.h emu_export.h embed.h os_support.h
+error.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+error.o: mem.h dict.h emu_export.h ec_io.h os_support.h
+example.o: external.h config.h sepia.h ec_public.h ec_general.h types.h
+example.o: error.h embed.h
+external.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+external.o: dict.h error.h emu_export.h
+gc_stacks.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+gc_stacks.o: error.h mem.h dict.h ec_io.h opcode.h emu_export.h os_support.h
+handle.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+handle.o: error.h ec_io.h dict.h database.h emu_export.h
+handlers.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+handlers.o: error.h dict.h emu_export.h ec_io.h module.h property.h
+handlers.o: os_support.h
+init.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+init.o: mem.h dict.h module.h os_support.h ec_io.h emu_export.h
+intervals.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+intervals.o: error.h mem.h dict.h lex.h emu_export.h opcode.h intervals.h
+intervals.o: rounding_control.h
+io.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h error.h
+io.o: dict.h lex.h ec_io.h emu_export.h property.h module.h os_support.h
+lex.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+lex.o: error.h dict.h lex.h ec_io.h emu_export.h module.h property.h
+lex.o: os_support.h rounding_control.h
+main.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+main.o: os_support.h
+manual_examples.o: external.h config.h sepia.h ec_public.h ec_general.h
+manual_examples.o: types.h error.h embed.h
+mem.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+mem.o: mem.h dict.h ec_io.h emu_export.h os_support.h
+operator.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+operator.o: mem.h dict.h emu_export.h property.h module.h lex.h os_support.h
+os_support.o: config.h os_support.h ec_general.h getwd.c
+printam.o: config.h names.h sepia.h ec_public.h ec_general.h types.h embed.h
+printam.o: error.h mem.h opcode.h ec_io.h dict.h emu_export.h database.h
+printam.o: gencode.h module.h debug.h
+proc_desc.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+proc_desc.o: error.h opcode.h dict.h emu_export.h database.h module.h
 proc_desc.o: property.h gencode.h
-procedure.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h
-procedure.o: dict.h emu_export.h property.h opcode.h gencode.h
-procedure.o: ec_io.h database.h module.h read.h os_support.h
-property.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-property.o: module.h property.h
-read.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-read.o: lex.h emu_export.h ec_io.h read.h module.h property.h
-sch_util.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-sch_util.o: sch_types.h sch_macros.h
+procedure.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+procedure.o: error.h mem.h dict.h emu_export.h property.h ec_io.h read.h
+procedure.o: module.h
+property.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+property.o: mem.h dict.h module.h property.h os_support.h
+read.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+read.o: mem.h dict.h lex.h emu_export.h ec_io.h read.h module.h property.h
+read.o: os_support.h
+sch_util.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+sch_util.o: mem.h dict.h sch_types.h sch_macros.h
 scheduler.o: config.h trace.h error.h sch_types.h sch_eng_interface.h
 scheduler.o: sch_macros.h
-st2.o: config.h
-term_copy.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-term_copy.o: emu_export.h
-test.o: sepia.h ec_public.h types.h
-tkeclipse.o: eclipse.h config.h ec_public.h types.h embed.h tkcommon.h
-tkexdr.o: config.h tkcommon.h
-trace.o: config.h os_support.h sepia.h ec_public.h types.h embed.h error.h
-trace.o: mem.h dict.h trace.h wm_msgs.h wm.h
-types_external.o: config.h sepia.h ec_public.h types.h
+term_copy.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
+term_copy.o: error.h mem.h dict.h property.h emu_export.h
+test.o: sepia.h ec_public.h ec_general.h types.h
+tkeclipse.o: eclipse.h config.h ec_public.h ec_general.h types.h embed.h
+tkeclipse.o: tkcommon.h
+tkexdr.o: config.h ec_general.h tkcommon.h
+trace.o: config.h os_support.h ec_general.h sepia.h ec_public.h types.h
+trace.o: embed.h error.h mem.h dict.h trace.h wm_msgs.h wm.h
+types_external.o: config.h sepia.h ec_public.h ec_general.h types.h
 upcalls.o: config.h
 wm.o: config.h sch_types.h trace.h wm_msgs.h wm_types.h
-wm_interface.o: config.h sch_types.h trace.h wm_msgs.h wm_types.h
-worker.o: config.h sepia.h ec_public.h types.h embed.h error.h mem.h dict.h
-worker.o: trace.h wm_msgs.h wm.h sch_types.h sch_eng_interface.h
-write.o: config.h sepia.h ec_public.h types.h embed.h mem.h error.h dict.h
-write.o: lex.h ec_io.h emu_export.h module.h property.h
+wm_interface.o: config.h
+worker.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
+worker.o: mem.h dict.h trace.h wm_msgs.h wm.h sch_types.h sch_eng_interface.h
+write.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
+write.o: error.h dict.h lex.h ec_io.h emu_export.h module.h property.h read.h
+write.o: os_support.h

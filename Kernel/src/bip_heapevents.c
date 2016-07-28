@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_heapevents.c,v 1.1 2008/06/30 17:43:51 jschimpf Exp $
+ * Version:	$Id: bip_heapevents.c,v 1.2 2016/07/28 03:34:35 jschimpf Exp $
  *
  * Contents:	Built-ins for the heap-event-primitives
  *
@@ -36,10 +36,12 @@
 #include        "mem.h"
 #include        "error.h"
 #include	"dict.h"
+#include	"property.h"
 
 #include        <stdio.h>	/* for sprintf() */
 
-static dident	d_defers0_;
+static dident	d_defers0_, d_event0_;
+static pword	true_pw_;
 
 /*----------------------------------------------------------------------
  * Prolog heap events
@@ -51,29 +53,11 @@ static dident	d_defers0_;
 
 /* METHODS */
 
-static void _free_heap_event(t_heap_event *event);
-static t_heap_event * _copy_heap_event(t_heap_event *event);
-static void _mark_heap_event(t_heap_event *obj);
-static int _heap_event_set(t_ext_ptr h, int i, pword pw);
-static pword _heap_event_get(t_ext_ptr h, int i);
-static int _tostr_heap_event(t_heap_event *event, char *buf, int quoted);
-static int _strsz_heap_event(t_heap_event *event, int quoted);
-
-
-/* CLASS DESCRIPTOR (method table) */
-
-t_ext_type heap_event_tid = {
-    (void (*)(t_ext_ptr)) _free_heap_event,
-    (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_event,
-    (void (*)(t_ext_ptr)) _mark_heap_event,
-    (int (*)(t_ext_ptr,int)) _strsz_heap_event,
-    (int (*)(t_ext_ptr,char *,int)) _tostr_heap_event,
-    0,	/* equal */
-    (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_event,
-    0,	/* get */
-    0	/* set */
-};
-
+static dident
+_kind_event(void)
+{
+    return d_event0_;
+}
 
 static void
 _free_heap_event(t_heap_event *event)	/* event != NULL */
@@ -82,7 +66,8 @@ _free_heap_event(t_heap_event *event)	/* event != NULL */
      * when freeing an embedded self-reference. The equality
      * test ensures the event is freed once and once only.
      */
-    if (--event->ref_ctr == 0)
+    int rem = atomic_add(&event->ref_ctr, -1);
+    if (rem == 0)
     {
 	free_heapterm(&event->goal);
 	hg_free_size(event, sizeof(t_heap_event));
@@ -96,7 +81,7 @@ _free_heap_event(t_heap_event *event)	/* event != NULL */
 static t_heap_event *
 _copy_heap_event(t_heap_event *event)	/* event != NULL */
 {
-    ++event->ref_ctr;
+    atomic_add(&event->ref_ctr, 1);
     return event;
 }
 
@@ -132,6 +117,37 @@ _strsz_heap_event(t_heap_event *event, int quoted)	/* event != NULL */
 }
 
 
+t_ext_ptr
+ec_new_heap_event(value vgoal, type tgoal, value vm, type tm, int defers)
+{
+    t_heap_event *event = (t_heap_event *)hg_alloc_size(sizeof(t_heap_event));
+    event->ref_ctr = 1;
+    event->enabled = 1;
+    event->defers = defers;
+    event->module.tag = tm;
+    event->module.val = vm;
+    event->goal.tag = tgoal;
+    event->goal.val = vgoal;
+    return (t_ext_ptr) event;
+}
+
+
+/* CLASS DESCRIPTOR (method table) */
+
+t_ext_type heap_event_tid = {
+    (void (*)(t_ext_ptr)) _free_heap_event,
+    (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_event,
+    (void (*)(t_ext_ptr)) _mark_heap_event,
+    (int (*)(t_ext_ptr,int)) _strsz_heap_event,
+    (int (*)(t_ext_ptr,char *,int)) _tostr_heap_event,
+    0,	/* equal */
+    (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_event,
+    0,	/* get */
+    0,	/* set */
+    _kind_event
+};
+
+
 /* PROLOG INTERFACE */
 
 /*
@@ -143,7 +159,7 @@ _strsz_heap_event(t_heap_event *event, int quoted)	/* event != NULL */
 
 
 static int
-p_event_create4(value vevent, type tevent, value vopt, type topt, value vhandle, type thandle, value vmodule, type tmodule)
+p_event_create4(value vevent, type tevent, value vopt, type topt, value vhandle, type thandle, value vmodule, type tmodule, ec_eng_t *ec_eng)
 {
     t_heap_event *event;
     pword hevent;
@@ -175,20 +191,14 @@ p_event_create4(value vevent, type tevent, value vopt, type topt, value vhandle,
      */
     Disable_Int();
 
-    event = (t_heap_event *)hg_alloc_size( sizeof(t_heap_event) );
-    event->ref_ctr = 1;
-    event->enabled = 1;
-    event->defers = defers;
-    event->module.tag = tmodule;
-    event->module.val = vmodule;
-
-    hevent = ec_handle(&heap_event_tid, (t_ext_ptr) event);
+    event = (t_heap_event *) ec_new_heap_event(true_pw_.val, true_pw_.tag, vmodule, tmodule, defers);
+    hevent = ecl_handle(ec_eng, &heap_event_tid, (t_ext_ptr) event);
 
     /* Unify the handle before the heap copy in case it is embedded within 
      * the event
      */
     res = Unify_Pw(vhandle, thandle, hevent.val, hevent.tag);
-    res = res == PSUCCEED ? create_heapterm(&event->goal, vevent, tevent) : res;
+    res = res == PSUCCEED ? create_heapterm(ec_eng, &event->goal, vevent, tevent) : res;
 
     if (res != PSUCCEED) {
 	hg_free_size(event, sizeof(t_heap_event));
@@ -210,16 +220,16 @@ p_event_create4(value vevent, type tevent, value vopt, type topt, value vhandle,
 
 
 static int
-p_event_create(value vevent, type tevent, value vhandle, type thandle, value vmodule, type tmodule)
+p_event_create(value vevent, type tevent, value vhandle, type thandle, value vmodule, type tmodule, ec_eng_t *ec_eng)
 {
     pword opt;
     Make_Nil(&opt);
-    return p_event_create4(vevent, tevent, opt.val, opt.tag, vhandle, thandle, vmodule, tmodule);
+    return p_event_create4(vevent, tevent, opt.val, opt.tag, vhandle, thandle, vmodule, tmodule, ec_eng);
 }
 
 
 static int
-p_event_retrieve(value vhandle, type thandle, value vgoal, type tgoal, value vmodule, type tmodule)
+p_event_retrieve(value vhandle, type thandle, value vgoal, type tgoal, value vmodule, type tmodule, ec_eng_t *ec_eng)
 {
     t_heap_event *event;
     pword goal;
@@ -228,7 +238,8 @@ p_event_retrieve(value vhandle, type thandle, value vgoal, type tgoal, value vmo
 
     Get_Typed_Object(vhandle, thandle, &heap_event_tid, event);
 
-    get_heapterm(&event->goal, &goal);
+    /* the goal is read-only, no locking needed */
+    get_heapterm(ec_eng, &event->goal, &goal);
 
     /* Is the event enabled or disabled? */
     if (event->enabled) {
@@ -245,7 +256,7 @@ p_event_retrieve(value vhandle, type thandle, value vgoal, type tgoal, value vmo
 
 
 static int
-p_event_enable(value vhandle, type thandle)
+p_event_enable(value vhandle, type thandle, ec_eng_t *ec_eng)
 {
     t_heap_event *event;
 
@@ -256,7 +267,7 @@ p_event_enable(value vhandle, type thandle)
      */
     if (!event->enabled) 
     {
-	purge_disabled_dynamic_events(event);
+	purge_disabled_dynamic_events(ec_eng, event);
     }
 
     event->enabled = 1;
@@ -266,7 +277,7 @@ p_event_enable(value vhandle, type thandle)
 
 
 static int
-p_event_disable(value vhandle, type thandle)
+p_event_disable(value vhandle, type thandle, ec_eng_t *ec_eng)
 {
     t_heap_event *event;
 
@@ -286,6 +297,8 @@ void
 bip_heapevent_init(int flags)
 {
     d_defers0_ = in_dict("defers", 0);
+    d_event0_ = in_dict("event", 0);
+    Make_Atom(&true_pw_, d_.true0);
 
     if (flags & INIT_SHARED)
     {

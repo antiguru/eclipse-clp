@@ -22,13 +22,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tracer_tty.pl,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: tracer_tty.pl,v 1.8 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe II debugger -- TTY Interface
 %
-% $Id: tracer_tty.pl,v 1.7 2009/07/16 09:11:24 jschimpf Exp $
+% $Id: tracer_tty.pl,v 1.8 2016/07/28 03:34:35 jschimpf Exp $
 %
 % Authors:	Joachim Schimpf, IC-Parc
 %		Kish Shen, IC-Parc
@@ -102,6 +102,11 @@ trace_line_handler_tty(_, Current) :-
    reset_event_handler(250).
 :- set_default_error_handler(252, trace_line_handler_tty/2),
    reset_event_handler(252).
+
+:- export async_force_creep_mode/0.
+async_force_creep_mode :-
+        clear_cmd,  % clear any existing command
+	trace_mode(0, []).
 
 print_trace_line(trace_line{port:Port, frame:Frame}) :-
         Frame = tf{invoc:Invoc,goal:Goal,depth:Depth,prio:Prio,module:M},
@@ -1038,6 +1043,7 @@ update_format_strings :-
 % This is complicated now because of the parallel case.
 %--------------------------------------------------------
 
+/*
 :- export interrupt_prolog/0.
 :- skipped interrupt_prolog/0.
 interrupt_prolog :-
@@ -1062,7 +1068,7 @@ prompt_for_option(Option, TypeInWorker) :-
 ask_option(Option) :-
 	repeat,
 	nl(debug_output),
-	write(warning_output, 'interruption: type '),
+	write(warning_output, 'Interrupt: type '),
 	write_options,
 	write(warning_output, 'or h for help : ? '),
 	flush(warning_output),
@@ -1097,8 +1103,10 @@ current_option(0'd, Error, Message) :-
 	    Error = invalid,
 	    Message = 'not available in parallel execution'
 	).
-current_option(0'e, valid, exit).
+current_option(0'e, valid, 'show engines').
 current_option(0'h, help, help).
+current_option(0'x, valid, exit).
+
 
 option_message(Option, Error, Message) :-
 	current_option(Option, Error, Message), !.
@@ -1111,13 +1119,38 @@ option_message(_, invalid, 'invalid option').
 %	cont	- on all workers
 %	exit	- on one worker
 do_option(0'a, _) :-
-	abort.
+	%abort.
+	sepia_kernel:current_engines(Es),
+	event_create(exit(99), [], Exit),
+	( foreach(E,Es), count(I,1,_), param(Exit) do
+	    ( engine_self(E) -> true
+	    ; I==1 ->
+		printf(warning_output, 'Aborting engine %d%n', [I]),
+	    	engine_post_event(E, abort)
+	    ; engine_status(E, running) ->
+		printf(warning_output, 'Exiting engine %d%n', [I]),
+	    	engine_post_event(E, Exit)
+%	    	engine_post_event(E, abort)
+	    ; true
+	    )
+	).
 do_option(0'b, Worker) :- (get_flag(worker, Worker) -> break ; true).
 do_option(0'c, _).
 do_option(0'd, 0) :-
         clear_cmd,  % clear any existing command
 	trace_mode(0, []).
-do_option(0'e, Worker) :- (get_flag(worker, Worker) -> halt ; true).
+do_option(0'e, _) :-
+	sepia_kernel:current_engines(Es),
+	( foreach(E,Es), count(I,1,_) do
+	    engine_properties(E, Ps),
+	    memberchk(status(Status),Ps),
+	    ( I==1 -> This=" (main)"
+	    ; engine_self(E) -> This=" (interrupt)"
+	    ; This=""
+	    ),
+	    printf(log_output, "Engine %d: %w%s%n", [I,Status,This])
+	).
+do_option(0'x, Worker) :- (get_flag(worker, Worker) -> halt ; true).
 
 write_options :-
 	current_option(Option, valid, _),
@@ -1132,7 +1165,7 @@ help_debug :-
 help_debug :-
 	writeln(debug_output, '	h : help\n'),
 	flush(debug_output).
-
+*/
 
 %----------------------------------------------------------------------
 % Init global settings
@@ -1148,12 +1181,15 @@ help_debug :-
 :- mutex_init(control_c_lock).
 :- local variable(control_c_option).
 
-
 % Interrupt handlers
 
 try_set_interrupt_handler(I, H) :-
 	current_interrupt(_, I) -> set_interrupt_handler(I, H) ; true.
 
+it_handler(Sig):-
+	printf(error, "Signal %d%n%b", [Sig]).
+
+/*
 :- import reset/0 from sepia_kernel.
 
 :- export
@@ -1164,9 +1200,6 @@ try_set_interrupt_handler(I, H) :-
 it_reset(Sig) :-
 	it_handler(Sig),
 	reset.
-
-it_handler(Sig):-
-	printf(error, "Signal %d%n%b", [Sig]).
 
 it_overflow:-
 	write(error, "Segmentation violation - possible reasons are:\n"
@@ -1192,21 +1225,32 @@ it_overflow:-
 	    true
 	;
 	    % Standalone: try to catch as much as possible
-	    try_set_interrupt_handler(hup, halt/0),
-	    try_set_interrupt_handler(quit, halt/0),
-	    try_set_interrupt_handler(abrt, halt/0),
-	    try_set_interrupt_handler(ill, it_reset/1),
-	    try_set_interrupt_handler(trap, it_handler/1),
-	    try_set_interrupt_handler(iot, it_handler/1),
-	    try_set_interrupt_handler(emt, it_handler/1),
-	    try_set_interrupt_handler(fpe, it_reset/1),
-	    try_set_interrupt_handler(bus, it_reset/1),
-	    try_set_interrupt_handler(segv, it_overflow/0),
-	    try_set_interrupt_handler(sys, it_handler/1),
+	    try_set_interrupt_handler(ill, internal/0),
+	    try_set_interrupt_handler(fpe, internal/0),
+	    try_set_interrupt_handler(bus, internal/0),
+	    try_set_interrupt_handler(segv, internal/0),
+	    try_set_interrupt_handler(sys, internal/0),
 	    try_set_interrupt_handler(pipe, it_handler/1),
 	    try_set_interrupt_handler(term, abort/0),
 	    try_set_interrupt_handler(urg, it_handler/1),
 	    try_set_interrupt_handler(ttou, true/0)
 	)
    ).
-
+*/
+?-  ( peer(X), peer_get_property(X,type,embed) ->
+	% If we are embedded, don't touch the handlers
+	true
+    ;
+	% Standalone: try to catch as much as possible
+	set_interrupt_handler(int, abort/0),
+	try_set_interrupt_handler(ill, internal/0),
+	try_set_interrupt_handler(fpe, internal/0),
+	try_set_interrupt_handler(bus, internal/0),
+	try_set_interrupt_handler(segv, internal/0),
+	try_set_interrupt_handler(sys, internal/0),
+	try_set_interrupt_handler(pipe, it_handler/1),
+	try_set_interrupt_handler(term, abort/0),
+	%try_set_interrupt_handler(urg, it_handler/1),
+	%try_set_interrupt_handler(ttou, true/0),
+	true
+    ).

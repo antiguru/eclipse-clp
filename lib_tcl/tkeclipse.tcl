@@ -27,13 +27,13 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.17 2013/07/05 01:34:47 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.18 2016/07/28 03:34:37 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
 # Find and load the eclipse package
 #----------------------------------------------------------------------
-set tkecl(version) 6.2	 ;# update also in eclipse_tools and examples!
+set tkecl(version) 7.0	 ;# update also in eclipse_tools and examples!
 # including mapdebugdemo.tcl in <ECLiPSe>/document/tutorial/mapdebugdemo.tcl
 
 switch $tcl_platform(platform) {
@@ -1242,12 +1242,16 @@ ec_rpcq {set_stream user_error error} (()())
 
 # ensure_loaded rather than use_module: we don't want to import
 ec_rpcq {ensure_loaded {library toplevel}} ((()))
-ec_rpcq {toplevel_init gui} (()) toplevel
+#ec_rpcq {toplevel_init gui} (()) toplevel
 
 ec_queue_create gui_interrupt_request r tkecl:stop_request_handler
+ec_rpcq_check [list peer_queue_create answer_output host sync fromec ""] (()()()()())
 ec_queue_create answer_output r "ec_stream_to_window highlight .tkecl.pane.answer.tout"
+
 ec_queue_create warning_output r "tkecl:tkec_stream_to_window warning .tkecl.pane.stdio.tout $tkecl(stop_scrolling)"
+ec_rpcq_check [list peer_queue_create toplevel_out host sync fromec ""] (()()()()())
 ec_queue_create toplevel_out r tkecl:toplevel_out_handler
+ec_rpcq {toplevel_init gui} (()) toplevel
 ec_queue_create toplevel_in w tkecl:toplevel_in_handler
 ec_rpcq {set_stream_property warning_output flush end_of_line} (()()())
 

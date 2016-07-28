@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.23 2016/07/24 19:34:45 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.24 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -32,6 +32,16 @@
  *****************************************************************************/
 
 #include 	"config.h"
+#include        "sepia.h"
+#include        "types.h"
+#include	"embed.h"
+#include        "mem.h"
+#include        "error.h"
+#include        "ec_io.h"
+#include	"dict.h"
+#include	"lex.h"
+#include	"emu_export.h"
+#include	"property.h"
 #include 	"os_support.h"
 
 #include	<errno.h>
@@ -71,6 +81,8 @@ extern char	*strcpy(),
 #endif
 
 #ifdef _WIN32
+#undef _WIN32_WINNT
+#define _WIN32_WINNT HAVE_WIN32_WINNT
 #include	<windows.h>
 #include	<process.h>
 #else
@@ -80,13 +92,13 @@ extern char	*strcpy(),
 #ifdef SOCKETS
 #ifdef _WIN32
 
-#define StreamCanSignal(nst)	IsSocket(nst)
+#define StreamSupportsSigio(nst)	IsSocket(nst)
 
 typedef SOCKET socket_t;
 
 #else
 
-#define StreamCanSignal(nst)	(IsSocket(nst) || IsPipeStream(nst))
+#define StreamSupportsSigio(nst)	(IsSocket(nst) || IsPipeStream(nst))
 
 #define INVALID_SOCKET (-1)
 typedef int socket_t;
@@ -136,32 +148,18 @@ typedef int socket_t;
 #endif
 
 
-#include        "sepia.h"
-#include        "types.h"
-#include	"embed.h"
-#include        "mem.h"
-#include        "error.h"
-#include        "ec_io.h"
-#include	"dict.h"
-#include	"lex.h"
-#include	"emu_export.h"
-#include	"property.h"
 
 /* constants which are the same everywhere, but whose symbolic names vary */
 #define ACCESS_OK	0
 
-#define StreamCanRaiseEvent(nst) (IsQueueStream(nst) || StreamCanSignal(nst))
-
-#define GetStreamProperty(functor)	\
-    get_property(functor, STREAM_PROP)
+#define StreamCanRaiseEvent(nst) (IsQueueStream(nst) || StreamCanNotifyViaThread(nst))
 
 #define Bind_Stream(v, t, s)				\
 	if (IsAtom(t) || IsNil(t)) {			\
-	    int _res;					\
-	    if ((_res = set_stream(IsNil(t) ? d_.nil : (v).did, s)) < 0)	\
-		{ Bip_Error(_res); }			\
+	    int _res = set_stream(IsNil(t) ? d_.nil : (v).did, s);	\
+	    if (_res < 0) { Bip_Error(_res); }		\
 	} else {					\
-	    pword hstream = StreamHandle(s);		\
+	    pword hstream = ecl_handle(ec_eng, &stream_tid, (t_ext_ptr)(s)); \
 	    Bind_Var(v, t, hstream.val.all, hstream.tag.kernel);	\
 	}
 
@@ -206,14 +204,9 @@ static t_child_desc	*child_processes = 0;
 #endif
 
 
-extern pword		*empty_string;
-extern t_ext_type	heap_event_tid;
-extern int		ec_sigio;
-
 static dident		d_pipe,
 			d_fd,
 			d_fd1,
-			d_false,
 			d_force1,
 			d_dup1,
 			d_sigio,
@@ -242,21 +235,12 @@ static dident		modes[SMODEBITS + 1];
 static dident		stream_types[STYPE_NUM];
 static dident		stream_encodings[SENC_NUM];
 
-#ifdef __STDC__
 
 static int		_check_stream(value, type, pword *, int),
 			_check_streams(value, type, struct pipe_desc *),
 			_match(char *, char *);
 static void		_get_args(char *cmd, char *argv[]);
 
-#else /* __STDC__ */
-
-static int		_check_stream(),
-			_check_streams(),
-			_match();
-static void		_get_args();
-
-#endif /* __STDC__ */
 
 static int		_open_pipes(struct pipe_desc *pipes);
 static void		_close_pipes(struct pipe_desc *pipes);
@@ -264,222 +248,55 @@ static void		_close_pipes(struct pipe_desc *pipes);
 static void		_connect_pipes(struct pipe_desc *pipes);
 #endif
 
-static int     		p_nl(value vs, type ts), 
-			p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr), 
-			p_erase_stream_property(value v, type t),
-			p_close(value v, type t),
-			p_close2(value v, type t, value vopt, type topt),
-			p_tyo(value vs, type ts, value v, type t),
-			p_tyi(value vs, type ts, value v, type t), 
-			p_delete(value v, type t), 
-			p_mkdir(value v, type t), 
-			p_rename(value vo, type to, value vd, type td), 
-			p_get_prompt(value iv, type it, value pv, type pt, value ov, type ot),
-			p_set_prompt(value iv, type it, value pv, type pt, value ov, type ot),
-			p_is_open_stream(value vc, type tc),
-			p_check_valid_stream(value v, type t),
-			p_check_stream_spec(value v, type t),
-			p_set_stream(value ov, type ot, value nv, type nt),
-			p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value val, type tag),
-			p_read_string5(value vs, type ts, value vdel, type tdel, value vpad, type tpad, value vsep, type tsep, value val, type tag),
-			p_at(value vs, type ts, value vp, type tp),
-			p_get_char(value vs, type ts, value val, type tag),
-			p_get(value vs, type ts, value val, type tag),
-			p_get1(value val, type tag),
-			p_put_char(value vs, type ts, value val, type tag),
-			p_put(value vstr, type tstr, value v, type t),
-			p_put1(value v, type t),
-			p_getw(value vs, type ts, value val, type tag),
-			p_unget(value vs, type ts),
-			p_flush(value sv, type st),
-			p_at_eof(value vs, type ts),
-			p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type tsubdirs, value vfiles, type tfiles),
-			p_socket(value vdom, type tdom, value vtp, type ttp, value vs, type ts),
-			p_bind(value v, type t, value vaddr, type taddr),
-			p_connect(value v, type t, value vaddr, type taddr),
-			p_accept(value v, type t, value vaddr, type taddr, value vs, type ts),
-			p_listen(value v, type t, value vn, type tn),
-			p_select(value vin, type tin, value vtime, type ttime, value vout, type tout),
-			p_pipe(value valr, type tagr, value valw, type tagw),
-			p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, type tpr),
-			p_wait(value pv, type pt, value sv, type st, value vmode, type tmode),
-#if defined(HAVE_READLINE)
-			p_readline(),
-#endif
-			p_stream_number(value val1, type tag1),
-			p_get_stream(value vi, type ti, value vs, type ts),
-			p_gen_open_stream(value vprev, type tprev, value v, type t),
-			p_seek(value vs, type ts, value vp, type tp),
-			p_stream_truncate(value vs, type ts),
-			p_stream_info_(value vs, type ts, value vi, type ti, value v, type t),
-			p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t);
-
-
-void
-bip_io_init(int flags)
-{
-    d_fd = in_dict("fd", 0);
-    d_fd1 = in_dict("fd", 1);
-    d_false = in_dict("false", 0);
-    d_force1 = in_dict("force", 1);
-    d_dup1 = in_dict("dup", 1);
-    d_sigio = in_dict("sigio", 1);
-    d_in = in_dict("in", 1);
-    d_out = in_dict("out", 1);
-    d_at = in_dict("at", 0);
-    d_not = in_dict("not", 0);
-    d_past = in_dict("past", 0);
-    d_eof_code = in_dict("eof_code", 0);
-    d_queue1 = in_dict("queue", 1);
-    d_unix = in_dict("unix", 0);
-    d_internet = in_dict("internet", 0);
-    d_stream = in_dict("stream", 0);
-    d_datagram = in_dict("datagram", 0);
-    d_reprompt1 = in_dict("reprompt", 1);
-    d_block = in_dict("block", 0);
-    d_end_of_line = in_dict("end_of_line", 0);
-    d_lf = in_dict("lf", 0);
-    d_crlf = in_dict("crlf", 0);
-    d_when_lost = in_dict("when_lost", 0);
-    d_when_closed = in_dict("when_closed", 0);
-
-    modes[SCLOSED] = in_dict("closed",0);
-    modes[SREAD] = d_.read;
-    modes[SWRITE] = d_.write;
-    modes[SRDWR] = d_.update;
-    modes[SAPPEND|SCLOSED] = in_dict("invalid",0);
-    modes[SAPPEND|SREAD] =  in_dict("invalid",0);
-    modes[SAPPEND|SWRITE] = d_.append;
-    modes[SAPPEND|SRDWR] =  in_dict("invalid",0);
-
-    stream_types[SFILE>>STYPE_SHIFT] = in_dict("file", 0);
-    stream_types[SSTRING>>STYPE_SHIFT] = d_.string0;
-    stream_types[SPIPE>>STYPE_SHIFT] = d_pipe = in_dict("pipe", 0);
-    stream_types[SQUEUE>>STYPE_SHIFT] = d_queue = in_dict("queue", 0);
-    stream_types[SNULL>>STYPE_SHIFT] = d_.null;
-    stream_types[SSOCKET>>STYPE_SHIFT] = d_socket = in_dict("socket", 0);
-    stream_types[STTY>>STYPE_SHIFT] = in_dict("tty", 0);
-
-    stream_encodings[SENC_OCTET] = in_dict("octet", 0);
-    stream_encodings[SENC_ASCII] = in_dict("ascii", 0);
-    stream_encodings[SENC_LATIN1] = in_dict("iso_latin_1", 0);
-
-#ifdef _WIN32
-    if (flags & INIT_PRIVATE)
-    {
-	child_processes = NULL;
-    }
-#endif
-
-    if (flags & INIT_SHARED)
-    {
-	(void) built_in(in_dict("nl", 1),	p_nl, B_SAFE);
-	(void) built_in(in_dict("open", 3),	p_open, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("close", 1),	p_close, B_SAFE);
-	(void) built_in(in_dict("close", 2),	p_close2, B_SAFE);
-	(void) built_in(in_dict("tyo", 2),	p_tyo, B_SAFE);
-	(void) built_in(in_dict("tyi", 2),	p_tyi, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("delete", 1),	p_delete, B_SAFE);
-	(void) built_in(in_dict("mkdir", 1),	p_mkdir, B_SAFE);
-	(void) built_in(in_dict("rename", 2),	p_rename, B_SAFE);
-	built_in(in_dict("get_prompt", 3),	p_get_prompt, B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
-	(void) built_in(in_dict("set_prompt", 3),	p_set_prompt, B_UNSAFE);
-	(void) local_built_in(in_dict("is_open_stream", 1),
-			p_is_open_stream, B_SAFE);
-	(void) local_built_in(in_dict("check_valid_stream", 1),
-			p_check_valid_stream, B_SAFE);
-	(void) local_built_in(in_dict("check_stream_spec", 1),
-			p_check_stream_spec, B_SAFE);
-	(void) built_in(in_dict("get_stream",2),	p_get_stream, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("set_stream",2),	p_set_stream, B_SAFE);
-	(void) built_in(in_dict("seek",2),	p_seek, B_SAFE);
-	(void) built_in(in_dict("stream_truncate",1),	p_stream_truncate, B_SAFE);
-	(void) built_in(in_dict("at",2),	p_at, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("get_char",2),	p_get_char, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("get", 2),	p_get,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("get", 1),	p_get1,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("unget",1),	p_unget, B_SAFE);
-	(void) built_in(in_dict("put_char",2),	p_put_char, B_SAFE);
-	(void) built_in(in_dict("put", 2),	p_put, B_SAFE);
-	(void) built_in(in_dict("put", 1),	p_put1, B_SAFE);
-	(void) exported_built_in(in_dict("getw", 2),	p_getw, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("at_eof",1),	p_at_eof, B_SAFE);
-	(void) built_in(in_dict("flush", 1),		p_flush,	B_SAFE);
-	(void) local_built_in(in_dict("stream_number", 1),
-			p_stream_number, B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("stream_info_", 3), p_stream_info_, B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("set_stream_prop_", 3), p_set_stream_prop_, B_SAFE);
-	(void) local_built_in(in_dict("erase_stream_property", 1),
-			p_erase_stream_property, B_SAFE);
-	built_in(in_dict("pipe", 2),	p_pipe,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT);
-	local_built_in(in_dict("exec", 4),	p_exec,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(3, CONSTANT) | BoundArg(4, CONSTANT);
-	built_in(in_dict("read_string", 4),	p_read_string,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(3, CONSTANT) | BoundArg(4, CONSTANT);
-	built_in(in_dict("read_string", 5),	p_read_string5,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(4, CONSTANT) | BoundArg(5, CONSTANT);
-	built_in(in_dict("read_directory", 4),	p_read_dir,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(3, GROUND) | BoundArg(4, GROUND);
-	(void) built_in(in_dict("socket", 3),	p_socket,	B_UNSAFE|U_SIMPLE);
-	built_in(in_dict("bind", 2),		p_bind,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, GROUND);
-	built_in(in_dict("connect", 2),		p_connect,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(2, GROUND);
-	(void) built_in(in_dict("listen", 2),	p_listen,	B_UNSAFE);
-	(void) built_in(in_dict("accept", 3),	p_accept,	B_UNSAFE|U_SIMPLE);
-	built_in(in_dict("stream_select", 3),	p_select,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(3, GROUND);
-	b_built_in(in_dict("gen_open_stream", 2), p_gen_open_stream, 	d_.kernel_sepia)
-	    -> mode = BoundArg(2, CONSTANT);
-	b_built_in(in_dict("wait", 3), 		p_wait, 	d_.kernel_sepia)
-	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
-#if defined(HAVE_READLINE)
-	(void) exported_built_in(in_dict("readline", 1),		p_readline,	B_SAFE);
-#endif
-    }
-}
 
 
 /* METHODS */
-static void _lose_stream(stream_id nst);
-static stream_id _copy_stream(stream_id nst);
-static void _mark_stream(stream_id nst);
-static int _tostr_stream(stream_id nst, char *buf, int quoted);
-static int _strsz_stream(stream_id nst, int quoted);
-
 
 static void
 _lose_stream(stream_id nst)		/* nst != NULL */
 {
-    assert(nst);
-    assert(nst->nref > 0);
-    if (--nst->nref == 0)
+    int rem;
+    assert(nst && !(StreamMode(nst)&SSLAVE)
+	    && (nst->nref>1 || (nst->nref==1 && !IsOpened(nst))));
+    rem = atomic_add(&nst->nref, -1);
+    /* if rem==0, we have lost a temporary reference to an unopened stream */
+    if (rem == 1)
     {
-	if (IsOpened(nst) && !(StreamMode(nst) & SSYSTEM)
-                          && !(StreamMode(nst) & SNUMBERUSED))
+	/* nst now owned exclusively, no locking needed */
+	assert(!(StreamMode(nst) & SNUMBERUSED)); /* should imply one extra reference */
+	if (!(StreamMode(nst) & SDONTCLOSE))
 	{
-	    /*
-	    p_fprintf(current_output_, "lose_stream(%d)\n", StreamNr(nst));
-	    ec_flush(current_output_);
-	    */
-	    int res = ec_close_stream(nst, CLOSE_FORCE|CLOSE_LOST);
-	    if (res != PSUCCEED)
+	    if (IsOpened(nst))
 	    {
-		p_fprintf(current_err_, "\nError %d during auto-close of stream_%d\n", -res, StreamNr(nst));
-		ec_flush(current_err_);
+		/*
+		p_fprintf(current_output_, "lose_stream(%d)\n", StreamNr(nst));
+		ec_flush(current_output_);
+		*/
+		int res = ec_close_stream(nst, CLOSE_FORCE|CLOSE_LOST);
+		if (res != PSUCCEED)
+		{
+		    p_fprintf(current_err_, "\nError %d during auto-close of stream_%d\n", -res, StreamNr(nst));
+		    ec_flush(current_err_);
+		}
+		assert(!IsOpened(nst));
 	    }
+	    mt_mutex_destroy(&nst->lock);
+	    atomic_add(&nst->nref, -1);	/* reduce count to zero */
+	    atomic_add(&NbStreamsFree, 1);
+	    /* once we get rid of the array: */
+	    /* hg_free_size(nst, sizeof(stream_desc)); */
 	}
-	/* once we get rid of the array: */
-	/* hg_free_size(nst, sizeof(stream_desc)); */
     }
 }
 
 static stream_id
 _copy_stream(stream_id nst)		/* nst != NULL */
 {
-    ++nst->nref;
+    /*
+    p_fprintf(current_output_, "copy_stream(%d)\n", StreamNr(nst));
+    ec_flush(current_output_);
+    */
+    atomic_add(&nst->nref, 1);
     return nst;
 }
 
@@ -514,6 +331,30 @@ _strsz_stream(stream_id nst, int quoted)	/* nst != NULL */
     return STRSZ_STREAM;
 }
 
+static dident
+_kind_stream()
+{
+    return d_stream;
+}
+
+static int
+_lock_stream(stream_id nst)
+{
+    return mt_mutex_lock(&nst->lock);
+}
+
+static int
+_trylock_stream(stream_id nst)
+{
+    return mt_mutex_trylock(&nst->lock);
+}
+
+static int
+_unlock_stream(stream_id nst)
+{
+    return mt_mutex_unlock(&nst->lock);
+}
+
 
 /* CLASS DESCRIPTOR (method table) */
 
@@ -526,33 +367,52 @@ t_ext_type stream_tid = {
     0,	/* equal */
     (t_ext_ptr (*)(t_ext_ptr)) _copy_stream,
     0,	/* get */
-    0	/* set */
+    0,	/* set */
+    _kind_stream,	/* kind */
+    (int (*)(t_ext_ptr)) _lock_stream,		/* lock */
+    (int (*)(t_ext_ptr)) _trylock_stream,	/* trylock */
+    (int (*)(t_ext_ptr)) _unlock_stream		/* unlock */
 };
 
 
 /*
  * FUNCTION NAME:	get_stream_id()
  *
- * PARAMETERS:		v, t	- value and tag of a prolog word which
- *				  specifies the stream
- *			mode	- whether the stream should be input or output
- *				  or none (used only for the 'user' stream)
+ * PARAMETERS:	v, t		prolog word which specifies the stream
+ *		mode=0		any descriptor, even closed
+ *		mode=SRDWR	require open descriptor
+ *		mode=SREAD	require read-descriptor
+ *		mode=SWRITE	require write-descriptor
+ *		lock		lock the stream (only if open)
+ *		ec_eng		remember for releasing/unlocking, else NULL
  *
  * DESCRIPTION:		
- * An auxiliary function.
- * if (v, t) is a number which is in the range [0, NbStreams], it returns the
- *    corresponding stream_id,
- * else if it is an atom which denotes a stream, i.e. whose stream property
- *	is defined, it returns the corresponding stream_id.
- * In all other cases, it returns a (negative) prolog error code.
+ * An auxiliary function to obtain a pointer to a stream descriptor
+ * from either:
+ * - an atom which denotes a stream, i.e. whose stream property is defined
+ * - a stream handle
+ * - a number in the range [0, NbStreams] (allowed only if SNUMBERUSED is set)
+ *
+ * If NO_STREAM is retuned, *err contains a (negative) error code.
+ *
+ * If a stream pointer is returned, *err!=0 indicates that the pointer
+ * is a counted reference and needs to be released after use.
+ *
  * If the specified stream is 'user', it returns either input, output, or
- * INCORRECT_USER.
+ * INCORRECT_USER (depending on the mode argument).
+ *
+ * If ec_eng is not NULL, the stream will be registered for unlocking
+ * (if lock!=0) and/or releasing (if necessary) on return to emulator.
+ *
+ * mode!=0 lock==0 doesn't make much sense (stream may be modified)
  */
 stream_id
-get_stream_id(value v, type t, int mode, int *err)
+get_stream_id(value v, type t, int mode, int lock, ec_eng_t* ec_eng, int *err)
 {
-    pword	*stream_prop;
+    pword	hstream;
     stream_id	nst;
+    int		res;
+    int		copied = 0;
 
     if (IsRef(t))
     {
@@ -565,45 +425,42 @@ get_stream_id(value v, type t, int mode, int *err)
 	v.did = d_.nil;
 	/* fall through */
     case TDICT:
-	if ((stream_prop = GetStreamProperty(v.did)) == (pword *) NULL)
+	if (v.did == d_.user)
 	{
-	    if (v.did == d_.user)
-	    {
-		if (mode == SREAD)
-		    nst = (stream_id) GetStreamProperty(d_.stdin0)->val.wptr;
-		else if (mode == SWRITE)
-		    nst = (stream_id) GetStreamProperty(d_.stdout0)->val.wptr;
-		else
-		{
-		    *err = INCORRECT_USER;
-		    return NO_STREAM;
-		}
-	    }
+	    /* Allow legacy 'user' for input/output. Needed? */
+	    if (mode == SREAD)       v.did = d_.input;
+	    else if (mode == SWRITE) v.did = d_.output;
 	    else
 	    {
-		*err = STREAM_SPEC;
+		*err = INCORRECT_USER;
 		return NO_STREAM;
 	    }
 	}
-	else
-	    nst = (stream_id) stream_prop->val.wptr;
-	break;
-
-    case TINT:
-	/* backward compatibility: allow number iff it was obtained previously */
-	if (v.nint < 0 || v.nint >= NbStreams
-		|| !(StreamMode(StreamId(v.nint)) & SNUMBERUSED))
+	res = get_visible_property_handle(v.did, STREAM_PROP, D_UNKNOWN, tdict, &stream_tid, (t_ext_ptr*)&nst);
+	if (res < 0)
 	{
 	    *err = STREAM_SPEC;
 	    return NO_STREAM;
 	}
-	nst = StreamId(v.nint);
+	copied = 1;	/* this reference is counted and must be released */
+	break;
+
+    case TINT:
+	/* backward compatibility: allow number iff it was obtained previously */
+	mt_mutex_lock(&SharedDataLock);
+	if (v.nint < 0 || v.nint >= NbStreams
+		|| !(StreamMode(StreamId(v.nint)) & SNUMBERUSED))
+	{
+	    mt_mutex_unlock(&SharedDataLock);
+	    *err = STREAM_SPEC;
+	    return NO_STREAM;
+	}
+	nst = _copy_stream(StreamId(v.nint));
+	mt_mutex_unlock(&SharedDataLock);
+	copied = 1;	/* this reference is counted and must be released */
 	break;
 
     case THANDLE:
-    {
-	int res;
-	pword hstream;
 	hstream.val.all = v.all;
 	hstream.tag.all = t.all;
 	res = ec_get_handle(hstream, &stream_tid, (t_ext_ptr*) &nst);
@@ -611,117 +468,188 @@ get_stream_id(value v, type t, int mode, int *err)
 	    *err = res==STALE_HANDLE ? STREAM_SPEC : res;
 	    return NO_STREAM;
 	}
+	copied = 0;	/* no extra reference count */
 	break;
-    }
 
     default:
 	*err = TYPE_ERROR;
 	return NO_STREAM;
     }
 
-    if (IsSocket(nst)) {
-	if (IsInvalidSocket(nst)) {
-	    *err = STREAM_SPEC;
-	    return NO_STREAM;
-	}
-	else if (mode & SREAD)
-	    return SocketInputStream(nst);
+    if (mode == 0)
+    {
+	/* return possibly closed stream, no lock/hold */
+	assert(!lock && !ec_eng);
+    	*err = copied;
+    	return nst;
     }
+
+    /* lock the stream (before checking if opened!) */
+    if (lock)
+	mt_mutex_lock(&(nst)->lock);
+
+    if (!IsOpened(nst)) {
+	/* stream not open as requested */
+	if (lock)
+	    mt_mutex_unlock(&nst->lock);
+	if (copied) _lose_stream(nst);
+	*err = STREAM_SPEC;
+	return NO_STREAM;
+    }
+
+    if (mode != SRDWR  &&  !(StreamMode(nst) & mode)  &&  !IsSocket(nst))
+    {
+	/* requested mode not present */
+	if (copied) _lose_stream(nst);
+	*err = STREAM_MODE;
+	return NO_STREAM;
+    }
+
+    if (ec_eng)
+    {
+	if (copied)
+	{
+	    /* remember the object for later release */
+	    Hold_Object_Until_Done(&stream_tid,nst);
+	    copied = 0;
+	}
+	if (lock)
+	{
+	    /* remember for later unlock */
+	    Hold_Lock_Until_Done(&nst->lock);
+	    lock = 0;
+	}
+    }
+
+    if (mode == SREAD && IsSocket(nst))
+    {
+	assert(!copied && !lock); /* we can't easily free/unlock with slave! */
+	assert(SocketInputStream(nst));
+	nst = SocketInputStream(nst);	/* slave descriptor */
+    }
+    *err = copied;
     return nst;
 }
 
 
+/*
+ * Get a (copy of) a stream descriptor.
+ * This is a compatibility function for the external interface,
+ * but must now be released with new function ec_release_stream().
+ * TODO:  locking
+ */
 int Winapi
-ec_get_stream(const pword pw, stream_id* nst)
+ec_get_stream(const pword pw, stream_id* nst_copy)
 {
-    int err;
-    if ((*nst = get_stream_id(pw.val, pw.tag, 0, &err)) == NO_STREAM)
-	return err;
+    int err_or_copied;
+    stream_id nst;
+    if ((nst = get_stream_id(pw.val, pw.tag, 0, 0, NULL, &err_or_copied)) == NO_STREAM)
+	return err_or_copied;
+    *nst_copy = err_or_copied ? nst : _copy_stream(nst);
     return PSUCCEED;
 }
 
+/*
+ * Release one copy of a stream descriptor.
+ */
+void Winapi
+ec_release_stream(stream_id nst)
+{
+    _lose_stream(nst);
+}
+
+
+void
+ec_release_stream_if_needed(stream_id nst, int needs_release)
+{
+    if (needs_release)
+	_lose_stream(nst);
+}
+
+
 
 /*
- * gen_open_stream(+Count, -Stream)
- * Auxiliary for enumerating streams, call with gen_open_stream(0,Stream)
- * 
+ * open_streams(-Streams) return a list of open streams
  */
 static int
-p_gen_open_stream(value vprev, type tprev, value v, type t)
+p_open_streams(value vs, type ts, ec_eng_t *ec_eng)
 {
-    pword hstream;
-    stream_id nst;
-    Check_Integer(tprev);
-    if (vprev.nint < 0)
-	{  Bip_Error(RANGE_ERROR); }
-    do {
-	if (vprev.nint >= NbStreams) {
-	    Cut_External;
-	    Fail_;
+    int i = 0;
+    pword result;
+    pword *tail = &result;
+
+    mt_mutex_lock(&SharedDataLock);	/* while traversing stream array */
+    while(i < NbStreams)
+    {
+	stream_id nst = _copy_stream(StreamId(i++));
+	if (StreamNref(nst)>1 && IsOpened(nst) && !IsInvalidSocket(nst))
+	{
+	    pword *elem = TG;
+	    Make_List(tail, elem);
+	    Push_List_Frame();
+	    *elem = ecl_handle(ec_eng, &stream_tid, nst); /* already counted */
+	    tail = elem+1;
 	}
-	nst = StreamId(vprev.nint);
-	++vprev.nint;
-    } while (!IsOpened(nst) || IsInvalidSocket(nst));
-    hstream = StreamHandle(nst);
-    Remember(1, vprev, tprev);
-    Return_Unify_Pw(v, t, hstream.val, hstream.tag);
+	else
+	    _lose_stream(nst);
+    }
+    Make_Nil(tail);
+    mt_mutex_unlock(&SharedDataLock);
+    Return_Unify_Pw(vs, ts, result.val, result.tag);
 }
 
 
 static int
-p_set_stream(value ov, type ot, value nv, type nt)
+p_set_stream(value ov, type ot, value nv, type nt, ec_eng_t *ec_eng)
 {
     stream_id	nst;
-    int		err;
+    int		err_or_copied;
 
     Check_Atom_Or_Nil(ov, ot);		/* must not be an integer	*/
-    nst = get_stream_id(nv, nt, 0, &err);
-    if (nst == NO_STREAM)
+    nst = get_stream_id(nv, nt, 0, 0, NULL, &err_or_copied);
+    if (nst != NO_STREAM)
     {
-	if (!IsRef(nt) && IsAtom(nt) && nv.did == d_.user)
+	if (!err_or_copied)
+	    nst = _copy_stream(nst);
+    }
+    else if (IsAtom(nt) && nv.did == d_.user)
+    {
+	/* Allow legacy set_stream(input,user) etc. Needed? */
+	if (ov.did == d_.input)
 	{
-	    if (ov.did == d_.input)
-	    {
-		nst = (stream_id) GetStreamProperty(d_.stdin0)->val.wptr;
-	    }
-	    else if (
-		ov.did == d_.output ||
-		ov.did == d_.warning_output ||
-		ov.did == d_.log_output ||
-		ov.did == d_.err)
-	    {
-		nst = (stream_id) GetStreamProperty(d_.stdout0)->val.wptr;
-	    }
-	    else
-	    {
-		Bip_Error(INCORRECT_USER);
-	    }
+	    nst = _copy_stream(StreamId(0));	/* stdin */
+	}
+	else if (
+	    ov.did == d_.output ||
+	    ov.did == d_.warning_output ||
+	    ov.did == d_.log_output ||
+	    ov.did == d_.err)
+	{
+	    nst = _copy_stream(StreamId(1));	/* stdout */
 	}
 	else
 	{
-	    Bip_Error(err);
+	    Bip_Error(INCORRECT_USER);
 	}
     }
-    return set_stream(ov.did, nst);
+    else
+    {
+	Bip_Error(err_or_copied);
+    }
+
+    return set_stream(ov.did, nst);	/* nst already ref-counted */
 }
 
 
 static int
-p_get_stream(value vi, type ti, value vs, type ts)
+p_get_stream(value vi, type ti, value vs, type ts, ec_eng_t *ec_eng)
 {
     stream_id	nst;
     stream_id	onst;
     int		res;
+    int		err_or_copied;
 
-    nst = get_stream_id(vi, ti, 0, &res);
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res);
-    }
-    if (!IsOpened(nst))
-    {
-	Bip_Error(STREAM_SPEC);
-    }
+    Get_Locked_Stream(vi, ti, SRDWR, nst);
     if (IsRef(ts))
     {
 	pword hstream;
@@ -733,39 +661,46 @@ p_get_stream(value vi, type ti, value vs, type ts)
 	}
 	Return_Unify_Pw(vs, ts, hstream.val, hstream.tag);
     }
-    if ((onst = get_stream_id(vs, ts, 0, &res)) != NO_STREAM)
+
+    onst = get_stream_id(vs, ts, 0, 0, NULL, &err_or_copied);
+    if (onst == NO_STREAM)
     {
-	Succeed_If(nst == onst);
-    }
-    if (IsAtom(ts) && vs.did == d_.user)
-    {
-	if ((StreamMode(nst) & (SREAD | SWRITE)) == SREAD)
+	/* Allow legacy get_stream(S,user) etc. Needed? */
+	if (IsAtom(ts) && vs.did == d_.user)
 	{
-	    Succeed_If(nst == (stream_id) GetStreamProperty(d_.stdin0)->val.wptr);
-	}
-	else if ((StreamMode(nst) & (SREAD | SWRITE)) == SWRITE)
-	{
-	    Succeed_If(nst == (stream_id) GetStreamProperty(d_.stdout0)->val.wptr);
+	    err_or_copied = 0;
+	    if ((StreamMode(nst) & (SREAD | SWRITE)) == SREAD)
+		onst = StreamId(0);	/* stdin */
+	    else if ((StreamMode(nst) & (SREAD | SWRITE)) == SWRITE)
+		onst = StreamId(1);	/* stdout */
+	    else
+	    {
+		Bip_Error(INCORRECT_USER);
+	    }
 	}
 	else
 	{
-	    Bip_Error(INCORRECT_USER);
+	    Bip_Error(err_or_copied);
 	}
     }
-    Bip_Error(res);
+    res = (nst == onst) ? PSUCCEED : PFAIL;
+    ec_release_stream_if_needed(onst, err_or_copied);
+    return res;
 }
 
 int Winapi
 ec_stream_nr(const char *name)
 {
     stream_id	nst;
-    int		res;
+    int		err_or_copied;
+    int		nr;
     value	v;
     v.did = enter_dict((char*) name, 0);
-    nst = get_stream_id(v, tdict, 0, &res);
-    if (nst == NO_STREAM  ||  !IsOpened(nst))
+    nst = get_stream_id(v, tdict, SRDWR, 0, NULL, &err_or_copied);
+    if (nst == NO_STREAM)
 	return -1;
     StreamMode(nst) |= SNUMBERUSED;
+    if (!err_or_copied) nst = _copy_stream(nst); /* numeric reference */
     return StreamNr(nst);	/*DEPRECATE*/
 }
 
@@ -782,32 +717,27 @@ ec_stream_id(int nr)
 		string
 */
 static int
-p_get_char(value vs, type ts, value val, type tag)
+p_get_char(value vs, type ts, value val, type tag, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	nst = get_stream_id(vs, ts, SREAD, &res);
+    stream_id	nst;
     char *c;
 
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     Check_Output_String(tag);
     if(IsString(tag) && (*(StringStart(val)) == 0 || *(StringStart(val) + 1) != 0))
     {
 	Bip_Error(TYPE_ERROR)
     }
-    if (nst == NO_STREAM) {
-	Bip_Error(res)
-    }
     if (!IsTextStream(nst)) {
 	Bip_Error(STREAM_MODE)
     }
-    Lock_Stream(nst);
     if (StreamMode(nst) & REPROMPT_ONLY)
 	StreamMode(nst) |= DONT_PROMPT;
     /* ec_getch checks for mode errors */
     if ((res = ec_getch(nst)) < 0) {
-	Unlock_Stream(nst);
 	Bip_Error(res)
     }
-    Unlock_Stream(nst);
     {
 	value v;
 	Make_Stack_String(1, v, c)
@@ -822,15 +752,13 @@ p_get_char(value vs, type ts, value val, type tag)
 	p_put_char() 	put_char/2	(standard)
 */
 static int
-p_put_char(value vs, type ts, value val, type tag)
+p_put_char(value vs, type ts, value val, type tag, ec_eng_t *ec_eng)
 {
-    int		res, len;
+    int		len;
     char	*s;
-    stream_id	nst = get_stream_id(vs, ts, SWRITE, &res);
+    stream_id	nst;
 
-    if(nst == NO_STREAM) {
-	Bip_Error(res)
-    }
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
 
     if (IsAtom(tag)) {
     	len = DidLength(val.did);
@@ -849,32 +777,19 @@ p_put_char(value vs, type ts, value val, type tag)
     if (!IsTextStream(nst)) {
 	Bip_Error(STREAM_MODE)
     }
-    Lock_Stream(nst);
-    if((res = ec_outfc(nst, *s)) < 0) {
-	Unlock_Stream(nst);
-	Bip_Error(res)
-    }
-    Unlock_Stream(nst);
-    Succeed_;
+    return ec_outfc(nst, *s);
 }
 
 /* p_nl()	nl/1	outputs a newline on the given stream.
  *			
  */
 static int 
-p_nl(value vs, type ts)
+p_nl(value vs, type ts, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(vs,ts, SWRITE, &res);
+    stream_id	nst;
 
-    if(nst == NO_STREAM) {
-	Bip_Error(res)
-    }
-
-    Lock_Stream(nst);
-    res = ec_newline(nst);
-    Unlock_Stream(nst);
-    return res;
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
+    return ec_newline(nst);
 }
 
 
@@ -905,7 +820,7 @@ p_nl(value vs, type ts)
 #define SFD	SPIPE
 
 static int
-p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
+p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr, ec_eng_t *ec_eng)
 {
     char		*namefile;
     dident		d_event = D_UNKNOWN;
@@ -1016,6 +931,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
 		pword *pw = vfile.ptr + 1;
 		Dereference_(pw);
 		Check_Integer(pw->tag);
+		/* dup() to avoid closing the original fd when the stream gets closed */
 		fd = dup((int) pw->val.nint);
 		if (fd == -1)
 		{
@@ -1046,7 +962,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
 	nst = find_free_stream();
 	init_stream(nst, NO_UNIT, mode|kind,
 		kind == SSTRING? d_.string0: d_queue,
-		NO_PROMPT, NO_STREAM, size);
+		NO_STREAM, size);
     }
     else if (kind == SFD)	/* connect to an existing fd */
     {
@@ -1069,7 +985,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
 	    kind = SFILE;
 
 	nst = find_free_stream();
-	init_stream(nst, fd, mode|kind, d_fd, NO_PROMPT, NO_STREAM, 0);
+	init_stream(nst, fd, mode|kind, d_fd, NO_STREAM, 0);
     }
     else			/* open by name	*/
     {
@@ -1080,6 +996,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
 	    Bip_Error(res);
 	}
     }
+    Trigger_Gc_If_Out_Of_Streams
 
     if (init_string)		/* init buffer if needed */
     {
@@ -1100,23 +1017,25 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
     }
     if (d_event == D_UNKNOWN || d_event == d_.nil) {
 	Make_Nil(&StreamEvent(nst));
+	StreamEventEngine(nst) = NULL;
     } else {
 	Make_Atom(&StreamEvent(nst), d_event);
+	StreamEventEngine(nst) = (ec_eng_t*) engine_tid.copy(ec_eng);
     }
 
-    if (StreamNref(nst) != 0)
+    if (StreamNref(nst) != 2)
     {
-	ec_panic("New stream has refs", "p_open()");
+	ec_panic("New stream has unexpected refs", "p_open()");
     }
     if (IsRef(tstr))
     {
-	pword hstream = ec_handle(&stream_tid, (t_ext_ptr) nst);
-	++StreamNref(nst);
+	pword hstream = ecl_handle(ec_eng, &stream_tid, (t_ext_ptr)nst);
 	Request_Unify_Pw(vstr, tstr, hstream.val, hstream.tag);
     }
     else if ((res = set_stream(vstr.did, nst)) < 0)
     {
-	(void) ec_close_stream(nst, 0);
+	_lose_stream(nst);	/* lose both initial references (and close) */
+	_lose_stream(nst);
 	Bip_Error(res);
     }
     Return_Unify;
@@ -1130,12 +1049,12 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr)
  */
 
 static int
-p_close2(value v, type t, value vopt, type topt)
+p_close2(value v, type t, value vopt, type topt, ec_eng_t *ec_eng)
 {
     stream_id	nst;
     int		res;
+    int		err_or_copied;
     int		close_options = 0;
-
     /* process the options list */
     while (IsList(topt))
     {
@@ -1151,7 +1070,7 @@ p_close2(value v, type t, value vopt, type topt)
 	if (car->val.did == d_force1) {
 	    Check_Atom(car[1].tag);
 	    if (car[1].val.did == d_.true0) close_options |= CLOSE_FORCE;
-	    else if (car[1].val.did == d_false) close_options &= ~CLOSE_FORCE;
+	    else if (car[1].val.did == d_.false0) close_options &= ~CLOSE_FORCE;
 	    else { Bip_Error(RANGE_ERROR); }
 	} else {
 	    Bip_Error(RANGE_ERROR);
@@ -1164,34 +1083,41 @@ p_close2(value v, type t, value vopt, type topt)
 
     Error_If_Ref(t);
 
-    nst = get_stream_id(v,t, 0, &res);
+    nst = get_stream_id(v,t, 0, 0, NULL, &err_or_copied);
     if (nst == NO_STREAM)
     {
-	switch (res) {
+	switch (err_or_copied) {
 	    case STREAM_SPEC:
 	    case STALE_HANDLE:
 		if (close_options&CLOSE_FORCE) { Succeed_; }
 		/* fall through */
 	    default:
-		Bip_Error(res);
+		Bip_Error(err_or_copied);
 	}
     }
 
-    if (SystemStream(nst) || (StreamMode(nst) & SSYSTEM))
+    if (SystemStream(nst) || (StreamMode(nst) & SDONTCLOSE))
     {
         /* It is (or is pointing to) one of the predefined streams.
          * Let the close_handler take care of the details.
          */
+	ec_release_stream_if_needed(nst, err_or_copied);
 	Bip_Error(SYSTEM_STREAM);
     }
 
     /* close the stream, reporting errors only if necessary */
     Lock_Stream(nst);
+    if (StreamMode(nst) & SNUMBERUSED) {
+	_lose_stream(nst);	/* lose the ref corresponding to numeric reference */
+	assert(StreamNref(nst) > 0);
+	StreamMode(nst) &= ~SNUMBERUSED;
+    }
     res = ec_close_stream(nst, close_options);
     Unlock_Stream(nst);
     if ((res < 0)  &&  !(close_options & CLOSE_FORCE)  &&
     	!(res==STREAM_SPEC && (IsAtom(t)||IsNil(t))))
     {
+	ec_release_stream_if_needed(nst, err_or_copied);
 	Bip_Error(res)
     }
 
@@ -1200,89 +1126,78 @@ p_close2(value v, type t, value vopt, type topt)
 	v.did = d_.nil;
     if ((IsAtom(t) || IsNil(t)) && !IsOpened(nst))
     {
-	(void) erase_property(v.did, STREAM_PROP);
-	stream_tid.free((t_ext_ptr) nst);
+	assert(err_or_copied);
+	(void) erase_global_property(v.did, STREAM_PROP);
+	_lose_stream(nst);	/* lose the property reference */
     }
     else if (IsHandle(t))
     {
 	pword hstream;
+	assert(!err_or_copied);
 	hstream.val.all = v.all;
 	hstream.tag.all = t.all;
-	res = ec_free_handle(hstream, &stream_tid);
+	res = ec_free_handle(hstream, &stream_tid); /* implies _lose_stream() */
 	return (close_options & CLOSE_FORCE) ? PSUCCEED : res;
     }
+    ec_release_stream_if_needed(nst, err_or_copied);
     Succeed_;
 }
 
 
 static int
-p_close(value v, type t)
+p_close(value v, type t, ec_eng_t *ec_eng)
 {
     pword nil;
     Make_Nil(&nil);
-    return p_close2(v, t, nil.val, nil.tag);
+    return p_close2(v, t, nil.val, nil.tag, ec_eng);
 }
 
 
 static int
-p_erase_stream_property(value v, type t)
+p_erase_stream_property(value v, type t, ec_eng_t *ec_eng)
 {
     int		res;
     stream_id	nst;
 
     Check_Atom_Or_Nil(v, t);
-    if ((nst = get_stream_id(v,t, 0, &res)) != NO_STREAM)
+    if ((nst = get_stream_id(v,t, 0, 0, NULL, &res)) != NO_STREAM)
     {
-	(void) erase_property(v.did, STREAM_PROP);
-	StreamNref(nst)--;
+	(void) erase_global_property(v.did, STREAM_PROP);
+	_lose_stream(nst);
     }
     Succeed_;
 }
 
 static int
-p_tyi(value vs, type ts, value v, type t)
+p_tyi(value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	nst = get_stream_id(vs,ts, SREAD, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM) {
-	Bip_Error(res);
-    }
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     if( !IsRef(t) && !IsInteger(t) ) {
         Bip_Error(TYPE_ERROR);
     }
-    Lock_Stream(nst);
     res = ec_tty_in(nst);
-    Unlock_Stream(nst);
     if (res < 0) {
-	    Bip_Error(res)
+	Bip_Error(res)
     }
     Return_Unify_Integer(v,t,res);
 }
 
 static int
-p_tyo(value vs, type ts, value v, type t)
+p_tyo(value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id nst = get_stream_id(vs,ts, SWRITE, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM) {
-	Bip_Error(res);
-    }
-
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
     Check_Integer(t)
-    Lock_Stream(nst);
-    res = ec_tty_out(nst, v.nint);
-    Unlock_Stream(nst);
-    if (res < 0) {
-	Bip_Error(res)
-    }
-    Succeed_;
+    return ec_tty_out(nst, v.nint);
 }
 
 
 static int
-p_delete(value v, type t)
+p_delete(value v, type t, ec_eng_t *ec_eng)
 {
     int	   err;
     char   *name;
@@ -1310,7 +1225,7 @@ p_delete(value v, type t)
 }
 
 static int
-p_mkdir(value v, type t)
+p_mkdir(value v, type t, ec_eng_t *ec_eng)
 {
     char   *name;
     char   fullname[MAX_PATH_LEN];
@@ -1329,7 +1244,7 @@ p_mkdir(value v, type t)
 #ifdef HAVE_RENAME
 
 static int
-p_rename(value vo, type to, value vd, type td)
+p_rename(value vo, type to, value vd, type td, ec_eng_t *ec_eng)
 {
     char   *old, *new;
     char   fullold[MAX_PATH_LEN];
@@ -1348,7 +1263,7 @@ p_rename(value vo, type to, value vd, type td)
 #else /*rename*/
 
 static int
-p_rename(value vo, type to, value vd, type td)
+p_rename(value vo, type to, value vd, type td, ec_eng_t *ec_eng)
 {
     char   *nameo;
     char   *named;
@@ -1375,26 +1290,19 @@ p_rename(value vo, type to, value vd, type td)
 
 /*
  * get_prompt(InputStream, Prompt, OutputStream)
+ * OBSOLETE!
  */
 static int
-p_get_prompt(value iv, type it, value pv, type pt, value ov, type ot)
+p_get_prompt(value iv, type it, value pv, type pt, value ov, type ot, ec_eng_t *ec_eng)
 {
     stream_id	nst;
     stream_id	onst;
     stream_id	ps;
-    int		res;
+    int		err_or_copied;
     dident	pr;
     Prepare_Requests;
 
-    nst = get_stream_id(iv, it, SREAD, &res);
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res);
-    }
-    if(!(IsReadStream(nst)))
-    {
-	Bip_Error(STREAM_MODE)
-    }
+    Get_Locked_Stream(iv, it, SREAD, nst);
     pr = StreamPrompt(nst);
     if (pr == NO_PROMPT)
     	pr = in_dict("",0);
@@ -1416,11 +1324,12 @@ p_get_prompt(value iv, type it, value pv, type pt, value ov, type ot)
 	pword hstream = StreamHandle(ps);
 	Return_Unify_Pw(ov, ot, hstream.val, hstream.tag);
     }
-    else if ((onst = get_stream_id(ov, ot, SWRITE, &res)) == NO_STREAM)
+    if ((onst = get_stream_id(ov, ot, SWRITE, 0, NULL, &err_or_copied)) == NO_STREAM)
     {		/* stream checking */
-	Bip_Error(res);
+	Bip_Error(err_or_copied);
     }
-    else if (onst != ps)
+    ec_release_stream_if_needed(onst, err_or_copied);
+    if (onst != ps)
     {
 	Fail_;
     }
@@ -1442,29 +1351,20 @@ p_get_prompt(value iv, type it, value pv, type pt, value ov, type ot)
  * set_prompt(InputStream, Prompt, OutputStream)
  */
 static int
-p_set_prompt(value iv, type it, value pv, type pt, value ov, type ot)
+p_set_prompt(value iv, type it, value pv, type pt, value ov, type ot, ec_eng_t *ec_eng)
 {
     stream_id	nst;
     stream_id	onst;
-    int		res;
+    int		err_or_copied;
     dident	d;
 
-    if ((nst = get_stream_id(iv, it, SREAD, &res)) == NO_STREAM)
+    Get_Locked_Stream(iv, it, SREAD, nst);
+
+    if ((onst = get_stream_id(ov, ot, SWRITE, 0, NULL, &err_or_copied)) == NO_STREAM)
     {
-	Bip_Error(res);
+	Bip_Error(err_or_copied);
     }
-    if(!(IsReadStream(nst)))
-    {
-	Bip_Error(STREAM_MODE)
-    }
-    if ((onst = get_stream_id(ov, ot, SWRITE, &res)) == NO_STREAM)
-    {
-	Bip_Error(res);
-    }
-    if (!(IsWriteStream(onst)))
-    {
-	Bip_Error(STREAM_MODE)
-    }
+    
     if (IsStructure(pt) && pv.ptr->val.did == d_reprompt1)
     {
 	pt.all = pv.ptr[1].tag.all;
@@ -1481,27 +1381,28 @@ p_set_prompt(value iv, type it, value pv, type pt, value ov, type ot)
         _lose_stream(StreamPromptStream(nst));
     StreamPromptStream(nst) = (onst == null_) ? NO_STREAM :
         _copy_stream(onst);
+    ec_release_stream_if_needed(onst, err_or_copied);
     Succeed_;
 }
 
 
 /*
  * Succeed if the given stream is open. System-use only.
+ * The result may be out-of-date as another thread could close.
  */
 static int
-p_is_open_stream(value vc, type tc)
+p_is_open_stream(value vc, type tc, ec_eng_t *ec_eng)
 {
-    int		res;
+    int	err_or_copied, is_open;
     stream_id nst;
 
-    nst = get_stream_id(vc,tc, 0, &res);
+    nst = get_stream_id(vc,tc, 0, 0, NULL, &err_or_copied);
     if (nst == NO_STREAM) {
 	Fail_;
     }
-    else if (!(IsOpened(nst))) {
-	Fail_;
-    }
-    Succeed_;
+    is_open = IsOpened(nst);
+    ec_release_stream_if_needed(nst, err_or_copied);
+    Succeed_If(is_open);
 }
 
 
@@ -1511,16 +1412,15 @@ p_is_open_stream(value vc, type tc)
  *	does not backtrack, system-use only
  */
 static int
-p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
+p_stream_info_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	nst = get_stream_id(vs, ts, 0, &res);
+    stream_id	nst;
     pword	result;
 
     Check_Integer(ti);
-    if (nst == NO_STREAM) {
-	Bip_Error(res)
-    }
+    Get_Locked_Stream(vs, ts, SRDWR, nst);
+    /* CAUTION: may need to get SocketInputStream(nst) for SREAD */
 
     switch(vi.nint)
     {
@@ -1547,6 +1447,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	}
 	break;
     case 1:	/* prompt */
+	nst = StreamInputStream(nst);
 	if (IsReadStream(nst) && StreamPromptStream(nst) != NO_STREAM)
 	{
 	    dident pr = StreamPrompt(nst);
@@ -1568,18 +1469,20 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	    result.val.did = modes[StreamMode(nst) & SMODEBITS];
 	result.tag.kernel = TDICT;
 	break;
-    case 3:	/* aliases */
+    case 3:	/* references */
 	result.val.nint = StreamNref(nst);
 	result.tag.kernel = TINT;
 	break;
     case 4:	/* physical_stream - deprecated */
-	StreamMode(nst) |= SNUMBERUSED;
+	if (!(StreamMode(nst) & SNUMBERUSED)) {
+	    StreamMode(nst) |= SNUMBERUSED;
+	    _copy_stream(nst);	/* implied reference */
+	}
 	result.val.nint = StreamNr(nst);
 	result.tag.kernel = TINT;
 	break;
     case 5:	/* line */
-	if (IsSocket(nst))
-	    nst = SocketInputStream(nst);
+	nst = StreamInputStream(nst);
 	if (IsReadStream(nst))
 	{
 	    result.val.nint = StreamLine(nst);
@@ -1590,6 +1493,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
     case 6:	/* offset */
     {
 	long offset;
+	nst = StreamInputStream(nst);
 	res = ec_stream_at(nst, &offset);
 	if (res != PSUCCEED)
 	    { Bip_Error(res); }
@@ -1605,6 +1509,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	result.tag.kernel = TDICT;
 	break;
     case 8:	/* prompt_stream */
+	nst = StreamInputStream(nst);
 	if (!IsReadStream(nst) || StreamPromptStream(nst) == NO_STREAM)
 	    { Fail_; }
 	result = StreamHandle(StreamPromptStream(nst));
@@ -1643,6 +1548,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 #endif
     case 12:	/* reprompt_only */
+	nst = StreamInputStream(nst);
 	if (IsReadStream(nst) && StreamPromptStream(nst) != NO_STREAM)
 	{
 	    if (StreamMode(nst) & REPROMPT_ONLY)
@@ -1659,8 +1565,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 14:		/* smallest offset in the buffer - system only */
-	if (IsSocket(nst))
-	    nst = SocketInputStream(nst);
+	nst = StreamInputStream(nst);
 	if (IsTty(nst) && !(StreamMode(nst) & MREAD)) {
 	    Fail_
 	}
@@ -1669,6 +1574,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 15:	/* mode */
+	/* TODO: correct socket mode */
 	Make_Atom(&result, modes[StreamMode(nst) & SMODEBITS]);
 	break;
 
@@ -1678,14 +1584,24 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 17:		/* event name, if any */
+	nst = StreamInputStream(nst);
 	if (IsNil(StreamEvent(nst).tag)) {
 	    Fail_;
 	} else if (IsTag(StreamEvent(nst).tag.kernel, TPTR)) {
-	    result = ec_handle(&heap_event_tid,
+	    result = ecl_handle(ec_eng, &heap_event_tid,
 		(t_ext_ptr) heap_event_tid.copy(StreamEvent(nst).val.wptr));
 	} else {
 	    result = StreamEvent(nst);
 	}
+	break;
+
+    case 38:		/* event-receiving engine */
+	nst = StreamInputStream(nst);
+	if (IsNil(StreamEvent(nst).tag)) {
+	    Fail_;
+	}
+	result = ecl_handle(ec_eng, &engine_tid,
+	     engine_tid.copy(StreamEventEngine(nst)));
 	break;
 
     case 18:	/* get flush mode */
@@ -1724,7 +1640,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 22:		/* get sigio flag */
-	if (!ec_is_sigio_stream(nst, SREAD))
+	nst = StreamInputStream(nst);
+	if (!(StreamMode(nst) & SSIGIO))
 	    { Fail_; }
 	Make_Atom(&result, d_.on);
 	break;
@@ -1738,6 +1655,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 24:            /* macro_expansion */
+	nst = StreamInputStream(nst);
 	if (!IsReadStream(nst))
 	    { Fail_; }
 	result.val.did = StreamMode(nst) & SNOMACROEXP ? d_.off : d_.on;
@@ -1792,7 +1710,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 32:		/* reposition */
-	Make_Atom(&result, StreamMode(nst) & SREPOSITION ? d_.true0 : d_false);
+	Make_Atom(&result, StreamMode(nst) & SREPOSITION ? d_.true0 : d_.false0);
 	break;
 
     case 33:		/* encoding */
@@ -1800,14 +1718,16 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 34:		/* input */
-	Make_Atom(&result, StreamMode(nst) & SREAD ? d_.true0 : d_false);
+	nst = StreamInputStream(nst);
+	Make_Atom(&result, StreamMode(nst) & SREAD ? d_.true0 : d_.false0);
 	break;
 
     case 35:		/* output */
-	Make_Atom(&result, StreamMode(nst) & SWRITE ? d_.true0 : d_false);
+	Make_Atom(&result, StreamMode(nst) & SWRITE ? d_.true0 : d_.false0);
 	break;
 
     case 36:		/* end_of_stream */
+	nst = StreamInputStream(nst);
 	if (!IsReadStream(nst))
 	    { Fail_; }
 	/* Only a SoftEofStream can recover from being "past" eof */
@@ -1824,6 +1744,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 37:		/* eof_action */
+	nst = StreamInputStream(nst);
 	if (!IsReadStream(nst))
 	    { Fail_; }
 	result.val.did =
@@ -1831,6 +1752,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 	    (StreamMode(nst) & SEOF_ACTION) == SEOF_RESET ? d_.reset : d_eof_code;
 	result.tag.kernel = TDICT;
 	break;
+
+    /* 38 see above */
 
     default:
 	Fail_;
@@ -1843,21 +1766,21 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t)
 #define Bip_Error(N) Bip_Error_Fail(N)
 
 static int
-p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
+p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(vs, ts, 0, &res);
+    int		res, err_or_copied;
+    stream_id	nst;
     stream_id	onst;
     dident	d;
 
     Check_Integer(ti);
-    if (nst == NO_STREAM) {
-	Bip_Error(res)
-    }
+    Get_Locked_Stream(vs, ts, SRDWR, nst);
+    /* CAUTION: may need to get SocketInputStream(nst) for SREAD */
 
     switch(vi.nint)
     {
     case 1:	/* prompt */
+	nst = StreamInputStream(nst);
 	if (!IsReadStream(nst))
 	{
 	    Bip_Error(STREAM_MODE);
@@ -1867,12 +1790,19 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 5:		/* set line */
+	nst = StreamInputStream(nst);
 	Check_Integer(t)
 	StreamLine(nst) = v.nint;
 	Succeed_;
 
-    case 6:	/* offset */
-	res = p_seek(vs, ts, v, t);
+    case 6:	/* offset (see p_seek()) */
+	nst = StreamInputStream(nst);
+	if (IsAtom(t) && v.did == d_.eof) {
+	    res = ec_seek_stream(nst, 0, LSEEK_END);
+	} else {
+	    Check_Integer(t);
+	    res = ec_seek_stream(nst, v.nint, LSEEK_SET);
+	}
 	if (res != PSUCCEED)
 	{
 	    Bip_Error(res);
@@ -1880,25 +1810,24 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 	break;
 
     case 8:	/* prompt_stream */
+	nst = StreamInputStream(nst);
 	if(!(IsReadStream(nst)))
 	{
 	    Bip_Error(STREAM_MODE)
 	}
-	if ((onst = get_stream_id(v, t, SWRITE, &res)) == NO_STREAM)
+	if ((onst = get_stream_id(v, t, SWRITE, 0, NULL, &err_or_copied)) == NO_STREAM)
 	{
-	    Bip_Error(res);
-	}
-	if (!(IsWriteStream(onst)))
-	{
-	    Bip_Error(STREAM_MODE)
+	    Bip_Error(err_or_copied);
 	}
         if (StreamPromptStream(nst) != NO_STREAM)
             _lose_stream(StreamPromptStream(nst));
         StreamPromptStream(nst) = (onst == null_) ? NO_STREAM :
             _copy_stream(onst);
+	ec_release_stream_if_needed(onst, err_or_copied);
 	break;
 
     case 12:	/* reprompt_only */
+	nst = StreamInputStream(nst);
 	Check_Atom(t);
 	if (v.did == d_.on) {
 	    StreamMode(nst) |= REPROMPT_ONLY;
@@ -1911,7 +1840,7 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 
     case 15:	/* mode */
 	Check_Atom(t);
-	if( !IsOpened(nst) || !(IsQueueStream(nst) || IsStringStream(nst)))
+	if(!(IsQueueStream(nst) || IsStringStream(nst)))
 	{
 	    Bip_Error(STREAM_MODE)
 	}
@@ -1932,34 +1861,72 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 	}
 	break;
 
-    case 17:		/* set event name */
+    case 17:		/* set event name or object */
+    {
+	pword event_pw;
+	ec_eng_t *event_eng = ec_eng;
+
 	if (!StreamCanRaiseEvent(nst)) {
 	    Bip_Error(UNIMPLEMENTED);
 	}
-	if (IsNil(t)) {
-	    if (IsTag(StreamEvent(nst).tag.kernel, TPTR)) {
-		heap_event_tid.free(StreamEvent(nst).val.wptr);
-	    }
-	    Make_Nil(&StreamEvent(nst));
-	    if (StreamCanSignal(nst))
-	    {
-		res = ec_stream_reset_sigio(nst, SREAD);
-		Return_If_Error(res);
-	    }
-	} else {
-	    if (IsAtom(t)) {
-		Make_Atom(&StreamEvent(nst), v.did);
-	    } else {
-		t_heap_event *event;
-		Get_Typed_Object(v, t, &heap_event_tid, event);
-		StreamEvent(nst).tag.kernel = TPTR;
-		StreamEvent(nst).val.wptr = heap_event_tid.copy(event);
-	    }
-	    if (StreamCanSignal(nst))
-	    {
-		res = ec_stream_set_sigio(nst, SREAD);
-		Return_If_Error(res);
-	    }
+	nst = StreamInputStream(nst);
+
+	/* get and check the new event (accept '' for compatibility with peer_queue_xxx) */
+	if (IsNil(t) || (IsAtom(t) && v.did==d_.empty)) {
+	    Make_Nil(&event_pw);
+	    event_eng = NULL;
+	}
+	else if (IsAtom(t)) {
+	    Make_Atom(&event_pw, v.did);
+	}
+	else {
+	    t_heap_event *event;
+	    Get_Typed_Object(v, t, &heap_event_tid, event);
+	    event_pw.tag.kernel = TPTR;
+	    event_pw.val.wptr = heap_event_tid.copy(event);
+	}
+
+	/* update StreamEvent */
+	if (IsTag(StreamEvent(nst).tag.kernel, TPTR))
+	    heap_event_tid.free(StreamEvent(nst).val.wptr);
+	StreamEvent(nst) = event_pw;
+
+	/* update StreamEventEngine */
+	if (event_eng != StreamEventEngine(nst)) {
+	    if (StreamEventEngine(nst))
+		engine_tid.free(StreamEventEngine(nst));
+	    if (event_eng)
+		StreamEventEngine(nst) = (ec_eng_t*) engine_tid.copy(event_eng);
+	    else
+		StreamEventEngine(nst) = NULL;
+	}
+
+	if (StreamCanNotifyViaThread(nst))
+	{
+	    if (IsNil(event_pw.tag))
+		res = ec_teardown_stream_sigio_thread(nst, 0);
+	    else
+		res = ec_setup_stream_sigio_thread(nst);
+	    Return_If_Error(res);
+	}
+	break;
+    }
+
+    case 38:		/* set event receiver engine */
+	nst = StreamInputStream(nst);
+	if (!StreamCanRaiseEvent(nst) || IsNil(StreamEvent(nst).tag)) {
+	    Bip_Error(UNIMPLEMENTED);
+	}
+	{
+	    pword hengine;
+	    t_ext_ptr new_eng;
+	    hengine.val.all = v.all;
+	    hengine.tag.all = t.all;
+	    res = ec_get_handle(hengine, &engine_tid, &new_eng);
+	    Return_If_Error(res);
+	    assert(StreamEventEngine(nst));
+	    engine_tid.free(StreamEventEngine(nst));	/* free old engine */
+	    StreamEventEngine(nst) = (ec_eng_t*) engine_tid.copy(new_eng);
 	}
 	break;
 
@@ -2010,19 +1977,22 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 
     case 22:		/* set sigio */
 	Check_Atom(t);
-	if (!StreamCanSignal(nst)) {
+	if (!StreamSupportsSigio(nst)) {
 	    Bip_Error(UNIMPLEMENTED);
 	}
+	nst = StreamInputStream(nst);
 	if (v.did == d_.on) {
-	    ec_stream_set_sigio(nst, SREAD);
+	    res = ec_stream_set_sigio(nst);	/* sets SSIGIO */
 	} else if (v.did == d_.off) {
-	    ec_stream_reset_sigio(nst, SREAD);
+	    res = ec_stream_reset_sigio(nst);	/* resets SSIGIO */
 	} else {
 	    Bip_Error(RANGE_ERROR);
 	}
+	Return_If_Error(res);
 	break;
 
     case 24:		/* macro_expansion */
+	nst = StreamInputStream(nst);
 	if (!IsReadStream(nst))
 	{
 	    Bip_Error(STREAM_MODE);
@@ -2102,6 +2072,7 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 	Bip_Error(RANGE_ERROR);
 
     case 37:		/* eof_action */
+	nst = StreamInputStream(nst);
 	if (!IsReadStream(nst)) {
 	    Bip_Error(STREAM_MODE);
 	}
@@ -2129,23 +2100,15 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t)
 
 
 static int
-p_at(value vs, type ts, value vp, type tp)
+p_at(value vs, type ts, value vp, type tp, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	nst = get_stream_id(vs,ts, 0, &res);
+    stream_id	nst;
     long	pos;
 
+    Get_Locked_Stream(vs, ts, SRDWR, nst);
     Check_Output_Integer(tp);
-    if (nst == NO_STREAM)
-    {
-	if (res == INCORRECT_USER)
-	    res = STREAM_MODE;
-	Bip_Error(res)
-    }
-    if (!IsOpened(nst))
-    {
-	Bip_Error(STREAM_MODE);
-    }
+    nst = StreamInputStream(nst);
     res = ec_stream_at(nst, &pos);
     if (res != PSUCCEED)
     {
@@ -2156,107 +2119,68 @@ p_at(value vs, type ts, value vp, type tp)
 
 
 static int
-p_seek(value vs, type ts, value vp, type tp)
+p_seek(value vs, type ts, value vp, type tp, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(vs, ts, 0, &res);
+    stream_id	nst;
 
-    Error_If_Ref(tp);
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-    /* no seek on scrambled files: synchronisation gets lost */
-    /* no seek on append files: always at eof */
-    else if(!IsOpened(nst) || (StreamMode(nst) & (SSCRAMBLE|SAPPEND)))
-    {
-	Bip_Error(STREAM_MODE);
-    }
+    Get_Locked_Stream(vs, ts, SRDWR, nst);
+    nst = StreamInputStream(nst);
     if (IsAtom(tp) && vp.did == d_.eof)
-    {
 	return ec_seek_stream(nst, 0, LSEEK_END);
-    }
     Check_Integer(tp);
     return ec_seek_stream(nst, vp.nint, LSEEK_SET);
 }
 
 
 static int
-p_stream_truncate(value vs, type ts)
+p_stream_truncate(value vs, type ts, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(vs, ts, 0, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-    if (!IsWriteStream(nst))
-    {
-	Bip_Error(STREAM_MODE);
-    }
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
     return StreamMethods(nst).truncate(nst);
 }
 
 
 static int
-p_get(value vs, type ts, value val, type tag)
+p_get(value vs, type ts, value val, type tag, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	nst = get_stream_id(vs, ts, SREAD, &res);
+    stream_id	nst;
 
     Check_Output_Integer(tag);
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-    Lock_Stream(nst);
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     if (StreamMode(nst) & REPROMPT_ONLY)
 	StreamMode(nst) |= DONT_PROMPT;
     if ((res = ec_getch(nst)) < 0)
     {
-	Unlock_Stream(nst);
 	Bip_Error(res)
     }
-    Unlock_Stream(nst);
     Return_Unify_Integer(val, tag, res);
 }
 
 static int
-p_unget(value vs, type ts)
+p_unget(value vs, type ts, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(vs, ts, SREAD, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-    Lock_Stream(nst);
-    res = ec_ungetch(nst);
-    Unlock_Stream(nst);
-    return res;
+    Get_Locked_Stream(vs, ts, SREAD, nst);
+    return ec_ungetch(nst);
 }
 
 static int
-p_getw(value vs, type ts, value val, type tag)
+p_getw(value vs, type ts, value val, type tag, ec_eng_t *ec_eng)
 {
-    int			res;
-    register char	*p;
+    char		*p;
     word		l;
     word		w;
     char		*pw;
     int			i;
-    stream_id		nst = get_stream_id(vs, ts, SREAD, &res);
+    stream_id		nst;
 
     Check_Output_Integer(tag);
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-    Lock_Stream(nst);
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     p = ec_getstring(nst, sizeof(word), &l);
-    Unlock_Stream(nst);
     if (p == 0)
     {
 	Bip_Error((int)l)
@@ -2273,7 +2197,7 @@ p_getw(value vs, type ts, value val, type tag)
 }
 
 static int
-p_get1(value val, type tag)
+p_get1(value val, type tag, ec_eng_t *ec_eng)
 {
     int		res;
 
@@ -2297,32 +2221,20 @@ p_get1(value val, type tag)
  *	but takes a number.
  */
 static int
-p_put(value vstr, type tstr, value v, type t)
+p_put(value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(vstr, tstr, SWRITE, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
     Check_Integer(t);
-    Lock_Stream(nst);
-    if ((res = ec_outfc(nst, (char) v.nint)) < 0)
-    {
-	Unlock_Stream(nst);
-	Bip_Error(res);
-    }
-    Unlock_Stream(nst);
-    Succeed_;
+    return ec_outfc(nst, (char) v.nint);
 }
 
 /*
  *	p_put1() 	put/1
  */
 static int
-p_put1(value v, type t)
+p_put1(value v, type t, ec_eng_t *ec_eng)
 {
     int		res;
 
@@ -2338,15 +2250,12 @@ p_put1(value v, type t)
 }
 
 static int
-p_at_eof(value vs, type ts)
+p_at_eof(value vs, type ts, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(vs, ts, 0, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res);
-    }
+    Get_Locked_Stream(vs, ts, SRDWR, nst);
+    nst = StreamInputStream(nst);
     /* SoftEofStream can recover from being "past" eof, and needs extra check */
     Succeed_If((StreamPastEof(nst) && !IsSoftEofStream(nst))
     	|| (StreamMethods(nst).at_eof(nst) == PSUCCEED));
@@ -2357,30 +2266,17 @@ p_at_eof(value vs, type ts)
  * Flush the specified (output) stream.
  */
 static int
-p_flush(value sv, type st)
+p_flush(value vs, type ts, ec_eng_t *ec_eng)
 {
-    int		res;
     stream_id	nst;
 
-    if ((nst = get_stream_id(sv, st, SWRITE, &res)) == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-    Lock_Stream(nst);
-    res = ec_flush(nst);
-    Unlock_Stream(nst);
-    return res;
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
+    return ec_flush(nst);
 }
 
-static int
-p_stream_number(value val1, type tag1)
-{
-	Check_Output_Integer(tag1);
-	Return_Unify_Integer(val1, tag1, NbStreams - 1);
-}
 
 static int
-p_pipe(value valr, type tagr, value valw, type tagw)
+p_pipe(value valr, type tagr, value valw, type tagw, ec_eng_t *ec_eng)
 {
 #if defined(HAVE_PIPE)
 	int		pd[2];
@@ -2412,16 +2308,17 @@ p_pipe(value valr, type tagr, value valw, type tagw)
 		Bip_Error(SYS_ERROR);
 	}
 	nr = find_free_stream();
-	init_stream(nr, pd[0], SREAD | SPIPE, d_pipe, NO_PROMPT, NO_STREAM, 0);
+	init_stream(nr, pd[0], SREAD | SPIPE, d_pipe, NO_STREAM, 0);
 	nw = find_free_stream();
-	init_stream(nw, pd[1], SWRITE | SPIPE, d_pipe, NO_PROMPT, NO_STREAM, 0);
+	init_stream(nw, pd[1], SWRITE | SPIPE, d_pipe, NO_STREAM, 0);
 	if (sigio) {
-	    if ((res = ec_stream_set_sigio(nr, SREAD)) < 0) {
+	    if ((res = ec_stream_set_sigio(nr)) < 0) {
 		Bip_Error(res)
 	    }
 	}
 	Bind_Stream(in_s.val, in_s.tag, nr);
 	Bind_Stream(out_s.val, out_s.tag, nw);
+	Trigger_Gc_If_Out_Of_Streams
 	Succeed_;
 #else
 	Bip_Error(NOT_AVAILABLE);
@@ -2434,7 +2331,7 @@ p_pipe(value valr, type tagr, value valw, type tagw)
 	p_read_string() 	read_string/4
 */
 static int
-p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value val, type tag)
+p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value val, type tag, ec_eng_t *ec_eng)
 {
     stream_id		nst;
     int			isref, status;
@@ -2469,12 +2366,8 @@ p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value
     Check_Output_Integer(tl);
     Check_Output_String(tag);
     isref = IsRef(tl);
-    nst = get_stream_id(vs, ts, SREAD, &status);
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(status)
-    }
-    Lock_Stream(nst);
+
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     if (StreamMode(nst) & REPROMPT_ONLY)
 	StreamMode(nst) |= DONT_PROMPT;
     pw = TG;
@@ -2485,7 +2378,6 @@ p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value
     	if ((res = ec_getch(nst)) == PEOF)	/* ec_getch checks for end of file	*/
 	{
 	    if (!length) {
-		Unlock_Stream(nst);
 		TG = pw;		/* pop the unfinished string	*/
 		Bip_Error(PEOF)
 	    } else {			/* consider EOF as delimiter	*/
@@ -2496,7 +2388,6 @@ p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value
 	}
     	if (res < 0)			/*  checks for mode errors	*/
 	{
-	    Unlock_Stream(nst);
 	    TG = pw;		/* pop the unfinished string	*/
 	    Bip_Error(res)
         }
@@ -2520,7 +2411,6 @@ p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value
 	    Check_Gc;
 	}
     }
-    Unlock_Stream(nst);
     /* remove CR if we had a CR-LF end-of-line sequence */
     if (delim == nl  &&  length > 0  &&  *(c-1) == '\r')
     {
@@ -2559,7 +2449,7 @@ p_read_string(value vs, type ts, value vdel, type tdel, value vl, type tl, value
 
 static int
 p_read_string5(value vs, type ts, value vdel, type tdel,
-	value vpad, type tpad, value vsep, type tsep, value val, type tag)
+	value vpad, type tpad, value vsep, type tsep, value val, type tag, ec_eng_t *ec_eng)
 {
     stream_id		nst;
     int			res;
@@ -2594,11 +2484,7 @@ p_read_string5(value vs, type ts, value vdel, type tdel,
     /* Check_Output_Integer(tl); */
     /* Check_Output_String(tag); */
 
-    nst = get_stream_id(vs, ts, SREAD, &res);
-    if (nst == NO_STREAM) {
-	Bip_Error(res)
-    }
-    Lock_Stream(nst);
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     if (StreamMode(nst) & REPROMPT_ONLY)
 	StreamMode(nst) |= DONT_PROMPT;
     pw = TG;
@@ -2677,7 +2563,6 @@ _after_cr_:
 	c = ipad;		/* Pad+CR+LF forget all */
 
 _end_:	/* here: res == delimiter char */
-    Unlock_Stream(nst);
     *c++ = 0;
     Trim_Buffer(pw, c-start);
     Request_Unify_String(val, tag, pw);
@@ -2689,7 +2574,6 @@ _eof_err_:
 	res = -1;
 	goto _end_;
     }
-    Unlock_Stream(nst);
     TG = pw;			/* pop the unfinished string	*/
     Bip_Error(res)
 }
@@ -2702,7 +2586,7 @@ _eof_err_:
 #ifdef _WIN32
 
 static int
-p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type tsubdirs, value vfiles, type tfiles)
+p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type tsubdirs, value vfiles, type tfiles, ec_eng_t *ec_eng)
 {
     char		*name, *pattern;
     char		exp_name[MAX_PATH_LEN];
@@ -2778,7 +2662,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
 #if defined(HAVE_READDIR)
 
 static int
-p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type tsubdirs, value vfiles, type tfiles)
+p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type tsubdirs, value vfiles, type tfiles, ec_eng_t *ec_eng)
 {
     char		*name, *pattern;
     char		exp_name[MAX_PATH_LEN];
@@ -2861,7 +2745,7 @@ Not_Available_Built_In(p_read_dir)
 #ifdef SOCKETS
 
 static int
-p_socket(value vdom, type tdom, value vtp, type ttp, value vs, type ts)
+p_socket(value vdom, type tdom, value vtp, type ttp, value vs, type ts, ec_eng_t *ec_eng)
 {
     int		sdomain;
     int		stype;
@@ -2898,25 +2782,26 @@ p_socket(value vdom, type tdom, value vtp, type ttp, value vs, type ts)
 	Set_Socket_Errno();
 	Bip_Error(SYS_ERROR);
     }
-    inst = find_free_stream();
-    init_stream(inst, s, SREAD | SSOCKET, d_socket, NO_PROMPT, NO_STREAM, 0);
+    inst = alloc_slave_stream();
+    init_stream(inst, s, SREAD | SSOCKET | SSLAVE, d_socket, NO_STREAM, 0);
     onst = find_free_stream();
-    init_stream(onst, s, SWRITE | SSOCKET, d_socket, NO_PROMPT, _copy_stream(inst), 0);
+    init_stream(onst, s, SWRITE | SSOCKET, d_socket, inst, 0);
     if (sdomain == AF_UNIX)
 	SocketUnix(onst) = in_dict("",0);	/* to mark AF_UNIX */
     SocketConnection(onst) = 0;
     if (sigio) {
-	if ((res = ec_stream_set_sigio(onst, SWRITE)) < 0) {
+	if ((res = ec_stream_set_sigio(onst)) < 0) {
 	    Bip_Error(res)
 	}
     }
     SocketType(onst) = stype;
     Bind_Stream(p.val, p.tag, onst);
+    Trigger_Gc_If_Out_Of_Streams
     Succeed_;
 }
 
 static int
-socket_bind(stream_id nst, value vaddr, type taddr)
+socket_bind(stream_id nst, value vaddr, type taddr, ec_eng_t *ec_eng)
 {
     if (SocketUnix(nst))
     {
@@ -3021,20 +2906,13 @@ socket_bind(stream_id nst, value vaddr, type taddr)
 }
 
 static int
-p_bind(value v, type t, value vaddr, type taddr)
+p_bind(value v, type t, value vaddr, type taddr, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(v, t, 0, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-	{ Bip_Error(res); }
-
-    if (IsOpened(nst)) {
-        return RemoteStream(nst) ? io_rpc(nst, IO_BIND):
-				socket_bind(nst, vaddr, taddr);
-    } else 
-        { Bip_Error(STREAM_SPEC); }
-
+    Get_Locked_Stream(v, t, SRDWR, nst);
+    return RemoteStream(nst) ? io_rpc(nst, IO_BIND):
+				socket_bind(nst, vaddr, taddr, ec_eng);
 }
 
 static int
@@ -3134,9 +3012,7 @@ socket_connect(stream_id nst, value vaddr, type taddr)
                  (some OSs can leave the socket in a funny state if
 		 connection refused)
 	      */
-	        Lock_Stream(nst);
 	        ec_close_stream(nst, CLOSE_FORCE);
-		Unlock_Stream(nst);
 	        Bip_Error(SYS_ERROR); 
 	    }
 	}
@@ -3149,20 +3025,13 @@ socket_connect(stream_id nst, value vaddr, type taddr)
 }
 
 static int
-p_connect(value v, type t, value vaddr, type taddr)
+p_connect(value v, type t, value vaddr, type taddr, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(v, t, 0, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-	{ Bip_Error(res); }
-    if (IsOpened(nst))
-    {
-        return RemoteStream(nst) ? io_rpc(nst, IO_CONNECT):
+    Get_Locked_Stream(v, t, SRDWR, nst);
+    return RemoteStream(nst) ? io_rpc(nst, IO_CONNECT):
 				socket_connect(nst, vaddr, taddr);
-    } else
-        { Bip_Error(STREAM_SPEC); }
-
 }
 
 static int
@@ -3177,24 +3046,17 @@ socket_listen(stream_id nst, value vn, type tn)
 }
 
 static int
-p_listen(value v, type t, value vn, type tn)
+p_listen(value v, type t, value vn, type tn, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	nst = get_stream_id(v, t, 0, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-	{ Bip_Error(res); }
-    if (IsOpened(nst)) {
-      return RemoteStream(nst) ? io_rpc(nst, IO_LISTEN):
+    Get_Locked_Stream(v, t, SRDWR, nst);
+    return RemoteStream(nst) ? io_rpc(nst, IO_LISTEN):
 				socket_listen(nst, vn, tn);
-    } else
-        { Bip_Error(STREAM_SPEC); }
-
-
 }
 
 static int
-socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio)
+socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio, ec_eng_t *ec_eng)
 {
     socket_t	res;
     stream_id	inst, onst;
@@ -3254,20 +3116,24 @@ socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio)
 	pw[2].tag.kernel = TINT;
 	Request_Unify_Structure(vaddr, taddr, pw);
     }
-    inst = find_free_stream();
-    init_stream(inst, (uword) res, SREAD | SSOCKET, wn, NO_PROMPT, NO_STREAM, 0);
+    inst = alloc_slave_stream();
+    init_stream(inst, (uword) res, SREAD | SSOCKET | SSLAVE, wn, NO_STREAM, 0);
     onst = find_free_stream();
-    init_stream(onst, (uword) res, SWRITE | SSOCKET, wn, NO_PROMPT, _copy_stream(inst), 0);
+    init_stream(onst, (uword) res, SWRITE | SSOCKET, wn, inst, 0);
     if (SocketUnix(nst))
 	SocketUnix(onst) = in_dict("",0);
     if (sigio) {
-	if ((err = ec_stream_set_sigio(onst, SWRITE)) < 0) {
+	if ((err = ec_stream_set_sigio(onst)) < 0) {
 	    Bip_Error(err)
 	}
     }
 #ifdef SO_TYPE
     length = sizeof(stype);
+#ifdef _WIN32
+    (void) getsockopt(res, SOL_SOCKET, SO_TYPE, (char*)&stype, &length);
+#else
     (void) getsockopt(res, SOL_SOCKET, SO_TYPE, &stype, &length);
+#endif
     SocketType(onst) = stype;
 #else
     /* copy the socket type from that of the accept socket */
@@ -3275,31 +3141,27 @@ socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio)
     SocketType(inst) = SocketType(nst);
 #endif
     Bind_Stream(p.val, p.tag, onst);
+    Trigger_Gc_If_Out_Of_Streams
     Return_Unify;
 }
 
 static int
-p_accept(value v, type t, value vaddr, type taddr, value vs, type ts)
+p_accept(value v, type t, value vaddr, type taddr, value vs, type ts, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	nst = get_stream_id(v, t, 0, &res);
+    stream_id	nst;
     pword	p;
     int		sigio = 0;
 
-    if (nst == NO_STREAM)
-	{ Bip_Error(res); }
+    Get_Locked_Stream(v, t, SRDWR, nst);
     res = _check_stream(vs, ts, &p, 0);
     if (res < 0) {
 	Bip_Error(res)
     }
     else if (res & EXEC_PIPE_SIG)
 	sigio = 1;
-    if (IsOpened(nst)) {
-        return RemoteStream(nst) ? io_rpc(nst, IO_ACCEPT):
-				socket_accept(nst, vaddr, taddr, p, sigio);
-    } else
-        { Bip_Error(STREAM_SPEC); }
-
+    return RemoteStream(nst) ? io_rpc(nst, IO_ACCEPT):
+				socket_accept(nst, vaddr, taddr, p, sigio, ec_eng);
 }
 
 int
@@ -3373,7 +3235,7 @@ ec_close_socket(uword fd)		/* returns eclipse status */
 }
 
 
-#ifdef _WIN32
+#if 1
 
 /***********************************************************************
  * Signalling streams (like SIGIO on Unix)
@@ -3400,7 +3262,7 @@ _sigio_thread_function(stream_id nst)
 
     for(;;)
     {
-	if (!(StreamMode(nst) & SSIGIO))
+	if (!StreamNeedsThread(nst))
 	    return 1;				/* stop thread, ok */
 
 	FD_ZERO(&dread);
@@ -3409,17 +3271,23 @@ _sigio_thread_function(stream_id nst)
 
 	if (res > 0)
 	{
+	    if (!IsNil(StreamEvent(nst).tag))
+		ecl_post_event(StreamEventEngine(nst), StreamEvent(nst));
 	    if (StreamMode(nst) & SSIGIO)	/* still enabled? */
-		ec_post_event_int(ec_sigio);
+		ec_send_signal(ec_sigio);
 	    return 1;				/* stop thread, ok */
 	}
 	else if (res < 0)
 	{
-	    Set_Socket_Errno();
-	    switch (ec_os_errno_) {
+#ifdef _WIN32
+	    switch (WSAGetLastError()) {
 	    case WSAEINTR:
 	    case WSAEINPROGRESS:		/* ? */
 	    case WSAENETDOWN:			/* ? */
+#else
+	    switch (errno) {
+	    case EINTR:
+#endif
 		continue;			/* ignore and select again */
 
 	    default:
@@ -3440,16 +3308,39 @@ ec_setup_stream_sigio_thread(stream_id nst)
     /* setup a thread for this socket */
     if (!nst->signal_thread)
     {
+	if (!StreamCanNotifyViaThread(nst))
+	    return UNIMPLEMENTED;
 	nst->signal_thread = ec_make_thread();
 	if (!nst->signal_thread)
 	    return SYS_ERROR;
     }
     else if (!ec_thread_stopped(nst->signal_thread, &res))
     {
-	return RANGE_ERROR;
+	return PSUCCEED;
     }
     if (!ec_start_thread(nst->signal_thread, (int(*) ARGS((void*)))_sigio_thread_function, nst))
 	return SYS_ERROR;
+    return PSUCCEED;
+}
+
+
+/**
+ * If there is a sigio-thread and it is no longer needed, terminate it
+ */
+
+#define THREAD_TIMEOUT 100	/* milliseconds */
+
+int
+ec_teardown_stream_sigio_thread(stream_id nst, int always)
+{
+    if (nst->signal_thread && (always || !StreamNeedsThread(nst)))
+    {
+	int dummy;
+	stream_id inst;
+	if (ec_thread_terminate(nst->signal_thread, THREAD_TIMEOUT) < 0)
+	    return SYS_ERROR;
+	nst->signal_thread = 0;
+    }
     return PSUCCEED;
 }
 
@@ -3526,9 +3417,10 @@ Not_Available_Built_In(p_accept)
  *	tty	rw	something in buffer, or select(fd)
  */
 
+#define ARITY_SELECT	3
 
 static int
-p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
+p_select(value vin, type tin, value vtime, type ttime, value vout, type tout, ec_eng_t *ec_eng)
 {
     fd_set		dread;
     fd_set		dwrite;
@@ -3536,14 +3428,16 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
     pword		*pw;
     pword		*pl;
     pword		*p;
-    int			res;
+    int			err_or_copied;
     int			buffer_input = 0;
     int			need_select = 0;
 #ifdef _WIN32
-    int			need_kbhit = 0;
-    int			need_peek = 0;
+    stream_id		nst_win_con = NULL;
+    int			nst_win_con_copied;
+    stream_id		nst_win_pipe = NULL;
+    int			nst_win_pipe_copied;
 #endif
-    stream_id		nst;
+    stream_id		nst, onst;
     struct timeval	to;
     struct timeval	*pto = &to;
     uword		max = 0;
@@ -3595,11 +3489,10 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
     {
 	pw = pl++;
 	Dereference_(pw);		/* get the list element	*/
-	nst = get_stream_id(pw->val, pw->tag, 0, &res);
-	if (nst == NO_STREAM)
-	    { Bip_Error(res); }
-	if (!IsOpened(nst))
-	    { Bip_Error(STREAM_SPEC); }
+	nst = onst = get_stream_id(pw->val, pw->tag, SRDWR, 1, NULL, &err_or_copied);
+	if (nst == NO_STREAM) {
+	    Bip_Error(err_or_copied);
+	}
 	if (IsSocket(nst))	/* We don't wait for writes in sockets... */
 	    nst = SocketInputStream(nst);
 
@@ -3624,21 +3517,29 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 		    max = StreamUnit(nst);
 	    }
 	    /* else: stream definitely not ready */
+
+	    /* unlock and release what was acquired in get_stream_id() */
+	    mt_mutex_unlock(&onst->lock);
+	    if (err_or_copied) _lose_stream(onst);
 	}
 #ifdef _WIN32
-	else if (IsTty(nst) && IsReadStream(nst) && pto && pto->tv_sec==0 && pto->tv_usec==0)
+	else if (!nst_win_con && IsTty(nst) && IsReadStream(nst) && pto && pto->tv_sec==0 && pto->tv_usec==0)
 	{
 	    /* allow pseudo-select on Windows console with zero timeout */
-	    need_kbhit = 1;
+	    nst_win_con = nst;
+	    nst_win_con_copied = err_or_copied;
 	}
-	else if (IsPipeStream(nst) && IsReadStream(nst) && pto && pto->tv_sec==0 && pto->tv_usec==0)
+	else if (!nst_win_pipe && IsPipeStream(nst) && IsReadStream(nst) && pto && pto->tv_sec==0 && pto->tv_usec==0)
 	{
 	    /* allow pseudo-select on Windows pipe with zero timeout */
-	    need_peek = 1;
+	    nst_win_pipe = nst;
+	    nst_win_pipe_copied = err_or_copied;
 	}
 #endif
 	else
 	{
+	    mt_mutex_unlock(&onst->lock);
+	    if (err_or_copied) _lose_stream(onst);
 	    Bip_Error(UNIMPLEMENTED);
 	}
 
@@ -3655,36 +3556,49 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 
     if (need_select)
     {
+	int res;
 	if (buffer_input)	/* we don't need to wait, there is something */
 	{
 	    to.tv_sec = 0;
 	    to.tv_usec = 0;
 	    pto = &to;
 	}
-	if (select(max + 1, &dread, &dwrite, (fd_set *) 0, pto) < 0)
+	ecl_pause_engine(ec_eng, ARITY_SELECT, PAUSE_EXITABLE_VIA_LONGJMP);
+	res = select(max + 1, &dread, &dwrite, (fd_set *) 0, pto);
+	ecl_unpause_engine(ec_eng);
+	if (res < 0)
 	{
 	    Set_Socket_Errno();
 	    Bip_Error(SYS_ERROR);
 	}
     }
 #ifdef _WIN32
-    if (need_kbhit && _kbhit())
+    if (nst_win_con)
     {
-	FD_SET(StreamUnit(nst), &dread);
+	if (_kbhit())
+	{
+	    FD_SET(StreamUnit(nst_win_con), &dread);
+	}
+	mt_mutex_unlock(&nst_win_con->lock);
+	if (nst_win_con_copied) _lose_stream(nst_win_con);
     }
-    if (need_peek)
+    if (nst_win_pipe)
     {
 	DWORD avail;
-	if (!PeekNamedPipe((HANDLE)_get_osfhandle(StreamUnit(nst)),
+	int res = PSUCCEED;
+	if (!PeekNamedPipe((HANDLE)_get_osfhandle(StreamUnit(nst_win_pipe)),
 				NULL, 0, NULL, &avail, NULL))
 	{
 	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	    Bip_Error(SYS_ERROR);
+	    res = SYS_ERROR;
 	}
-	if (avail > 0)
+	else if (avail > 0)
 	{
-	    FD_SET(StreamUnit(nst), &dread);
+	    FD_SET(StreamUnit(nst_win_pipe), &dread);
 	}
+	mt_mutex_unlock(&nst_win_pipe->lock);
+	if (nst_win_pipe_copied) _lose_stream(nst_win_pipe);
+	Return_If_Error(res)
     }
 #endif
 
@@ -3694,7 +3608,11 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
     {
 	pw = pl++;
 	Dereference_(pw);		/* get the list element	*/
-	nst = get_stream_id(pw->val, pw->tag, 0, &res);
+	nst = onst = get_stream_id(pw->val, pw->tag, SRDWR, 1, NULL, &err_or_copied);
+	if (nst == NO_STREAM) {
+	    Gbl_Tg = list;
+	    Bip_Error(err_or_copied);
+	}
 	if (IsSocket(nst))
 	    nst = SocketInputStream(nst);
 
@@ -3709,6 +3627,9 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout)
 	    p->val.ptr = p + 1;
 	    p++->tag.kernel = TLIST;
 	}
+	/* unlock and release what was acquired in get_stream_id() */
+	mt_mutex_unlock(&onst->lock);
+	if (err_or_copied) _lose_stream(onst);
 
 	Dereference_(pl);		/* get the list tail	*/
 	if (IsList(pl->tag))
@@ -3793,13 +3714,12 @@ _match(register char *pattern, register char *name)
 
 #if defined(HAVE_READLINE)
 static int
-p_readline(value v, type t)
+p_readline(value v, type t, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	nst = get_stream_id(v, t, SREAD, &res);
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-	{ Bip_Error(res); }
+    Get_Locked_Stream(v, t, SREAD, nst);
     if (!IsTty(nst)) {
 	Bip_Error(STREAM_MODE)
     }
@@ -3825,8 +3745,8 @@ p_readline(value v, type t)
  *
  * The result string is allocated on the global stack.
  */
-char *
-_quoted_string(char *s, int len)
+static char *
+_quoted_string(char *s, int len, ec_eng_t *ec_eng)
 {
     pword *pw = TG;
     char *buf;
@@ -3847,8 +3767,8 @@ _quoted_string(char *s, int len)
     return (char *) BufferStart(pw);
 }
 
-char *
-_new_os_filename(char *s)
+static char *
+_new_os_filename(ec_eng_t *ec_eng, char *s)
 {
     pword *pw = TG;
     Push_Buffer(MAX_PATH_LEN);
@@ -3864,7 +3784,8 @@ _new_os_filename(char *s)
  */
 
 static int
-_build_argv(value vc,
+_build_argv(ec_eng_t *ec_eng,
+	value vc,
 	type tc,
 	char **argv,	/* the constructed argument vector */
 	char **cmd)	/* usually the same as argv[0], but not on Windows */
@@ -3911,12 +3832,12 @@ _build_argv(value vc,
 		/* apply filename conversion to the command name only */
 		if (i == 0)
 		{
-		    *cmd = s = _new_os_filename(s);
+		    *cmd = s = _new_os_filename(ec_eng, s);
 		    len = strlen(s);
 		}
 
 		/* quote the arguments argv[], but not cmd! */
-		argv[i] = _quoted_string(s, len);
+		argv[i] = _quoted_string(s, len, ec_eng);
 
 #else
 		Get_Name(car->val, car->tag, argv[i]);
@@ -3956,20 +3877,21 @@ _build_argv(value vc,
 #define Bip_Error(N) Bip_Error_Fail(N)
 
 static int
-p_check_valid_stream(value v, type t)
-{
-    int		res;
-    stream_id	nst = get_stream_id(v, t, 0, &res);
+p_check_valid_stream(value v, type t, ec_eng_t *ec_eng)
+{  
+    int		err_or_copied, stream_open;
+    stream_id	nst;
 
-    if (nst == NO_STREAM)
-	{ Bip_Error(res); }
-    if (!IsOpened(nst))
-	{ Bip_Error(STREAM_SPEC); }
+    nst = get_stream_id(v, t, SRDWR, 0, NULL, &err_or_copied);
+    if (nst == NO_STREAM) {
+	Bip_Error(err_or_copied);
+    }
+    ec_release_stream_if_needed(nst, err_or_copied);
     Succeed_;
 }
 
 static int
-p_check_stream_spec(value v, type t)
+p_check_stream_spec(value v, type t, ec_eng_t *ec_eng)
 {
     if (IsRef(t)) {
 	Bip_Error(INSTANTIATION_FAULT);
@@ -4003,7 +3925,7 @@ p_check_stream_spec(value v, type t)
 #define MAX_WIN_CMD_LINE	(32*1024)
 
 static int
-p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, type tpr)
+p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, type tpr, ec_eng_t *ec_eng)
 {
     char		*argv[MAX_ARGS+1];
     struct pipe_desc	pipes[MAX_PIPES + 1];
@@ -4021,7 +3943,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
     Check_Ref(tp);
     Check_Integer(tpr);
 
-    err = _build_argv(vc, tc, argv, &cmd);
+    err = _build_argv(ec_eng, vc, tc, argv, &cmd);
     if (err < 0) {
 	Bip_Error(err)
     }
@@ -4178,14 +4100,12 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
     {
 	if (p->flags & EXEC_PIPE_IN) {
 	    id = find_free_stream();
-	    init_stream(id, p->fd[1], SWRITE | SPIPE, d_pipe, NO_PROMPT,
-		NO_STREAM, 0);
+	    init_stream(id, p->fd[1], SWRITE | SPIPE, d_pipe, NO_STREAM, 0);
 	} else if (p->flags & EXEC_PIPE_OUT) {
 	    id = find_free_stream();
-	    init_stream(id, p->fd[0], SREAD | SPIPE, d_pipe, NO_PROMPT,
-		NO_STREAM, 0);
+	    init_stream(id, p->fd[0], SREAD | SPIPE, d_pipe, NO_STREAM, 0);
 	    if (p->flags & EXEC_PIPE_SIG) {
-		if ((err = ec_stream_set_sigio(id, SREAD)) < 0) {
+		if ((err = ec_stream_set_sigio(id)) < 0) {
 		    Bip_Error(err);
 		}
 	    }
@@ -4196,13 +4116,14 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	p++;
     }
 
+    Trigger_Gc_If_Out_Of_Streams
     Return_Unify_Integer(vp, tp, pid);
 }
 
 #else
 
 static int
-p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, type tpr)
+p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, type tpr, ec_eng_t *ec_eng)
 {
     char		*argv[MAX_ARGS+1];
     struct pipe_desc	pipes[MAX_PIPES + 1];
@@ -4215,7 +4136,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
     Check_Ref(tp);
     Check_Integer(tpr);
 
-    err = _build_argv(vc, tc, argv, &cmd);
+    err = _build_argv(ec_eng, vc, tc, argv, &cmd);
     if (err < 0) {
 	Bip_Error(err)
     }
@@ -4277,15 +4198,13 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	    if (p->flags & EXEC_PIPE_IN) {
 		(void) close(p->fd[0]);
 		id = find_free_stream();
-		init_stream(id, p->fd[1], SWRITE | SPIPE, d_pipe, NO_PROMPT,
-		    NO_STREAM, 0);
+		init_stream(id, p->fd[1], SWRITE | SPIPE, d_pipe, NO_STREAM, 0);
 	    } else if (p->flags & EXEC_PIPE_OUT) {
 		(void) close(p->fd[1]);
 		id = find_free_stream();
-		init_stream(id, p->fd[0], SREAD | SPIPE, d_pipe, NO_PROMPT,
-		    NO_STREAM, 0);
+		init_stream(id, p->fd[0], SREAD | SPIPE, d_pipe, NO_STREAM, 0);
 		if (p->flags & EXEC_PIPE_SIG) {
-		    if ((err = ec_stream_set_sigio(id, SREAD)) < 0) {
+		    if ((err = ec_stream_set_sigio(id)) < 0) {
 			Bip_Error(err);
 		    }
 		}
@@ -4295,6 +4214,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	    }
 	    p++;
 	}
+	Trigger_Gc_If_Out_Of_Streams
 	Return_Unify_Integer(vp, tp, pid);
     }
 }
@@ -4561,7 +4481,7 @@ _open_pipes(struct pipe_desc *allpipes)
 
 
 static int
-p_wait(value pv, type pt, value sv, type st, value vmode, type tmode)
+p_wait(value pv, type pt, value sv, type st, value vmode, type tmode, ec_eng_t *ec_eng)
 {
     int		statusp;
     int		pid, res;
@@ -4676,3 +4596,128 @@ _wait_cleanup_error_:
     Request_Unify_Integer(sv, st, statusp);
     Return_Unify;
 }
+
+
+void
+bip_io_init(int flags)
+{
+    d_fd = in_dict("fd", 0);
+    d_fd1 = in_dict("fd", 1);
+    d_force1 = in_dict("force", 1);
+    d_dup1 = in_dict("dup", 1);
+    d_sigio = in_dict("sigio", 1);
+    d_in = in_dict("in", 1);
+    d_out = in_dict("out", 1);
+    d_at = in_dict("at", 0);
+    d_not = in_dict("not", 0);
+    d_past = in_dict("past", 0);
+    d_eof_code = in_dict("eof_code", 0);
+    d_queue1 = in_dict("queue", 1);
+    d_unix = in_dict("unix", 0);
+    d_internet = in_dict("internet", 0);
+    d_stream = in_dict("stream", 0);
+    d_datagram = in_dict("datagram", 0);
+    d_reprompt1 = in_dict("reprompt", 1);
+    d_block = in_dict("block", 0);
+    d_end_of_line = in_dict("end_of_line", 0);
+    d_lf = in_dict("lf", 0);
+    d_crlf = in_dict("crlf", 0);
+    d_when_lost = in_dict("when_lost", 0);
+    d_when_closed = in_dict("when_closed", 0);
+
+    modes[SCLOSED] = in_dict("closed",0);
+    modes[SREAD] = d_.read;
+    modes[SWRITE] = d_.write;
+    modes[SRDWR] = d_.update;
+    modes[SAPPEND|SCLOSED] = in_dict("invalid",0);
+    modes[SAPPEND|SREAD] =  in_dict("invalid",0);
+    modes[SAPPEND|SWRITE] = d_.append;
+    modes[SAPPEND|SRDWR] =  in_dict("invalid",0);
+
+    stream_types[SFILE>>STYPE_SHIFT] = in_dict("file", 0);
+    stream_types[SSTRING>>STYPE_SHIFT] = d_.string0;
+    stream_types[SPIPE>>STYPE_SHIFT] = d_pipe = in_dict("pipe", 0);
+    stream_types[SQUEUE>>STYPE_SHIFT] = d_queue = in_dict("queue", 0);
+    stream_types[SNULL>>STYPE_SHIFT] = d_.null;
+    stream_types[SSOCKET>>STYPE_SHIFT] = d_socket = in_dict("socket", 0);
+    stream_types[STTY>>STYPE_SHIFT] = in_dict("tty", 0);
+
+    stream_encodings[SENC_OCTET] = in_dict("octet", 0);
+    stream_encodings[SENC_ASCII] = in_dict("ascii", 0);
+    stream_encodings[SENC_LATIN1] = in_dict("iso_latin_1", 0);
+
+#ifdef _WIN32
+    if (flags & INIT_PRIVATE)
+    {
+	child_processes = NULL;
+    }
+#endif
+
+    if (flags & INIT_SHARED)
+    {
+	(void) built_in(in_dict("nl", 1),	p_nl, B_SAFE);
+	(void) built_in(in_dict("open", 3),	p_open, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("close", 1),	p_close, B_SAFE);
+	(void) built_in(in_dict("close", 2),	p_close2, B_SAFE);
+	(void) built_in(in_dict("tyo", 2),	p_tyo, B_SAFE);
+	(void) built_in(in_dict("tyi", 2),	p_tyi, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("delete", 1),	p_delete, B_SAFE);
+	(void) built_in(in_dict("mkdir", 1),	p_mkdir, B_SAFE);
+	(void) built_in(in_dict("rename", 2),	p_rename, B_SAFE);
+	built_in(in_dict("get_prompt", 3),	p_get_prompt, B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
+	(void) built_in(in_dict("set_prompt", 3),	p_set_prompt, B_UNSAFE);
+	(void) local_built_in(in_dict("is_open_stream", 1),
+			p_is_open_stream, B_SAFE);
+	(void) local_built_in(in_dict("check_valid_stream", 1),
+			p_check_valid_stream, B_SAFE);
+	(void) local_built_in(in_dict("check_stream_spec", 1),
+			p_check_stream_spec, B_SAFE);
+	(void) built_in(in_dict("get_stream",2),	p_get_stream, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("set_stream",2),	p_set_stream, B_SAFE);
+	(void) built_in(in_dict("seek",2),	p_seek, B_SAFE);
+	(void) built_in(in_dict("stream_truncate",1),	p_stream_truncate, B_SAFE);
+	(void) built_in(in_dict("at",2),	p_at, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("get_char",2),	p_get_char, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("get", 2),	p_get,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("get", 1),	p_get1,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("unget",1),	p_unget, B_SAFE);
+	(void) built_in(in_dict("put_char",2),	p_put_char, B_SAFE);
+	(void) built_in(in_dict("put", 2),	p_put, B_SAFE);
+	(void) built_in(in_dict("put", 1),	p_put1, B_SAFE);
+	(void) exported_built_in(in_dict("getw", 2),	p_getw, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("at_eof",1),	p_at_eof, B_SAFE);
+	(void) built_in(in_dict("flush", 1),		p_flush,	B_SAFE);
+	(void) local_built_in(in_dict("stream_info_", 3), p_stream_info_, B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("set_stream_prop_", 3), p_set_stream_prop_, B_SAFE);
+	(void) local_built_in(in_dict("erase_stream_property", 1),
+			p_erase_stream_property, B_SAFE);
+	built_in(in_dict("pipe", 2),	p_pipe,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT);
+	local_built_in(in_dict("exec", 4),	p_exec,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(3, CONSTANT) | BoundArg(4, CONSTANT);
+	built_in(in_dict("read_string", 4),	p_read_string,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(3, CONSTANT) | BoundArg(4, CONSTANT);
+	built_in(in_dict("read_string", 5),	p_read_string5,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(4, CONSTANT) | BoundArg(5, CONSTANT);
+	built_in(in_dict("read_directory", 4),	p_read_dir,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(3, GROUND) | BoundArg(4, GROUND);
+	(void) built_in(in_dict("socket", 3),	p_socket,	B_UNSAFE|U_SIMPLE);
+	built_in(in_dict("bind", 2),		p_bind,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, GROUND);
+	built_in(in_dict("connect", 2),		p_connect,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(2, GROUND);
+	(void) built_in(in_dict("listen", 2),	p_listen,	B_UNSAFE);
+	(void) built_in(in_dict("accept", 3),	p_accept,	B_UNSAFE|U_SIMPLE);
+	built_in(in_dict("stream_select", 3),	p_select,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(3, GROUND);
+	local_built_in(in_dict("open_streams", 1), p_open_streams, B_UNSAFE|U_GROUND);
+	b_built_in(in_dict("wait", 3), 		p_wait, 	d_.kernel_sepia)
+	    -> mode = BoundArg(1, CONSTANT) | BoundArg(2, CONSTANT) | BoundArg(3, CONSTANT);
+#if defined(HAVE_READLINE)
+	(void) exported_built_in(in_dict("readline", 1),		p_readline,	B_SAFE);
+#endif
+    }
+}
+
+/* Add all new code in front of the initialization function! */

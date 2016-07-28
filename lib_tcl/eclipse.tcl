@@ -1,5 +1,5 @@
 #
-# $Id: eclipse.tcl,v 1.3 2012/02/19 17:54:49 jschimpf Exp $
+# $Id: eclipse.tcl,v 1.4 2016/07/28 03:34:37 jschimpf Exp $
 # 
 # BEGIN LICENSE BLOCK
 # Version: CMPL 1.1
@@ -199,7 +199,7 @@ proc ec_queue_create {eclipse_name access {command {}} {event {}}} {
 	default {error "$access is an invalid access mode for embedded ECLiPSe queue ($eclipse_name)"}
     }
 
-    ec_rpc [list : sepia_kernel [list ecl_create_embed_queue $eclipse_name $access [list $event]]] (()(()()()))
+    ec_rpc [list : sepia_kernel [list ecl_create_embed_queue $eclipse_name $access $event]] (()(()()()))
 
     return [ec_queue_connect $eclipse_name $access $command]
 

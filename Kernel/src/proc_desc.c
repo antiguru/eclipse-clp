@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.6 2010/02/18 05:02:45 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -121,9 +121,6 @@
 #include	"property.h"
 #include	"gencode.h"
 
-#define a_mutex_lock(x)
-#define a_mutex_unlock(x)
-
 
 #define	ExportImmediately(pd)	\
 	((pd)->flags & CODE_DEFINED || (pd)->flags & AUTOLOAD || (pd)->trans_function)
@@ -206,18 +203,18 @@ _new_visible_pri(dident functor, dident module, module_item *module_property, in
 /* Get a procedure's definition (home) descriptor, if it exists.  */
 
 pri *
-pri_home(pri *pd)
+pri_home(pri *pd, int *perr)
 {
     type tm;
     if (pd->module_ref == pd->module_def)
     	return pd;
     if (pd->module_ref == D_UNKNOWN)
     {
-	Set_Bip_Error(NOENTRY);
+	*perr = NOENTRY;
     	return 0;
     }
     tm.kernel = ModuleTag(pd->module_ref);
-    return visible_procedure(pd->did, pd->module_ref, tm, PRI_DONTIMPORT|PRI_EXPORTEDONLY);
+    return visible_procedure(pd->did, pd->module_ref, tm, PRI_DONTIMPORT|PRI_EXPORTEDONLY, perr);
 }
 
 
@@ -371,37 +368,31 @@ delete_proc_from_chain(pri *p, proc_duet **chain)
 /*
  * Report an error like:
  *	<error message> in arg1/arity in module
+ * returns PSUCCEED or PFAIL
  */
-
 static int
 _report_error(int err,
 	dident arg1,		/* any arity */
 	dident module,		/* arity 0 */
 	type mod_tag)
 {
-    int res;
-    pword *old_tg = TG;
-    pword *tg = TG;
+    ec_eng_t *ec_eng = &ec_.m_aux; /* we don't know the caller's engine */
+    int res, acquired;
     pword mod, goal;
 
-    Make_Struct(&goal, TG);
+    /* TODO: this isn't clean, the aux_engine may not be available */
+    acquired = ecl_acquire_engine(ec_eng);
+    if (acquired < 0) return acquired;	/* engine dead or busy */
 
-    Push_Struct_Frame(d_.syserror); ++tg;
-    Make_Integer(tg, -err); ++tg;
-    Make_Struct(tg, TG); ++tg;
-    tg->val.did = module;
-    tg++->tag.all = mod_tag.all;
-    tg->val.did = module;
-    tg++->tag.all = mod_tag.all;
-
-    Push_Struct_Frame(d_.quotient); ++tg;
-    Make_Atom(tg, add_dict(arg1,0)); ++tg;
-    Make_Integer(tg, DidArity(arg1));
-
-    mod.val.did = d_.kernel_sepia;
-    mod.tag.kernel = ModuleTag(d_.kernel_sepia);
-    res = query_emulc(goal.val, goal.tag, mod.val, mod.tag);
-    TG = old_tg;
+    mod.val.did = module;
+    mod.tag = mod_tag;
+    goal = ec_term(d_.syserror,
+    		ec_long(-err),
+		ec_term(d_.quotient,
+			ec_atom(add_dict(arg1,0)), ec_long(DidArity(arg1))),
+		mod, mod);
+    res = ecl_resume_goal(ec_eng, goal, ec_nil(), NULL, GOAL_NOTNOT);
+    if (acquired == PSUCCEED) ecl_relinquish_engine(ec_eng);
     return res;
 }
 
@@ -495,7 +486,7 @@ pri_statistics(void)
     dident mod;
     int count[6];
 
-    while (next_functor(&idx, &mod))
+    while (next_functor(&idx, &mod, 1))
     {
 	if (IsModule(mod))
 	{
@@ -942,13 +933,13 @@ pri_change_trans_function(pri *pd,		/* any descriptor */
  *----------------------------------------------------------------------*/
 
 pri *
-local_procedure(dident functor, dident module, type module_tag, int options)
+local_procedure(dident functor, dident module, type module_tag, int options, int *perr)
 {
     pri		*pd;
 
     if (UnauthorizedAccess(module, module_tag))
     {
-	Set_Bip_Error(LOCKED);
+	*perr = LOCKED;
 	return 0;
     }
     a_mutex_lock(&ProcListLock);
@@ -965,14 +956,14 @@ local_procedure(dident functor, dident module, type module_tag, int options)
 	    }
 	    else
 	    {
-		Set_Bip_Error(NOENTRY);
+		*perr = NOENTRY;
 	        pd = 0;
 	    }
 	    break;
 
 	case IMPORT:
 	case IMPEXP:
-	    Set_Bip_Error(options & PRI_CREATE? IMPORT_EXISTS:ACCESSING_NON_LOCAL);
+	    *perr = (options & PRI_CREATE? IMPORT_EXISTS:ACCESSING_NON_LOCAL);
 	    pd = 0;
 	    break;
 
@@ -997,7 +988,7 @@ local_procedure(dident functor, dident module, type module_tag, int options)
 		break;
 	    case SYSTEM:
 		a_mutex_unlock(&ProcListLock);
-		Set_Bip_Error(BUILT_IN_REDEF);
+		*perr = BUILT_IN_REDEF;
 		return 0;
 	    }
 	}
@@ -1009,7 +1000,7 @@ local_procedure(dident functor, dident module, type module_tag, int options)
     }
     else
     {
-	Set_Bip_Error(NOENTRY);
+	*perr = NOENTRY;
     }
     a_mutex_unlock(&ProcListLock);
     return pd;
@@ -1033,13 +1024,13 @@ local_procedure(dident functor, dident module, type module_tag, int options)
 
 
 pri *
-export_procedure(dident functor, dident module, type module_tag)
+export_procedure(dident functor, dident module, type module_tag, int *perr)
 {
     pri		*pd;
 
     if (UnauthorizedAccess(module, module_tag))
     {
-	Set_Bip_Error(LOCKED);
+	*perr = LOCKED;
 	return 0;
     }
     a_mutex_lock(&ProcListLock);
@@ -1075,10 +1066,10 @@ export_procedure(dident functor, dident module, type module_tag)
 	break;
 
     case IMPORT:
-	Set_Bip_Error(IMPORT_EXISTS); pd = 0; break;
+	*perr = IMPORT_EXISTS; pd = 0; break;
 
     case IMPEXP:
-	Set_Bip_Error(REEXPORT_EXISTS); pd = 0; break;
+	*perr = REEXPORT_EXISTS; pd = 0; break;
 
     case EXPORT:
 	break;
@@ -1093,9 +1084,9 @@ export_procedure(dident functor, dident module, type module_tag)
  *----------------------------------------------------------------------*/
 
 pri *
-global_procedure(dident functor, dident module, type module_tag)
+global_procedure(dident functor, dident module, type module_tag, int *perr)
 {
-    return export_procedure(functor, module, module_tag);
+    return export_procedure(functor, module, module_tag, perr);
 }
 
 
@@ -1146,13 +1137,13 @@ check_def_use_module_interface(dident mod, type mod_tag)
  *----------------------------------------------------------------------*/
 
 pri *
-import_procedure(dident functor, dident module, type module_tag, dident exporting_module)
+import_procedure(dident functor, dident module, type module_tag, dident exporting_module, int *perr)
 {
     pri		*pd, *exported_pd;
 
     if (UnauthorizedAccess(module, module_tag))
     {
-	Set_Bip_Error(LOCKED);
+	*perr = LOCKED;
 	return 0;
     }
     a_mutex_lock(&ProcListLock);
@@ -1176,7 +1167,7 @@ import_procedure(dident functor, dident module, type module_tag, dident exportin
 	    }
 	    else
 	    {
-		Set_Bip_Error(INCONSISTENCY);
+		*perr = INCONSISTENCY;
 		pd = 0;
 		break;
 	    }
@@ -1193,7 +1184,7 @@ import_procedure(dident functor, dident module, type module_tag, dident exportin
     case IMPEXP:
 	if (pd->module_ref != exporting_module)
 	{
-	    Set_Bip_Error(IMPORT_EXISTS);
+	    *perr = IMPORT_EXISTS;
 	    pd = 0;
 	}
 	/* else ALREADY_IMPORT */
@@ -1201,13 +1192,13 @@ import_procedure(dident functor, dident module, type module_tag, dident exportin
     case LOCAL :
 	if (pd->module_ref != exporting_module)
 	{
-	    Set_Bip_Error(LOCAL_EXISTS); pd = 0;
+	    *perr = LOCAL_EXISTS; pd = 0;
 	}
 	break;
     case EXPORT :
 	if (pd->module_ref != exporting_module)
 	{
-	    Set_Bip_Error(EXPORT_EXISTS); pd = 0;
+	    *perr = EXPORT_EXISTS; pd = 0;
 	}
 	break;
     }
@@ -1236,13 +1227,13 @@ import_procedure(dident functor, dident module, type module_tag, dident exportin
  *----------------------------------------------------------------------*/
 
 pri *
-reexport_procedure(dident functor, dident module, type module_tag, dident from_module)
+reexport_procedure(dident functor, dident module, type module_tag, dident from_module, int *perr)
 {
     pri		*pd, *exported_pd;
 
     if (UnauthorizedAccess(module, module_tag))
     {
-	Set_Bip_Error(LOCKED);
+	*perr = LOCKED;
 	return 0;
     }
     a_mutex_lock(&ProcListLock);
@@ -1266,7 +1257,7 @@ reexport_procedure(dident functor, dident module, type module_tag, dident from_m
 	    }
 	    else
 	    {
-		Set_Bip_Error(INCONSISTENCY);
+		*perr = INCONSISTENCY;
 		pd = 0;
 		break;
 	    }
@@ -1278,7 +1269,7 @@ reexport_procedure(dident functor, dident module, type module_tag, dident from_m
 	}
 	else /* else chain is not yet completely known */
 	{
-	    Set_Bip_Error(NOENTRY);
+	    *perr = NOENTRY;
 	    pd =0;
 	}
 	break;
@@ -1292,22 +1283,22 @@ reexport_procedure(dident functor, dident module, type module_tag, dident from_m
 	}
 	else /* else chain is not yet completely known */
 	{
-	    Set_Bip_Error(NOENTRY);
+	    *perr = NOENTRY;
 	    pd =0;
 	}
 	break;
     case IMPEXP:
 	if (pd->module_ref != from_module)
 	{
-	    Set_Bip_Error(REEXPORT_EXISTS);
+	    *perr = REEXPORT_EXISTS;
 	    pd = 0;
 	}
 	/* else ALREADY_REEXPORT */
 	break;
     case LOCAL :
-	Set_Bip_Error(LOCAL_EXISTS); pd = 0; break;
+	*perr = LOCAL_EXISTS; pd = 0; break;
     case EXPORT :
-	Set_Bip_Error(EXPORT_EXISTS); pd = 0; break;
+	*perr = EXPORT_EXISTS; pd = 0; break;
     }
     a_mutex_unlock(&ProcListLock);
     return pd;
@@ -1349,7 +1340,7 @@ reexport_procedure(dident functor, dident module, type module_tag, dident from_m
 	(!IsModuleTag(module, module_tag) && ((exponly) || IsLocked(module)))
 
 pri *
-visible_procedure(dident functor, dident module, type module_tag, int options)
+visible_procedure(dident functor, dident module, type module_tag, int options, int *perr)
 {
     int		res;
     pri		*pd;
@@ -1365,7 +1356,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options)
 	    if (UnauthorizedAccessOption(module, module_tag, options & PRI_EXPORTEDONLY))
 	    {
 		a_mutex_unlock(&ProcListLock);
-		Set_Bip_Error(options & PRI_EXPORTEDONLY? NOENTRY: LOCKED);
+		*perr = options & PRI_EXPORTEDONLY? NOENTRY: LOCKED;
 		return 0;
 	    }
 	    /* fall through */
@@ -1383,13 +1374,13 @@ visible_procedure(dident functor, dident module, type module_tag, int options)
     }
     if (UnauthorizedAccessOption(module, module_tag, options & PRI_EXPORTEDONLY))
     {
-	Set_Bip_Error(options & PRI_EXPORTEDONLY? NOENTRY: LOCKED);
+	*perr = options & PRI_EXPORTEDONLY? NOENTRY: LOCKED;
 	pd = 0;
     }
     else if (options & PRI_DONTIMPORT)
     {
 	dident dummy;
-	Set_Bip_Error(_hiding_import(functor, module, &dummy) ? IMPORT_PENDING : NOENTRY);
+	*perr = _hiding_import(functor, module, &dummy) ? IMPORT_PENDING : NOENTRY;
 	pd = 0;
     }
     else
@@ -1405,7 +1396,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options)
 	    if (_report_error(IMPORT_CLASH_RESOLVE, functor, module, module_tag) == PSUCCEED)
 	    {
 		/* handler succeeded, try again */
-		return visible_procedure(functor, module, module_tag, options);
+		return visible_procedure(functor, module, module_tag, options, perr);
 	    }
 	    if (!(options & PRI_DONTWARN))
 	    {
@@ -1429,7 +1420,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options)
 	    /* fall through */
 
 	default:
-	    Set_Bip_Error(res);
+	    *perr = res;
 	    pd = 0;
 	    break;
 	}
@@ -1450,7 +1441,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options)
  *----------------------------------------------------------------------*/
 
 pri *
-qualified_procedure(dident functor, dident lookup_module, dident ref_module, type ref_mod_tag)
+qualified_procedure(dident functor, dident lookup_module, dident ref_module, type ref_mod_tag, int *perr)
 /* Locks: acquires ProcListLock, ModuleLock. */
 {
     pri		*pd, *visible_pd, *home_pd;
@@ -1461,7 +1452,7 @@ qualified_procedure(dident functor, dident lookup_module, dident ref_module, typ
     /* If modules are the same, it's the same as visible_procedure() */
     if (lookup_module == ref_module)
     	return visible_procedure(functor, ref_module, ref_mod_tag,
-			PRI_CREATE|PRI_REFER);
+			PRI_CREATE|PRI_REFER, perr);
 
     /*
      * All the qualified descriptors are at the end of the list.
@@ -1814,16 +1805,7 @@ remove_procedure(pri *proc)
 	}
 	else if (PriFlags(proc) & PROC_DYNAMIC)
 	{
-#ifdef OLD_DYNAMIC
-	    a_mutex_lock(&ProcChainLock);
-	    add_proc_to_chain((pri *) code, &AbolishedDynProcedures);
-	    /* Mark the abolish clock into the death of the first clause */
-	    Death(StartOfAss(code)) = DynGlobalClock;
-	    delete_proc_from_chain(proc, &DynamicProcedures);
-	    a_mutex_unlock(&ProcChainLock);
-#else
 	    ec_free_dyn_code(code);
-#endif
 	    PriFlags(proc) &= ~PROC_DYNAMIC;
 	}
 	else
@@ -1847,7 +1829,7 @@ pri *ec_code_procedure(vmcode *code)
     int	idx = 0;
     dident functor;
 
-    while (next_functor(&idx, &functor))
+    while (next_functor(&idx, &functor, 1))
     {
 	pri *pd;
 	for(pd=DidPtr(functor)->procedure; IsVisibilityPri(pd); pd=pd->nextproc)
@@ -1876,28 +1858,24 @@ _define_built_in(dident did1, int (*function) (/* ??? */), word flags, dident mo
     pri	*pd;
     pri_code_t pricode;
     type tm;
+    int err;
 
     tm.kernel = ModuleTag(d_.kernel_sepia);
     switch(vis)
     {
-    case LOCAL:  pd = local_procedure(did1, mod, tm, PRI_CREATE); break;
-    case EXPORT: pd = export_procedure(did1, mod, tm); break;
+    case LOCAL:  pd = local_procedure(did1, mod, tm, PRI_CREATE, &err); break;
+    case EXPORT: pd = export_procedure(did1, mod, tm, &err); break;
     default:     return 0;
     }
 
-    pd->flags |= (flags & (UNIFTYPE|PROC_DEMON))|SYSTEM|DEBUG_DB|DEBUG_DF;
     if ((flags & UNIFTYPE) == U_SIMPLE)
 	/* by default all simples bind the last argument */
 	pd->mode = BoundArg(DidArity(PriDid(pd)), CONSTANT);
 
-    if ((flags & CODETYPE) == VMCODE)
-    {
-	(void) b_built_code(pd, (word) function, nondet);
-    }
-    else
-    {
-	(void) ec_panic("Illegal codetype", "_define_built_in()");		\
-    }
+    pd->flags |= (flags & (UNIFTYPE|PROC_DEMON|SYSTEM|PL_C_ARGS))
+    		|VMCODE|DEBUG_DB|DEBUG_DF;
+
+    (void) b_built_code(pd, (word) function, nondet);
     return pd;
 }
 
@@ -1907,7 +1885,7 @@ _define_built_in(dident did1, int (*function) (/* ??? */), word flags, dident mo
 pri *
 built_in(dident did1, int (*func) (/* ??? */), word flags)
 {
-    return _define_built_in(did1, func, flags, d_.kernel_sepia, EXPORT, 0);
+    return _define_built_in(did1, func, flags|SYSTEM|PL_C_ARGS, d_.kernel_sepia, EXPORT, 0);
 }
 
 /*
@@ -1916,7 +1894,7 @@ built_in(dident did1, int (*func) (/* ??? */), word flags)
 pri *
 local_built_in(dident did1, int (*func) (/* ??? */), word flags)
 {
-    return _define_built_in(did1, func, flags, d_.kernel_sepia, LOCAL, 0);
+    return _define_built_in(did1, func, flags|SYSTEM|PL_C_ARGS, d_.kernel_sepia, LOCAL, 0);
 }
 
 /*
@@ -1925,7 +1903,7 @@ local_built_in(dident did1, int (*func) (/* ??? */), word flags)
 pri *
 exported_built_in(dident did1, int (*func) (/* ??? */), word flags)
 {
-    return _define_built_in(did1, func, flags, d_.kernel_sepia, EXPORT, 0);
+    return _define_built_in(did1, func, flags|SYSTEM|PL_C_ARGS, d_.kernel_sepia, EXPORT, 0);
 }
 
 /*
@@ -1944,5 +1922,5 @@ ec_external(dident did1, int (*func) (/* ??? */), dident module)
 pri *
 b_built_in(dident did1, int (*func) (/* ??? */), dident module)
 {
-    return _define_built_in(did1, func, B_UNSAFE, module, LOCAL, 1);
+    return _define_built_in(did1, func, B_UNSAFE|SYSTEM|PL_C_ARGS, module, LOCAL, 1);
 }

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: eclipse_cc.cc,v 1.4 2015/01/14 01:31:09 jschimpf Exp $
+ * $Id: eclipse_cc.cc,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	eclipse_cc.cc
@@ -34,24 +34,16 @@
  * DESCRIPTION:
  *	C++ embedding interface classes
  *
- *	This file is preprocessed at eclipse-build-time to produce
- *	eclipse_cc.h. The main reason to do this is to not pollute
- *	the user's namespace with all the define's in our .h files.
  */
 
-#define EC_EXTERNAL
-#define EC_EMBED
-
-#include "config.h"
-#include "ec_public.h"
-#include "types.h"
-#include "embed.h"
+#include "eclipse.h"
 
 enum EC_status
 {
 	EC_succeed = PSUCCEED,
 	EC_fail = PFAIL,
 	EC_throw = PTHROW,
+	EC_exited = PEXITED,
 	EC_yield = PYIELD,
 	EC_running = PRUNNING,
 	EC_waitio = PWAITIO,

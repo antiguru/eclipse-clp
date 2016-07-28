@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_strings.c,v 1.5 2014/07/11 02:29:20 jschimpf Exp $
+ * VERSION	$Id: bip_strings.c,v 1.6 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -53,84 +53,13 @@
 #include <ctype.h>
 #endif
  
-pword     	*empty_string;
-
-static dident	d_sha_;
-
-static int	_concat_string(value v1, type t1, value vsep, pword **conc);
-
-static int	p_string_list(value vs, type ts, value vl, type tl),
-		p_utf8_list(value vs, type ts, value vl, type tl),
-		p_concat_atoms(value v1, type t1, value v2, type t2, value vconc, type tconc),
-		p_concat_atom(value v1, type t1, value vconc, type tconc),
-		p_concat_string(value v1, type t1, value vconc, type tconc),
-		p_concat_strings(value v1, type t1, value v2, type t2, value vconc, type tconc),
-		p_first_substring(value vstr, type tstr, value vpos, type tpos, value vlen, type tlen, value vsub, type tsub),
-		p_hash_secure(value v1, type t1, value vhash, type thash, value vmethod, type tmethod),
-		p_join_string(value v1, type t1, value vsep, type tsep, value vconc, type tconc),
-		p_string_length(value sval, type stag, value nval, type ntag),
-		p_atom_length(value aval, type atag, value nval, type ntag),
-		p_split_string(value vstr, type tstr, value vsep, type tsep, value vpad, type tpad, value v, type t),
-		p_get_string_code(value vs, type ts, value vi, type ti, value vc, type tc),
-		p_string_code(value vs, type ts, value vi, type ti, value vc, type tc, value vfi, type tfi),
-		p_string_lower(value vs, type ts, value v, type t),
-		p_string_upper(value vs, type ts, value v, type t),
-		p_substring(value val1, type tag1, value val2, type tag2, value valp, type tagp),
-		p_string_print_length(value v1, type t1, value vs, type ts, value ve, type te, value vl, type tl),
-		p_text_to_string(value v, type t, value vs, type ts),
-		p_char_int(value chval, type chtag, value ival, type itag);
-
-
 
 /*
- * FUNCTION NAME:       bip_strings_init() 
- *
- * PARAMETERS:          NONE. 
- *
- * DESCRIPTION:         links the 'C' functions in this file with SEPIA 
- *                      built-in predicates.    
+ * Write-once constants
  */
-void
-bip_strings_init(int flags)
-{
-    if (flags & INIT_PRIVATE)
-    {
-	empty_string = enter_string_n("", 0, DICT_PERMANENT);
-	d_sha_ = in_dict("sha", 0);
-    }
 
-    if (flags & INIT_SHARED)
-    {
-	built_in(in_dict("string_list", 2),    p_string_list, B_UNSAFE|U_GROUND|PROC_DEMON)
-	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	built_in(in_dict("utf8_list", 2),    p_utf8_list, B_UNSAFE|U_GROUND|PROC_DEMON)
-	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	(void) built_in(in_dict("hash_secure", 3), 	p_hash_secure,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("string_length", 2), 	p_string_length,B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("get_string_code", 3), 	p_get_string_code,	B_UNSAFE|U_SIMPLE);
-	(void) b_built_in(in_dict("string_code", 4), 	p_string_code, d_.kernel_sepia);
-	(void) built_in(in_dict("substring", 3), 	p_substring,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("atom_length", 2), 	p_atom_length,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("string_upper", 2),	p_string_upper,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("string_lower", 2),	p_string_lower,	B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("concat_atoms", 3), 	p_concat_atoms,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	(void) built_in(in_dict("concat_atom", 2), 	p_concat_atom,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	(void) built_in(in_dict("concat_strings", 3), 	p_concat_strings,B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	(void) built_in(in_dict("concat_string", 2), 	p_concat_string,B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	(void) built_in(in_dict("atomics_to_string", 2),p_concat_string,B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	(void) built_in(in_dict("join_string", 3), 	p_join_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	(void) built_in(in_dict("atomics_to_string", 3),p_join_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	(void) built_in(in_dict("text_to_string", 2),	p_text_to_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
-	built_in(in_dict("split_string", 4), 		p_split_string,	B_UNSAFE|U_GROUND)
-	    -> mode = BoundArg(4, GROUND);
-	built_in(in_dict("char_int", 2), 	p_char_int,	B_UNSAFE|U_SIMPLE)
-	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	(void) exported_built_in(in_dict("first_substring", 4),
-						p_first_substring, B_UNSAFE|U_SIMPLE);
-	exported_built_in(in_dict("string_print_length", 4),
-						p_string_print_length, B_UNSAFE|U_SIMPLE) -> mode = BoundArg(3, CONSTANT);
-    }
-}
+pword     	*empty_string;
+static dident	d_sha_;
 
 
 
@@ -152,7 +81,7 @@ bip_strings_init(int flags)
  */
 
 static int
-p_string_list(value vs, type ts, value vl, type tl)
+p_string_list(value vs, type ts, value vl, type tl, ec_eng_t *ec_eng)
 {
     register pword	*pw, *list;
     register char	*s;
@@ -273,7 +202,7 @@ p_string_list(value vs, type ts, value vl, type tl)
  */
 
 static int
-p_text_to_string(value v, type t, value vs, type ts)
+p_text_to_string(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
 {
     pword	*pw, *list;
     char	*s;
@@ -413,7 +342,7 @@ p_text_to_string(value v, type t, value vs, type ts)
  */
 
 static int
-p_substring(value val1, type tag1, value val2, type tag2, value valp, type tagp)
+p_substring(value val1, type tag1, value val2, type tag2, value valp, type tagp, ec_eng_t *ec_eng)
 {
 	char	*p1, *p2;
 	word	length1, length2;
@@ -499,7 +428,7 @@ p_substring(value val1, type tag1, value val2, type tag2, value valp, type tagp)
  */
 
 static int
-p_string_length(value sval, type stag, value nval, type ntag)
+p_string_length(value sval, type stag, value nval, type ntag, ec_eng_t *ec_eng)
 {
         Check_Output_Integer(ntag);
 	if (IsRef(stag))
@@ -537,7 +466,7 @@ p_string_length(value sval, type stag, value nval, type ntag)
  */
 
 static int
-p_atom_length(value aval, type atag, value nval, type ntag)
+p_atom_length(value aval, type atag, value nval, type ntag, ec_eng_t *ec_eng)
 {
         Check_Output_Integer(ntag);
 	if (IsRef(atag))
@@ -561,7 +490,7 @@ p_atom_length(value aval, type atag, value nval, type ntag)
  */
 
 static
-p_char_int(value chval, type chtag, value ival, type itag)
+p_char_int(value chval, type chtag, value ival, type itag, ec_eng_t *ec_eng)
 {
 
         /* Case of: converting an integer to a character. */ 	
@@ -624,7 +553,7 @@ p_char_int(value chval, type chtag, value ival, type itag)
  */
 
 static int
-p_concat_atoms(value v1, type t1, value v2, type t2, value vconc, type tconc)
+p_concat_atoms(value v1, type t1, value v2, type t2, value vconc, type tconc, ec_eng_t *ec_eng)
 {
 	dident		cdid;
 	register char	*s, *t;
@@ -659,102 +588,12 @@ p_concat_atoms(value v1, type t1, value v2, type t2, value vconc, type tconc)
 
 
 /*
- * FUNCTION NAME:       p_concat_string(v1, t1, vconc, tconc) 
- *                        
- * PARAMETERS:          - a list of constants
- *                      - a string or variable
- *
- * DESCRIPTION:         Used to concatenate constants in the given list
- *			to yield a string.
- */
-
-static int
-p_concat_string(value v1, type t1, value vconc, type tconc)
-{
-    value	v, vsep;
-    int		status;
-
-    Check_Output_List(t1);
-    Check_Output_String(tconc);
-    if (IsRef(t1))
-	{ Bip_Error(PDELAY_1); }
-    vsep.ptr = empty_string;
-    if ((status = _concat_string(v1, t1, vsep, &v.ptr)) != PSUCCEED)
-    {
-	return status;
-    }
-    Kill_DE;
-    Return_Unify_String(vconc, tconc, v.ptr);
-
-}
-
-static int
-p_join_string(value v1, type t1, value vsep, type tsep, value vconc, type tconc)
-{
-    value	v;
-    int		status;
-
-    if (IsRef(t1))
-	{ Bip_Error(PDELAY_1); }
-    if (IsRef(tsep))
-	{ Bip_Error(PDELAY_2); }
-    Check_Output_String(tconc);
-    Check_List(t1);
-    if (IsString(tsep)) ;
-    else if (IsAtom(tsep)) vsep.ptr = DidString(vsep.did);
-    else if (IsNil(tsep)) vsep.ptr = DidString(d_.nil);
-    else { Bip_Error(TYPE_ERROR); }
-    if ((status = _concat_string(v1, t1, vsep, &v.ptr)) != PSUCCEED)
-    {
-	return status;
-    }
-    Kill_DE;
-    Return_Unify_String(vconc, tconc, v.ptr);
-
-}
-
-
-/*
- * FUNCTION NAME:       p_concat_atom(v1, t1, vconc, tconc) 
- *                        
- * PARAMETERS:          - a list of constants
- *                      - an atom or variable
- *
- * DESCRIPTION:         Used to concatenate constants in the given list
- *			to yield an atom.
- */
-
-static int
-p_concat_atom(value v1, type t1, value vconc, type tconc)
-{
-    pword	*old_tg = Gbl_Tg;
-    value	v, vsep;
-    dident	cdid;
-    int		status;
-
-    Check_Output_List(t1);
-    Check_Output_Atom_Or_Nil(vconc, tconc);
-    if (IsRef(t1))
-	{ Bip_Error(PDELAY_1); }
-    vsep.ptr = empty_string;
-    if ((status = _concat_string(v1, t1, vsep, &v.ptr)) != PSUCCEED)
-    {
-	return status;
-    }
-    Kill_DE;
-    cdid = enter_dict_n(StringStart(v), StringLength(v), 0);
-    Gbl_Tg = old_tg;	/* the string can be discarded now */
-    Return_Unify_Atom(vconc, tconc, cdid);
-}
-
-
-/*
  * auxiliary function for concat_atom/2 and concat_string/2
  * CAUTION: it may push something on SV and return PDELAY
  */
 
 static int
-_concat_string(value v1, type t1, value vsep, pword **conc)
+_concat_string(ec_eng_t *ec_eng, value v1, type t1, value vsep, pword **conc)
 {
 	pword		*p;
 	pword		*cst;
@@ -879,6 +718,96 @@ _concat_string(value v1, type t1, value vsep, pword **conc)
 
 
 /*
+ * FUNCTION NAME:       p_concat_string(v1, t1, vconc, tconc) 
+ *                        
+ * PARAMETERS:          - a list of constants
+ *                      - a string or variable
+ *
+ * DESCRIPTION:         Used to concatenate constants in the given list
+ *			to yield a string.
+ */
+
+static int
+p_concat_string(value v1, type t1, value vconc, type tconc, ec_eng_t *ec_eng)
+{
+    value	v, vsep;
+    int		status;
+
+    Check_Output_List(t1);
+    Check_Output_String(tconc);
+    if (IsRef(t1))
+	{ Bip_Error(PDELAY_1); }
+    vsep.ptr = empty_string;
+    if ((status = _concat_string(ec_eng, v1, t1, vsep, &v.ptr)) != PSUCCEED)
+    {
+	return status;
+    }
+    Kill_DE;
+    Return_Unify_String(vconc, tconc, v.ptr);
+
+}
+
+static int
+p_join_string(value v1, type t1, value vsep, type tsep, value vconc, type tconc, ec_eng_t *ec_eng)
+{
+    value	v;
+    int		status;
+
+    if (IsRef(t1))
+	{ Bip_Error(PDELAY_1); }
+    if (IsRef(tsep))
+	{ Bip_Error(PDELAY_2); }
+    Check_Output_String(tconc);
+    Check_List(t1);
+    if (IsString(tsep)) ;
+    else if (IsAtom(tsep)) vsep.ptr = DidString(vsep.did);
+    else if (IsNil(tsep)) vsep.ptr = DidString(d_.nil);
+    else { Bip_Error(TYPE_ERROR); }
+    if ((status = _concat_string(ec_eng, v1, t1, vsep, &v.ptr)) != PSUCCEED)
+    {
+	return status;
+    }
+    Kill_DE;
+    Return_Unify_String(vconc, tconc, v.ptr);
+
+}
+
+
+/*
+ * FUNCTION NAME:       p_concat_atom(v1, t1, vconc, tconc) 
+ *                        
+ * PARAMETERS:          - a list of constants
+ *                      - an atom or variable
+ *
+ * DESCRIPTION:         Used to concatenate constants in the given list
+ *			to yield an atom.
+ */
+
+static int
+p_concat_atom(value v1, type t1, value vconc, type tconc, ec_eng_t *ec_eng)
+{
+    pword	*old_tg = Gbl_Tg;
+    value	v, vsep;
+    dident	cdid;
+    int		status;
+
+    Check_Output_List(t1);
+    Check_Output_Atom_Or_Nil(vconc, tconc);
+    if (IsRef(t1))
+	{ Bip_Error(PDELAY_1); }
+    vsep.ptr = empty_string;
+    if ((status = _concat_string(ec_eng, v1, t1, vsep, &v.ptr)) != PSUCCEED)
+    {
+	return status;
+    }
+    Kill_DE;
+    cdid = enter_dict_n(StringStart(v), StringLength(v), 0);
+    Gbl_Tg = old_tg;	/* the string can be discarded now */
+    Return_Unify_Atom(vconc, tconc, cdid);
+}
+
+
+/*
  * split_string(+String, +SepChars, +PadChars, -List)
  *
  * Break up a string at the given separator characters.
@@ -922,7 +851,7 @@ static int transitions[S_SIZE][C_SIZE] =
 };
 
 static int
-p_split_string(value vstr, type tstr, value vsep, type tsep, value vpad, type tpad, value v, type t)
+p_split_string(value vstr, type tstr, value vsep, type tsep, value vpad, type tpad, value v, type t, ec_eng_t *ec_eng)
 {
     pword	result;
     pword	*tail = &result;
@@ -1000,7 +929,7 @@ p_split_string(value vstr, type tstr, value vsep, type tsep, value vpad, type tp
  */
 
 static int
-p_concat_strings(value v1, type t1, value v2, type t2, value vconc, type tconc)
+p_concat_strings(value v1, type t1, value v2, type t2, value vconc, type tconc, ec_eng_t *ec_eng)
 {
     value		v;
     register char	*s, *t;
@@ -1032,14 +961,13 @@ p_concat_strings(value v1, type t1, value v2, type t2, value vconc, type tconc)
 }
 
 
-
 /*
  * first_substring(+String, +Position, +Length, ?SubString)
  * deterministic substring extraction
  */
 
 static int
-p_first_substring(value vstr, type tstr, value vpos, type tpos, value vlen, type tlen, value vsub, type tsub)
+p_first_substring(value vstr, type tstr, value vpos, type tpos, value vlen, type tlen, value vsub, type tsub, ec_eng_t *ec_eng)
 {
     char	*s;
     value	v;
@@ -1057,6 +985,7 @@ p_first_substring(value vstr, type tstr, value vpos, type tpos, value vlen, type
     Return_Unify_String(vsub, tsub, v.ptr);
 }
 
+
 /*
  * Find out the print length of a given string up to a given
  * character, taken into account
@@ -1065,7 +994,7 @@ p_first_substring(value vstr, type tstr, value vpos, type tpos, value vlen, type
 */
 #define TAB_LENGTH	8
 static int
-p_string_print_length(value v1, type t1, value vs, type ts, value ve, type te, value vl, type tl)
+p_string_print_length(value v1, type t1, value vs, type ts, value ve, type te, value vl, type tl, ec_eng_t *ec_eng)
 {
     register char	*p;
     register int	size;
@@ -1107,7 +1036,7 @@ p_string_print_length(value v1, type t1, value vs, type ts, value ve, type te, v
 
 
 static int
-p_utf8_list(value vs, type ts, value vl, type tl)
+p_utf8_list(value vs, type ts, value vl, type tl, ec_eng_t *ec_eng)
 {
     register pword	*pw, *list;
     register char	*s;
@@ -1281,7 +1210,7 @@ p_utf8_list(value vs, type ts, value vl, type tl)
  */
 
 static int
-p_get_string_code(value vi, type ti, value vs, type ts, value vc, type tc)
+p_get_string_code(value vi, type ti, value vs, type ts, value vc, type tc, ec_eng_t *ec_eng)
 {
     word i = vi.nint;
     Check_Integer(ti);
@@ -1314,7 +1243,7 @@ p_get_string_code(value vi, type ti, value vs, type ts, value vc, type tc)
  */
 
 static int
-p_string_code(value vi, type ti, value vs, type ts, value vc, type tc, value vfi, type tfi)
+p_string_code(value vi, type ti, value vs, type ts, value vc, type tc, value vfi, type tfi, ec_eng_t *ec_eng)
 {
     if (IsInteger(ti))
     {
@@ -1412,7 +1341,7 @@ p_string_code(value vi, type ti, value vs, type ts, value vc, type tc, value vfi
 
 
 static int
-p_string_lower(value vs, type ts, value v, type t)
+p_string_lower(value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
     uword i;
     char *d;
@@ -1432,7 +1361,7 @@ p_string_lower(value vs, type ts, value v, type t)
 
 
 static int
-p_string_upper(value vs, type ts, value v, type t)
+p_string_upper(value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
     uword i;
     char *d;
@@ -1477,7 +1406,7 @@ p_string_upper(value vs, type ts, value v, type t)
 #include "sha.c"
 
 static int
-p_hash_secure(value v, type t, value vhash, type thash, value vmethod, type tmethod)
+p_hash_secure(value v, type t, value vhash, type thash, value vmethod, type tmethod, ec_eng_t *ec_eng)
 {
     Check_Atom(tmethod);
 
@@ -1494,15 +1423,14 @@ p_hash_secure(value v, type t, value vhash, type thash, value vmethod, type tmet
 	{
 	    pword pw;
 	    value vstring;
-	    extern pword *term_to_dbformat(pword *, dident);
 
 	    pw.val.all = v.all;
 	    pw.tag.all = t.all;
-	    vstring.ptr = term_to_dbformat(&pw, D_UNKNOWN);
+	    vstring.ptr = term_to_dbformat(ec_eng, &pw, D_UNKNOWN);
 	    sha_memory(StringStart(vstring), StringLength(vstring), hash);
 	}
 
-	ec_array_to_big((const void *) hash, 5, 1, sizeof(word),
+	ec_array_to_big(ec_eng, (const void *) hash, 5, 1, sizeof(word),
 #ifdef WORDS_BIGENDIAN
 		1,
 #else
@@ -1521,4 +1449,52 @@ p_hash_secure(value v, type t, value vhash, type thash, value vmethod, type tmet
 	Bip_Error(RANGE_ERROR);
     }
 }
+
+
+/**
+ * Links the 'C' functions in this file with built-in predicates.    
+ */
+void
+bip_strings_init(int flags)
+{
+    if (flags & INIT_PRIVATE)
+    {
+	empty_string = enter_string_n("", 0, DICT_PERMANENT);
+	d_sha_ = in_dict("sha", 0);
+    }
+
+    if (flags & INIT_SHARED)
+    {
+	built_in(in_dict("string_list", 2),    p_string_list, B_UNSAFE|U_GROUND|PROC_DEMON)
+	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	built_in(in_dict("utf8_list", 2),    p_utf8_list, B_UNSAFE|U_GROUND|PROC_DEMON)
+	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	(void) built_in(in_dict("hash_secure", 3), 	p_hash_secure,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("string_length", 2), 	p_string_length,B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("get_string_code", 3), 	p_get_string_code,	B_UNSAFE|U_SIMPLE);
+	(void) b_built_in(in_dict("string_code", 4), 	p_string_code, d_.kernel_sepia);
+	(void) built_in(in_dict("substring", 3), 	p_substring,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("atom_length", 2), 	p_atom_length,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("string_upper", 2),	p_string_upper,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("string_lower", 2),	p_string_lower,	B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("concat_atoms", 3), 	p_concat_atoms,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("concat_atom", 2), 	p_concat_atom,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("concat_strings", 3), 	p_concat_strings,B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("concat_string", 2), 	p_concat_string,B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("atomics_to_string", 2),p_concat_string,B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("join_string", 3), 	p_join_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("atomics_to_string", 3),p_join_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	(void) built_in(in_dict("text_to_string", 2),	p_text_to_string,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
+	built_in(in_dict("split_string", 4), 		p_split_string,	B_UNSAFE|U_GROUND)
+	    -> mode = BoundArg(4, GROUND);
+	built_in(in_dict("char_int", 2), 	p_char_int,	B_UNSAFE|U_SIMPLE)
+	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	(void) exported_built_in(in_dict("first_substring", 4),
+						p_first_substring, B_UNSAFE|U_SIMPLE);
+	exported_built_in(in_dict("string_print_length", 4),
+						p_string_print_length, B_UNSAFE|U_SIMPLE) -> mode = BoundArg(3, CONSTANT);
+    }
+}
+
+/* Add all new code in front of the initialization function! */
 

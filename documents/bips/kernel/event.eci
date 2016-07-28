@@ -554,7 +554,7 @@ Error:
 <P>
    If the event handler succeeds, possibly binding some variables
    inside Culprit, then error/2 succeeds as well. If the handler fails
-   or calls exit_block/1, then so does error/2.
+   or calls throw/1, then so does error/2.
 "),
 	args:["EventId" : "Atom, integer or structure with functor default/1.", "Culprit" : "Prolog term."],
 	resat:"Resatisfiable if the handler is resatisfiable",
@@ -636,7 +636,7 @@ Error:
 <P>
    If the event handler succeeds, possibly binding some variables
    inside Culprit, then error/3 succeeds as well. If the handler fails
-   or calls exit_block/1, then so does error/3.
+   or calls throw/1, then so does error/3.
 <P>
    Not that when the error handler ignores the module (ie.  has arity less
    than three), then error/2 and error/3 are equivalent.
@@ -730,7 +730,7 @@ Error:
    access global data structures, use a symbolic trigger, etc).
 <P>
    More problematic are applications where the handler is allowed to
-   abort using exit_block/1.  Due to the timed execution, the exact
+   abort using throw/1.  Due to the timed execution, the exact
    program point where the abort happens is unpredictable.  It must be
    made sure that the abort is safely caught in all cases, and that
    nonlogical data is not left in an inconsistent state.  In such cases,
@@ -854,7 +854,7 @@ Error:
    access global data structures, use a symbolic trigger, etc).
 <P>
    More problematic are applications where the handler is allowed to
-   abort using exit_block/1.  Due to the timed execution, the exact
+   abort using throw/1.  Due to the timed execution, the exact
    program point where the abort happens is unpredictable.  It must be
    made sure that the abort is safely caught in all cases, and that
    nonlogical data is not left in an inconsistent state.  In such cases,
@@ -1002,8 +1002,8 @@ Error:
                 interrupt occurs (SIG_DFL).
     event/1     handle the signal by posting a (synchronous) event. The
                 symbolic name of the interrupt will be used as the event name.
-    throw/1     invoke exit_block/1 with the interrupt's symbolic name.
-    abort/0     invoke exit_block(abort)
+    throw/1     invoke throw/1 with the interrupt's symbolic name.
+    abort/0     invoke throw(abort)
     halt/0      halt Eclipse and terminate the process
     internal/0  the signal is used by Eclipse to implement internal
                 functionality (e.g. profiler)

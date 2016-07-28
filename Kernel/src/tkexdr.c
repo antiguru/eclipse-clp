@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkexdr.c,v 1.4 2010/04/11 02:36:01 jschimpf Exp $
+ *	$Id: tkexdr.c,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
  *
  *	Code for exdr communications with ECLiPSe in a tcl program
  */
@@ -37,8 +37,10 @@
 #include <tcl.h>
 
 #include "config.h"
+#include "ec_general.h"
 #include "tkcommon.h"
 
+#if 0
 /* define a pointer-sized integer type */
 #if (SIZEOF_CHAR_P == SIZEOF_INT)
 typedef int		word;			/* pointer-sized */
@@ -54,6 +56,7 @@ typedef __int64 		word;		/* pointer-sized */
 typedef unsigned __int64 	uword;
 #else
 PROBLEM: word size not supported!
+#endif
 #endif
 
 /* suffix needed for 64 bit integer constants */
@@ -169,25 +172,6 @@ static char exdr_header[EXDR_COMPRESSED_HEADER_LEN] = {'V',EXDR_VERSION,'C'};
 		*dest++ = (char) (aux);				\
 	    }							\
 	}
-
-typedef union {
-	double	as_dbl;
-#if (SIZEOF_CHAR_P == 8)
-	uword as_int;
-#elif (SIZEOF_CHAR_P == 4)
-	struct ieee_parts {
-#ifdef WORDS_BIGENDIAN 
-		unsigned mant1;
-		unsigned mant0;
-#else
-		unsigned mant0;
-		unsigned mant1;
-#endif
-	} as_struct;
-#else
-  PROBLEM: no code for this SIZEOF_WORD
-#endif
-} ieee_double;
 
 
 static Tcl_Obj *
@@ -741,25 +725,32 @@ _EcTcl2Exdr(Tcl_Interp *interp,
 	    Tcl_SetResult(interp, "ec_tcl2exdr: list expected", TCL_STATIC);
 	    return TCL_ERROR;
 	}
-	if (objc < 1)			/* need functor at least */
-	{
-	    Tcl_SetResult(interp, "ec_tcl2exdr: list too short", TCL_STATIC);
-	    return TCL_ERROR;
-	}
 	dest = buf;
 	Store_Byte('F');
-	Store_Nat(objc-1);
-	Tcl_AppendToByteArray(exdr_obj, buf, dest-buf, pos);
-	subtype = "S";
-	res = _EcTcl2Exdr(interp, &subtype, objv[0], exdr_obj, string_table, utf8_table, string_index, pos);
-	if (res != TCL_OK)  return res;
-	for (i=1; i<objc; ++i)
+	if (objc == 0)
 	{
-	    subtype = *typespec;
-	    res = _EcTcl2Exdr(interp, typespec, objv[i], exdr_obj, string_table, utf8_table, string_index, pos);
+	    /* special case: empty list to atom '' */
+	    Store_Nat(0);
+	    Tcl_AppendToByteArray(exdr_obj, buf, dest-buf, pos);
+	    subtype = "S";
+	    res = _EcTcl2Exdr(interp, &subtype, obj, exdr_obj, string_table, utf8_table, string_index, pos);
 	    if (res != TCL_OK)  return res;
-	    if (**typespec == '*')
-	    	*typespec = (i+1 < objc) ? subtype : *typespec + 1;
+	}
+	else
+	{
+	    Store_Nat(objc-1);
+	    Tcl_AppendToByteArray(exdr_obj, buf, dest-buf, pos);
+	    subtype = "S";
+	    res = _EcTcl2Exdr(interp, &subtype, objv[0], exdr_obj, string_table, utf8_table, string_index, pos);
+	    if (res != TCL_OK)  return res;
+	    for (i=1; i<objc; ++i)
+	    {
+		subtype = *typespec;
+		res = _EcTcl2Exdr(interp, typespec, objv[i], exdr_obj, string_table, utf8_table, string_index, pos);
+		if (res != TCL_OK)  return res;
+		if (**typespec == '*')
+		    *typespec = (i+1 < objc) ? subtype : *typespec + 1;
+	    }
 	}
 	if (**typespec != ')')
 	{

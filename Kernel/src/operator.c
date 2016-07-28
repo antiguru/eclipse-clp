@@ -24,7 +24,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: operator.c,v 1.6 2012/09/23 18:52:39 jschimpf Exp $
+ * VERSION	$Id: operator.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include	"property.h"
 #include	"module.h"
 #include	"lex.h"
+#include	"os_support.h"
 
 
 
@@ -64,68 +65,16 @@
 
 #define PropToFix(prop) ((prop) == PREFIX_PROP ? IS_PREFIX_OP : (prop) == INFIX_PROP ? IS_INFIX_OP : IS_POSTFIX_OP)
 
-/* 2 followings get or create a property prop (can be PREFIX_PROP or
-   INFIX_PROP or POSTFIX_PROP) for did did in module mod with visibility vis */
-#define OperatorItem(did, mod, mod_tag, vis, prop, perr) \
-    get_modular_property(did, prop, mod, mod_tag, vis, perr)
-#define NewOperatorItem(did, mod, mod_tag, vis, prop, perr) \
-    set_modular_property(did, prop, mod, mod_tag, vis, perr)
-
-
 static dident	didassoc[MAX_ASSOC+1];
 static dident	d_comma0_, d_bar0_;
 
+static opi	no_op;
+
 static int
-    _get_assoc(dident assoc),
-    _insert_op(int scope, word preced, word assoc, dident oper, dident module, type mod_tag),
-    _erase_op(dident oper, word assoc, int scope, dident module, type mod_tag),
-    p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, value v_op, type t_op, value vm, type tm),
-    p_is_prefix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm),
-    p_is_postfix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm),
-    p_is_infix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm),
-    p_abolish_op_(value v_op, type t_op, value v_assoc, type t_assoc, value v_mod, type t_mod),
-    p_legal_current_op(value v_prec, type t_prec, value v_assoc, type t_assoc, value v_op, type t_op, value v_mod, type t_mod);
-
-static opi	*_visible_anyfix_op(int fixity, dident atom, dident module, type mod_tag, int *res);
+    _insert_op(int scope, word preced, word assoc, dident oper, dident module, type mod_tag, ec_eng_t*),
+    _erase_op(dident oper, word assoc, int scope, dident module, type mod_tag, ec_eng_t*);
 
 
-/*
- * Operator Initialization
- */
-/*ARGSUSED*/
-void
-op_init(int flags)
-{
-    if (!(flags & INIT_PRIVATE))
-	return;
-    /* initialize the associativity table */
-    didassoc[FX] = in_dict("fx", 0);
-    didassoc[FY] = in_dict("fy", 0);
-    didassoc[XF] = in_dict("xf", 0);
-    didassoc[YF] = in_dict("yf", 0);
-    didassoc[XFX] = in_dict("xfx", 0);
-    didassoc[XFY] = in_dict("xfy", 0);
-    didassoc[YFX] = in_dict("yfx", 0);
-    didassoc[FXX] = in_dict("fxx", 0);
-    didassoc[FXY] = in_dict("fxy", 0);
-
-    d_comma0_ = in_dict(",", 0);
-    d_bar0_ = in_dict("|", 0);
-}
-
-void
-bip_op_init(int flags)
-{
-    if (!(flags & INIT_SHARED))
-	return;
-    (void) local_built_in(in_dict("op_", 5),	p_op_, B_SAFE);
-    (void) local_built_in(in_dict("is_prefix_op", 5), p_is_prefix_op, B_SAFE);
-    (void) local_built_in(in_dict("is_postfix_op", 5), p_is_postfix_op, B_SAFE);
-    (void) local_built_in(in_dict("is_infix_op", 5), p_is_infix_op, B_SAFE);
-    (void) local_built_in(in_dict("abolish_op_", 3),p_abolish_op_, B_SAFE);
-    (void) local_built_in(in_dict("legal_current_op", 4),
-		   p_legal_current_op, B_SAFE);
-}
 
 /*
  *	returns the (unsigned) associativity associated to the 
@@ -142,64 +91,23 @@ _get_assoc(dident assoc)
     return (iassoc);
 }
 
+
 /*
- * The locking done here is rather useless:
- * We are not allowed to return a pointer to a (shared heap) opi
- * without holding the lock. But this would be just too much to fix...
- * Most of the other properties have the same bug.
+ * Look up the visible operator of given fixity.
+ * Return opi if exists (res is LOCAL_PROP or GLOBAL_PROP)
+ * Return no_op if none (res is PERROR or LOCKED)
  */
-static opi *
+static inline opi
 _visible_anyfix_op(int fixity, dident atom, dident module, type mod_tag, int *res)
 {
-    opi		*operator_prop;
-
-    if (atom == D_UNKNOWN
-	|| !(DidIsOp(atom) & fixity))
+    opi desc;
+    if (atom == D_UNKNOWN || !(DidIsOp(atom) & fixity))
     {
 	*res = PERROR;
-	return 0;
+	return no_op;
     }
-
-    a_mutex_lock(&PropertyLock);
-
-    operator_prop = OperatorItem(atom, module, mod_tag,
-				 VISIBLE_PROP, FixToProp(fixity), res);
-    if (!operator_prop)
-    {
-	a_mutex_unlock(&PropertyLock);
-	*res = PERROR;
-	return 0;
-    }
-    if (operator_prop->tag.kernel != TEND)
-    {
-	a_mutex_unlock(&PropertyLock);	/* THIS IS WRONG! */
-	return operator_prop;
-    }
-    else
-    {
-	a_mutex_unlock(&PropertyLock);
-	*res = PERROR;
-	return 0;
-    }
-}
-
-
-/*
- * Return nonzero if any operator property is attached to atom.
- * Needed to implement ISO-Prolog restrictions.
- */
-int
-visible_operator(dident atom, dident module, type mod_tag)
-{
-    int res;
-    opi *desc;
-    desc = OperatorItem(atom, module, mod_tag, VISIBLE_PROP, INFIX_PROP, &res);
-    if (desc && GetOpiPreced(desc)) return 1;
-    desc = OperatorItem(atom, module, mod_tag, VISIBLE_PROP, PREFIX_PROP, &res);
-    if (desc && GetOpiPreced(desc)) return 1;
-    desc = OperatorItem(atom, module, mod_tag, VISIBLE_PROP, POSTFIX_PROP, &res);
-    if (desc && GetOpiPreced(desc)) return 1;
-    return 0;
+    desc = visible_property(atom, FixToProp(fixity), module, mod_tag, res);
+    return *res < 0 ? no_op : desc;
 }
 
 
@@ -208,68 +116,50 @@ visible_operator(dident atom, dident module, type mod_tag)
  * prefix operator desriptor defined under atom and visible from module
  * if there is such an operator; return 0 otherwise.
  */
-opi*
+opi
 visible_prefix_op(dident atom, dident module, type mod_tag, int *res)
 {
-    opi		*desc;
-
-    desc = _visible_anyfix_op(IS_PREFIX_OP, atom, module, mod_tag, res);
-    if (desc && !GetOpiPreced(desc)) {
-	*res = PERROR;
-	return (opi *) 0;
-    } else
-	return desc;
+    return _visible_anyfix_op(IS_PREFIX_OP, atom, module, mod_tag, res);
 }
+
 
 /*
  * visible_infix_op(atom, module) return a pointer to the visible
  * infix operator desriptor defined under atom and visible from module
  * if there is such an operator; return 0 otherwise.
  */
-opi*
+opi
 visible_infix_op(dident atom, dident module, type mod_tag, int *res)
 {
-    opi		*desc;
-
-    desc = _visible_anyfix_op(IS_INFIX_OP, atom, module, mod_tag, res);
-    if (desc && !GetOpiPreced(desc)) {
-	*res = PERROR;
-	return (opi *) 0;
-    } else
-	return desc;
+    return _visible_anyfix_op(IS_INFIX_OP, atom, module, mod_tag, res);
 }
+
 
 /*
  * visible_postfix_op(atom, module) return a pointer to the visible
  * postfix operator desriptor defined under atom and visible from module
  * if there is such an operator; return 0 otherwise.
  */
-opi*
+opi
 visible_postfix_op(dident atom, dident module, type mod_tag, int *res)
 {
-    opi		*desc;
-
-    desc = _visible_anyfix_op(IS_POSTFIX_OP, atom, module, mod_tag, res);
-    if (desc && !GetOpiPreced(desc)) {
-	*res = PERROR;
-	return (opi *) 0;
-    } else
-	return desc;
+    return _visible_anyfix_op(IS_POSTFIX_OP, atom, module, mod_tag, res);
 }
 
+
 /*
- * visible_op(functor, module) return a pointer to the visible operator
- * under functor (an infix operator if functor is arity 2, an unary operator
+ * visible_op(functor, module) returns the visible operator under
+ * functor (an infix operator if functor is arity 2, an unary operator
  * if functor is of arity 1 (if a prefix and a postfix are visible,
- * the prefix is returned).
- * return 0 if no operator is visible from module under functor.
+ * the prefix is returned).  This is used by the term writer.
+ * Return no_op if no operator is visible from module under functor.
  * NOTE : when there is a prefix/postfix conflict, a local declaration
  * should be return when there is one (e.g. local postfix and global prefix).
  */
-opi*
+opi
 visible_op(dident functor, dident module, type mod_tag, int *res)
 {
-    opi		*operator_prop;
+    opi		operator_prop;
     int		arity;
     dident	atom = add_dict(functor, 0);
 
@@ -278,7 +168,7 @@ visible_op(dident functor, dident module, type mod_tag, int *res)
 	/* look for a unary operator: first try FX,FY then XF,YF */
 	operator_prop = visible_prefix_op(atom, module, mod_tag, res);
 	/* visible_prefix_op() also finds FXX and FXY: ignore them here */
-	if (!operator_prop || IsPrefix2(operator_prop))
+	if (!OpiPreced(operator_prop) || IsPrefix2(operator_prop))
 	{
 	    /* no unary prefix, look for postfix */
 	    operator_prop = visible_postfix_op(atom, module, mod_tag, res);
@@ -288,78 +178,40 @@ visible_op(dident functor, dident module, type mod_tag, int *res)
     {
 	/* look for a binary operator, first try XFX,XFY,YFX then FXX,FXY */
 	operator_prop = visible_infix_op(atom, module, mod_tag, res);
-	if (!operator_prop)
+	if (!OpiPreced(operator_prop))
 	{
 	    /* no infix, look for binary prefix */
 	    operator_prop = visible_prefix_op(atom, module, mod_tag, res);
-	    if (operator_prop && !IsPrefix2(operator_prop))
-	    	operator_prop = (opi *) 0;
+	    if (OpiPreced(operator_prop) && !IsPrefix2(operator_prop))
+	    	operator_prop = no_op;
 	}
     }
     else /* arity != 1 && arity != 2 so it is not an operator		*/
     {
 	*res = PERROR; /* means no operator */
-	return 0;
+	return no_op;
     }
     return operator_prop;
 }
 
+
 /*
- * is_visible_op(atom, module, mod_tag) returns 1 iff there is an
+ * is_visible_op(atom, module, mod_tag) returns 1 iff there is any
  * operator attached to 'atom', returns 0 otherwise.
- *
- * Must be called in an interrupt protected area.
  */
 int
 is_visible_op(dident atom, dident module, type mod_tag)
 {
-    opi		*operator_prop;
-    int		err = PERROR;
-    int		res;
-    
-    if (atom == D_UNKNOWN || !DidIsOp(atom))
-    {
-	Set_Bip_Error(PERROR);
-	return 0;
-    }
-
-    a_mutex_lock(&PropertyLock);
-
-    /* DidIsOp may be out of date, ie. it may be set even when there
-     * is no longer such an operator. That's why we have to check.	*/
-    if ((DidIsOp(atom) & IS_PREFIX_OP)
-	&& (operator_prop = OperatorItem(atom, module, mod_tag,
-					 VISIBLE_PROP, PREFIX_PROP, &res))
-	&& operator_prop->tag.kernel != TEND
-	&& GetOpiPreced(operator_prop))
-    {
-	a_mutex_unlock(&PropertyLock);
-	return 1;
-    }
-    else if ((DidIsOp(atom) & IS_INFIX_OP)
-	     && (operator_prop = OperatorItem(atom, module, mod_tag,
-					      VISIBLE_PROP, INFIX_PROP,&res))
-	     && operator_prop->tag.kernel != TEND
-	    && GetOpiPreced(operator_prop))
-    {
-	a_mutex_unlock(&PropertyLock);
-	return 1;
-    }
-    else if ((DidIsOp(atom) & IS_POSTFIX_OP)
-	     && (operator_prop = OperatorItem(atom, module, mod_tag,
-					      VISIBLE_PROP, POSTFIX_PROP,&res))
-	     && operator_prop->tag.kernel != TEND
-	    && GetOpiPreced(operator_prop))
-    {
-	a_mutex_unlock(&PropertyLock);
-	return 1;
-    }
-    else
-    {
-	Set_Bip_Error(err);
-	a_mutex_unlock(&PropertyLock);
-	return 0;
-    }
+    int res;
+    opi desc;
+    if (!DidIsOp(atom)) return 0;
+    desc = _visible_anyfix_op(IS_INFIX_OP, atom, module, mod_tag, &res);
+    if (OpiPreced(desc)) return 1;
+    desc = _visible_anyfix_op(IS_PREFIX_OP, atom, module, mod_tag, &res);
+    if (OpiPreced(desc)) return 1;
+    desc = _visible_anyfix_op(IS_POSTFIX_OP, atom, module, mod_tag, &res);
+    if (OpiPreced(desc)) return 1;
+    return 0;
 }
 
 
@@ -377,7 +229,7 @@ is_visible_op(dident atom, dident module, type mod_tag)
   */
 /*ARGSUSED*/
 static int
-p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, value v_op, type t_op, value vm, type tm)
+p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, value v_op, type t_op, value vm, type tm, ec_eng_t *ec_eng)
 {
     word	iassoc;
     int		scope = (vi.did == d_.local0 ? LOCAL_PROP : GLOBAL_PROP);
@@ -417,9 +269,9 @@ p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, val
     if (vprec.nint == 0 && scope == GLOBAL_PROP)
 	/* precedence 0 is used to erase the operator but if it is
 	   local, the descriptor is kept to hide a global operator	*/
-	return _erase_op(v_op.did, iassoc, scope, vm.did, tm);
+	return _erase_op(v_op.did, iassoc, scope, vm.did, tm, ec_eng);
     else
-	return _insert_op(scope, vprec.nint, iassoc, v_op.did, vm.did, tm);
+	return _insert_op(scope, vprec.nint, iassoc, v_op.did, vm.did, tm, ec_eng);
 }
 
 /*
@@ -428,7 +280,7 @@ p_op_(value vi, type ti, value vprec, type tprec, value vassoc, type tassoc, val
   'assoc' visible from 'module'.
  */
 static int
-p_abolish_op_(value v_op, type t_op, value v_assoc, type t_assoc, value v_mod, type t_mod)
+p_abolish_op_(value v_op, type t_op, value v_assoc, type t_assoc, value v_mod, type t_mod, ec_eng_t *ec_eng)
 {
     word	iassoc;
 
@@ -442,11 +294,12 @@ p_abolish_op_(value v_op, type t_op, value v_assoc, type t_assoc, value v_mod, t
 	Bip_Error(RANGE_ERROR);
     }
     
-    return _erase_op(v_op.did, iassoc, VISIBLE_PROP, v_mod.did,t_mod);
+    return _erase_op(v_op.did, iassoc, VISIBLE_PROP, v_mod.did, t_mod, ec_eng);
 }
 
 /*
   _insert_op( scope, preced, assoc, oper, module, mod_tag)
+  scope is LOCAL_PROP or GLOBAL_PROP
   An insertion is made in the operator property list if there are
   no conflict of associativity (postfix and infix).
   However a local postfix/infix hide a global one so that
@@ -456,7 +309,7 @@ p_abolish_op_(value v_op, type t_op, value v_assoc, type t_assoc, value v_mod, t
   The precedence 0 is used to hide a global operator.
 */
 static int
-_insert_op(int scope, word preced, word assoc, dident oper, dident module, type mod_tag)
+_insert_op(int scope, word preced, word assoc, dident oper, dident module, type mod_tag, ec_eng_t *ec_eng)
 {
     opi		*operator_prop;
     int		prop_type;
@@ -465,85 +318,66 @@ _insert_op(int scope, word preced, word assoc, dident oper, dident module, type 
 
     switch (assoc)
     {
-    case XF:
-    case YF:
-	prop_type = POSTFIX_PROP;
-	arity = 1;
-	break;
-    case FX:
-    case FY:
-	prop_type = PREFIX_PROP;
-	arity = 1;
-	break;
-    case FXX:
-    case FXY:
-	prop_type = PREFIX_PROP;
-	arity = 2;
-	break;
-    case XFX:
-    case XFY:
-    case YFX:
-	prop_type = INFIX_PROP;
-	arity = 2;
-	break;
+	case XF:
+	case YF:
+	    prop_type = POSTFIX_PROP; arity = 1; break;
+	case FX:
+	case FY:
+	    prop_type = PREFIX_PROP; arity = 1; break;
+	case FXX:
+	case FXY:
+	    prop_type = PREFIX_PROP; arity = 2; break;
+	case XFX:
+	case XFY:
+	case YFX:
+	    prop_type = INFIX_PROP; arity = 2; break;
     }
 
     /* Disallow infix/postfix, if required by the module syntax */
     if (prop_type != PREFIX_PROP  &&  ModuleSyntax(module)->options & ISO_RESTRICTIONS)
     {
-        if (OperatorItem(oper, module, mod_tag, VISIBLE_PROP,
-                (prop_type==INFIX_PROP? POSTFIX_PROP : INFIX_PROP), &res))
+	opi xop = _visible_anyfix_op(prop_type==INFIX_PROP? IS_POSTFIX_OP : IS_INFIX_OP,
+				oper, module, mod_tag, &res);
+        if (OpiPreced(xop))
         {
 	    Bip_Error(ILLEGAL_OP_DEF);
         }
     }
 
-    a_mutex_lock(&PropertyLock);
-
-    res = PERROR;
-    operator_prop = OperatorItem(oper, module, mod_tag, scope, prop_type, &res);
-
-    if (operator_prop)		/* same scope operator exists already */
+    mt_mutex_lock(&PropertyLock);
+    switch(get_property_ref(oper, prop_type, module, mod_tag, scope, (pword**)&operator_prop))
     {
-	if (preced && (GetOpiAssoc(operator_prop) != assoc ||
-			GetOpiPreced(operator_prop) != preced)) {
-	    res = REDEF_OPERATOR;
-	} else {
-	    res = PSUCCEED;
-	}
-    }
-    else
-    {
-	if (res != PERROR)
-	{
-	    a_mutex_unlock(&PropertyLock);
-	    Bip_Error(res);
-	}
-	/* No proper scope operator exists yet */
-	/* For locals, check hiding */
-	if (scope == LOCAL_PROP &&
-	    OperatorItem(oper, module, mod_tag, GLOBAL_PROP, prop_type, &res))
+	case LOCAL_PROP:
+	case GLOBAL_PROP:
+	    assert(IsTag(operator_prop->tag.kernel,TDICT));
+	    if (preced && (OpiAssoc(*operator_prop) != assoc ||
+			    OpiPreced(*operator_prop) != preced)) {
+		res = REDEF_OPERATOR;
+	    } else {
+		res = PSUCCEED;
+	    }
+	    break;
+	case NEW_PROP|LOCAL_PROP|GLOBAL_PROP:
+	    operator_prop->tag.kernel = TDICT;
 	    res = HIDING_OPERATOR;
-	else
+	    break;
+	case NEW_PROP|LOCAL_PROP:
+	case NEW_PROP|GLOBAL_PROP:
+	    operator_prop->tag.kernel = TDICT;
 	    res = PSUCCEED;
-
-	operator_prop = NewOperatorItem(oper, module, mod_tag,
-					scope, prop_type, &res);
-	if (!operator_prop)
-	{
-	    a_mutex_unlock(&PropertyLock);
+	    break;
+	default:
+	    mt_mutex_unlock(&PropertyLock);
+	    assert(res < 0);
 	    Bip_Error(res);
-	}
     }
-
     /* now update the descriptor					*/
-    operator_prop->tag.kernel = TDICT;
-    Set_Opi_Assoc(operator_prop, assoc);
-    Set_Opi_Preced(operator_prop, preced);
-    OpiDid(operator_prop) = add_dict(oper, arity);
+    Set_Opi_Assoc(*operator_prop, assoc);
+    Set_Opi_Preced(*operator_prop, preced);
+    OpiDid(*operator_prop) = add_dict(oper, arity);
     DidIsOp(oper) |= PropToFix(prop_type);
+    mt_mutex_unlock(&PropertyLock);
 
-    a_mutex_unlock(&PropertyLock);
     if (res < 0)
 	{Bip_Error(res)}
     return res;
@@ -551,11 +385,11 @@ _insert_op(int scope, word preced, word assoc, dident oper, dident module, type 
 
 /*
  * _erase_op(oper, module) erase the definition of an operator
+ * Used only with scope==GLOBAL_PROP or VISIBLE_PROP
  */
 static int
-_erase_op(dident oper, word assoc, int scope, dident module, type mod_tag)
+_erase_op(dident oper, word assoc, int scope, dident module, type mod_tag, ec_eng_t *ec_eng)
 {
-    opi		*operator_prop;
     int		prop_type;
     int		res;
     
@@ -578,26 +412,18 @@ _erase_op(dident oper, word assoc, int scope, dident module, type mod_tag)
 	break;
     }
 
-    a_mutex_lock(&PropertyLock);
-    operator_prop = OperatorItem(oper, module, mod_tag, scope, prop_type,&res);
-    if (!operator_prop)
-    {
-	if (res == PERROR)
-	    res = UNDEF_OPERATOR;
-	a_mutex_unlock(&PropertyLock);
-	Bip_Error(res);
+    mt_mutex_lock(&PropertyLock);
+    res = erase_property(oper, prop_type, module, mod_tag, scope);
+    if (res == PFAIL) {
+	DidIsOp(oper) &= ~PropToFix(prop_type); /* atomic with erase! */
     }
-    else if (operator_prop->tag.kernel == TEND)
-    {
-	a_mutex_unlock(&PropertyLock);
+    mt_mutex_unlock(&PropertyLock);
+    if (res == PERROR) {
 	Bip_Error(UNDEF_OPERATOR);
     }
-    if (erase_modular_property(oper, prop_type, module, mod_tag, scope)
-	== PFAIL) /* the property is completely erased for that atom	*/
-    {
-	DidIsOp(oper) &= ~PropToFix(prop_type);
+    if (res < 0) {
+	Bip_Error(res);
     }
-    a_mutex_unlock(&PropertyLock);
     Succeed_;
 }
 
@@ -606,15 +432,11 @@ _erase_op(dident oper, word assoc, int scope, dident module, type mod_tag)
   checks that all arguments are valid for current_op_body/4.
   */
 static int
-p_legal_current_op(value v_prec, type t_prec, value v_assoc, type t_assoc, value v_op, type t_op, value v_mod, type t_mod)
+p_legal_current_op(value v_prec, type t_prec, value v_assoc, type t_assoc, value v_op, type t_op, value v_mod, type t_mod, ec_eng_t *ec_eng)
 {
     if (!IsRef(t_op))			/* Operator name		*/
     {
 	Check_Atom_Or_Nil(v_op, t_op);
-#ifdef lint
-	/* v_op is set in Check_Atom_Or_Nil but not used		*/
-	if (v_op.nint) return v_op.nint;
-#endif /* lint */
     }
     Check_Module(t_mod, v_mod);		/* module			*/
     Check_Module_Access(v_mod, t_mod);
@@ -656,22 +478,19 @@ p_legal_current_op(value v_prec, type t_prec, value v_assoc, type t_assoc, value
 */
 /*ARGSUSED*/ /* check is already made in p_illegal_current_op		*/
 static int
-p_is_prefix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm)
+p_is_prefix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm, ec_eng_t *ec_eng)
 {
-    opi    	*desc;
+    opi    	desc;
     int		res;
     Prepare_Requests;
 
     if (IsNil(tn))
-    {
 	name.did = d_.nil;
-	tn = tdict;
-    }
 
-    if (desc = _visible_anyfix_op(IS_PREFIX_OP, name.did, module.did, tm, &res))
+    if (OpiPreced(desc = _visible_anyfix_op(IS_PREFIX_OP, name.did, module.did, tm, &res)))
     {
-        Request_Unify_Integer(vp, tp, GetOpiPreced(desc));
-	Request_Unify_Atom(assoc, ta, didassoc[GetOpiAssoc(desc)]);
+        Request_Unify_Integer(vp, tp, OpiPreced(desc));
+	Request_Unify_Atom(assoc, ta, didassoc[OpiAssoc(desc)]);
 	Request_Unify_Atom(vv, tv,
 			    (res == LOCAL_PROP ? d_.local0 : d_.global0));
 	Return_Unify;
@@ -688,21 +507,19 @@ p_is_prefix_op(value vp, type tp, value assoc, type ta, value name, type tn, val
 */
 /*ARGSUSED*/ /* check is already made in p_illegal_current_op		*/
 static int
-p_is_postfix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm)
+p_is_postfix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm, ec_eng_t *ec_eng)
 {
-    opi    	*desc;
+    opi    	desc;
     int		res;
     Prepare_Requests
 
     if (IsNil(tn))
-    {
 	name.did = d_.nil;
-	tn = tdict;
-    }
-    if (desc = _visible_anyfix_op(IS_POSTFIX_OP, name.did, module.did, tm, &res))
+
+    if (OpiPreced(desc = _visible_anyfix_op(IS_POSTFIX_OP, name.did, module.did, tm, &res)))
     {
-        Request_Unify_Integer(vp, tp, GetOpiPreced(desc));
-	Request_Unify_Atom(assoc, ta, didassoc[GetOpiAssoc(desc)]);
+        Request_Unify_Integer(vp, tp, OpiPreced(desc));
+	Request_Unify_Atom(assoc, ta, didassoc[OpiAssoc(desc)]);
 	Request_Unify_Atom(vv, tv,
 			    (res == LOCAL_PROP ? d_.local0 : d_.global0));
 	Return_Unify;
@@ -719,24 +536,68 @@ p_is_postfix_op(value vp, type tp, value assoc, type ta, value name, type tn, va
 */
 /*ARGSUSED*/ /* check is already made in p_illegal_current_op		*/
 static int
-p_is_infix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm)
+p_is_infix_op(value vp, type tp, value assoc, type ta, value name, type tn, value vv, type tv, value module, type tm, ec_eng_t *ec_eng)
 {
-    opi    	*desc;
+    opi    	desc;
     int		res;
     Prepare_Requests
 
     if (IsNil(tn))
-    {
 	name.did = d_.nil;
-	tn = tdict;
-    }
-    if (desc = _visible_anyfix_op(IS_INFIX_OP, name.did, module.did, tm, &res))
+
+    if (OpiPreced(desc = _visible_anyfix_op(IS_INFIX_OP, name.did, module.did, tm, &res)))
     {
-        Request_Unify_Integer(vp, tp, GetOpiPreced(desc));
-	Request_Unify_Atom(assoc, ta, didassoc[GetOpiAssoc(desc)]);
+        Request_Unify_Integer(vp, tp, OpiPreced(desc));
+	Request_Unify_Atom(assoc, ta, didassoc[OpiAssoc(desc)]);
 	Request_Unify_Atom(vv, tv,
 			    (res == LOCAL_PROP ? d_.local0 : d_.global0));
 	Return_Unify;
     }
     Fail_;
 }
+
+
+/*
+ * Operator Initialization
+ */
+
+/*ARGSUSED*/
+void
+op_init(int flags)
+{
+    if (!(flags & INIT_PRIVATE))
+	return;
+    /* initialize the associativity table */
+    didassoc[FX] = in_dict("fx", 0);
+    didassoc[FY] = in_dict("fy", 0);
+    didassoc[XF] = in_dict("xf", 0);
+    didassoc[YF] = in_dict("yf", 0);
+    didassoc[XFX] = in_dict("xfx", 0);
+    didassoc[XFY] = in_dict("xfy", 0);
+    didassoc[YFX] = in_dict("yfx", 0);
+    didassoc[FXX] = in_dict("fxx", 0);
+    didassoc[FXY] = in_dict("fxy", 0);
+
+    d_comma0_ = in_dict(",", 0);
+    d_bar0_ = in_dict("|", 0);
+
+    no_op.tag.kernel = TEND;
+    no_op.val.did = D_UNKNOWN;
+    Set_Opi_Assoc(no_op, NIL_OP);
+    Set_Opi_Preced(no_op, 0);
+}
+
+void
+bip_op_init(int flags)
+{
+    if (!(flags & INIT_SHARED))
+	return;
+    (void) local_built_in(in_dict("op_", 5),	p_op_, B_SAFE);
+    (void) local_built_in(in_dict("is_prefix_op", 5), p_is_prefix_op, B_SAFE);
+    (void) local_built_in(in_dict("is_postfix_op", 5), p_is_postfix_op, B_SAFE);
+    (void) local_built_in(in_dict("is_infix_op", 5), p_is_infix_op, B_SAFE);
+    (void) local_built_in(in_dict("abolish_op_", 3),p_abolish_op_, B_SAFE);
+    (void) local_built_in(in_dict("legal_current_op", 4),
+		   p_legal_current_op, B_SAFE);
+}
+

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.10 2015/05/20 23:55:36 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.11 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -58,69 +58,6 @@
 #include <ctype.h>
 #endif
 
-static int	p_atom_string(value va, type ta, value vs, type ts),  
-		p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type tflat),
-		p_is_array(value varr, type tarr),
-		p_dim(value va, type ta, value vdim, type tdim),
-		p_array_list(value varr, type tarr, value vl, type tl),
-		p_array_list3(value varr, type tarr, value vl, type tl, value ev, type et),
-		p_array_concat(value v1, type t1, value v2, type t2, value v, type t),
-		p_char_code(value v1, type t1, value v2, type t2), 
-		p_functor(value vt, type t, value vf, type tf, value va, type ta), 
-		p_integer_atom(value vn, type tn, value vs, type ts), 
-		p_number_string(value vn, type tn, value vs, type ts, value vm, type tm),
-		p_term_hash(value vterm, type tterm, value vdepth, type tdepth, value vrange, type trange, value vhash, type thash),
-		p_canonical_copy(value v, type t, value vi, type ti),
-		p_setarg(value vn, type tn, value vt, type tt, value va, type ta),
-		p_type_of(value vterm, type term, value votype, type ttype),
-		p_get_var_type(value vvar, type tvar, value vvtype, type ttype),
-		p_get_var_name(value vvar, type tvar, value vname, type tname),
-		p_univ(value tv, type tt, value lv, type lt);
-
-/*
- * FUNCTION NAME:	bip_tconv_init() 
- *
- * PARAMETERS:		NONE. 
- *
- * DESCRIPTION:		links the 'C' functions in this file with SEPIA 
- * 			built-in predicates.   
- */
-void
-bip_tconv_init(int flags)
-{
-    if (flags & INIT_SHARED)
-    {
-	/* functor/3 is U_UNIFY because the bound argument is not known */
-	built_in(in_dict("functor", 3), 	p_functor, B_UNSAFE|U_UNIFY|PROC_DEMON)
-	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, CONSTANT) |
-		BoundArg(3, CONSTANT);
-	built_in(in_dict("char_code", 2), p_char_code, B_UNSAFE|U_GROUND)
-		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	built_in(in_dict("atom_string", 2), p_atom_string, B_UNSAFE|U_GROUND)
-		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	built_in(in_dict("integer_atom", 2), p_integer_atom, B_UNSAFE|U_GROUND)
-		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	(void) built_in(in_dict("type_of", 2), p_type_of, B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("get_var_type", 2),
-			      p_get_var_type, B_UNSAFE|U_SIMPLE);
-	(void) local_built_in(in_dict("get_var_name", 2),
-			      p_get_var_name, B_UNSAFE|U_SIMPLE);
-	built_in(in_dict("=..", 2), p_univ, B_UNSAFE|U_UNIFY|PROC_DEMON)
-	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-	(void) built_in(in_dict("array_flat", 3), p_array_flat, B_UNSAFE|U_UNIFY|PROC_DEMON);
-	(void) built_in(in_dict("array_list", 2), p_array_list, B_UNSAFE|U_UNIFY|PROC_DEMON);
-	(void) built_in(in_dict("array_list", 3), p_array_list3, B_UNSAFE|U_UNIFY|PROC_DEMON);
-	(void) built_in(in_dict("array_concat", 3), p_array_concat, B_UNSAFE|U_UNIFY|PROC_DEMON);
-	(void) built_in(in_dict("is_array", 1), p_is_array, B_SAFE);
-	(void) built_in(in_dict("dim", 2), p_dim, B_UNSAFE|U_UNIFY);
-	built_in(in_dict("number_string_",3), p_number_string, B_UNSAFE|U_GROUND)
-		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
-
-	(void) built_in(in_dict("term_hash", 4), p_term_hash, B_UNSAFE|U_SIMPLE);
-	(void) built_in(in_dict("canonical_copy", 2), p_canonical_copy, B_UNSAFE|U_GROUND);
-	(void) built_in(in_dict("setarg", 3), p_setarg, B_UNSAFE);
-    }
-}
 
 /*
  * FUNCTION NAME: 	p_functor(vt, t, vf, tf, va, ta) - logical
@@ -158,7 +95,7 @@ bip_tconv_init(int flags)
  *			atomic term1 (or vice versa). In this case, arity1 is 0.
  */
 static int
-p_functor(value vt, type t, value vf, type tf, value va, type ta)
+p_functor(value vt, type t, value vf, type tf, value va, type ta, ec_eng_t *ec_eng)
 {
     int             i;
     register word	arity;
@@ -366,7 +303,7 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta)
  */
 /*ARGSUSED*/
 static int
-p_type_of(value vterm, type term, value votype, type ttype)
+p_type_of(value vterm, type term, value votype, type ttype, ec_eng_t *ec_eng)
 {
 	dident          dtype;
 
@@ -415,7 +352,7 @@ p_type_of(value vterm, type term, value votype, type ttype)
  *			a string. 
  */
 static int
-p_atom_string(value va, type ta, value vs, type ts)
+p_atom_string(value va, type ta, value vs, type ts, ec_eng_t *ec_eng)
 {
 	if (IsRef(ts))
 	{
@@ -480,7 +417,7 @@ p_atom_string(value va, type ta, value vs, type ts)
  */
 
 static int
-p_integer_atom(value vn, type tn, value vs, type ts)
+p_integer_atom(value vn, type tn, value vs, type ts, ec_eng_t *ec_eng)
 {
     pword result;
 
@@ -511,7 +448,7 @@ p_integer_atom(value vn, type tn, value vs, type ts)
     else if (IsRef(tn) || IsInteger(tn) || IsBignum(tn))
     {
 	Check_Atom_Or_Nil(vs, ts);	/* atom to integer */
-	if (string_to_number(DidName(vs.did), &result, (stream_id) 0, 0) ==
+	if (string_to_number(DidName(vs.did), &result, (stream_id) 0, 0, ec_eng) ==
 		DidName(vs.did) + DidLength(vs.did)
 	    && (IsInteger(result.tag) || IsBignum(result.tag)))
 	{
@@ -535,7 +472,7 @@ p_integer_atom(value vn, type tn, value vs, type ts)
  */
 
 static int
-p_number_string(value vn, type tn, value vs, type ts, value vm, type tm)
+p_number_string(value vn, type tn, value vs, type ts, value vm, type tm, ec_eng_t *ec_eng)
 {
     pword result;
 
@@ -557,7 +494,7 @@ p_number_string(value vn, type tn, value vs, type ts, value vm, type tm)
 	&& (IsRef(tn) || IsNumber(tn)))
     {
         Check_Module_And_Access(vm, tm);
-	if (string_to_number(StringStart(vs), &result, (stream_id) 0, ModuleSyntax(vm.did)) ==
+	if (string_to_number(StringStart(vs), &result, (stream_id) 0, ModuleSyntax(vm.did), ec_eng) ==
 		StringStart(vs) + StringLength(vs)
 	    && !IsTag(result.tag.kernel, TEND))
 	{
@@ -575,7 +512,7 @@ p_number_string(value vn, type tn, value vs, type ts, value vm, type tm)
  */
 
 static int
-p_char_code(value v1, type t1, value v2, type t2)
+p_char_code(value v1, type t1, value v2, type t2, ec_eng_t *ec_eng)
 {
     int len;
     char *s;
@@ -648,7 +585,7 @@ p_char_code(value v1, type t1, value v2, type t2)
 
 
 static int
-p_univ(value tv, type tt, value lv, type lt)
+p_univ(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
 {
 	word     arity, i;
 	pword   *tail, *head, *newel, *tvptr, *elem;
@@ -834,6 +771,13 @@ p_univ(value tv, type tt, value lv, type lt)
 }
 
 
+/**
+ * Helper function for setarg/3 and other built-ins that have a need to
+ * find a subterm, given an index-list.
+ *
+ * This function is engine-independent.
+ */
+
 pword *
 ec_chase_arg(value vn, type tn, value vt, type tt, int *perr)
 {
@@ -941,7 +885,7 @@ ec_chase_arg(value vn, type tn, value vt, type tt, int *perr)
  */
 
 static int
-p_setarg(value vn, type tn, value vt, type tt, value va, type ta)
+p_setarg(value vn, type tn, value vt, type tt, value va, type ta, ec_eng_t *ec_eng)
 {
     pword	*argp;
     word	arity;
@@ -973,7 +917,7 @@ p_setarg(value vn, type tn, value vt, type tt, value va, type ta)
 		{ Bip_Error(STALE_HANDLE); }
 	    if (!ExternalClass(vt.ptr)->set)
 		{ Bip_Error(UNIMPLEMENTED); }
-	    return ExternalClass(vt.ptr)->set(ExternalData(vt.ptr), vn.nint, pw);
+	    return ExternalClass(vt.ptr)->set(ExternalData(vt.ptr), vn.nint, pw, ec_eng);
 	}
 	else
 	{
@@ -1004,7 +948,7 @@ p_setarg(value vn, type tn, value vt, type tt, value va, type ta)
     {
 	Bip_Error(GROUND_CONST_MODIFY);	/* trying to modify a heap term! */
     }
-    return ec_assign(argp, va, ta);	/* succeeds */
+    return ecl_assign(ec_eng, argp, va, ta);	/* succeeds */
 }
 
 
@@ -1142,7 +1086,7 @@ ec_term_hash(value vterm,
 
 
 static int
-p_term_hash(value vterm, type tterm, value vdepth, type tdepth, value vrange, type trange, value vhash, type thash)
+p_term_hash(value vterm, type tterm, value vdepth, type tdepth, value vrange, type trange, value vhash, type thash, ec_eng_t *ec_eng)
 {
     uword h;
     int res = PSUCCEED;
@@ -1163,10 +1107,10 @@ p_term_hash(value vterm, type tterm, value vdepth, type tdepth, value vrange, ty
 
 
 static int
-p_canonical_copy(value v, type t, value vi, type ti)
+p_canonical_copy(value v, type t, value vi, type ti, ec_eng_t *ec_eng)
 {
     pword pw;
-    int res = ec_constant_table_enter(v, t, &pw);
+    int res = ec_constant_table_enter(ec_eng, v, t, &pw);
     if (res != PSUCCEED)
     	return res;
     Return_Unify_Pw(vi, ti, pw.val, pw.tag);
@@ -1178,7 +1122,7 @@ p_canonical_copy(value v, type t, value vi, type ti)
  *----------------------------------------------------------------------*/
 
 static int
-p_is_array(value v, type t)
+p_is_array(value v, type t, ec_eng_t *ec_eng)
 {
     Succeed_If(IsArray(v, t) || IsNil(t));
 }
@@ -1191,7 +1135,7 @@ p_is_array(value v, type t)
  */
 
 static int
-_make_dim(pword *dims, pword *result)
+_make_dim(pword *dims, pword *result, ec_eng_t *ec_eng)
 {
     int res;
     word arity, i;
@@ -1222,7 +1166,7 @@ _make_dim(pword *dims, pword *result)
 	}
     } else if (IsList(dims->tag)) {
 	for (i = 0; i < arity; i++) {
-	    res = _make_dim(dims->val.ptr, pw++);
+	    res = _make_dim(dims->val.ptr, pw++, ec_eng);
 	    Return_If_Not_Success(res);
 	}
     } else {
@@ -1233,7 +1177,7 @@ _make_dim(pword *dims, pword *result)
 }
 
 static int
-p_dim(value va, type ta, value vdim, type tdim)
+p_dim(value va, type ta, value vdim, type tdim, ec_eng_t *ec_eng)
 {
     int res;
     pword result;
@@ -1246,7 +1190,7 @@ p_dim(value va, type ta, value vdim, type tdim)
 	if (IsList(tdim))
 	{
 	    pword *old_tg = TG;
-	    res = _make_dim(vdim.ptr, &result);
+	    res = _make_dim(vdim.ptr, &result, ec_eng);
 	    if (res == PSUCCEED) {
 		Return_Unify_Pw(va, ta, result.val, result.tag);
 	    }
@@ -1296,14 +1240,14 @@ p_dim(value va, type ta, value vdim, type tdim)
 
 
 static int
-_flatten_array(uword d, word n, pword *from)
+_flatten_array(uword d, word n, pword *from, ec_eng_t *ec_eng)
 {
     if (d > 0) {
 	do {
 	    pword *pw = from++;
 	    Dereference_(pw);
 	    if (IsArray(pw->val, pw->tag)) {
-		int res = _flatten_array(d-1, DidArity(pw->val.ptr->val.did), pw->val.ptr+1);
+		int res = _flatten_array(d-1, DidArity(pw->val.ptr->val.did), pw->val.ptr+1, ec_eng);
 		Return_If_Not_Success(res);
 	    } else if (!IsNil(pw->tag)) {
 		++TG; Check_Gc;
@@ -1323,7 +1267,7 @@ _flatten_array(uword d, word n, pword *from)
 }
 
 static int
-p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type tflat)
+p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type tflat, ec_eng_t *ec_eng)
 {
     int res;
     uword arity;
@@ -1341,7 +1285,7 @@ p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type
     }
     Make_Struct(&result, TG);
     ++TG;	/* leave space for functor */
-    res = _flatten_array((uword)vdepth.nint, arity, varr.ptr+1);
+    res = _flatten_array((uword)vdepth.nint, arity, varr.ptr+1, ec_eng);
     Return_If_Not_Success(res);
     arity = TG-result.val.ptr-1;
     if (arity > 0) {
@@ -1355,7 +1299,7 @@ p_array_flat(value vdepth, type tdepth, value varr, type tarr, value vflat, type
 
 
 static int
-p_array_concat(value v1, type t1, value v2, type t2, value v, type t)
+p_array_concat(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
     int res;
     pword result;
@@ -1400,7 +1344,7 @@ p_array_concat(value v1, type t1, value v2, type t2, value v, type t)
 
 
 static int
-p_array_list3(value varr, type tarr, value vl, type tl, value vt, type tt)
+p_array_list3(value varr, type tarr, value vl, type tl, value vt, type tt, ec_eng_t *ec_eng)
 {
     Check_Output_List(tt);
     if (IsRef(tarr))
@@ -1512,9 +1456,9 @@ p_array_list3(value varr, type tarr, value vl, type tl, value vt, type tt)
 
 
 static int
-p_array_list(value tv, type tt, value lv, type lt)
+p_array_list(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
 {
-    return p_array_list3(tv, tt, lv, lt, lv, tag_desc[TNIL].tag);
+    return p_array_list3(tv, tt, lv, lt, lv, tag_desc[TNIL].tag, ec_eng);
 }
 
 
@@ -1528,7 +1472,7 @@ p_array_list(value tv, type tt, value lv, type lt)
 */
 /*ARGSUSED*/
 static int
-p_get_var_type(value vvar, type tvar, value vvtype, type ttype)
+p_get_var_type(value vvar, type tvar, value vvtype, type ttype, ec_eng_t *ec_eng)
 {
     dident	dtype;
 
@@ -1563,7 +1507,7 @@ p_get_var_type(value vvar, type tvar, value vvtype, type ttype)
 
 /*ARGSUSED*/
 static int
-p_get_var_name(value vvar, type tvar, value vname, type tname)
+p_get_var_name(value vvar, type tvar, value vname, type tname, ec_eng_t *ec_eng)
 {
     dident      dname;
 
@@ -1581,3 +1525,46 @@ p_get_var_name(value vvar, type tvar, value vname, type tname)
     }
 }
 
+
+/*----------------------------------------------------------------------
+ * Initialisation
+ *----------------------------------------------------------------------*/
+
+void
+bip_tconv_init(int flags)
+{
+    if (flags & INIT_SHARED)
+    {
+	/* functor/3 is U_UNIFY because the bound argument is not known */
+	built_in(in_dict("functor", 3), 	p_functor, B_UNSAFE|U_UNIFY|PROC_DEMON)
+	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, CONSTANT) |
+		BoundArg(3, CONSTANT);
+	built_in(in_dict("char_code", 2), p_char_code, B_UNSAFE|U_GROUND)
+		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	built_in(in_dict("atom_string", 2), p_atom_string, B_UNSAFE|U_GROUND)
+		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	built_in(in_dict("integer_atom", 2), p_integer_atom, B_UNSAFE|U_GROUND)
+		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	(void) built_in(in_dict("type_of", 2), p_type_of, B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("get_var_type", 2),
+			      p_get_var_type, B_UNSAFE|U_SIMPLE);
+	(void) local_built_in(in_dict("get_var_name", 2),
+			      p_get_var_name, B_UNSAFE|U_SIMPLE);
+	built_in(in_dict("=..", 2), p_univ, B_UNSAFE|U_UNIFY|PROC_DEMON)
+	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+	(void) built_in(in_dict("array_flat", 3), p_array_flat, B_UNSAFE|U_UNIFY|PROC_DEMON);
+	(void) built_in(in_dict("array_list", 2), p_array_list, B_UNSAFE|U_UNIFY|PROC_DEMON);
+	(void) built_in(in_dict("array_list", 3), p_array_list3, B_UNSAFE|U_UNIFY|PROC_DEMON);
+	(void) built_in(in_dict("array_concat", 3), p_array_concat, B_UNSAFE|U_UNIFY|PROC_DEMON);
+	(void) built_in(in_dict("is_array", 1), p_is_array, B_SAFE);
+	(void) built_in(in_dict("dim", 2), p_dim, B_UNSAFE|U_UNIFY);
+	built_in(in_dict("number_string_",3), p_number_string, B_UNSAFE|U_GROUND)
+		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
+
+	(void) built_in(in_dict("term_hash", 4), p_term_hash, B_UNSAFE|U_SIMPLE);
+	(void) built_in(in_dict("canonical_copy", 2), p_canonical_copy, B_UNSAFE|U_GROUND);
+	(void) built_in(in_dict("setarg", 3), p_setarg, B_UNSAFE);
+    }
+}
+
+/* Add all new code in front of the initialization function! */

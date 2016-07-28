@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.18 2013/04/29 01:02:10 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.19 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /********************************************************************
@@ -49,14 +49,14 @@
 #include "database.h"
 
 /* global definition */
-#define Local_Kernel_Proc(d, flag, ccode)					\
-	pd = local_procedure(d, d_.kernel_sepia, tm, PRI_CREATE);	\
-	pd->flags |= SYSTEM|flag;						\
+#define Local_Kernel_Proc(d, flag, ccode)				\
+	pd = local_procedure(d, d_.kernel_sepia, tm, PRI_CREATE, &err);	\
+	pd->flags |= SYSTEM|flag;					\
 	pricode.vmc = ccode;						\
 	pri_define_code(pd, VMCODE, pricode);
-#define Exported_Kernel_Proc(d, flag, ccode)					\
-	pd = export_procedure(d, d_.kernel_sepia, tm);			\
-	pd->flags |= SYSTEM|flag;						\
+#define Exported_Kernel_Proc(d, flag, ccode)				\
+	pd = export_procedure(d, d_.kernel_sepia, tm, &err);		\
+	pd->flags |= SYSTEM|flag;					\
 	pricode.vmc = ccode;						\
 	pri_define_code(pd, VMCODE, pricode);
 
@@ -64,11 +64,14 @@
 				Store_4(			\
 					Get_variableNAML,	\
 					Esize(size),		\
-					Address(arg),		\
+					ArgReg(arg),		\
 					Esize(var))
 
 #define KernelPri(d) \
-	visible_procedure(d, d_.kernel_sepia, tm, PRI_CREATE|PRI_REFER)
+	visible_procedure(d, d_.kernel_sepia, tm, PRI_CREATE|PRI_REFER, &err)
+
+#define Check_Array_Size(vmcode_array) \
+	assert(code == (vmcode*) (&(vmcode_array)+1))
 
 
 /*
@@ -85,25 +88,25 @@
 vmcode dummy_procedure_code_[PROC_PREFIX_SIZE+3]; /* should be the first */
 vmcode fail_return_env_0_[3];
 vmcode eval_code_[15];
+vmcode query_code_[15];
 vmcode slave_code_[2];
 vmcode slave_fail_code_[25];
 vmcode restore_code_[3];
 vmcode restore_debug_code_[3];
 vmcode trace_exit_code_[3];
 vmcode return_code_[2];
-vmcode it_code_[20];
-vmcode it_block_code_[21];
 vmcode recurs_code_[15];
 vmcode boot_code_[16];
 vmcode fail_code_[2];
+vmcode engine_exit_code_[3];
 
 /*
  * Special backtrack codes that are used to identify certain frames
  * on the control stack. They may not be used for other purposes.
  */
 
-vmcode it_fail_code_[3];	   /* interrupt emulator invocation frame */
-vmcode stop_fail_code_[3];	   /* recursive emulator invocation frame */
+vmcode stop_fail_code_[3];	   /* initial emulator invocation frame */
+vmcode recurs_fail_code_[3];	   /* recursive emulator invocation frame */
 vmcode exception_fail_code_[3];	   /* exception frame */
 vmcode catch_unint_fail_code_[11]; /* catch frame with events deferred */
 vmcode external_fail_code_[2];	   /* choicepoint of backtracking external */
@@ -120,11 +123,11 @@ vmcode par_fail_code_[2];	   /* parallel choicepoint */
 vmcode syserror_code_[PROC_PREFIX_SIZE+13];
 vmcode true_code_[PROC_PREFIX_SIZE+2];
 vmcode cut_to_code_[PROC_PREFIX_SIZE+4];
-vmcode comma_body_code_[PROC_PREFIX_SIZE+31];
-vmcode semic_body_code_[PROC_PREFIX_SIZE+20];
-vmcode cond_body_code_[PROC_PREFIX_SIZE+36];
-vmcode cond3_body_code_[PROC_PREFIX_SIZE+51];
-vmcode softcut5_body_code_[PROC_PREFIX_SIZE+52];
+vmcode comma_body_code_[PROC_PREFIX_SIZE+28];
+vmcode semic_body_code_[PROC_PREFIX_SIZE+19];
+vmcode cond_body_code_[PROC_PREFIX_SIZE+33];
+vmcode cond3_body_code_[PROC_PREFIX_SIZE+46];
+vmcode softcut5_body_code_[PROC_PREFIX_SIZE+47];
 vmcode call2_code_[PROC_PREFIX_SIZE+11];
 vmcode call_with_cut_code_[PROC_PREFIX_SIZE+3];
 vmcode call_at_code_[PROC_PREFIX_SIZE+5];
@@ -135,6 +138,9 @@ vmcode idle_code_[PROC_PREFIX_SIZE+4];
 vmcode fork_code_[PROC_PREFIX_SIZE+49];
 vmcode wb_code_[PROC_PREFIX_SIZE+15];
 vmcode head_match_code_[PROC_PREFIX_SIZE+15];
+#if 0
+vmcode system_code_[PROC_PREFIX_SIZE+2];
+#endif
 
 /*
  * These are pointers into the arrays above
@@ -144,7 +150,6 @@ vmcode	*bip_error_code_,
 	*auto_gc_code_,
 	*catch_fail_code_,
 	*do_exit_block_code_,
-	*sync_it_code_,
 	*do_idle_code_,
 	*idle_ret_code_,
 	*fork_unify_code_,
@@ -200,6 +205,7 @@ pri	*true_proc_,
 pri *
 make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int store_desc)
 {
+    int		err;
     vmcode	*code;
     type	tm;
     pri_code_t	pricode;
@@ -214,9 +220,9 @@ make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, 
 	for(i=1; i<=arity; ++i) {
             if ((currdesc & 3) == 1) {
                 result_arg = i;
-                Store_d(Address(arity+1));
+                Store_d(ArgReg(arity+1));
             } else {
-                Store_d(Address(i));
+                Store_d(ArgReg(i));
             }
             currdesc >>= 2;
 	}
@@ -228,7 +234,7 @@ make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, 
      * register A[arity+1], which then needs to be unified with A[result_arg].
      */
     if (result_arg) {
-        Store_3(Get_valueAMAM,Address(result_arg),Address(arity+1))
+        Store_3(Get_valueAMAM,ArgReg(result_arg),ArgReg(arity+1))
     }
     Store_i(Retd_nowake);	/* because inlined calls don't wake either */
     Store_i(Code_end);
@@ -238,6 +244,7 @@ make_function_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, 
 pri *
 make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int vis)
 {
+    int		err;
     vmcode	*code;
     type	tm;
     pri_code_t	pricode;
@@ -252,7 +259,7 @@ make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int 
     PriMode(pd) = mode;
     Store_i(opc);
 	for(i=1; i<=arity; ++i) {
-	    Store_d(Address(i));
+	    Store_d(ArgReg(i));
 	}
 	if (argdesc >= 0) {
 	    Store_d(argdesc);
@@ -269,6 +276,7 @@ make_test_bip(dident did1, int opc, uint32 flags, uint32 mode, int argdesc, int 
 int
 ec_create_call_n(dident call_did)
 {
+    int	err;
     vmcode *code;
     pri_code_t	pricode;
     pri *pd;
@@ -278,8 +286,8 @@ ec_create_call_n(dident call_did)
     Allocate_Default_Procedure(8, call_did);
     Exported_Kernel_Proc(call_did, ARGFIXEDWAM|DEBUG_TRMETA, code);
     pd->flags &= ~DEBUG_TR; /*untraceable*/
-    Store_3(MoveAMAM, Address(i), Address(i+1))
-    Store_2(SavecutAM, Address(i+2))
+    Store_3(MoveAMAM, ArgReg(i), ArgReg(i+1))
+    Store_2(SavecutAM, ArgReg(i+2))
     Store_2(Meta_jmp,i-2)
     Store_i(Code_end)
     return PSUCCEED;
@@ -324,6 +332,7 @@ code_init(int flags)
     register pri	*pd;
     type		tm;
     pri_code_t		pricode;
+    int			err;
 
     tm.kernel = ModuleTag(d_.kernel_sepia);
     /*
@@ -348,13 +357,13 @@ code_init(int flags)
  * The debugger needs the procedure descriptor of (;)/2, that's why
  * we have a prelimiary definition here. It's overwritten in kernel.pl
  */
-    pd = global_procedure(d_.comma, d_.kernel_sepia, tm);
+    pd = global_procedure(d_.comma, d_.kernel_sepia, tm, &err);
     pd->flags |= SYSTEM|TOOL;
-    pd = global_procedure(d_.semicolon, d_.kernel_sepia, tm);
+    pd = global_procedure(d_.semicolon, d_.kernel_sepia, tm, &err);
     pd->flags |= SYSTEM|TOOL;
-    pd = global_procedure(d_.cond, d_.kernel_sepia, tm);
+    pd = global_procedure(d_.cond, d_.kernel_sepia, tm, &err);
     pd->flags |= SYSTEM|TOOL;
-    pd = local_procedure(d_.softcut, d_.kernel_sepia, tm, PRI_CREATE);
+    pd = local_procedure(d_.softcut, d_.kernel_sepia, tm, PRI_CREATE, &err);
     pd->flags |= SYSTEM|TOOL;
 
   }
@@ -375,8 +384,8 @@ code_init(int flags)
 	Exported_Kernel_Proc(in_dict("trace_body",2), ARGFIXEDWAM|DEBUG_ST|DEBUG_SP|DEBUG_TRMETA, code);
 	Exported_Kernel_Proc(in_dict("debug_body",2), ARGFIXEDWAM|DEBUG_ST|DEBUG_TRMETA, code);
     }
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Meta_jmp,0)
     Store_i(Code_end)	/* not really, see below */
 /*
@@ -416,7 +425,7 @@ code_init(int flags)
 	Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
     }
     do_call_code_ = code;
-    Store_2(SavecutAM, Address(4))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Meta_jmp,0)		/* (Goal,CallerMod,LookupMod,Cut) */
     Store_i(Code_end)
 
@@ -426,7 +435,7 @@ code_init(int flags)
     did1 = in_dict(":@", 3);
     Allocate_Default_Procedure(4, did1);
     Exported_Kernel_Proc(did1, ARGFIXEDWAM|DEBUG_DB|DEBUG_DF, code);
-    Store_2(SavecutAM, Address(4))
+    Store_2(SavecutAM, ArgReg(4))
     Store_i(Explicit_jmp)	/* (LookupMod,Goal,CallerMod,Cut) */
     Store_i(Code_end)
 
@@ -458,18 +467,20 @@ code_init(int flags)
     {
 	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     }
-    Store_Var_Alloc(3, 2, 3);				/* Goal2 -> Y3 */
-    Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
-    Store_3(MoveAML, Address(4), Esize(1))		/* Cut -> Y1 */
-    Store_3(MoveAMAM, Address(3), Address(2))
+    Store_2(Allocate, Esize(3))
+    Store_3(Move3AML, ArgReg(2), Esize(3))	/* Goal2 -> Y3 */
+    	Store_2d(ArgReg(3), Esize(2))		/* Module -> Y2 */
+	Store_2d(ArgReg(4), Esize(1))		/* Cut -> Y1 */
+    Store_3(MoveAMAM, ArgReg(3), ArgReg(2))
     Store_2(Metacall,Esize(3))
-    Store_3(MoveLAM, Esize(3), Address(1))
-    Store_3(MoveLAM, Esize(2), Address(2))
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_3(MoveLAM, Esize(1), Address(4))
+    Store_3(Move3LAM, Esize(3), ArgReg(1))
+	Store_2d(Esize(2), ArgReg(2))
+	Store_2d(Esize(1), ArgReg(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
     Store_i(Deallocate)
     Store_2(Meta_jmp,0)
     Store_i(Code_end)
+    Check_Array_Size(comma_body_code_);
 
 /*
  *	Goal1 -> Goal2
@@ -485,21 +496,23 @@ code_init(int flags)
     {
 	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
     }
-    Store_Var_Alloc(4, 2, 4);				/* Goal2 -> Y4 */
-    Store_3(MoveAML, Address(3), Esize(3))		/* Module -> Y3 */
-    Store_3(MoveAML, Address(4), Esize(2))		/* Cut -> Y2 */
+    Store_2(Allocate, Esize(4))
+    Store_3(Move3AML, ArgReg(2), Esize(4))		/* Goal2 -> Y4 */
+    	Store_2d(ArgReg(3), Esize(3))			/* Module -> Y3 */
+	Store_2d(ArgReg(4), Esize(2))			/* Cut -> Y2 */
     Store_i(Savecut)
-    Store_3(MoveAMAM, Address(3), Address(2))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(3), ArgReg(2))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall,Esize(4))
     Store_2(Cut, Esize(4))
-    Store_3(MoveLAM, Esize(4), Address(1))
-    Store_3(MoveLAM, Esize(3), Address(2))
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_3(MoveLAM, Esize(2), Address(4))
+    Store_3(Move3LAM, Esize(4), ArgReg(1))
+	Store_2d(Esize(3), ArgReg(2))
+	Store_2d(Esize(2), ArgReg(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
     Store_i(Deallocate)
     Store_2(Meta_jmp,0)
     Store_i(Code_end)
+    Check_Array_Size(cond_body_code_);
 
 /*
  *	Goal1 ; Goal2
@@ -517,14 +530,15 @@ code_init(int flags)
     }
     Store_3(Try_me_else, NO_PORT, 4)
     aux = code++;
-    Store_3(MoveAMAM, Address(3), Address(2))
+    Store_3(MoveAMAM, ArgReg(3), ArgReg(2))
     Store_2(Meta_jmp,0)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
-    Store_3(MoveAMAM, Address(2), Address(1))
-    Store_3(MoveAMAM, Address(3), Address(2))
+    Store_3(Move2AMAM, ArgReg(2), ArgReg(1))
+	Store_2d(ArgReg(3), ArgReg(2))
     Store_2(Meta_jmp,0)
     Store_i(Code_end);
+    Check_Array_Size(semic_body_code_);
 
 /*
  *	Goal1 -> Goal2 ; Goal3
@@ -544,26 +558,28 @@ code_init(int flags)
     }
     Store_3(Try_me_else, NO_PORT, 5)
     aux = code++;
-    Store_Var_Alloc(4, 2, 4);				/* Goal2 -> Y4 */
-    Store_3(MoveAML, Address(4), Esize(3))		/* Cut -> Y3 */
-    Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
+    Store_2(Allocate, Esize(4))
+    Store_3(Move3AML, ArgReg(2), Esize(4))		/* Goal2 -> Y4 */
+	Store_2d(ArgReg(4), Esize(3))			/* Cut -> Y3 */
+	Store_2d(ArgReg(3), Esize(2))			/* Module -> Y2 */
     Store_i(Savecut)
-    Store_3(MoveAMAM, Address(3), Address(2))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(3), ArgReg(2))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall,Esize(4))
     Store_2(Cut, Esize(4))
-    Store_3(MoveLAM, Esize(4), Address(1))
-    Store_3(MoveLAM, Esize(2), Address(2))
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_3(MoveLAM, Esize(3), Address(4))
+    Store_3(Move3LAM, Esize(4), ArgReg(1))
+	Store_2d(Esize(2), ArgReg(2))
+	Store_2d(Esize(3), ArgReg(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
     Store_i(Deallocate)
     Store_2(Meta_jmp,0)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
-    Store_3(MoveAMAM, Address(5), Address(1))
-    Store_3(MoveAMAM, Address(3), Address(2))
+    Store_3(Move2AMAM, ArgReg(5), ArgReg(1))
+	Store_2d(ArgReg(3), ArgReg(2))
     Store_2(Meta_jmp,0)
     Store_i(Code_end);
+    Check_Array_Size(cond3_body_code_);
 
 
 /*
@@ -584,26 +600,28 @@ code_init(int flags)
     }
     Store_3(Try_me_else, NO_PORT, 5)
     aux = code++;
-    Store_Var_Alloc(4, 2, 4);				/* Goal2 -> Y4 */
-    Store_3(MoveAML, Address(4), Esize(3))		/* Cut -> Y3 */
-    Store_3(MoveAML, Address(3), Esize(2))		/* Module -> Y2 */
+    Store_2(Allocate, Esize(4))
+    Store_3(Move3AML, ArgReg(2), Esize(4))		/* Goal2 -> Y4 */
+	Store_2d(ArgReg(4), Esize(3))			/* Cut -> Y3 */
+	Store_2d(ArgReg(3), Esize(2))			/* Module -> Y2 */
     Store_2(SavecutL, Esize(1))
-    Store_3(MoveAMAM, Address(3), Address(2))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(3), ArgReg(2))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall,Esize(4))
     Store_2(SoftcutL, Esize(1))
-    Store_3(MoveLAM, Esize(4), Address(1))
-    Store_3(MoveLAM, Esize(2), Address(2))
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_3(MoveLAM, Esize(3), Address(4))
+    Store_3(Move3LAM, Esize(4), ArgReg(1))
+	Store_2d(Esize(2), ArgReg(2))
+	Store_2d(Esize(3), ArgReg(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
     Store_i(Deallocate)
     Store_2(Meta_jmp,0)
     *(vmcode**)aux = code;
     Store_2(Trust_me, NEXT_PORT)
-    Store_3(MoveAMAM, Address(5), Address(1))
-    Store_3(MoveAMAM, Address(3), Address(2))
+    Store_3(Move2AMAM, ArgReg(5), ArgReg(1))
+	Store_2d(ArgReg(3), ArgReg(2))
     Store_2(Meta_jmp,0)
     Store_i(Code_end);
+    Check_Array_Size(softcut5_body_code_);
 
 
 /*
@@ -615,7 +633,7 @@ code_init(int flags)
     {
 	Exported_Kernel_Proc(d_.cut_to, EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
     }
-    Store_2(CutAM, Address(1))
+    Store_2(CutAM, ArgReg(1))
     Store_i(Retd_nowake);
     Store_i(Code_end);
 
@@ -636,7 +654,7 @@ code_init(int flags)
 	Exported_Kernel_Proc(did1, EXTERN|ARGFLEXWAM|DEBUG_DB|DEBUG_DF, code);
     }
     Store_Var_Alloc(2, 1, 1);	/* 4 words */
-    Store_3(MoveAML, Address(2), Esize(2))
+    Store_3(MoveAML, ArgReg(2), Esize(2))
     Store_3(CallfP, DidPtr(in_dict("instance_simple",2))->procedure, 0)
     Store_3(Get_valueLL, Esize(1), Esize(2))
     Store_i(Exit);
@@ -647,11 +665,11 @@ code_init(int flags)
  * Backtrack codes for special control frames
  */
 
-    code = &it_fail_code_[0];
+    code = &stop_fail_code_[0];
     Store_2(Exit_emulator, PFAIL)
     Store_i(Code_end);
 
-    code = &stop_fail_code_[0];
+    code = &recurs_fail_code_[0];
     Store_2(Exit_emulator, PFAIL)
     Store_i(Code_end);
 
@@ -680,18 +698,45 @@ code_init(int flags)
     Store_i(Code_end);
 
 /*
- * query_emulc(Goal, Module) :- not not call(Goal, Module).
+ * sub_emulc_not_not(Goal, Module) :- not not call(Goal, Module).
  * Discard all stacks, just return succeed or fail.
  */
     code = &eval_code_[0];
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall, Esize(1))
     Store_2(Cut,Esize(1))
     Store_2(Exit_emulator, PSUCCEED)
     Store_i(Code_end);
+
+
+/*
+ * call_query(Goal, Module) :- call_query(Goal, Module, Res), return to C.
+ * call_query(Goal, Module, 0) :- call_(Goal, Module).
+ * call_query/3 is replaced asap by proper definition in kernel.pl
+ */
+    {
+	pri *call_query_proc;
+	did1 = in_dict("call_query", 3);
+	Allocate_Default_Procedure(6, did1);
+	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
+	call_query_proc = pd;
+	Store_3(Get_integerAM, ArgReg(3), 0);
+	Store_2(JmpdP, DidPtr(d_.call_body->procedure));
+	Store_i(Code_end)
+
+	code = &query_code_[0];
+	Store_2(Allocate, Esize(1))
+	Store_3(Put_variableAML, ArgReg(3), Esize(1))
+	Store_3(CallP, call_query_proc, Esize(1))
+	Store_3(MoveLAM, Esize(1), ArgReg(0))
+	Store_i(Deallocate)
+	Store_2(Bounce, 0); /* exits the emulator, integer result in A[0] */
+	Store_i(Code_end);
+    }
+
 
 /*
  * slave_emulc()
@@ -704,36 +749,36 @@ code_init(int flags)
     Store_2(Fail_clause, Esize(2))	/* invoke the scheduler */
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)
-    Store_3(Put_atomAM, Address(1), in_dict("slave",0))
-    Store_4(Put_constantAM, Address(2), ModuleTag(d_.kernel_sepia),
+    Store_3(Put_atomAM, ArgReg(1), in_dict("slave",0))
+    Store_4(Put_constantAM, ArgReg(2), ModuleTag(d_.kernel_sepia),
 							d_.kernel_sepia)
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall, Esize(1))
     Store_i(Failure)
     Store_i(Code_end);
 
 /*
- * sub_emulc(Goal, Module) :- call(Goal, Module), !.
- * sub_emulc(Goal, Module) :- fail.
+ * sub_emulc_cut(Goal, Module) :- call(Goal, Module), !.
+ * sub_emulc_cut(Goal, Module) :- fail.
  * Cut, but keep the global and trail.
  */
     code = &recurs_code_[0];
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall, Esize(1))
     Store_2(Cut,Esize(1))
-    Store_2(Exit_emulator, PKEEP)
+    Store_2(Exit_emulator, PKEEP|PSUCCEED)
     Store_i(Code_end);
 
 
     code = &boot_code_[0];
     Store_2(Allocate, Esize(0))
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_3(Put_integerAM, Address(2), 0)
-    Store_2(Put_variableAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_3(Put_integerAM, ArgReg(2), 0)
+    Store_2(Put_variableAM, ArgReg(4))
     Store_3(CallP, DidPtr(in_dict("load_eco",4))->procedure, 0)
     Store_2(Exit_emulator, PSUCCEED)
     Store_i(Code_end);
@@ -791,8 +836,8 @@ code_init(int flags)
     Store_2(Catch, 0)
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall, Esize(1))
     Store_2(Cut_single, 0)	/* if the Goal was deterministic */
     Store_i(Exit)
@@ -804,8 +849,8 @@ code_init(int flags)
     Store_2(Catch, 1)
     Store_2(Allocate, Esize(1))
     Store_i(Savecut)
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall, Esize(1))
     Store_2(Cut_single, 0)	/* if the Goal was deterministic */
     Store_i(Exit)
@@ -821,8 +866,8 @@ code_init(int flags)
     }
     do_exit_block_code_ = code;
     Store_i(Throw)
-    Store_3(MoveAMAM, Address(2), Address(3))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Meta_jmp,0)
     Store_i(Code_end);
 
@@ -864,43 +909,14 @@ code_init(int flags)
 #endif
 
 
-/*
- * code sequence for calling interrupt handlers
- */
-    code = &it_code_[0];
-    Store_2(Allocate, Esize(1))
-    Store_i(Savecut)
-    Store_2(Handler_call,0)
-    Store_2(Cut,Esize(1))
-    Store_2(Exit_emulator, PSUCCEED)
-    Store_i(Code_end);
-    sync_it_code_ = code;
-    Store_2(Allocate, Esize(1))
-    Store_i(Savecut)
-    Store_2(Handler_call,0)
-    Store_2(Cut,Esize(1))
-    Store_i(Exitd)
-    Store_i(Code_end)
 
 /*
- * code sequence for calling interrupt handlers inside an
- * exit_block protected execution. Simulates:
- *
- * it(Sig) :-
- *	block(handler(Sig), Tag, postpone_exit(Tag), sepia_kernel).
+ * This is engine_exit/1, used for exiting an engine.
  */
-    code = &it_block_code_[0];
-    Store_4(Put_constantAM, Address(4), ModuleTag(d_.kernel_sepia),
-							d_.kernel_sepia)
-    Store_3(Put_structureAM, Address(3), in_dict("postpone_exit",1))
-    Store_2(Push_variableAM, Address(2))
-    Store_2(Catch, 0)			/* (Sig, Tag, Recov, Mod) */
-    Store_2(Allocate, Esize(1))
-    Store_i(Savecut)
-    Store_2(Handler_call,0)
-    Store_2(Cut,Esize(1))
-    Store_2(Exit_emulator, PSUCCEED)
+    code = &engine_exit_code_[0];
+    Store_2(BI_Exit, ArgReg(1))
     Store_i(Code_end);
+
 
 /*
  * true/0 is here because we want its procedure identifier
@@ -993,17 +1009,17 @@ code_init(int flags)
     {
 	Exported_Kernel_Proc(did1, ARGFIXEDWAM | DEBUG_DF | DEBUG_DB, code);
     }
-    Store_2(Integer_range_switchAM, Address(1))
+    Store_2(Integer_range_switchAM, ArgReg(1))
     aux = code++;
     Store_d(1);			/* table size */
     Store_2d(fail_code_, aux+4)
-    Store_3(Put_structureAM, Address(3), did1)
-    Store_2(Push_local_valueAM, Address(1))
-    Store_2(Push_local_valueAM, Address(2))
-    Store_3(Put_integerAM, Address(1), 5)
-    Store_3(MoveAMAM, Address(3), Address(2))
-    Store_3(Put_atomAM, Address(3), d_.kernel_sepia);
-    Store_3(Put_atomAM, Address(4), d_.kernel_sepia);
+    Store_3(Put_structureAM, ArgReg(3), did1)
+    Store_2(Push_local_valueAM, ArgReg(1))
+    Store_2(Push_local_valueAM, ArgReg(2))
+    Store_3(Put_integerAM, ArgReg(1), 5)
+    Store_3(MoveAMAM, ArgReg(3), ArgReg(2))
+    Store_3(Put_atomAM, ArgReg(3), d_.kernel_sepia);
+    Store_3(Put_atomAM, ArgReg(4), d_.kernel_sepia);
     Store_2(JmpdA, prolog_error_code_)
     aux1 = code;
     Store_4(Try_parallel, 1, 2, 0)
@@ -1011,7 +1027,7 @@ code_init(int flags)
     Store_2(Fail_clause, Esize(2))
     Store_2(Try_clause, 0)
     fork_unify_code_ = code;
-    Store_3(Get_valueAMAM,Address(1),Address(2))
+    Store_3(Get_valueAMAM,ArgReg(1),ArgReg(2))
     Store_i(Ret)
     Store_i(Code_end);
     *(vmcode**)aux = code;
@@ -1019,6 +1035,7 @@ code_init(int flags)
     *code++ = 1; *code++ = (vmcode) aux1;
     *code++ = 1; *code++ = (vmcode) fork_unify_code_;
     Store_i(Code_end);
+    Check_Array_Size(fork_code_);
 
 /*
  * worker_boundary/0
@@ -1123,17 +1140,17 @@ code_init(int flags)
     aux = code++;
     Store_Var_Alloc(2, 2, 2);	/* 4 words */
     Store_i(Savecut)
-    Store_3(MoveAMAM,Address(3),Address(2))
-    Store_2(SavecutAM, Address(4))
+    Store_3(MoveAMAM,ArgReg(3),ArgReg(2))
+    Store_2(SavecutAM, ArgReg(4))
     Store_2(Metacall, Esize(1))
-    Store_3(MoveLAM, Esize(2), Address(1))
+    Store_3(MoveLAM, Esize(2), ArgReg(1))
     Store_2(GuardL, Esize(1))
     aux1 = code++;
-    Store_3(Get_atomAM, Address(1), d_.true0)
+    Store_3(Get_atomAM, ArgReg(1), d_.true0)
     Store_i(Exitc)
     *(vmcode**)aux1 = code;
     Store_2(Trust_me, NEXT_PORT)
-    Store_3(Get_atomAM, Address(1), d_.question)
+    Store_3(Get_atomAM, ArgReg(1), d_.question)
     Store_i(Retd);
     *(vmcode**)aux = code;
     Store_i(Refail);
@@ -1160,36 +1177,36 @@ code_init(int flags)
     Store_Var_Alloc(2, 2, 1)	/* 4 words */
     aux = code+1;
     Store_2(Set_bp, 0);
-    Store_3(Get_integerAM, Address(1), 170);
+    Store_3(Get_integerAM, ArgReg(1), 170);
 
     Store_i(Restore_bp);
-    Store_3(Put_variableAML, Address(1), Esize(2))
+    Store_3(Put_variableAML, ArgReg(1), Esize(2))
     Store_3(CallP, KernelPri(in_dict("errno_id", 1)), Esize(2));
     aux1 = code+1;
     Store_2(Branch, 0);
 
     *(vmcode**)aux = code;
-    Store_3(Put_variableAML, Address(2), Esize(2))
+    Store_3(Put_variableAML, ArgReg(2), Esize(2))
     Store_3(CallP, KernelPri(in_dict("error_id", 2)), Esize(2));
 
     *(vmcode**)aux1 = code;
-    Store_3(MoveLAM, Esize(2), Address(1));
-    Store_3(Put_atomAM, Address(2), d_.kernel_sepia);
+    Store_3(MoveLAM, Esize(2), ArgReg(1));
+    Store_3(Put_atomAM, ArgReg(2), d_.kernel_sepia);
     Store_3(CallP, pd, Esize(2));
 
-    Store_3(Put_atomAM, Address(1), in_dict(" in ",0));
-    Store_3(Put_atomAM, Address(2), d_.kernel_sepia);
+    Store_3(Put_atomAM, ArgReg(1), in_dict(" in ",0));
+    Store_3(Put_atomAM, ArgReg(2), d_.kernel_sepia);
     Store_3(CallP, pd, Esize(2));
 
-    Store_3(MoveLAM, Esize(1), Address(1));
-    Store_3(Put_atomAM, Address(2), d_.kernel_sepia);
+    Store_3(MoveLAM, Esize(1), ArgReg(1));
+    Store_3(Put_atomAM, ArgReg(2), d_.kernel_sepia);
     Store_3(CallP, KernelPri(in_dict("writeq_", 2)), Esize(2));
 
-    Store_3(Put_atomAM, Address(1), in_dict("\n\n",0));
-    Store_3(Put_atomAM, Address(2), d_.kernel_sepia);
+    Store_3(Put_atomAM, ArgReg(1), in_dict("\n\n",0));
+    Store_3(Put_atomAM, ArgReg(2), d_.kernel_sepia);
     Store_3(CallP, pd, Esize(2));
 
-    Store_3(Put_integerAM, Address(1), -1);
+    Store_3(Put_integerAM, ArgReg(1), -1);
     Store_2(ChainP, DidPtr(in_dict("exit0", 1))->procedure);
     Store_i(Code_end);
 
@@ -1199,10 +1216,10 @@ code_init(int flags)
     did1 = in_dict("yield", 4);
     Allocate_Default_Procedure(13, did1);
     Local_Kernel_Proc(did1, ARGFIXEDWAM , code);
-    Store_3(Put_integerAM, Address(0), PYIELD)
+    Store_3(Put_integerAM, ArgReg(0), PYIELD)
     Store_2(Bounce, 0); /* exits the emulator and bounce over the trampoline */
-    Store_3(Get_valueAMAM,Address(1),Address(3))
-    Store_3(Get_valueAMAM,Address(2),Address(4))
+    Store_3(Get_valueAMAM,ArgReg(1),ArgReg(3))
+    Store_3(Get_valueAMAM,ArgReg(2),ArgReg(4))
     Store_i(Retd);
     Store_i(Code_end);
 
@@ -1218,6 +1235,7 @@ code_init(int flags)
     make_function_bip(in_dict("get_cut",1), SavecutAM, U_SIMPLE, BoundArg(1,CONSTANT), 1, 0);
 
     make_test_bip(in_dict("sys_return",1), BI_Exit, 0, 0, -1, LOCAL);
+    make_test_bip(in_dict("engine_exit",1), BI_Exit, 0, 0, -1, LOCAL);
     make_test_bip(in_dict("cut_to_stamp",2), BI_CutToStamp, 0, 0, 0, EXPORT);
     make_test_bip(in_dict("cont_debug",0), BI_ContDebug, 0, 0, -1, LOCAL);
 
@@ -1284,7 +1302,7 @@ code_init(int flags)
  * Initialize global (non-shared) pointers to procedure identifiers
  *-----------------------------------------------------------------*/
 
-#define KernelProc(d) local_procedure(d, d_.kernel_sepia, tm, 0)
+#define KernelProc(d) local_procedure(d, d_.kernel_sepia, tm, 0, &err)
 
     true_proc_ = KernelProc(d_.true0);
     cut_to_proc_ = KernelProc(d_.cut_to);
@@ -1347,13 +1365,19 @@ b_built_code(pri *pd, word function, int nondet)
 	    Store_3(Retry_me_else, (pd->flags & DEBUG_DB)?NEXT_PORT:NO_PORT, aux);
 	    *(aux - 1) = (vmcode) code;
 	}
-	switch(arity)
-	{
-	    case 0: Store_3(External0, pd, function); break;
-	    case 1: Store_3(External1, pd, function); break;
-	    case 2: Store_3(External2, pd, function); break;
-	    case 3: Store_3(External3, pd, function); break;
-	    default: Store_3(External, pd, function);
+	if (pd->flags & PL_C_ARGS) {
+	    /* Prolog arguments passed as C argument pairs */
+	    switch(arity)
+	    {
+		case 0: Store_3(External0, pd, function); break;
+		case 1: Store_3(External1, pd, function); break;
+		case 2: Store_3(External2, pd, function); break;
+		case 3: Store_3(External3, pd, function); break;
+		default: Store_3(External, pd, function);
+	    }
+	} else {
+	    /* the external gets arguments directly from engine registers */
+	    Store_3(External0, pd, function);
 	}
 	Store_i(Code_end)
 

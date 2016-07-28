@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.3 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -57,9 +57,6 @@
 
 
 #include	"config.h"
-#ifdef _WIN32
-#include <windows.h>
-#endif
 #include	"sepia.h"
 #include	"types.h"
 #include	"embed.h"
@@ -126,6 +123,7 @@ void
 	malloc_init(void);
 
 struct heap_descriptor global_heap;
+static ec_mutex_t global_heap_lock;
 
 
 /*---------------------------------------------------------------------
@@ -282,7 +280,7 @@ _map_at(char *addr,	/* page-aligned */
 static void
 _report_adjustment(char *change, char *name, word bytes)
 {
-    if (GlobalFlags & GC_VERBOSE)
+    if (EclGblFlags & GC_VERBOSE)
     {
 	p_fprintf(log_output_,
 	    "GC: %s %s stack by %" W_MOD "d bytes\n",
@@ -514,6 +512,10 @@ dealloc_stack_pairs(struct stack_struct *lower, struct stack_struct *upper)
 	}
 #endif
 #endif
+	lower[0].end = lower[0].start;	/* indicate they are gone */
+	lower[1].end = lower[1].start;
+	upper[0].end = upper[0].start;
+	upper[1].end = upper[1].start;
 	break;
     case ALLOC_FIXED:
 	/* cannot deallocate */
@@ -1004,37 +1006,57 @@ calloc(unsigned n, unsigned size)
 generic_ptr
 hg_alloc_size(word bytes_needed)
 {
-    return alloc_size(&global_heap, bytes_needed);
+    generic_ptr p;
+    mt_mutex_lock(&global_heap_lock);
+    p = alloc_size(&global_heap, bytes_needed);
+    mt_mutex_unlock(&global_heap_lock);
+    return p;
 }
 
 void
 hg_free_size(generic_ptr ptr, word size)
 {
+    mt_mutex_lock(&global_heap_lock);
     free_size(&global_heap, ptr, size);
+    mt_mutex_unlock(&global_heap_lock);
 }
 
 generic_ptr 
 hg_realloc_size(generic_ptr ptr, word oldsize, word newsize)
 {
-    return realloc_size(&global_heap, ptr, oldsize, newsize);
+    generic_ptr p;
+    mt_mutex_lock(&global_heap_lock);
+    p = realloc_size(&global_heap, ptr, oldsize, newsize);
+    mt_mutex_unlock(&global_heap_lock);
+    return p;
 }
 
 generic_ptr 
 hg_alloc(word size)
 {
-    return h_alloc(&global_heap, size);
+    generic_ptr p;
+    mt_mutex_lock(&global_heap_lock);
+    p = h_alloc(&global_heap, size);
+    mt_mutex_unlock(&global_heap_lock);
+    return p;
 }
 
 void
 hg_free(generic_ptr ptr)
 {
+    mt_mutex_lock(&global_heap_lock);
     h_free(&global_heap, ptr);
+    mt_mutex_unlock(&global_heap_lock);
 }
 
 generic_ptr
 hg_resize(generic_ptr ptr, word newsize)
 {
-    return h_realloc(&global_heap, ptr, newsize);
+    generic_ptr p;
+    mt_mutex_lock(&global_heap_lock);
+    p = h_realloc(&global_heap, ptr, newsize);
+    mt_mutex_unlock(&global_heap_lock);
+    return p;
 }
 
 
@@ -1044,36 +1066,6 @@ hg_statistics(int what)
     return alloc_statistics(&global_heap, what);
 }
 
-
-/*---------------------------------------------------------------------
- * Debugging and statistics
- *---------------------------------------------------------------------*/
-
-int
-p_heap_stat(value vwhat, type twhat, value vval, type tval)
-{
-    pword result;
-    Check_Integer(twhat);
-    result.tag.kernel = TINT;
-    switch(vwhat.nint)
-    {
-    case 0:	/* shared allocated */
-	result.val.nint = hg_statistics(HEAP_STAT_ALLOCATED);
-	break;
-    case 1:	/* shared used */
-	result.val.nint = hg_statistics(HEAP_STAT_USED);
-	break;
-    case 2:	/* private allocated */
-	result.val.nint = hp_statistics(HEAP_STAT_ALLOCATED);
-	break;
-    case 3:	/* private used */
-	result.val.nint = hp_statistics(HEAP_STAT_USED);
-	break;
-    default:
-	Fail_;
-    }
-    Return_Unify_Pw(vval, tval, result.val, result.tag);
-}
 
 /*---------------------------------------------------------------------
  * Initialisation
@@ -1116,7 +1108,7 @@ mem_layout(void)
 
     fprintf(stderr,    "hostarch     = %s", HOSTARCH);
 #ifndef _WIN32
-    fprintf(stderr,  "\nsbrk(0)      = 0x%08x", sbrk(0));
+    fprintf(stderr,  "\nsbrk(0)      = 0x%08x", (int)(word)sbrk(0));
 #ifdef STACK_BASE
     s = (char *) STACK_BASE;
 #else
@@ -1126,12 +1118,12 @@ mem_layout(void)
 	s += (map_alignment - offset);	/* round up */
     s += ec_options.privatesize;
 #endif
-    fprintf(stderr,  "\nstacks start = 0x%08x", s);
+    fprintf(stderr,  "\nstacks start = 0x%08x", (int)(word)s);
     s += RoundTo(ec_options.localsize + ec_options.globalsize, STACK_PAGESIZE);
-    fprintf(stderr,  "\nstacks end   = 0x%08x", s);
-    fprintf(stderr,  "\nshared_base  = 0x%08x", sh);
+    fprintf(stderr,  "\nstacks end   = 0x%08x", (int)(word)s);
+    fprintf(stderr,  "\nshared_base  = 0x%08x", (int)(word)sh);
     sh += SHARED_MEM_OFFSET_HEAP + ec_options.sharedsize;
-    fprintf(stderr,  "\nshared end   = 0x%08x\n", sh);
+    fprintf(stderr,  "\nshared end   = 0x%08x\n", (int)(word)sh);
 #endif
 }
 
@@ -1155,8 +1147,6 @@ mem_init(int flags)
 	 * deallocated and reallocated on restoring.
 	 */
 	map_alignment = STACK_PAGESIZE > 16*KB ? STACK_PAGESIZE : 16*KB;
-
-    }
 
 #if !defined(MAP_ANONYMOUS) && defined(HAVE_MMAP)
 	if ((stack_map_fd = open("/dev/zero", O_RDWR)) == -1)
@@ -1228,12 +1218,14 @@ mem_init(int flags)
     else
     {
 	end_of_stacks = start_of_stacks = (uword *) 0;
+	mt_mutex_init(&global_heap_lock);
 	start_shared_heap = private_mem_init_desc(ec_panic, &global_heap);
 	if (start_shared_heap == (char *) -1)
 	{
 	    perror("ECLiPSe: can't init shared heap");
 	    exit(-1);
 	}
+    }
     }
 
     if (flags & INIT_SHARED)
@@ -1242,7 +1234,10 @@ mem_init(int flags)
 
 	shared_data = (struct shared_data_t *)
 			hg_alloc_size(sizeof(struct shared_data_t));
-	GlobalFlags =
+
+	shared_data->shutdown_in_progress = 0;
+
+	EclGblFlags =
 #ifdef PRINTAM
 	    /* for better debugging of the system files */
 	    VARIABLE_NAMES|SINGLETON_CHECK|
@@ -1251,18 +1246,18 @@ mem_init(int flags)
 	    GC_ENABLED|GC_ADAPTIVE|
 	    MACROEXP|VARIABLE_NAMES;
 
-	a_mutex_init(&SharedDataLock);
+	mt_mutex_init_recursive(&SharedDataLock);
+	mt_mutex_init_recursive(&PropertyLock);
+	mt_mutex_init_recursive(&shared_data->engine_list_lock); /* must be recursive because of broadcast_exit/1 */
 	a_mutex_init(&ModuleLock);
-	a_mutex_init(&PropertyLock);
-	a_mutex_init(&PropListLock);
 	a_mutex_init(&ProcedureLock);
 	a_mutex_init(&ProcListLock);
 	a_mutex_init(&ProcChainLock);
-	a_mutex_init(&AssertRetractLock);
 
 	/* Make it visible with HEAP_READY flag off!! */
 	*(struct shared_data_t **) start_shared_heap = shared_data;
     }
+#if 0
     else
     {
 	/* wait for heap to become fully initialised by first worker */
@@ -1271,6 +1266,7 @@ mem_init(int flags)
 	    /* sleep(1); */
 	}
     }
+#endif
 
 #ifdef lint
     {

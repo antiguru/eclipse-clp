@@ -47,10 +47,10 @@
 **
 */
 
-#include <string.h>		/* for memcpy() */
-
 #include "external.h"
 #include "bitmap.h"
+
+#include <string.h>		/* for memcpy() */
 
 /*
 ** Sketch of bitmap data structure to represent finite domains.
@@ -315,7 +315,7 @@ msb(uword bits)
     **      Create a bitmap containing all elements from Min to Max.
     */
 int
-p_create_bitmap(value vmin, type tmin, value vmax, type tmax, value vbm, type tbm)
+p_create_bitmap(value vmin, type tmin, value vmax, type tmax, value vbm, type tbm, ec_eng_t *ec_eng)
 {
 	uword	*bitmap;
 	word	result;
@@ -323,7 +323,7 @@ p_create_bitmap(value vmin, type tmin, value vmax, type tmax, value vbm, type tb
 	Check_Integer(tmin);
 	Check_Integer(tmax);
 
-	result = create_bitmap(vmin.nint, vmax.nint, &bitmap);
+	result = create_bitmap(vmin.nint, vmax.nint, &bitmap, ec_eng);
 	Return_If_Not_Success(result);
 
 	Return_Bitmap(vbm, tbm, bitmap);
@@ -332,7 +332,7 @@ p_create_bitmap(value vmin, type tmin, value vmax, type tmax, value vbm, type tb
 }
 
 word
-create_bitmap(word min, word max, uword **bm_ptr)
+create_bitmap(word min, word max, uword **bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*bitmap;
 	uword	*bits_ptr;
@@ -401,7 +401,7 @@ create_bitmap(word min, word max, uword **bm_ptr)
     */
 int
 p_set_bitmap_lwb(value vbm, type tbm, value vmin, type tmin,
-		value vresult, type tresult, value vnew_bm, type tnew_bm)
+		value vresult, type tresult, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	word	*new_bitmap;
 	word	result;
@@ -409,7 +409,7 @@ p_set_bitmap_lwb(value vbm, type tbm, value vmin, type tmin,
 	Check_Bitmap(tbm);
 	Check_Integer(tmin);
 
-	result = set_bitmap_lwb(vbm.wptr, vmin.nint, (uword **) &new_bitmap);
+	result = set_bitmap_lwb(vbm.wptr, vmin.nint, (uword **) &new_bitmap, ec_eng);
 
 	Return_Integer(vresult, tresult, result);
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
@@ -418,7 +418,7 @@ p_set_bitmap_lwb(value vbm, type tbm, value vmin, type tmin,
 }
 
 word
-set_bitmap_lwb(uword *bitmap, word min, uword **new_bm_ptr)
+set_bitmap_lwb(uword *bitmap, word min, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	word	*new_bitmap;
 	uword	*bits_ptr;
@@ -514,7 +514,7 @@ set_bitmap_lwb(uword *bitmap, word min, uword **new_bm_ptr)
     */
 int
 p_set_bitmap_upb(value vbm, type tbm, value vmax, type tmax,
-		value vresult, type tresult, value vnew_bm, type tnew_bm)
+		value vresult, type tresult, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	result;
@@ -522,7 +522,7 @@ p_set_bitmap_upb(value vbm, type tbm, value vmax, type tmax,
 	Check_Bitmap(tbm);
 	Check_Integer(tmax);
 
-	result = set_bitmap_upb(vbm.wptr, vmax.nint, &new_bitmap);
+	result = set_bitmap_upb(vbm.wptr, vmax.nint, &new_bitmap, ec_eng);
 
 	Return_Integer(vresult, tresult, result);
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
@@ -531,7 +531,7 @@ p_set_bitmap_upb(value vbm, type tbm, value vmax, type tmax,
 }
 
 word
-set_bitmap_upb(uword *bitmap, word max, uword **new_bm_ptr)
+set_bitmap_upb(uword *bitmap, word max, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	uword	*bits_ptr;
@@ -627,7 +627,7 @@ set_bitmap_upb(uword *bitmap, word max, uword **new_bm_ptr)
     */
 int
 p_remove_bitmap_element(value vbm, type tbm, value vel, type tel,
-		value vresult, type tresult, value vnew_bm, type tnew_bm)
+		value vresult, type tresult, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	result;
@@ -635,7 +635,7 @@ p_remove_bitmap_element(value vbm, type tbm, value vel, type tel,
 	Check_Bitmap(tbm);
 	Check_Integer(tel);
 
-	result = remove_bitmap_element(vbm.wptr, vel.nint, &new_bitmap);
+	result = remove_bitmap_element(vbm.wptr, vel.nint, &new_bitmap, ec_eng);
 
 	Return_Integer(vresult, tresult, result);
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
@@ -644,7 +644,7 @@ p_remove_bitmap_element(value vbm, type tbm, value vel, type tel,
 }
 
 word
-remove_bitmap_element(uword *bitmap, word el, uword **new_bm_ptr)
+remove_bitmap_element(uword *bitmap, word el, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	uword	*bits_ptr;
@@ -765,7 +765,7 @@ remove_bitmap_element(uword *bitmap, word el, uword **new_bm_ptr)
     */
 int
 p_remove_bitmap_range(value vbm, type tbm, value vlo, type tlo, value vhi, type thi,
-		value vresult, type tresult, value vnew_bm, type tnew_bm)
+		value vresult, type tresult, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	result;
@@ -774,7 +774,7 @@ p_remove_bitmap_range(value vbm, type tbm, value vlo, type tlo, value vhi, type 
 	Check_Integer(tlo);
 	Check_Integer(thi);
 
-	result = remove_bitmap_range(vbm.wptr, vlo.nint, vhi.nint, &new_bitmap);
+	result = remove_bitmap_range(vbm.wptr, vlo.nint, vhi.nint, &new_bitmap, ec_eng);
 
 	Return_Integer(vresult, tresult, result);
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
@@ -783,7 +783,7 @@ p_remove_bitmap_range(value vbm, type tbm, value vlo, type tlo, value vhi, type 
 }
 
 word
-remove_bitmap_range(uword *bitmap, word lo0, word hi0, uword **new_bm_ptr)
+remove_bitmap_range(uword *bitmap, word lo0, word hi0, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	uword	*bits_ptr;
@@ -805,9 +805,9 @@ remove_bitmap_range(uword *bitmap, word lo0, word hi0, uword **new_bm_ptr)
 	    result = RES_SLACK;
 	    new_bitmap = bitmap;
 	} else if (hi0 >= max) {
-	    return set_bitmap_upb(bitmap, lo0 - 1, new_bm_ptr);
+	    return set_bitmap_upb(bitmap, lo0 - 1, new_bm_ptr, ec_eng);
 	} else if (lo0 <= min) {
-	    return set_bitmap_lwb(bitmap, hi0 + 1, new_bm_ptr);
+	    return set_bitmap_lwb(bitmap, hi0 + 1, new_bm_ptr, ec_eng);
 	} else if (min > max) {
 	    /* Old domain was empty. */
 	    result = RES_EMPTY;
@@ -910,7 +910,7 @@ remove_bitmap_range(uword *bitmap, word lo0, word hi0, uword **new_bm_ptr)
     */
 int
 p_bitmap_intersect_into(value vbm, type tbm, value vbm2, type tbm2,
-		value vresult, type tresult, value vnew_bm, type tnew_bm)
+		value vresult, type tresult, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	result;
@@ -918,7 +918,7 @@ p_bitmap_intersect_into(value vbm, type tbm, value vbm2, type tbm2,
 	Check_Bitmap(tbm);
 	Check_Bitmap(tbm2);
 
-	result = bitmap_intersect_into(vbm.wptr, vbm2.wptr, 0, &new_bitmap);
+	result = bitmap_intersect_into(vbm.wptr, vbm2.wptr, 0, &new_bitmap, ec_eng);
 
 	Return_Integer(vresult, tresult, result);
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
@@ -933,7 +933,7 @@ p_bitmap_intersect_into(value vbm, type tbm, value vbm2, type tbm2,
     ** bitmap_shifted_intersect_into().
     */
 word
-bitmap_intersect_into(uword *bitmap, uword *bitmap2, word offset_adj, uword **new_bm_ptr)
+bitmap_intersect_into(uword *bitmap, uword *bitmap2, word offset_adj, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	uword	*bits_ptr;
@@ -1113,7 +1113,7 @@ bitmap_intersect_into(uword *bitmap, uword *bitmap2, word offset_adj, uword **ne
 int
 p_bitmap_shifted_intersect_into(value vbm, type tbm, value vbm2, type tbm2,
 		value vshift, type tshift, value vresult, type tresult,
-		value vnew_bm, type tnew_bm)
+		value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	result;
@@ -1123,7 +1123,7 @@ p_bitmap_shifted_intersect_into(value vbm, type tbm, value vbm2, type tbm2,
 	Check_Integer(tshift);
 
 	result = bitmap_shifted_intersect_into(vbm.wptr, vbm2.wptr,
-		vshift.nint, &new_bitmap);
+		vshift.nint, &new_bitmap, ec_eng);
 
 	Return_Integer(vresult, tresult, result);
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
@@ -1145,7 +1145,7 @@ offset_adj and the (non-negative) remainder bit_adj.
     = 32(i-offset_adj-1) + (32-bit_adj)
 */
 word
-bitmap_shifted_intersect_into(uword *bitmap, uword *bitmap2, word shift, uword **new_bm_ptr)
+bitmap_shifted_intersect_into(uword *bitmap, uword *bitmap2, word shift, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	uword	*bits_ptr;
@@ -1164,7 +1164,7 @@ bitmap_shifted_intersect_into(uword *bitmap, uword *bitmap2, word shift, uword *
 	bit_adj = shift % BPW;
 	if (bit_adj == 0) {
 	    /* Word-sized shift, so use the more efficient function. */
-	    return bitmap_intersect_into(bitmap, bitmap2, shift, new_bm_ptr);
+	    return bitmap_intersect_into(bitmap, bitmap2, shift, new_bm_ptr, ec_eng);
 	}
 	if (bit_adj < 0) {
 	    bit_adj += BPW;
@@ -1355,7 +1355,7 @@ bitmap_shifted_intersect_into(uword *bitmap, uword *bitmap2, word shift, uword *
     */
 
 int
-p_bitmaps_have_non_empty_intersection(value vbm, type tbm, value vbm2, type tbm2)
+p_bitmaps_have_non_empty_intersection(value vbm, type tbm, value vbm2, type tbm2, ec_eng_t *ec_eng)
 {
 	Check_Bitmap(tbm);
 	Check_Bitmap(tbm2);
@@ -1428,7 +1428,7 @@ bitmaps_have_non_empty_intersection(uword *bitmap, uword *bitmap2)
     **      NewBitmap.
     */
 int
-p_bitmap_union(value vbm, type tbm, value vbm2, type tbm2, value vnew_bm, type tnew_bm)
+p_bitmap_union(value vbm, type tbm, value vbm2, type tbm2, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	result;
@@ -1436,7 +1436,7 @@ p_bitmap_union(value vbm, type tbm, value vbm2, type tbm2, value vnew_bm, type t
 	Check_Bitmap(tbm);
 	Check_Bitmap(tbm2);
 
-	result = bitmap_union(vbm.wptr, vbm2.wptr, &new_bitmap);
+	result = bitmap_union(vbm.wptr, vbm2.wptr, &new_bitmap, ec_eng);
 
 	Return_If_Not_Success(result);
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
@@ -1445,7 +1445,7 @@ p_bitmap_union(value vbm, type tbm, value vbm2, type tbm2, value vnew_bm, type t
 }
 
 word
-bitmap_union(uword *bitmap, uword *bitmap2, uword **new_bm_ptr)
+bitmap_union(uword *bitmap, uword *bitmap2, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	uword	*bits_ptr;
@@ -1486,7 +1486,7 @@ bitmap_union(uword *bitmap, uword *bitmap2, uword **new_bm_ptr)
 	    /* Create a new bitmap from min(min,min2) to max(max,max2) */
 	    result = create_bitmap((min<min2)?min:min2,
 				   (max>max2)?max:max2,
-				   &new_bitmap);
+				   &new_bitmap, ec_eng);
 	    Return_If_Not_Success(result);
 
 	    new_low = Low(new_bitmap);
@@ -1558,13 +1558,13 @@ bitmap_union(uword *bitmap, uword *bitmap2, uword **new_bm_ptr)
     **      predicate always succeeds.
     */
 int
-p_copy_bitmap(value vbm, type tbm, value vnew_bm, type tnew_bm)
+p_copy_bitmap(value vbm, type tbm, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 
 	Check_Bitmap(tbm);
 
-	copy_bitmap(vbm.wptr, &new_bitmap);
+	copy_bitmap(vbm.wptr, &new_bitmap, ec_eng);
 
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
 
@@ -1572,7 +1572,7 @@ p_copy_bitmap(value vbm, type tbm, value vnew_bm, type tnew_bm)
 }
 
 void
-copy_bitmap(uword *bitmap, uword **new_bm_ptr)
+copy_bitmap(uword *bitmap, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	low, high;
@@ -1591,14 +1591,14 @@ copy_bitmap(uword *bitmap, uword **new_bm_ptr)
     **      NewBitmap.
     */
 int
-p_copy_bitmap_shifted(value vbm, type tbm, value vshift, type tshift, value vnew_bm, type tnew_bm)
+p_copy_bitmap_shifted(value vbm, type tbm, value vshift, type tshift, value vnew_bm, type tnew_bm, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 
 	Check_Bitmap(tbm);
 	Check_Integer(tshift);
 
-	copy_bitmap_shifted(vbm.wptr, vshift.nint, &new_bitmap);
+	copy_bitmap_shifted(vbm.wptr, vshift.nint, &new_bitmap, ec_eng);
 
 	Return_Bitmap(vnew_bm, tnew_bm, new_bitmap);
 
@@ -1606,7 +1606,7 @@ p_copy_bitmap_shifted(value vbm, type tbm, value vshift, type tshift, value vnew
 }
 
 void
-copy_bitmap_shifted(uword *bitmap, word shift, uword **new_bm_ptr)
+copy_bitmap_shifted(uword *bitmap, word shift, uword **new_bm_ptr, ec_eng_t *ec_eng)
 {
 	uword	*new_bitmap;
 	word	low, high;
@@ -1658,7 +1658,7 @@ copy_bitmap_shifted(uword *bitmap, word shift, uword **new_bm_ptr)
     **      Bitmap is empty.
     */
 int
-p_bitmap_range(value vbm, type tbm, value vmin, type tmin, value vmax, type tmax)
+p_bitmap_range(value vbm, type tbm, value vmin, type tmin, value vmax, type tmax, ec_eng_t *ec_eng)
 {
 	word	min, max;
 
@@ -1703,7 +1703,7 @@ bitmap_range(uword *bitmap, word *min_ptr, word *max_ptr)
     **      empty.
     */
 int
-p_get_bitmap_lwb(value vbm, type tbm, value vmin, type tmin)
+p_get_bitmap_lwb(value vbm, type tbm, value vmin, type tmin, ec_eng_t *ec_eng)
 {
 	word	min;
 
@@ -1743,7 +1743,7 @@ get_bitmap_lwb(uword *bitmap, word *min_ptr)
     **      empty.
     */
 int
-p_get_bitmap_upb(value vbm, type tbm, value vmax, type tmax)
+p_get_bitmap_upb(value vbm, type tbm, value vmax, type tmax, ec_eng_t *ec_eng)
 {
 	word	max;
 
@@ -1783,7 +1783,7 @@ get_bitmap_upb(uword *bitmap, word *max_ptr)
     **      Curr.  Fails if there is no such element.
     */
 int
-p_next_greater_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext)
+p_next_greater_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext, ec_eng_t *ec_eng)
 {
 	word	next;
 	word	result;
@@ -1863,7 +1863,7 @@ next_greater_member(uword *bitmap, word curr, word *next_ptr)
     **      Fails if there is no such element.
     */
 int
-p_next_smaller_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext)
+p_next_smaller_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext, ec_eng_t *ec_eng)
 {
 	word	next;
 	word	result;
@@ -1943,7 +1943,7 @@ next_smaller_member(uword *bitmap, word curr, word *next_ptr)
     **      Curr.  Always succeeds.
     */
 int
-p_next_greater_non_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext)
+p_next_greater_non_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext, ec_eng_t *ec_eng)
 {
 	word	next;
 
@@ -2010,7 +2010,7 @@ next_greater_non_member(uword *bitmap, word curr, word *next_ptr)
     **      Curr.  Always succeeds.
     */
 int
-p_next_smaller_non_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext)
+p_next_smaller_non_member(value vbm, type tbm, value vcurr, type tcurr, value vnext, type tnext, ec_eng_t *ec_eng)
 {
 	word	next;
 
@@ -2077,7 +2077,7 @@ next_smaller_non_member(uword *bitmap, word curr, word *next_ptr)
     **      set).  Always succeeds.
     */
 int
-p_bitmap_size(value vbm, type tbm, value vsize, type tsize)
+p_bitmap_size(value vbm, type tbm, value vsize, type tsize, ec_eng_t *ec_eng)
 {
 	word	size;
 
@@ -2118,7 +2118,7 @@ bitmap_size(uword *bitmap)
     **      Succeeds iff Bitmap contains the element Elem.
     */
 int
-p_bitmap_contains(value vbm, type tbm, value vel, type tel)
+p_bitmap_contains(value vbm, type tbm, value vel, type tel, ec_eng_t *ec_eng)
 {
 	Check_Bitmap(tbm);
 	Check_Integer(tel);
@@ -2159,7 +2159,7 @@ bitmap_contains(uword *bitmap, word el)
     **      inclusive.
     */
 int
-p_bitmap_contains_range(value vbm, type tbm, value vmin, type tmin, value vmax, type tmax)
+p_bitmap_contains_range(value vbm, type tbm, value vmin, type tmin, value vmax, type tmax, ec_eng_t *ec_eng)
 {
 	Check_Bitmap(tbm);
 	Check_Integer(tmin);
@@ -2238,7 +2238,7 @@ bitmap_contains_range(uword *bitmap, word min, word max)
     **      these conditions are true (the bitmaps are incomparable).
     */
 int
-p_compare_bitmaps(value vres, type tres, value vbm, type tbm, value vbm2, type tbm2)
+p_compare_bitmaps(value vres, type tres, value vbm, type tbm, value vbm2, type tbm2, ec_eng_t *ec_eng)
 {
 	int	res;
 	dident	result;

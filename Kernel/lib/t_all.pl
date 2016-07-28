@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.6 2015/01/14 01:31:09 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.7 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -63,7 +63,8 @@
 
 cputime(1).
 	
-statistics(runtime, [0, 0]).
+statistics(runtime, Value) :- !, Value = [0, 0].
+statistics(Name, Value) :- eclipse_language:statistics(Name, Value).
 
 
 :-      tool(test1/2, test1/3).
@@ -227,7 +228,8 @@ test2(File, Header, CompileGoal, RunGoal, M) :-
 
 	( RunOk == true ->			% if success, verify output
 	    ( similar_files(Reference,FileOut) ->
-		printf(test_log_output,"Ok, time = %.2f%n",Time),
+		statistics(dict_gc_number, NDGC),
+		printf(test_log_output,"Ok, time = %.2f, %d DGCs%n",[Time,NDGC]),
 		log_time_local(File, Time)
 	    ;
 		writeln(test_log_output, '***** PROBLEM - INCORRECT OUTPUT')

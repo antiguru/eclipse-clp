@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.4 2012/01/09 11:49:34 jschimpf Exp $
+ * $Id: os_support.h,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -33,13 +33,22 @@
  *		
  */
 
-#ifdef _WIN32
+#ifndef OS_SUPPORT_H
+#define OS_SUPPORT_H
+
+#include "ec_general.h"
+
 #ifndef DLLEXP
-#define DLLEXP __declspec(dllexport)
-#endif
+#ifdef _WIN32
+/* in case this file is included on its own, otherwise defined in sepia.h */
+#define DLLEXP __declspec(dllimport)
 #else
 #define DLLEXP
 #endif
+#else
+/* use includer's dllexport definition */
+#endif
+
 
 #include <sys/types.h>
 
@@ -103,6 +112,11 @@
 
 #define ERRNO_UNIX	0
 #define ERRNO_WIN32	1
+#ifdef _WIN32
+#define ERRNO_OS	ERRNO_WIN32
+#else
+#define ERRNO_OS	ERRNO_UNIX
+#endif
 
 #define Set_Sys_Errno(n,grp) { \
 	ec_os_errgrp_ = (grp); \
@@ -151,19 +165,18 @@ typedef    struct stat	struct_stat;
 typedef    struct stat	struct_stat;
 #endif
 
-extern char	ec_version[];
-extern int	clock_hz;
-extern int	ec_os_errno_;
-extern int	ec_os_errgrp_;
-extern int	ec_use_own_cwd;
-extern int      ec_sigalrm;
-extern int      ec_sigio;
+Extern char	ec_version[];
+Extern int	clock_hz;
+Extern int	ec_os_errno_;
+Extern int	ec_os_errgrp_;
+Extern int	ec_use_own_cwd;
+Extern int      ec_sigalrm;
+Extern int      ec_sigio;
 
 void	ec_os_init ARGS((void));
 void	ec_os_fini ARGS((void));
 char *	expand_filename ARGS((char *in, char *out, int option));
 char *	os_filename ARGS((char *in, char *out));
-extern DLLEXP	char *		os_filename ARGS((char *in, char *out));
 char *	canonical_filename ARGS((char *in, char *out));
 long	user_time ARGS((void));	/* ticks */
 int	all_times ARGS((double *user, double *system, double *elapsed));
@@ -173,21 +186,19 @@ int	ec_gethostname ARGS((char *buf, int size));
 int	ec_gethostid ARGS((char *buf, int size));
 int	get_cwd ARGS((char *buf, int size));
 int	ec_rename ARGS((char *, char *));
-void	ec_sleep ARGS((double));
-void	ec_bad_exit ARGS((char *));
 char *	ec_os_err_string ARGS((int err,int grp,char *buf,int size));
 char *	ec_env_lookup ARGS((char*, char*, int*));
 
 #ifdef HAVE_GETHOSTID
 #ifdef GETHOSTID_UNDEF
 #    if (SIZEOF_LONG == 8)
-extern int	gethostid();
+Extern int	gethostid();
 #    else
-extern long	gethostid();
+Extern long	gethostid();
 #    endif
 #  endif
 #else
-extern long	gethostid();
+Extern long	gethostid();
 #endif
 
 #ifndef HAVE_STRERROR
@@ -204,7 +215,6 @@ int	ec_truncate ARGS((int));
 #endif
 int	getpid ARGS((void));
 int	isatty ARGS((int));
-int	isascii ARGS((int));
 int	close ARGS((int));
 int	read ARGS((int, void *, unsigned int));
 int	write ARGS((int, const void *, unsigned int));
@@ -214,13 +224,91 @@ int	dup2 ARGS((int, int));
 int	getpagesize ARGS((void));
 int	ec_getch_raw ARGS((int));
 int	ec_putch_raw ARGS((int));
+#endif
+
+/* Use sigsetjmp if possible */
+#if defined(HAVE_DECL_SIGSETJMP) && !HAVE_DECL_SIGSETJMP
+#define siglongjmp(jb,r) longjmp(jb,r)
+#define sigsetjmp(jb,s) setjmp(jb)
+typedef jmp_buf sigjmp_buf;
+#endif
+
+
+/*
+ * Threads and synchronization
+ */
+
+#if 1	/* map mt_xxx functions to actual implementations */
+#define	mt_mutex_init(m)		ec_mutex_init(m,0)
+#define	mt_mutex_init_recursive(m) 	ec_mutex_init(m,1)
+#define	mt_mutex_destroy(m)		ec_mutex_destroy(m)
+#define	mt_mutex_lock(m)		ec_mutex_lock(m)
+#define	mt_mutex_trylock(m)		ec_mutex_trylock(m)
+#define	mt_mutex_unlock(m)		ec_mutex_unlock(m)
+
+#else /* disable all locking */
+#define	mt_mutex_init(m)		1
+#define	mt_mutex_init_recursive(m)	1
+#define	mt_mutex_destroy(m)		1
+#define	mt_mutex_lock(m)		1
+#define	mt_mutex_trylock(m)		1
+#define	mt_mutex_unlock(m)		1
+#endif
+
+
+#if _WIN32
+int ec_mutex_init(CRITICAL_SECTION*,int recursive);
+int ec_mutex_destroy(CRITICAL_SECTION*);
+int ec_mutex_lock(CRITICAL_SECTION*);
+int ec_mutex_trylock(CRITICAL_SECTION*);
+int ec_mutex_unlock(CRITICAL_SECTION*);
+int ec_mutex_was_locked(CRITICAL_SECTION*);
+int ec_cond_init(CONDITION_VARIABLE*);
+int ec_cond_destroy(CONDITION_VARIABLE*);
+int ec_cond_signal(CONDITION_VARIABLE*, int all);
+int ec_cond_wait(CONDITION_VARIABLE*, CRITICAL_SECTION*, int timeout_ms);
+
+#elif defined(HAVE_PTHREAD_H)
+#include <pthread.h>
+int ec_mutex_init(pthread_mutex_t*,int recursive);
+int ec_mutex_destroy(pthread_mutex_t*);
+int ec_mutex_lock(pthread_mutex_t*);
+int ec_mutex_trylock(pthread_mutex_t*);
+int ec_mutex_unlock(pthread_mutex_t*);
+int ec_mutex_was_locked(pthread_mutex_t*);
+int ec_cond_init(pthread_cond_t*);
+int ec_cond_destroy(pthread_cond_t*);
+int ec_cond_signal(pthread_cond_t*, int all);
+int ec_cond_wait(pthread_cond_t*, pthread_mutex_t*, int timeout_ms);
+#else
+#define ec_mutex_init(m,r)	1
+#define ec_mutex_destroy(m)	1
+#define ec_mutex_lock(m)	1
+#define ec_mutex_trylock(m)	1
+#define ec_mutex_unlock(m)	1
+#define ec_mutex_was_locked(m)	0
+#define ec_cond_init(c)		0
+#define ec_cond_destroy(c)	0
+#define ec_cond_signal(c,a)	0
+#define ec_cond_wait(c,m,t)	0
+#endif
+
 int	ec_set_alarm ARGS((double, double, void (*) ARGS((long)), long, double*, double*));
 void *	ec_make_thread ARGS((void));
 int	ec_start_thread ARGS((void* thread, int (*) ARGS((void*)), void* data));
 int	ec_thread_stopped ARGS((void* thread, int* result));
 int	ec_thread_wait ARGS((void* thread, int* result, int timeout));
 int	ec_thread_terminate ARGS((void* thread, int timeout));
-#endif
+
+int	ec_thread_create(void** os_thread, void*(*fun)(void*), void* arg);
+
+
+/* DLLEXP, because these are used in main() */
+Extern	DLLEXP	void *	ec_thread_self();
+Extern	DLLEXP	void	ec_thread_exit(void*);
+Extern	DLLEXP	void	ec_sleep ARGS((double));
+Extern	DLLEXP	void	ec_bad_exit ARGS((char *));
+
 
 /*
  * Functions that take filename arguments in ECLiPSe pathname syntax
@@ -243,3 +331,4 @@ int	ec_open ARGS((const char *, int, int));
 #define	ec_open(A,B,C) open(A,B,C)
 #endif
 
+#endif

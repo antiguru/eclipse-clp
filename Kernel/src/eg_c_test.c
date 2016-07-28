@@ -23,7 +23,7 @@
 /*
  * ECLiPSe SAMPLE CODE
  *
- * $Id: eg_c_test.c,v 1.2 2013/01/17 23:41:09 jschimpf Exp $
+ * $Id: eg_c_test.c,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf
  *
@@ -32,6 +32,8 @@
  */
 
 #include	<stdio.h>
+
+#define USES_NO_ENGINE_HANDLE
 #include	"eclipse.h"
 
 long	longs[] = {1,2,3,4,5};

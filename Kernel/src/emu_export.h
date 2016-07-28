@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.13 2015/04/02 14:35:46 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.14 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -44,20 +44,23 @@
  * macros to recognise control frames
  */
 
-extern vmcode	it_fail_code_[],
+extern vmcode
+		engine_exit_code_[],
 		gc_fail_code_[],
 		soft_cut_code_[],
 		slave_fail_code_[],
 		stop_fail_code_[],
+		recurs_fail_code_[],
 		*catch_fail_code_,
 		catch_unint_fail_code_[],
 		external_fail_code_[],
 		exception_fail_code_[];
 
-#define IsInterruptFrame(top)\
-        ((vmcode *)(top)->backtrack == it_fail_code_)
+#define IsNestingFrame(top)\
+        ((vmcode *)(top)->backtrack == recurs_fail_code_)
 #define IsRecursionFrame(top)\
         ((vmcode *)(top)->backtrack == stop_fail_code_ ||\
+         (vmcode *)(top)->backtrack == recurs_fail_code_ ||\
 	 (vmcode *)(top)->backtrack == slave_fail_code_)
 #define IsExceptionFrame(top)\
         ((vmcode *)(top)->backtrack == exception_fail_code_)
@@ -93,7 +96,6 @@ extern vmcode	it_fail_code_[],
 #define Exception(pw)	((struct exception_frame *)(pw))
 #define Chp(pw)		((struct choice_frame *)(pw))
 #define ChpPar(pw)	((struct parallel_frame *)(pw))
-#define ChpInline(pw)	((struct inline_frame *)(pw))
 #define ChpDbg(pw)	((struct choice_debug *)(pw))
 
 /* macros for accessing choicepoint fields */
@@ -104,7 +106,6 @@ extern vmcode	it_fail_code_[],
 #define BTop(pw)	((Top(pw)-1))
 #define BChp(pw)	((Top(pw)-1)->frame.chp)
 #define BPar(pw)	((Top(pw)-1)->frame.chp_par)
-#define BInline(pw)	((Top(pw)-1)->frame.chp_inline)
 #define BException(pw)	((Top(pw)-1)->frame.exception)
 #define BInvoc(pw)	((Top(pw)-1)->frame.invoc)
 
@@ -163,6 +164,8 @@ extern vmcode	it_fail_code_[],
 
 #define EAM_CHUNK_SZ	31
 
+#define Esize(size)	((vmcode)((size) * (word)sizeof(pword)))
+
 #define EdescIsSize(ed)	(((ed) & 3) == 0)
 #define EdescSize(ed,e)	((ed) == -((word)sizeof(pword)) ? DynEnvSize(e) : (ed) / (word)sizeof(pword))
 
@@ -190,15 +193,16 @@ extern vmcode	it_fail_code_[],
  * Overflow checks and garbage collection
  *---------------------------------------------------------------------------*/
 
-extern int	control_ov ARGS((void)), local_ov ARGS((void));
+extern int	control_ov ARGS((ec_eng_t*)),
+		local_ov ARGS((ec_eng_t*));
 
 #ifdef IN_C_EMULATOR
 #undef Check_Trail_Ov
 #define Check_Trail_Ov  if (TT <= TT_LIM) \
-	{ Export_B_Sp_Tg_Tt trail_ov(); Import_None }
+	{ Export_B_Sp_Tg_Tt trail_ov(ec_eng); Import_None }
 #undef Check_Gc
 #define Check_Gc        if (TG >= TG_LIM) \
-	{ Export_B_Sp_Tg_Tt global_ov(); Import_None }
+	{ Export_B_Sp_Tg_Tt global_ov(ec_eng); Import_None }
 #endif
 
 #define LOCAL_CONTROL_GAP (SAFE_B_AREA+NARGREGS+sizeof(struct invocation_frame))
@@ -541,7 +545,7 @@ extern pword	*spmax_;
 		break;\
 	  case TRAIL_EXT:\
 		Untrail_Export;\
-		untrail_ext(ttptr, UNDO_FAIL);\
+		untrail_ext(ec_eng, ttptr, UNDO_FAIL);\
 		Untrail_Import;\
 		ttptr += TrailedEsize(*ttptr);\
 		break;\
@@ -572,17 +576,17 @@ extern pword	*spmax_;
 /*---------------------------------------------------------------------------
  * Mechanism to flag asynchronous events by simulating a stack overflow
  *
- * A shadow register TG_SLS always holds the corect value of TG_SL.
+ * A shadow register TG_SLS always holds the correct value of TG_SL.
  * TG_SL itself can be set to 0 (thus faking a stack overflow) in order
  * to trigger synchronous engine events.
  * Whenever TG_SL or TG_LIM is changed, make sure that TG_SL =< TG_LIM !!
  * Use only the macros below to manipulate TG_SL, TG_SLS and TG_LIM!
  *---------------------------------------------------------------------------*/
 
-#define FakedOverflow	(TG_SL == (pword *) 0)
+#define FakedOverflow	(atomic_load(&TG_SL) == NULL)
 
 #define Fake_Overflow				\
-	TG_SL = (pword *) 0;
+	atomic_store(&TG_SL, (pword *) 0)
 
 #define Interrupt_Fake_Overflow {		\
 	Fake_Overflow;				\
@@ -638,8 +642,7 @@ extern pword	*spmax_;
 #define Compute_Gcb(gcb) {			\
 	pword *_gcb = B.args;			\
 	while (BChp(_gcb)->tg >= GCTG  &&	\
-	    !(IsInterruptFrame(BTop(_gcb)) ||	\
-		IsRecursionFrame(BTop(_gcb)) ||	\
+	    !(IsRecursionFrame(BTop(_gcb)) ||	\
 		IsExceptionFrame(BTop(_gcb))))	\
 	{					\
 	    _gcb = BPrev(_gcb);			\
@@ -653,17 +656,15 @@ extern pword	*spmax_;
 
 
 #ifdef IN_C_EMULATOR
-#define Poll_Interrupts()			\
-	if (EVENT_FLAGS & DEL_IRQ_POSTED) {	\
-	    Export_B_Sp_Tg_Tt			\
-	    ec_handle_async();			\
-	    Import_None				\
-	}
+#define Poll_Interrupts() {			\
+	if (EVENT_FLAGS & THROW_REQUEST)	\
+	    goto _do_requested_throw_;		\
+    }
 #else
-#define Poll_Interrupts()			\
-	if (EVENT_FLAGS & DEL_IRQ_POSTED) {	\
-	    ec_handle_async();			\
-	}
+#define Poll_Interrupts(jump) {			\
+	if (EVENT_FLAGS & THROW_REQUEST)	\
+	    return ecl_do_requested_throw(ec_eng, jump); \
+    }
 #endif
 
 /*---------------------------------------------------------------------------
@@ -711,7 +712,7 @@ extern pword	*spmax_;
 	pword	aux_pw;					\
 	aux_pw.val.all = (uword) (term);		\
 	aux_pw.tag.kernel = (termtag);			\
-	return bind_c((vval).ptr, &aux_pw, &MU);	\
+	return bind_c(ec_eng, (vval).ptr, &aux_pw, &MU);	\
     }
 	
 #define Request_Bind_Var(vval, vtag, term, termtag)	\
@@ -722,7 +723,7 @@ extern pword	*spmax_;
 	    pword	aux_pw;				\
 	    aux_pw.val.all = (uword) (term);		\
 	    aux_pw.tag.kernel = (termtag);		\
-	    uNiFy_result = bind_c((vval).ptr, &aux_pw, &MU);\
+	    uNiFy_result = bind_c(ec_eng, (vval).ptr, &aux_pw, &MU);\
 	}						\
     }
 
@@ -739,7 +740,7 @@ extern pword	*spmax_;
 	pword	aux_pw;				\
 	aux_pw.val.all = (uword) (term);	\
 	aux_pw.tag.kernel = (termtag);		\
-	(void) bind_c((vval).ptr, &aux_pw, &MU);\
+	(void) bind_c(ec_eng, (vval).ptr, &aux_pw, &MU);\
     }
 
 #endif /* IN_C_EMULATOR */
@@ -813,6 +814,27 @@ extern pword	*spmax_;
     }
 #endif
 
+
+/*---------------------------------------------------------------------------
+ * Acquire objects for engine
+ *---------------------------------------------------------------------------*/
+
+/*
+ * Get a reference and a lock on the stream
+ * (with auto-cleanup on return from the external)
+ * mode=0:	any descriptor, even closed
+ * mode=SRDWR:	require open descriptor
+ * mode=SREAD:	require read-descriptor
+ * mode=SWRITE:	require write-descriptor
+ */
+
+#define Get_Locked_Stream(v, t, mode, nst) {			\
+	int err_or_copied;					\
+	nst = get_stream_id(v, t, mode, 1, ec_eng, &err_or_copied);	\
+	if (nst == NO_STREAM) { Bip_Error(err_or_copied) }	\
+    }
+
+
 /*---------------------------------------------------------------------------
  * Coroutining / Metaterms
  *---------------------------------------------------------------------------*/
@@ -825,7 +847,7 @@ extern pword	*spmax_;
  * i.e. ( name1:Attr1 , name2:Attr , ... , nameN:AttrN )
  * N*3 for every :/2 structure plus (N-1)*3 for every ,/2
  */
-#define ATTR_IO_TERM_SIZE (6 * p_meta_arity_->val.nint - 3)
+#define ATTR_IO_TERM_SIZE (6 * MetaArity - 3)
 
 
 #define Push_var_delay(vptr, tdummy) {			\
@@ -1130,7 +1152,7 @@ extern pword	*spmax_;
  * Occur Check
  *---------------------------------------------------------------------------*/
 
-#define OccurCheckEnabled()	(GlobalFlags & OCCUR_CHECK)
+#define OccurCheckEnabled()	(EclGblFlags & OCCUR_CHECK)
 
 #ifdef OC
 
@@ -1502,15 +1524,117 @@ extern dident transf_did ARGS((word));
 
 
 /*---------------------------------------------------------------------------
- * Resume types
+ * Engines
  *---------------------------------------------------------------------------*/
 
-#define RESUME_CONT		0
-#define RESUME_SIMPLE		1
+#define ENG_MIN_LOCAL	64	/* kbytes */
+#define ENG_MIN_GLOBAL	256	/* kbytes */
+
+/* Resume types */
+#define RESUME_CONT	0
+#define RESUME_SIMPLE	1
+
+/* Option argument for ecl_resume_goal() */
+#define GOAL_CALL	0
+#define GOAL_CUT	1
+#define GOAL_NOTNOT	2
+#define GOAL_CUTFAIL	3
+#define GOAL_CATCH	4	/* bit-significant */
+
+#define YIELD_ARITY	4	/* valid arguments when engine yielded */
+
+#define PAUSE_NOT_EXITABLE		0
+#define PAUSE_EXITABLE_VIA_LONGJMP	1
+#define PAUSE_EXITABLE_VIA_JOIN		2
+
+#define EngIsDead(eng) 			(!((eng)->tg))	/* no stacks */
+#define EngIsFree(eng)			(!(eng)->owner_thread)
+#define EngIsOurs(eng)			((eng)->owner_thread == ec_thread_self())
+#define EngIsPaused(eng)		((eng)->paused)
+#define EngPauseArity(eng)		((eng)->paused>>3)
+#define EngPauseExitable(eng)		((eng)->paused & 0x3)
+#define PauseType(arity,exitability)	(((arity)<<3)|0x4|exitability)
+
+#define EngPrintId(eng)	((word)eng/0x1000)
+#define EngLogMsg(eng,msg,...) {\
+    if ((eng)->vm_flags & ENG_VERBOSE) {\
+ 	p_fprintf(log_output_, "Engine %x: " msg "\n", EngPrintId(eng), __VA_ARGS__);\
+	ec_flush(log_output_);\
+    }\
+}
+
+/*---------------------------------------------------------------------------
+ * Cleanup mechanism
+ * We have a stack, implemented as a doubly linked list of elements.
+ * The elements contain a function pointer and an object pointer.
+ * Require_Cleanup(f,p) pushes an element onto the stack.
+ * Do_Cleanup() calls the cleanup functions for all elements in
+ * reverse order, with the object pointer as argument.
+ * There is always one unused list element, pointed to by ec_eng->cleanup.
+ * New elements are allocated when needed, but only deallocated finally.
+ * ->down points down the stack, to used elements
+ * ->up points up to (further) currently unused elements
+ *---------------------------------------------------------------------------*/
+
+#define Init_Cleanup()\
+	ec_eng->cleanup_bot = ec_eng->cleanup = (action_list_t*) hp_alloc_size(sizeof(action_list_t));\
+	ec_eng->cleanup->down = NULL;\
+	ec_eng->cleanup->up = NULL;
+
+#define NoCleanup(eng)\
+	((eng)->cleanup == (eng)->cleanup_bot)
+
+#define Require_Cleanup(fun,ptr) {\
+	action_list_t *pa = ec_eng->cleanup;\
+	pa->action = (void(*)(void*))(fun);\
+	pa->thing = (void*)(ptr);\
+	pa = pa->up;\
+	if (!pa) {\
+	    pa = (action_list_t*) hp_alloc_size(sizeof(action_list_t));\
+	    pa->down = ec_eng->cleanup;\
+	    pa->up = NULL;\
+	    ec_eng->cleanup->up = pa;\
+	}\
+	ec_eng->cleanup = pa;\
+    }
+
+#define Do_Cleanup() {\
+	action_list_t *pa = ec_eng->cleanup;\
+	/* cleanup until current bottom */\
+	while (pa != ec_eng->cleanup_bot) {\
+	    pa = pa->down;\
+	    pa->action(pa->thing);\
+	}\
+	ec_eng->cleanup = pa;\
+    }
+
+#define Fini_Cleanup() {\
+	action_list_t *pa = ec_eng->cleanup;\
+	/* cleanup any remaining entries */\
+	while (pa->down) {\
+	    pa = pa->down;\
+	    pa->action(pa->thing);\
+	}\
+	/* free the whole list */\
+	while(pa) {\
+	    action_list_t *ptmp = pa;\
+	    pa = pa->up;\
+	    hp_free_size(ptmp, sizeof(action_list_t));\
+	}\
+	ec_eng->cleanup_bot = ec_eng->cleanup = NULL;\
+    }
+
+
+/* common special cases */
+#define Require_Unlock(plock)\
+	Require_Cleanup(ec_cleanup_unlock, plock)
+
+#define Require_Release(ext_type_desc, pobject)\
+	Require_Cleanup((ext_type_desc).free, pobject)
 
 
 /*---------------------------------------------------------------------------
- * Aritmetic comparisons, for arith_compare()
+ * Arithmetic comparisons, for arith_compare()
  *---------------------------------------------------------------------------*/
 
 #define BILt	1
@@ -1521,58 +1645,151 @@ extern dident transf_did ARGS((word));
 #define BINe	6
 #define BILeGe	7	/* =< or >=, needed for sorting */
 
+
 /*---------------------------------------------------------------------------
  * Prototypes
  *---------------------------------------------------------------------------*/
 
-Extern	void	re_fake_overflow ARGS((void));
-Extern	int	query_emulc ARGS((value, type, value, type));
-Extern	int	query_emulc_noexit ARGS((value, type, value, type));
-Extern	int	sub_emulc ARGS((value, type, value, type));
-Extern	DLLEXP	int	sub_emulc_noexit ARGS((value, type, value, type));
-Extern	int	boot_emulc ARGS((value, type, value, type));
-Extern	int	debug_emulc ARGS((value, type, value, type));
-Extern	int	slave_emulc ARGS((void));
-Extern	int	restart_emulc ARGS((void));
-Extern	int	it_emulc ARGS((value, type));
-Extern	int	return_throw ARGS((value, type));
-Extern	int	longjmp_throw ARGS((value, type));
-Extern	void	next_posted_event ARGS((pword *));
-Extern	int	deep_suspend ARGS((value, type, int, pword*, int));
-Extern	DLLEXP	pword *	add_attribute ARGS((word, pword*, word, int));
-Extern	DLLEXP	int	insert_suspension ARGS((pword*, int, pword*, int));
-Extern	DLLEXP	int	notify_constrained ARGS((pword*));
-Extern	pword *	first_woken ARGS((int));
-Extern	pword *	wl_init ARGS((void));
-Extern	DLLEXP	int 	bind_c ARGS((pword*, pword*, pword**));
-Extern	int 	meta_bind ARGS((pword*, value, type));
-Extern	DLLEXP	int 	ec_assign ARGS((pword*, value, type));
-Extern	DLLEXP	int 	ec_schedule_susps ARGS((pword*));
-Extern	DLLEXP	int ec_double_to_int_or_bignum ARGS((double, pword *));
+Extern	void	ec_exit ARGS((int));
+Extern	void	re_fake_overflow ARGS((ec_eng_t*));
+Extern	int	sub_emulc_opt ARGS((ec_eng_t*, value, type, value, type, int));
+Extern	int	ecl_subgoal ARGS((ec_eng_t*, pword, pword, int));
+Extern	int	boot_emulc ARGS((ec_eng_t*, value, type, value, type));
+Extern	int	slave_emulc ARGS((ec_eng_t*));
+Extern	int	resume_emulc ARGS((ec_eng_t*));
+Extern	DLLEXP	int ecl_engine_init(ec_eng_t *parent_eng, ec_eng_t *new_eng);
+Extern	DLLEXP	int ecl_engines_init(t_eclipse_options*, ec_eng_t **);
+Extern	int	ecl_init_aux(t_eclipse_options *, ec_eng_t *, int);
+Extern	void	ecl_engine_exit ARGS((ec_eng_t*, int));
+Extern	int	ecl_housekeeping(ec_eng_t*, word valid_args, int allow_exit);
+Extern	void	ecl_pause_engine(ec_eng_t *ec_eng, int arity, int allow_exit);
+Extern	void	ecl_unpause_engine(ec_eng_t *ec_eng);
+#if 0
+Extern	int	return_throw ARGS((ec_eng_t*, value, type));
+Extern	void	longjmp_throw ARGS((ec_eng_t*, value, type));
+#endif
+Extern	int	ecl_do_requested_throw(ec_eng_t*,int);
+Extern	void	delayed_exit ARGS((ec_eng_t*));
+Extern	void	next_posted_event ARGS((ec_eng_t*, pword *));
+Extern	int	next_urgent_event ARGS((ec_eng_t*));
+Extern	int	deep_suspend ARGS((ec_eng_t*, value, type, int, pword*, int));
+Extern	DLLEXP	pword *	add_attribute ARGS((ec_eng_t*, word, pword*, word, int));
+Extern	DLLEXP	int	insert_suspension ARGS((ec_eng_t*, pword*, int, pword*, int));
 
-Extern	pword *	ec_keysort ARGS((value, value, type, int, int, int, int *));
+#define	notify_constrained(p) ecl_notify_constrained(ec_eng,p)
+Extern	DLLEXP	int	ecl_notify_constrained ARGS((ec_eng_t*,pword*));
+
+Extern	pword *	first_woken ARGS((ec_eng_t*, int));
+Extern	pword *	wl_init ARGS((ec_eng_t*));
+Extern	DLLEXP	int 	bind_c ARGS((ec_eng_t*, pword*, pword*, pword**));
+Extern	int 	meta_bind ARGS((ec_eng_t*, pword*, value, type));
+
+#define ec_schedule_susps(p) ecl_schedule_susps(ec_eng,p)
+Extern	DLLEXP	int 	ecl_schedule_susps ARGS((ec_eng_t*,pword*));
+
+#define ec_double_to_int_or_bignum(d,p) ecl_double_to_int_or_bignum(ec_eng,d,p)
+Extern	DLLEXP	int ecl_double_to_int_or_bignum ARGS((ec_eng_t*, double, pword *));
+
+#define ec_keysort(l,vk,tk,r,d,n,e) ecl_keysort(ec_eng,l,vk,tk,r,d,n,e)
+Extern	pword *	ecl_keysort ARGS((ec_eng_t*, value, value, type, int, int, int, int *));
+
 Extern	pword *	ec_nonground ARGS((value, type));
-Extern	void	untrail_ext ARGS((pword**,int));
-Extern	void	do_cut_action ARGS((void));
-Extern	DLLEXP	void	schedule_cut_fail_action ARGS((void (*)(value,type), value, type));
-Extern	void	trail_undo ARGS((pword*, void (*)(pword*)));
+
+Extern	void	untrail_ext ARGS((ec_eng_t*,pword**,int));
+Extern	void	do_cut_action ARGS((ec_eng_t*));
+
+#define	schedule_cut_fail_action(f,v,t) ecl_schedule_cut_fail_action(ec_eng, (void(*)(value,type,ec_eng_t*))f, v, t)
+Extern	DLLEXP	void	ecl_schedule_cut_fail_action ARGS((ec_eng_t*, void (*)(value,type,ec_eng_t*), value, type));
+
 Extern	dident	meta_name ARGS((int));
-Extern	int	p_schedule_woken ARGS((value, type));
-Extern	DLLEXP	int	p_schedule_postponed ARGS((value, type));
+Extern	DLLEXP	int	meta_index ARGS((dident));
+Extern	int	p_schedule_woken ARGS((value, type, ec_eng_t*));
+Extern	DLLEXP	int	p_schedule_postponed ARGS((value, type, ec_eng_t*));
 Extern	int	ec_compare_terms ARGS((value, type, value, type));
-Extern	int	trim_global_trail ARGS((uword));
-Extern	int	trim_control_local ARGS((void));
+Extern	int	trim_global_trail ARGS((ec_eng_t*,uword));
+Extern	int	trim_control_local ARGS((ec_eng_t*));
 Extern	void	mark_dids_from_pwords ARGS((pword *from, register pword *to));
 Extern	int	ec_occurs ARGS((value vs, type ts, value vterm, type tterm));
-Extern	void	ec_init_dynamic_event_queue ARGS((void));
-Extern	void	trim_dynamic_event_queue ARGS((void));
-Extern	void	purge_disabled_dynamic_events ARGS((t_heap_event *event));
-Extern	DLLEXP	int p_merge_suspension_lists ARGS((value, type, value, type, value, type, value, type));
-Extern	DLLEXP	int p_set_suspension_priority ARGS((value, type, value, type));
-Extern	DLLEXP	int ec_enter_suspension ARGS((pword *, pword *));
-Extern	DLLEXP	int unary_arith_op ARGS((value,type,value,type,int,int));
-Extern	int	binary_arith_op ARGS((value,type,value,type,value,type,int));
-Extern	int	un_arith_op ARGS((value,type,pword *,int,int));
-Extern	int	bin_arith_op ARGS((value,type,value,type,pword *,int));
-Extern	void	ec_handle_async ARGS((void));
+Extern	void	ec_init_dynamic_event_queue ARGS((ec_eng_t*));
+Extern	void	trim_dynamic_event_queue ARGS((ec_eng_t*));
+Extern	void	purge_disabled_dynamic_events ARGS((ec_eng_t*, t_heap_event *event));
+Extern	DLLEXP	int p_merge_suspension_lists ARGS((value, type, value, type, value, type, value, type, ec_eng_t*));
+Extern	DLLEXP	int p_set_suspension_priority ARGS((value, type, value, type, ec_eng_t*));
+
+#define ec_enter_suspension(t,s) ecl_enter_suspension(ec_eng,t,s)
+Extern	DLLEXP	int ecl_enter_suspension ARGS((ec_eng_t*,pword *, pword *));
+
+/* from handlers.c */
+Extern	int	ec_sigio;
+Extern	int	ec_signalnum(value vsig, type tsig);
+Extern	int	ec_thread_reinstall_handlers(void*);
+Extern	void	ec_send_signal(int);
+Extern	void	ec_signal_dict_gc(void);
+
+/* from bip_arith.c */
+Extern	DLLEXP	int unary_arith_op ARGS((value,type,value,type,ec_eng_t*,int,int));
+Extern	int	binary_arith_op ARGS((value,type,value,type,value,type,ec_eng_t*,int));
+Extern	int	un_arith_op ARGS((value,type,pword *,ec_eng_t*,int,int));
+Extern	int	bin_arith_op ARGS((value,type,value,type,pword *,ec_eng_t*,int));
+Extern	int	arith_compare(ec_eng_t*, value v1, type t1, value v2, type t2, int *res);
+
+/* from bip_tconv.c */
+Extern	pword * ec_chase_arg ARGS((value vn, type tn, value vt, type tt, int *perr));
+Extern	uword	ec_term_hash ARGS((value vterm, type tterm, uword maxdepth, int *pres));
+
+/* from bigrat.c */
+Extern	int	ec_array_to_big ARGS((ec_eng_t *ec_eng, const void *p, int count, int order, int size, int endian, unsigned nails, pword *result));
+Extern	int	ec_big_to_chunks ARGS((ec_eng_t *ec_eng, pword *pw1, uword chunksize, pword *result));
+
+/* from bip_array.c */
+Extern	int	make_kernel_array ARGS((ec_eng_t *ec_eng, dident adid, int length, dident atype, dident avisib));
+Extern	pword *	get_kernel_array ARGS((dident adid));
+Extern	uword *	get_elt_address ARGS((value v, type t, uword *kind, dident mod_did, type mod_tag, int *perr));
+Extern	word	get_first_elt ARGS((pword *p, pword *q, uword *kind, uword *size, dident vmod_did, type mod_tag));
+
+/* from init.c */
+Extern	int	eclipse_global_init(int init_flags);
+Extern	int	eclipse_boot(ec_eng_t*, char *initfile);
+
+/* from gc_stacks.c */
+Extern	int	in_exception(ec_eng_t *ec_eng);
+
+/* from bip_delay.c */
+Extern	int	ecl_prune_suspensions(ec_eng_t *, pword *);
+
+/* from handle.c */
+Extern	void	handle_copy_anchor(pword*,pword*,ec_eng_t*);
+
+/* from bip_engines.c */
+Extern	int	ecl_free_engine(ec_eng_t *ec_eng, int locked);
+Extern	ec_eng_t * ecl_copy_engine(ec_eng_t *ec_eng);
+Extern	ec_eng_t * ecl_resurrect_engine(ec_eng_t *ec_eng);
+
+/* from term_copy.c */
+Extern	int	ec_copy_term_across(ec_eng_t *from_eng, ec_eng_t *ec_eng, value v, type t, pword *dest, int with_attributes);
+Extern	int	unreference_embedded_handle(t_ext_ptr handle, pword *root);
+
+/* from bip_misc.c */
+Extern	void	ec_frand_init(int32 *pstate);
+
+/* from printam.c */
+Extern	vmcode * print_am(vmcode *, vmcode **, int *, int);
+Extern	void	print_instr(vmcode *, int);
+
+/* from bip_engines.c */
+Extern	t_ext_type engine_tid;
+
+/* from bip_heapevents.c */
+Extern	t_ext_type heap_event_tid;
+Extern	t_ext_ptr ec_new_heap_event(value vgoal, type tgoal, value vm, type tm, int defers);
+
+/* from bip_record.c */
+Extern t_ext_type heap_rec_header_tid;
+Extern t_ext_ptr ec_record_create(void);
+
+/* from bip_shelf.c */
+Extern	int ecl_shelf_create(value v, type t, pword *pshelf, ec_eng_t *ec_eng);
+
+/* from bip_strings.c */
+Extern	pword	*empty_string;
 

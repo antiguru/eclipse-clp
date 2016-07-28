@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.10 2016/07/24 19:34:45 jschimpf Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.11 2016/07/28 03:34:36 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -51,7 +51,7 @@
 :- comment(categories, ["Interfacing"]).
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2016/07/24 19:34:45 $").
+:- comment(date, "$Date: 2016/07/28 03:34:36 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -152,33 +152,33 @@ load_dynamic_mysql(_, _).	% else rely on implicit loading via PATH
 	load(F).
 
 
-:- external(	s_init/1,	p_session_init),
-   external(	s_start/5,	p_session_start),
-   external(	s_error_value/3,	p_session_error_value),
-   external(	s_commit/1,	p_session_commit),
-   external(	s_rollback/1,	p_session_rollback),
-   external(	s_close/1,	p_session_close),
+:- external(	s_init/1,	p_session_init(args)),
+   external(	s_start/5,	p_session_start(args)),
+   external(	s_error_value/3,	p_session_error_value(args)),
+   external(	s_commit/1,	p_session_commit(args)),
+   external(	s_rollback/1,	p_session_rollback(args)),
+   external(	s_close/1,	p_session_close(args)),
 
-%   external(	s_sql_ddl/2,	p_session_sql_ddl),
-   external(	s_sql_dml/3,	p_session_sql_dml),
-   external(	s_sql_query/6,	p_session_sql_query),
-   external(	s_sql_prepare/5,	p_session_sql_prepare),
-   external(	s_sql_prepare_query/6,	p_session_sql_prepare_query),
-   external(    s_set_in_transaction/2, p_session_set_in_transaction),
-   external(    s_is_in_transaction/1,  p_session_is_in_transaction),
+%   external(	s_sql_ddl/2,	p_session_sql_ddl(args)),
+   external(	s_sql_dml/3,	p_session_sql_dml(args)),
+   external(	s_sql_query/6,	p_session_sql_query(args)),
+   external(	s_sql_prepare/5,	p_session_sql_prepare(args)),
+   external(	s_sql_prepare_query/6,	p_session_sql_prepare_query(args)),
+   external(    s_set_in_transaction/2, p_session_set_in_transaction(args)),
+   external(    s_is_in_transaction/1,  p_session_is_in_transaction(args)),
    
-   external(	cursor_next_exec/3,	p_cursor_next_execute),
-   external(	cursor_N_execute/4,	p_cursor_N_execute),
-   external(	cursor_next_tuple/2,	p_cursor_next_tuple),
-   external(	cursor_N_tuples/4,	p_cursor_N_tuples),
+   external(	cursor_next_exec/3,	p_cursor_next_execute(args)),
+   external(	cursor_N_execute/4,	p_cursor_N_execute(args)),
+   external(	cursor_next_tuple/2,	p_cursor_next_tuple(args)),
+   external(	cursor_N_tuples/4,	p_cursor_N_tuples(args)),
    
-   external(	c_field_value/3,	p_cursor_field_value),
-   external(    cursor_free/1,          p_cursor_free),
+   external(	c_field_value/3,	p_cursor_field_value(args)),
+   external(    cursor_free/1,          p_cursor_free(args)),
    
-   external(	handle_free_eagerly/1,	p_handle_free_eagerly),
+   external(	handle_free_eagerly/1,	p_handle_free_eagerly(args)),
 
-   external(	dbi_init/1,		p_dbi_init),
-   external(    dbi_final/0,		p_dbi_final).
+   external(	dbi_init/1,		p_dbi_init(args)),
+   external(    dbi_final/0,		p_dbi_final(args)).
 
 
 :- include(mysqlopts).

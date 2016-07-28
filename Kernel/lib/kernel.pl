@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.57 2016/07/24 19:34:44 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.58 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -151,6 +151,8 @@
 :- tool((not)/1, fail_if_body/2),
    tool(setval/2, setval_body/3),
    tool(getval/2, getval_body/3),
+   tool(setref/2, setref_/3),
+   tool(getref/2, getref_/3),
    tool(use_module/1, use_module_body/2),
    tool((<)/2, (<)/3),
    tool((>)/2, (>)/3),
@@ -168,6 +170,7 @@
    tool(untraced_block/3, block/4),
    tool(printf_with_current_modes/2, printf_with_current_modes_body/3),
    tool(printf_goal/2, printf_goal_body/3),
+   tool(printf_goal/3, printf_goal_body/4),
    tool(readvar/3, readvar/4),
    tool(get_chtab/2, get_chtab_/3),
    tool(set_chtab/2, set_chtab_/3),
@@ -184,7 +187,10 @@
    tool(call/2, call2_/3),
    tool(call_local/1, call_local/2),
    tool(current_record/1, current_record_body/2),
+   tool(define_macro/3, define_macro_/4),
    tool(set_syntax/2, set_syntax_/3),
+   tool(engine_resume/3, engine_resume_/4),
+   tool(engine_resume_thread/2, engine_resume_thread_/3),
    tool(ensure_loaded/1, ensure_loaded/2),
    tool(erase/2, erase_body/3),
    tool(erase_all/1, erase_all_body/2),
@@ -196,13 +202,12 @@
    tool(bip_error/2, bip_error_/3),
    tool(findall/3, findall_body/4),
    tool(get_flag/2, get_flag_body/3),
-   tool(recorded_list/2, recorded_list_body/3),
    tool(lock/0, lock/1),
    tool(lock_pass/1, lock_pass_/2),
    tool(local_record/1, local_record_body/2),
    tool(mutex_init/1, mutex_init_body/2),
    tool(mutex/2, mutex_body/3),
-   tool(mutex_one/2, mutex_one_body/3),
+   tool(with_mutex/2, with_mutex_/3),
    tool(nested_compile_term/1, nested_compile_term_/2),
    tool(nested_compile_term_annotated/2, nested_compile_term_annotated_/3),
    tool(number_string/2, number_string_/3),
@@ -227,6 +232,7 @@
    tool(recorded/3, recorded_body/4),
    tool(recordedchk/2, recordedchk_body/3),
    tool(recordedchk/3, recordedchk_body/4),
+   tool(recorded_count/2, recorded_count_/3),
    tool(recorded_list/2, recorded_list_body/3),
    tool(recorded_refs/3, recorded_refs_body/4),
    tool(recordz/2, recordz_body/3),
@@ -239,6 +245,9 @@
    tool(shelf_get/3, shelf_get_/4),
    tool(shelf_inc/2, shelf_inc_/3),
    tool(shelf_set/3, shelf_set_/4),
+   tool(shelf_inc_and_get/3, shelf_inc_and_get_/4),
+   tool(shelf_get_and_dec/3, shelf_get_and_dec_/4),
+   tool(shelf_test_and_set/4, shelf_test_and_set_/5),
    tool(store_create_named/1, store_create_named_/2),
    tool(store_count/2, store_count_/3),
    tool(store_erase/1, store_erase_/2),
@@ -276,17 +285,14 @@
 % basic system initialisation
 %------------------------------
 
-?-	getval(sepiadir, Sepiadir),	% initialized in C
-	concat_strings(Sepiadir, "/lib", Lib),
+?-	get_sys_flag(13, EclipseDir),	% initialized in C
+	concat_strings(EclipseDir, "/lib", Lib),
 	make_array_(library, prolog, local, sepia_kernel),
 	setval(library, Lib),
 	make_array_(library_path, prolog, local, sepia_kernel),
 	setval(library_path, [Lib]).
 
-?-	argv(0, Sepia),			% set up some global variables
-	setval(whoami, Sepia),		% 'whoami' is created in bip_load.c
-	setval(binary, Sepia),		% 'binary' is created in bip_load.c
-	make_array_(break_level, prolog, local, sepia_kernel),
+?-	make_array_(break_level, prolog, local, sepia_kernel),
 	setval(break_level, 0),
 	make_array_(prolog_suffix, prolog, local, sepia_kernel),
 	setval(prolog_suffix, ["", ".ecl", ".pl"]),
@@ -313,11 +319,13 @@
     ),
     setval(default_language, Language).
 
+?- make_array_(toplevel_module, prolog, local, sepia_kernel),
+    setval(toplevel_module, eclipse).	% initialized in standalone_toplevel/0
 ?- make_array_(toplevel_trace_mode, prolog, local, sepia_kernel),
     setval(toplevel_trace_mode, nodebug).
 ?- make_array_(compiled_stream, prolog, local, sepia_kernel),
     setval(compiled_stream, _).
-?- make_array_(compile_stack, reference([]), local, sepia_kernel).
+?- makeref_(compile_stack, [], sepia_kernel).
 
 % ignore_eof is 'on' for Windows, because ^C acts like eof (in Command Prompt)
 ?- make_array_(ignore_eof, prolog, local, sepia_kernel),
@@ -331,9 +339,9 @@
 	( symbol_address("ec_",_) ->	% look for any symbol from C kernel
 	    true
         ;
-	    getval(sepiadir, Dir),
+	    get_sys_flag(13, EclipseDir),
 	    get_sys_flag(8, Arch),	% hostarch
-	    concat_string([Dir,"/lib/",Arch,"/libeclipse.so"], EclLib),
+	    concat_string([EclipseDir,"/lib/",Arch,"/libeclipse.so"], EclLib),
 	    ( sys_file_flag(EclLib, 17 /*readable*/, on) ->
 		load(EclLib)
 	    ;
@@ -369,64 +377,80 @@
 % and yields with the proper return codes.
 %----------------------------------------------------------------------
 
-main(Restart) :-
-	( Restart == 0 ->
+main(Boot) :-
+	default_module(M),
+	( Boot == 1 ->
 	    % licence_check,		% NOT ENABLED
 	    startup_init,
-	    restart_init
+	    restart_init(M)
 	;
-	    restart_init,
+	    restart_init(M),
 	    error(151, _)		% extension hook: restart
 	),
-	embed_block([]).
+	embed_catch(1, []).		% 1 == PFAIL
 
-	embed_block(Goals) :-
-	    catch(embed_repeat(Goals),ExitCode,embed_catch(ExitCode)).
+    embed_catch(YieldType, ToC) :-
+	catch(embed_repeat(YieldType,ToC),
+	    ExitCode,
+	    embed_catch(2,ExitCode)).	% 2 == PTHROW
 
-	    embed_catch(ExitCode) :-
-		yield(2,ExitCode,Goals),	% 2 == PTHROW
-		embed_block(Goals).
+    embed_repeat(YieldType, ToC) :-
+	embed_loop(YieldType, ToC).
+    embed_repeat(_, _) :-
+	embed_repeat(1, []).		% 1 == PFAIL
 
-	    embed_repeat(Goals) :-
-		embed_loop(Goals).
-	    embed_repeat(_Goals) :-
-		repeat,
-		yield(1,[],Goals),		% 1 == PFAIL
-		embed_loop(Goals).
-
-		embed_loop(Goals) :-
-		    default_module(M),
-		    get_cut(Cut),
-		    call_loop(Goals,M),
-		    yield(0,Cut,NewGoals),	% 0 == PSUCCEED
-		    embed_loop(NewGoals).
-
-		    call_loop([],_M).
-		    call_loop([G|Gs],M) :-
-			call(G)@M,
-			call_loop(Gs,M).
+    embed_loop(YieldType, ToC) :-
+	get_cut(Cut),
+	yield(YieldType, ToC, Goals, Module),	% YieldType in 0,1,2
+	% Posted events are handled HERE!
+	( Module == [] ->
+	    embed_loop(YieldType, ToC) % event handling only, re-yield
+	;
+	    call(Goals)@Module,		% call the new goals
+	    embed_loop(0, Cut)		% 0 == PSUCCEED
+	).
 
 
-yield(ToC,FromC) :-
-	yield(4,ToC,FromC).			% 4 == PYIELD == EC_yield
+yield(ToC, FromC) :-
+	yield(4, ToC, FromC).		% 4 == PYIELD == EC_yield
 
-yield(YieldType,ToC,FromC) :-
-	yield(YieldType,ToC,FromC1,ResumeType),
-	yield_or_continue(ResumeType,FromC1,FromC).
-
-    % We may be resumed with one of the following resume codes:
-    % 0 == RESUME_CONT:		continue and let yield/2,3 succeed
-    % 1 == RESUME_SIMPLE:	handle events only
-
-    yield_or_continue(0, FromC, FromC).		% 0 == RESUME_CONT
-    yield_or_continue(1, _FromC, FromC) :-	% 1 == RESUME_SIMPLE
-	yield(0, [], FromC).			% 0 == PSUCCEED
+yield(YieldType, ToC, FromC) :-
+	yield(YieldType, ToC, FromC1, Module),
+	% Posted events handled HERE!
+	( Module == [] ->
+%	    yield(YieldType, ToC, FromC) % event handling only, re-yield
+	    yield(0, [], FromC) % event handling only, re-yield
+	;
+	    FromC = FromC1		% let yield/2,3 succeed
+	).
 
 
+startup_init :-
+	% explicitly run kernel's initialization goals
+	run_stored_goals(initialization_goals, sepia_kernel),
+	% explicitly trigger first dictionary gc (subsequent ones use interval)
+	garbage_collect_dictionary.
 
-%  open(queue(""),read,ec_rpc_in,[event(ec_rpc)])
-?- open(queue(""),read,ec_rpc_in), set_stream_prop_(ec_rpc_in, 17, ec_rpc).
-?- open(queue(""),update,ec_rpc_out).
+restart_init(M) :-
+	% create module if necessary
+	( is_a_module(M) ->
+	    true
+	;
+	    getval(default_language, Language),
+	    create_module(M, [], Language)
+	).
+
+
+%----------------------------------------------------------------------
+% RPC server
+%----------------------------------------------------------------------
+
+% must be run on the server engine
+rpc_server_init :-
+	open(queue(""),read,ec_rpc_in,[event(ec_rpc)]),
+	% open(queue(""),read,ec_rpc_in), set_stream_prop_(ec_rpc_in, 17, ec_rpc),
+	open(queue(""),update,ec_rpc_out),
+	set_event_handler(ec_rpc, ec_rpc_in_handler/1).
 
 
 ec_rpc_in_handler(Base) :-
@@ -468,23 +492,6 @@ ec_rpc_in_handler1(In, Out) :-
 	),
 	fail.
     execute_rpc(_, _, _).
-
-?- set_error_handler_(ec_rpc,ec_rpc_in_handler/1,sepia_kernel).
-
-startup_init :-
-	default_module(M),
-	default_module(M),	% set
-	argv(all, [_|Args]),
-        process_command_line_startup(Args, 1),
-	default_module(TM),	% get
-	create_module_if_did_not_exist(TM, []),
-	getval(default_language, Language),
-	import_body(Language, TM),	% TM was created in C, no imports yet
-	getval(library_path, Path0),
-	prepend_user_path(Path0, Path),
-	setval(library_path, Path).
-
-restart_init.
 
 
 %---------------------------------------------------------
@@ -556,6 +563,9 @@ par_once_body(InitGoal, Goal, Module) :-
 	;
 	    dbag_dissolve(Ref, [Goal])	% on worker 1
 	).
+
+engine_join(Engine, Status) :-
+	engine_join(Engine, block, Status).
 
 
 %---------------------------------------------------------
@@ -643,8 +653,8 @@ licence_check :-
 	LicStream = error,
 
 	% Check whether we have a licence file
-	getval(sepiadir, Dir),
-	concat_string([Dir,"/lib/licence.ecl"], LicFile0),
+	get_sys_flag(13, EclipseDir),
+	concat_string([EclipseDir,"/lib/licence.ecl"], LicFile0),
 	( existing_file(LicFile0, [""], [readable], LicFile) ->
 
 	    % Open licence file and backtrack over all licence entries in it
@@ -735,7 +745,7 @@ public_key(65737, N) :-
 %------------------------------
 % Halting the system - this can happen in two ways:
 %
-% If exit/1 is called from Prolog:
+% If exit/1 or halt/0 is called from Prolog:
 %	- run Prolog level finalization directly (to avoid nested emulator)
 %	- call low-level cleanup via exit0/1 builtin
 %
@@ -744,26 +754,76 @@ public_key(65737, N) :-
 %	- call low-level cleanup directly from host program
 %------------------------------
 
+% exit all engines
 halt :-
-	exit(0).
+	ExitCode = 3,
+	broadcast_exit(ExitCode),	% all excluding self
+	exit(ExitCode).
 
+% exit engine
 exit(N) :-
 	check_integer_ge(N, 0), !,
-	cleanup_before_exit(N),			% may abort
-	exit0(N).
+	% like yield(3,N,_) but also untrails the engine, 3 == PEXITED
+	sys_return(N).
 exit(N) :-
 	bip_error(exit(N)).
 
-% This one is called when ec_cleanup() is used from C
+% This one is called from ec_cleanup() in C.
+% It is executed on the aux-engine.
+% All Prolog-level cleanup goes here!
 cleanup_before_exit :-
-	cleanup_before_exit(0).
+	N=0,
+	%writeln(error, cleanup_before_exit(N)),
 
-
-    % All Prolog-level cleanup goes here!
-    cleanup_before_exit(N) :-
 	% Call user handler first, so it can abort the exit if desired
-	( error(152, N) -> true ; true ),	% may abort
+	% !!! abort no longer supported (with multi-engines)
+	( catch(error(152, N),_,fail) -> true ; true ),
 
+	% disable dictionary gc, so it doesn't interfere with shutdown
+	set_flag(gc_interval_dict, 0),
+
+	% engine_self(Self), writeln(cleanup_by:Self),
+
+	% terminate engines
+	timer_engine_cleanup,
+	broadcast_exit(N),
+	(
+	    % Wait until all engines except the default engine have
+	    % disappeared, and the default engine has exited.
+	    between(1,10,1,_),
+	    (
+		current_engines([DefaultEngine]),
+		engine_status(DefaultEngine, exited(_))
+	    ->
+		true
+	    ;
+		%writeln(sleep(0.1)),
+		sleep(0.1),
+		fail
+	    )
+	->
+	    true
+	;
+	    current_engines(Es),
+	    ( foreach(E,Es), fromto(LEs,LEs2,LEs1,[]) do
+		engine_status(E, Status),
+		( Status = exited(_) ->
+		    LEs2 = LEs1
+		;
+		    LEs2 = [E:Status|LEs1]
+		)
+	    ),
+	    ( LEs == [] ->
+		true
+	    ;
+		writeln(warning_output, "Cleanup ended with non-exited engines:"),
+		( foreach(ES,LEs) do
+		    writeln(warning_output, ES)
+		),
+		flush(warning_output),
+		fail	% don'erase modules, might cause crash
+	    )
+	),
 	erase_modules.
 
 
@@ -772,9 +832,10 @@ cleanup_before_exit :-
 %----------------------------------------
 
 standalone_toplevel :-
-	default_module(M),
+	default_module(M0),
+	setval(toplevel_module, M0),	% initialize toplevel module from 
 	argv(all, [_|Args]),
-	process_command_line(Args, 1, Goal, M),
+	process_command_line(Args, 1, Goal, M0, M),
 	( var(Goal) ->
 	    ensure_loaded(library(toplevel)),
 	    call(toplevel:toplevel_init(tty)),
@@ -796,46 +857,39 @@ standalone_toplevel :-
 	),
 	throw(Tag).
 	
-:- mode process_command_line(+,+,-,+).
-process_command_line([], _I, _Goal, _M) :- !.
-process_command_line(["-f"|Args], I, Goal, M) :- !,
-	process_command_line(["-b"|Args], I, Goal, M).
-process_command_line(["-b", Arg |Args], I, Goal, M) :- !,
+:- mode process_command_line(+,+,-,+,-).
+process_command_line([], _I, _Goal, M, M) :- !.
+process_command_line(["-f"|Args], I, Goal, M, M1) :- !,
+	process_command_line(["-b"|Args], I, Goal, M, M1).
+process_command_line(["-b", Arg |Args], I, Goal, M, M1) :- !,
 	os_file_name(File, Arg),
 	catch(ensure_loaded(File, M), Tag, top_throw(Tag)),
 	MI is -I, argv(MI,2),	% delete the 2 arguments
-	process_command_line(Args, I, Goal, M).
-process_command_line(["-e", Arg |Args], I, Goal, M) :- !,
+	process_command_line(Args, I, Goal, M, M1).
+process_command_line(["-e", Arg |Args], I, Goal, M, M1) :- !,
 	open(Arg, string, Stream),
 	read(Stream, ArgTerm),
 	close(Stream),
 	( var(Goal) -> Goal=ArgTerm ; true ),
 	MI is -I, argv(MI,2),	% delete the 2 arguments
-	process_command_line(Args, I, Goal, M).
-process_command_line(["--" |_], I, _Goal, _M) :- !,
-	argv(-1, I).	% delete args 1 to I
-process_command_line([_ |Args], I, Goal, M) :-
-	J is I+1,
-	process_command_line(Args, J, Goal, M).
-
-process_command_line_startup([], _I) :- !.
-process_command_line_startup(["-L",Arg|Args], I) :- !,
+	process_command_line(Args, I, Goal, M, M1).
+process_command_line(["-L",Arg|Args], I, Goal, M, M1) :- !,
         atom_string(Language, Arg),
         setval(default_language, Language),
+	update_toplevel_module(M),	% with new language
 	MI is -I, argv(MI,2),	% delete the 2 arguments
-	process_command_line_startup(Args, I).
-process_command_line_startup(["-t",Arg|Args], I) :- !,
-        atom_string(TM, Arg),
-	( is_a_module(TM) -> true ;
-	    getval(default_language, Language),
-	    create_module(TM, [], Language)
-	),
-	default_module(TM),	% set
+	process_command_line(Args, I, Goal, M, M1).
+process_command_line(["-t",Arg|Args], I, Goal, _M, M1) :- !,
+        atom_string(M, Arg),
+	update_toplevel_module(M),
 	MI is -I, argv(MI,2),	% delete the 2 arguments
-	process_command_line_startup(Args, I).
-process_command_line_startup([_ |Args], I) :-
-	I1 is I+1,
-	process_command_line_startup(Args, I1).
+	process_command_line(Args, I, Goal, M, M1).
+process_command_line(["--" |_], I, _Goal, M, M) :- !,
+	argv(-1, I).	% delete args 1 to I
+process_command_line([_ |Args], I, Goal, M, M1) :-
+	J is I+1,
+	process_command_line(Args, J, Goal, M, M1).
+
 
 
 
@@ -845,9 +899,13 @@ printf_with_current_modes_body(Stream, Value, Module) :-
 printf_goal_body(Stream, Value, Module) :-
 	printf_current(Stream, Value, 'G', Module).
 
-printf_current(Stream, Value, Goal, Module) :-
+printf_goal_body(Stream, Modifiers, Value, Module) :-
+	concat_strings(Modifiers, "G", Modifiers1),
+	printf_current(Stream, Value, Modifiers1, Module).
+
+printf_current(Stream, Value, Modifiers, Module) :-
 	output_mode(Mode),
-	concat_string(['%', Mode, Goal, 'w'], Format),
+	concat_string(['%', Mode, Modifiers, 'w'], Format),
 	printf_body(Stream, Format, [Value], Module).
 
 
@@ -890,34 +948,25 @@ mutex_body(Mutex, Goal, Module, Worker) :-
 	    mutex_body(Mutex, Goal, Module, Worker)
 	).
 
-mutex_one_body(Mutex, Goal, Module) :-
-	get_sys_flag(10, Worker),
-	( getval_body(Mutex, Worker, Module) -> % already ours (if nested)
-	    ( call(Goal)@Module -> true ; fail )
-	;
-	    catch(mutex_one_body(Mutex, Goal, Module, Worker), T,
-		mutex_exit(T, Mutex, Worker, Module))
-	).
-
-mutex_one_body(Mutex, Goal, Module, Worker) :-
-	( test_and_setval_body(Mutex, 0, Worker, Module) ->
-	    ( call(Goal)@Module ->
-		setval_body(Mutex, abort, Module) % abort the other workers
-	    ;
-		setval_body(Mutex, 0, Module),
-		fail
-	    )
-	; getval_body(Mutex, abort, Module) ->	 
-	    true			% aborted worker just succeeds
-	; 
-	    sleep(0.01),
-	    mutex_one_body(Mutex, Goal, Module, Worker)
-	).
-
 mutex_exit(T, Mutex, Worker, Module) :-
 	% We don't know whether the lock was grabbed or not!
 	(test_and_setval_body(Mutex, Worker, 0, Module) -> true ; true),
 	throw(T).
+
+
+with_mutex_(Mutex, Goal, Module) :-
+	handle_lock_trailed(Mutex, UnlockHandle),
+	once(Goal)@Module,
+	handle_unlock_free(UnlockHandle).
+
+%:- inline(with_mutex/2, t_with_mutex/2).	% can't use inline/2 yet
+:- define_macro(with_mutex/2, t_with_mutex/2, [goal]).
+t_with_mutex(with_mutex(Mutex,Goal), (
+	sepia_kernel:handle_lock_trailed(Mutex, UnlockHandle),
+	once(Goal),
+	sepia_kernel:handle_unlock_free(UnlockHandle))
+).
+
 
 %--------------------------------
 % Miscellaneous
@@ -1089,6 +1138,47 @@ recordedchk_body(Key, Value, DbRef, Module) :-
 	    next_recorded(DbRef0, Value, DbRef1),
 	    recorded_member(DbRef1, Value, DbRef)
 	).
+
+
+:- tool(record_handle/2, record_handle_/3).
+:- tool(record_add/4, record_add_/5).
+record_add_(Queue, Msg, Timeout, Max, Module) :-
+	check_integer_ge(Max, 1), !,
+	record_handle(Queue, Handle)@Module,
+	with_mutex(Handle, q_snd_(Handle, Msg, Timeout, Max, Module)).
+record_add_(Queue, Msg, Timeout, Max, Module) :-
+	bip_error(record_add(Queue, Msg, Timeout, Max), Module).
+
+    q_snd_(Handle, Msg, Timeout, Max, Module) :-
+	recorded_count(Handle, C),
+	( C < Max ->
+	    recordz(Handle, Msg)@Module,
+	    % always signal, because someone may be waiting for matching entry
+	    handle_proceed(Handle, all)
+	;
+	    handle_wait(Handle, Timeout),	% fail on timeout
+	    q_snd_(Handle, Msg, Timeout, Max, Module)
+	).
+
+:- tool(record_remove/3, record_remove_/4).
+record_remove_(Queue, Msg, Timeout, Module) :-
+	record_handle(Queue, Handle)@Module,
+	with_mutex(Handle, q_rcv_(Handle, Msg, Timeout, Module)).
+
+    q_rcv_(Handle, Msg, Timeout, Module) :-
+	( erase(Handle, Msg)@Module ->
+	    % Need to signal only when queue goes from full to non-full
+	    %% TODO: should be Max-1 instead of 0 here:
+	    ( recorded_count(Handle, 0)@Module ->
+		handle_proceed(Handle, all)
+	    ;
+		true
+	    )
+	;
+	    handle_wait(Handle, Timeout),	% fail on timeout
+	    q_rcv_(Handle, Msg, Timeout, Module)
+	).
+
 
 
 % Erase all Store entries whose keys match Module:_
@@ -1748,8 +1838,6 @@ abort :-
 	printf(log_output, "Aborting execution%s ...\n%b", Where),
 	throw(abort).
 
-sepiadir(S) :-
-	getval(sepiadir, S).
 
 %:- system.
 use_module_body([H|T], Module) :-
@@ -2458,19 +2546,43 @@ create_module(M, Exports, Language) :-
 	import_body(Language, M),
 	export_list(Exports, M).
 
-set_toplevel_module(M) :-		% fails on error with bip_error set
-	( var(M) ->
-		set_bip_error(4)
-	; \+atom(M) ->
-		set_bip_error(5)
-	; is_a_module(M) ->
-		( is_locked(M) -> set_bip_error(82) ; true )
-	;
-		error(83, module(M)),
-		getval(default_language, Language),
+% update toplevel module with new language if possible
+update_toplevel_module(M) :-
+	getval(default_language, Language),
+	( is_a_module(M) ->
+	    (
+		\+is_locked(M),
+		M \== sepia_kernel,
+		get_module_info(M, imports, Imports),
+		nonmember(Language, Imports)
+	    ->
+		erase_module(M),
 		create_module(M, [], Language)
+	    ;
+		true
+	    )
+	;
+	    create_module(M, [], Language)
 	),
-	default_module(M).     % set
+	setval(toplevel_module, M).
+
+set_toplevel_module(M) :-	% fails on error with bip_error set
+	( var(M) ->
+	    set_bip_error(4)
+	; \+atom(M) ->
+	    set_bip_error(5)
+	; is_a_module(M) ->
+	    ( is_locked(M) ->
+		set_bip_error(82)
+	    ;
+		true
+	    )
+	;
+	    error(83, module(M)),
+	    getval(default_language, Language),
+	    create_module(M, [], Language)
+	),
+	setval(toplevel_module, M).
 
 
 %-----------------------------
@@ -3137,13 +3249,12 @@ check_var_or_partial_list([_|T]) :- !,
 check_var_or_partial_list(_) :-
 	set_bip_error(5).
 
-check_proper_list(X) :- var(X), !, set_bip_error(4).
-check_proper_list([]) :- !.
-check_proper_list([_|T]) :- !,
-	check_proper_list(T).
-check_proper_list(_) :-
-	set_bip_error(5).
-
+check_proper_list(Xs) :-
+	list_end(Xs, T),
+	( var(T) -> set_bip_error(4)
+	; T==[] -> true
+	; set_bip_error(5)
+	).
 
 :- mode illegal_module(?, -).
 illegal_module(Module, 4) :-
@@ -3205,11 +3316,9 @@ local_body(shelf(Name,Init), M) :-
 local_body(struct(S), M) :-
 	define_struct(S, M, local), !.
 local_body(reference(Name,Init), M) :-
-	check_atom(Name),
-	make_array_(Name, reference(Init), local, M), !.
+	makeref_(Name, Init, M), !.
 local_body(reference(Name), M) :-
-	check_atom(Name),
-	make_array_(Name, global_reference, local, M), !.
+	makeref_(Name, 0, M), !.	% backward compatibility
 local_body(variable(Name), M) :-
 	check_atom(Name),
 	make_array_(Name, prolog, local, M), !.
@@ -3252,6 +3361,7 @@ local_body(X, M) :-
     valid_local_spec(store(_)).
     valid_local_spec(struct(_)).
     valid_local_spec(reference(_)).
+    valid_local_spec(reference(_,_)).
     valid_local_spec(variable(_)).
     valid_local_spec(variable(_,_)).
     valid_local_spec(array(_)).
@@ -3286,8 +3396,8 @@ global_item(record(Key), M) :- !,
 	global_record_body(Key, M).
 global_item(struct(S), M) :-
 	define_struct(S, M, export), !.
-global_item(reference(Name), M) :-
-	make_array_(Name, global_reference, global, M), !.
+global_item(reference(_), _) :-
+	set_bip_error(141).
 global_item(variable(Name), M) :-
 	( atom(Name) -> true ; var(Name) -> set_bip_error(4) ; set_bip_error(5) ),
 	make_array_(Name, prolog, global, M), !.
@@ -3783,7 +3893,6 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	tool(call_boxed/6, call_boxed_/7),
 	tool(call_explicit/2, call_explicit_body/3),
 	tool('.'/2, compile_list_body/3),
-	tool(define_macro/3, define_macro_/4),
 	tool(erase_array/1, erase_array_body/2),
 	tool(erase_macro/1, erase_macro_/2),
 	tool(erase_macro/2, erase_macro_/3),
@@ -3849,11 +3958,11 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	expand_macros_annotated/4,
 	extension/1,
 	replace_attribute/2,
+	rpc_server_init/0,
 	get_pager/1,
 	illegal_macro/5,
 	more/1,
 	prof_predicate_list/3,
-	sepiadir/1,
 	tr_goals/3.
 
 :- export				% exports for lib(lists)
@@ -3921,6 +4030,7 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	display/1,
 	e/1,
 	ecl_create_embed_queue/3,
+	engine_join/2,
 	ensure_loaded/1,
 	error/2, 
 	error/3,
@@ -3988,8 +4098,8 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	(mode)/1,
 	module/1, 
 	mutex/2,
+	with_mutex/2,
 	mutex_init/1,
-	mutex_one/2,
 	nl/0,
 	new_socket_server/3,
 	(not)/1,
@@ -4165,6 +4275,7 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	printf/2,
 	printf/3,
 	printf_goal_body/3,
+	printf_goal_body/4,
 	sprintf/3,
 	proc_flags/4,
 	put_char/1,
@@ -4286,7 +4397,6 @@ prof_fixed_entries(12).
 
 :- local	% because the tool declaration has made them exported ...
 	get_syntax_/3,
-	mutex_one_body/3,
 	set_syntax_/3,
 	set_proc_flags/4.
 
@@ -4305,7 +4415,7 @@ help :-
 	enter the clauses, ended by ^D (Unix) or ^Z (Windows).\n\n\
 	Call help(Pred/Arity) or help(Pred) or help(String)\n\
 	to get help on a specific built-in predicate."),
-    getval(sepiadir, Eclipsedir),
+    get_sys_flag(13, Eclipsedir),
     printf("\n\
 	To access the documentation in html-format, point your browser to\n\
 	file:%s/doc/index.html\n", Eclipsedir),
@@ -7544,11 +7654,12 @@ present_libraries(Sys, [_|L], T) :-
 
 % Now set the default library path
 
-?-	getval(sepiadir, Sepiadir),
-	read_directory(Sepiadir, "", Files, _),
-	present_libraries(Sepiadir, Files, Path),
-	concat_strings(Sepiadir, "/lib", Runlib),
-	setval(library_path, [Runlib|Path]),
+?-	get_sys_flag(13, EclipseDir),
+	read_directory(EclipseDir, "", Files, _),
+	present_libraries(EclipseDir, Files, Path0),
+	concat_strings(EclipseDir, "/lib", Runlib),
+	prepend_user_path([Runlib|Path0], Path),
+	setval(library_path, Path),
 	setval(library, Runlib).		% needed for load/2
 
 ?-

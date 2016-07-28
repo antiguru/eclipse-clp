@@ -26,7 +26,7 @@
  *
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.6 2016/03/14 21:33:43 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	dbi.c
@@ -50,9 +50,10 @@
  *
  */
 
-#include <stdio.h>
 #include "external.h"	/* ECLiPSe definitions */
 #include "dbi.h"	/* Oracle call interface */
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #define EXPORT __declspec(dllexport)
@@ -73,7 +74,8 @@ static int dbi_errno = 0;
  * ---------------------------------------------------------------------- */
 EXPORT int
 p_session_init(
-		/* - */ value v_session, type t_session
+		/* - */ value v_session, type t_session,
+		ec_eng_t *ec_eng
               );
 
 EXPORT int
@@ -82,36 +84,42 @@ p_session_start(
 		/* + */ value v_username, type t_username,
 		/* + */ value v_host, type t_host,
 		/* + */ value v_password, type t_password,
-		/* + */ value v_opts, type t_opts
+		/* + */ value v_opts, type t_opts,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_session_close(
-		/* + */ value v_session, type t_session
+		/* + */ value v_session, type t_session,
+		ec_eng_t *ec_eng
                 );
 
 EXPORT int
 p_session_error_value(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_code, type t_code,
-		/* + */ value v_message, type t_message
+		/* + */ value v_message, type t_message,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_session_commit(
-		/* + */ value v_session, type t_session
+		/* + */ value v_session, type t_session,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_session_rollback(
-		/* + */ value v_session, type t_session
+		/* + */ value v_session, type t_session,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_session_sql_dml(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_SQL, type t_SQL,
-		/* - */ value v_rows, type t_rows
+		/* - */ value v_rows, type t_rows,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
@@ -121,7 +129,8 @@ p_session_sql_query(
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
 		/* + */ value v_opts, type t_opts,
-		/* - */ value v_cursor, type t_cursor
+		/* - */ value v_cursor, type t_cursor,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
@@ -130,7 +139,8 @@ p_session_sql_prepare(
 		/* + */ value v_template, type t_template,
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
-		/* - */ value v_cursor, type t_cursor
+		/* - */ value v_cursor, type t_cursor,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
@@ -140,18 +150,21 @@ p_session_sql_prepare_query(
 		/* + */ value v_qtemplate, type t_qtemplate,
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
-		/* - */ value v_cursor, type t_cursor
+		/* - */ value v_cursor, type t_cursor,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_session_is_in_transaction(
-		/* + */ value v_session, type t_session
+		/* + */ value v_session, type t_session,
+		ec_eng_t *ec_eng
                 );
 
 EXPORT int
 p_session_set_in_transaction(
                 /* + */ value v_session, type t_session,
-		/* + */ value v_in, type t_in
+		/* + */ value v_in, type t_in,
+		ec_eng_t *ec_eng
                 );
 
 EXPORT int
@@ -159,20 +172,23 @@ p_cursor_N_execute(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_N, type t_N,
 		/* + */ value v_tuples, type t_tuples,
-		/* ? */ value v_tail, type t_tail
+		/* ? */ value v_tail, type t_tail,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_cursor_next_execute(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_tuple, type t_tuple,
-		/* + */ value v_opts, type t_opts
+		/* + */ value v_opts, type t_opts,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_cursor_next_tuple(
 		/* + */ value v_cursor, type t_cursor,
-		/* - */ value v_tuple, type t_tuple
+		/* - */ value v_tuple, type t_tuple,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
@@ -180,23 +196,26 @@ p_cursor_N_tuples(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_N, type t_N,
 		/* - */ value v_tuples, type t_tuples,
-		/* ? */ value v_tail, type t_tail
+		/* ? */ value v_tail, type t_tail,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_cursor_free(
-		/* + */ value v_cursorh, type t_cursorh
+		/* + */ value v_cursorh, type t_cursorh,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
 p_cursor_field_value(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_item, type t_item,
-		/* - */ value v_value, type t_value
+		/* - */ value v_value, type t_value,
+		ec_eng_t *ec_eng
 		);
 
 EXPORT int
-p_handle_free_eagerly(value v_handle, type t_handle);
+p_handle_free_eagerly(value v_handle, type t_handle, ec_eng_t *ec_eng);
 
 
 /* max. number of digits for a printed address - 2 digits per byte */
@@ -253,7 +272,8 @@ t_ext_type session_handle_tid = {
 
 EXPORT int
 p_dbi_init(
-		/* + */ value v_errno, type t_errno
+		/* + */ value v_errno, type t_errno,
+		ec_eng_t *ec_eng
 		)
 {
     static int initialized = 0;
@@ -272,7 +292,7 @@ p_dbi_init(
 }
 
 EXPORT int
-p_dbi_final()
+p_dbi_final(ec_eng_t *ec_eng)
 {
     dbi_final(); /* do any DB specific finalization */
     Succeed_;
@@ -282,15 +302,6 @@ p_dbi_final()
 /* ----------------------------------------------------------------------
  *  handler support
  * ---------------------------------------------------------------------- */
-
-static void
-get_cursor_handlepw(cursor_t *cursor, pword * cursor_handle)
-{
-    session_t * session = cursor->session;
-
-    *cursor_handle = ec_handle(&cursor_handle_tid, cursor);
-
-}
 
 void
 session_free(session_t * session)
@@ -335,7 +346,8 @@ session_copy(session_t * session)
 
 int
 p_session_init(
-		/* - */ value v_session, type t_session
+		/* - */ value v_session, type t_session,
+		ec_eng_t *ec_eng
 		)
 {
 	session_t * session;
@@ -348,7 +360,7 @@ p_session_init(
 	    Bip_Error(dbi_errno);
 	}
 	session->refs = 1;
-	p_session = ec_handle(&session_handle_tid, session);
+	p_session = ecl_handle(ec_eng, &session_handle_tid, session);
 
 	Return_Unify_Pw(v_session, t_session, p_session.val, p_session.tag );
 }
@@ -359,7 +371,8 @@ p_session_start(
 		/* + */ value v_username, type t_username,
 		/* + */ value v_host, type t_host,
 		/* + */ value v_password, type t_password,
-		/* + */ value v_opts, type t_opts
+		/* + */ value v_opts, type t_opts,
+		ec_eng_t *ec_eng
 		)
 {
         session_t * session;
@@ -375,7 +388,7 @@ p_session_start(
 			    StringStart(v_username),
 			    StringStart(v_host),
 			    StringStart(v_password),
-			    v_opts) )
+			    v_opts, ec_eng) )
 	    Bip_Error(dbi_errno);
 
 	Succeed;
@@ -383,7 +396,7 @@ p_session_start(
 }
 
 int
-p_session_close(value v_session, type t_session)
+p_session_close(value v_session, type t_session, ec_eng_t *ec_eng)
 {
     pword handle;
     handle.val.all = v_session.all;
@@ -401,7 +414,8 @@ int
 p_session_error_value(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_code, type t_code,
-		/* + */ value v_message, type t_message
+		/* + */ value v_message, type t_message,
+		ec_eng_t *ec_eng
 		)
 {
 	int code;
@@ -424,7 +438,8 @@ p_session_error_value(
 
 int
 p_session_commit(
-		/* + */ value v_session, type t_session
+		/* + */ value v_session, type t_session,
+		ec_eng_t *ec_eng
 		)
 {
 	session_t * session;
@@ -439,7 +454,8 @@ p_session_commit(
 
 int
 p_session_rollback(
-		/* + */ value v_session, type t_session
+		/* + */ value v_session, type t_session,
+		ec_eng_t *ec_eng
 		)
 {
 	session_t * session;
@@ -458,7 +474,8 @@ int
 p_session_sql_dml(
 		/* + */ value v_session, type t_session,
 		/* + */ value v_SQL, type t_SQL,
-		/* - */ value v_rows, type t_rows
+		/* - */ value v_rows, type t_rows,
+		ec_eng_t *ec_eng
 		)
 {
 	session_t * session;
@@ -497,7 +514,8 @@ p_session_sql_query(
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
 		/* + */ value v_opts, type t_opts,
-		/* - */ value v_cursor, type t_cursor
+		/* - */ value v_cursor, type t_cursor,
+		ec_eng_t *ec_eng
 		)
 {
 	session_t * session;
@@ -514,7 +532,7 @@ p_session_sql_query(
 	Check_Structure(t_opts);
 	Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
 
-	if (res = template_get(v_template, t_template, &template))
+	if (res = template_get(v_template, t_template, &template, ec_eng))
 	{
 	    Bip_Error(Error_Code(res));
 	}
@@ -533,8 +551,7 @@ p_session_sql_query(
 	    Bip_Error(Error_Code(res));
 	}
 
-
-	get_cursor_handlepw(cursor, &p_cursor);
+	p_cursor = ecl_handle(ec_eng, &cursor_handle_tid, cursor);
 	Return_Unify_Pw(v_cursor, t_cursor, p_cursor.val, p_cursor.tag);
 }
 
@@ -544,7 +561,8 @@ p_session_sql_prepare(
 		/* + */ value v_template, type t_template,
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
-		/* - */ value v_cursor, type t_cursor
+		/* - */ value v_cursor, type t_cursor,
+		ec_eng_t *ec_eng
 		)
 {
 	session_t * session;
@@ -560,7 +578,7 @@ p_session_sql_prepare(
 	Check_String(t_SQL);
         Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
 
-	if (res = template_get(v_template, t_template, &template))
+	if (res = template_get(v_template, t_template, &template, ec_eng))
 	{
 	    Bip_Error(Error_Code(res));
 	}
@@ -571,8 +589,7 @@ p_session_sql_prepare(
 	    Bip_Error(dbi_errno);
 	}
 
-
-	get_cursor_handlepw(cursor, &p_cursor);
+	p_cursor = ecl_handle(ec_eng, &cursor_handle_tid, cursor);
 	Return_Unify_Pw(v_cursor, t_cursor, p_cursor.val, p_cursor.tag);
 }
 
@@ -583,7 +600,8 @@ p_session_sql_prepare_query(
 		/* + */ value v_qtemplate, type t_qtemplate,
 		/* + */ value v_SQL, type t_SQL,
 		/* + */ value v_N, type t_N,
-		/* - */ value v_cursor, type t_cursor
+		/* - */ value v_cursor, type t_cursor,
+		ec_eng_t *ec_eng
 		)
 {
 	session_t * session;
@@ -599,11 +617,11 @@ p_session_sql_prepare_query(
 	Check_String(t_SQL);
 	Get_Typed_Object(v_session,t_session,&session_handle_tid,session);
 
-	if (res = template_get(v_ptemplate, t_ptemplate, &ptemplate))
+	if (res = template_get(v_ptemplate, t_ptemplate, &ptemplate, ec_eng))
 	{
 	    Bip_Error(Error_Code(res));
 	}
-	if (res = template_get(v_qtemplate, t_qtemplate, &qtemplate))
+	if (res = template_get(v_qtemplate, t_qtemplate, &qtemplate, ec_eng))
 	{
 	    Bip_Error(Error_Code(res));
 	}
@@ -615,14 +633,15 @@ p_session_sql_prepare_query(
 	    Bip_Error(dbi_errno);
 	}
 
-	get_cursor_handlepw(cursor, &p_cursor);
+	p_cursor = ecl_handle(ec_eng, &cursor_handle_tid, cursor);
 	Return_Unify_Pw(v_cursor, t_cursor, p_cursor.val, p_cursor.tag);
 }
 
 
 int
 p_session_is_in_transaction(
-		/* + */ value v_session, type t_session
+		/* + */ value v_session, type t_session,
+		ec_eng_t *ec_eng
                 )
 {
 	session_t * session;
@@ -634,9 +653,8 @@ p_session_is_in_transaction(
 }
 
 
-static void _dbi_reset_in_transaction ARGS((pword*,word*,int,int));
-
-static void _dbi_reset_in_transaction(pword * pw, word * pdata, int size, int flags)
+static void
+_dbi_reset_in_transaction(pword * pw, word * pdata, int size, int flags, ec_eng_t *ec_eng)
 {
     session_t * session = ExternalData(pw->val.ptr);     
 
@@ -647,7 +665,8 @@ static void _dbi_reset_in_transaction(pword * pw, word * pdata, int size, int fl
 
 p_session_set_in_transaction(
                 /* + */ value v_session, type t_session,
-		/* + */ value v_in, type t_in
+		/* + */ value v_in, type t_in,
+		ec_eng_t *ec_eng
                 )
 {
     session_t * session;
@@ -680,7 +699,8 @@ int
 p_cursor_next_execute(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_tuple, type t_tuple,
-		/* + */ value v_opts, type t_opts
+		/* + */ value v_opts, type t_opts,
+		ec_eng_t *ec_eng
 		)
 {
     cursor_t * cursor;
@@ -701,7 +721,7 @@ p_cursor_next_execute(
     }
 
     if (res = template_bind(0, cursor->param_template,
-		  cursor->param_buffer, cursor->param_datalengths,&tuple))
+		  cursor->param_buffer, cursor->param_datalengths,&tuple, ec_eng))
     {
 	Bip_Error(Error_Code(res));
     }
@@ -720,7 +740,8 @@ p_cursor_N_execute(
 		/* + */ value v_cursor, type t_cursor,
 		/* - */ value v_N, type t_N,
 		/* + */ value v_tuples, type t_tuples,
-		/* ? */ value v_tail, type t_tail
+		/* ? */ value v_tail, type t_tail,
+		ec_eng_t *ec_eng
 		)
 {
     cursor_t * cursor;
@@ -739,7 +760,7 @@ p_cursor_N_execute(
     if (! cursor->param_template)
 	    Bip_Error(TYPE_ERROR);
 
-    if (res = cursor_N_execute(cursor, &tuple, v_tuples, t_tuples, &cdr))
+    if (res = cursor_N_execute(cursor, &tuple, v_tuples, t_tuples, &cdr, ec_eng))
     {
 	Bip_Error(Error_Code(res));
     }
@@ -752,7 +773,8 @@ p_cursor_N_execute(
 int
 p_cursor_next_tuple(
 		/* + */ value v_cursor, type t_cursor,
-		/* - */ value v_tuple, type t_tuple
+		/* - */ value v_tuple, type t_tuple,
+		ec_eng_t *ec_eng
 		)
 {
     cursor_t * cursor;
@@ -774,7 +796,7 @@ p_cursor_next_tuple(
     if (t->to == t->from)
 	Fail;
 
-    if (res = template_put(t->from , t, cursor->sql_type, cursor->tuple_buffer, cursor->tuple_datalengths, &p_tuple))
+    if (res = template_put(t->from , t, cursor->sql_type, cursor->tuple_buffer, cursor->tuple_datalengths, &p_tuple, ec_eng))
     {
 	Bip_Error(Error_Code(res));
     }
@@ -790,7 +812,8 @@ p_cursor_N_tuples(
 		/* + */ value v_cursor, type t_cursor,
 		/* - */ value v_N, type t_N,
 		/* - */ value v_tuples, type t_tuples,
-		/* ? */ value v_tail, type t_tail
+		/* ? */ value v_tail, type t_tail,
+		ec_eng_t *ec_eng
 		)
 {
     cursor_t * cursor;
@@ -808,7 +831,7 @@ p_cursor_N_tuples(
     Check_Output_Integer(t_N);
     Check_Output_List(t_tuples);
     
-    if (res = cursor_N_tuples(cursor, &n, &tuple_list, &tail))
+    if (res = cursor_N_tuples(cursor, &n, &tuple_list, &tail, ec_eng))
     {
 	Bip_Error(Error_Code(res));
     }
@@ -827,7 +850,7 @@ p_cursor_N_tuples(
 }
 
 int
-p_cursor_free(value v_cursorh, type t_cursorh)
+p_cursor_free(value v_cursorh, type t_cursorh, ec_eng_t *ec_eng)
 {
     pword handle;
 
@@ -843,7 +866,8 @@ int
 p_cursor_field_value(
 		/* + */ value v_cursor, type t_cursor,
 		/* + */ value v_item, type t_item,
-		/* - */ value v_value, type t_value
+		/* - */ value v_value, type t_value,
+		ec_eng_t *ec_eng
 		)
 {
     cursor_t * cursor;
@@ -893,12 +917,12 @@ p_cursor_field_value(
 
 
 int
-p_handle_free_eagerly(value v_handle, type t_handle)
+p_handle_free_eagerly(value v_handle, type t_handle, ec_eng_t *ec_eng)
 {
 	Check_Type(t_handle, THANDLE);
 	Check_Type(v_handle.ptr->tag, TPTR);
 
-	schedule_cut_fail_action(p_handle_free,v_handle,t_handle);
+	ecl_schedule_cut_fail_action(ec_eng,p_handle_free,v_handle,t_handle);
 	Succeed;
 }
 

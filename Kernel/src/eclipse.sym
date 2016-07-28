@@ -11,6 +11,7 @@ ECLIPSE {
 
   global:
     ec_*;
+    ecl_*;
     global_ov;
     p_fprintf;
     trail_undo;

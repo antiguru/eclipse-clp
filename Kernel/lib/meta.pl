@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: meta.pl,v 1.9 2016/07/24 19:34:44 jschimpf Exp $
+% Version:	$Id: meta.pl,v 1.10 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -54,12 +54,8 @@
 	variant/2.
 
 :- export			% export tool bodies and handlers
-	meta_attributes/1,
 	unify_attributes/2,
 	test_unify_handler/1.
-
-?- make_array_(meta_index, prolog, local, sepia_kernel),
-	setval(meta_index, 0).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,13 +94,10 @@
 :- local_record(delayed_goals_number).
 :- local_record(suspension_lists).
 
-meta_attributes(Atts) :-
-	recorded_list(meta_attribute, Atts).
-
 
 meta_attribute_body(Name, List, Module) :-
     check_atom(Name),
-    meta_name_index(Name, Index),
+    meta_index(+Name, Index),
     ( Name == suspend, Index == 1 ->
 	% The suspend handlers are handcoded below to avoid use of the
 	% compiler during initial booting
@@ -119,20 +112,6 @@ meta_attribute_body(Name, List, Module) :-
 meta_attribute_body(Name, List, Module) :-
     bip_error(meta_attribute(Name, List), Module).
 
-
-meta_name_index(Name, Index) :-
-    recordedchk(meta_attribute, [Name|Index]),
-    !.
-meta_name_index(Name, Index) :-
-    incval(meta_index),
-    getval(meta_index, Index),
-    getval(meta_arity, Max),
-    (Index > Max ->
-	incval(meta_arity)
-    ;
-	true
-    ),
-    recorda(meta_attribute, [Name|Index]).
 
 % can fail with bip_error
 :- mode check_handlers(?,-,+,+).
@@ -455,7 +434,7 @@ local_pre_unify_handlers([t(_, _, _, N/A, M)|Hs], AttrVar, Term, Pair, Front, Mi
 test_unify_attributes(_Term, _Attr).
 
 recompile_test_unify_handler :-
-    getval(meta_arity, I),
+    get_sys_flag(14, I),	% meta_arity
     functor(Attr, meta, I),
     collect_local_handlers(test_unify, List),
     local_test_unify_handlers(List, Attr, Term, Body),
@@ -679,7 +658,7 @@ local_print_handlers([t(_, Name, _, N/_, M)|List], Var, L,
 
 %------------------------------
 collect_local_handlers(Key, List) :-
-    getval(meta_index, I),
+    get_sys_flag(14, I),	% meta_arity
     collect_local_handlers(I, Key, List).
 
 collect_local_handlers(I, Key, List) :-

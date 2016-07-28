@@ -97,28 +97,28 @@
 	load(Load)
     ).
 
-:- external(create_bitmap/3, p_create_bitmap),
-   external(set_bitmap_lwb/4, p_set_bitmap_lwb),
-   external(set_bitmap_upb/4, p_set_bitmap_upb),
-   external(remove_bitmap_element/4, p_remove_bitmap_element),
-   external(remove_bitmap_range/5, p_remove_bitmap_range),
-   external(bitmap_intersect_into/4, p_bitmap_intersect_into),
-   external(bitmap_shifted_intersect_into/4, p_bitmap_shifted_intersect_into),
-   external(bitmaps_have_non_empty_intersection/2, p_bitmaps_have_non_empty_intersection),
-   external(bitmap_union/3, p_bitmap_union),
-   external(copy_bitmap/2, p_copy_bitmap),
-   external(copy_bitmap_shifted/3, p_copy_bitmap_shifted),
-   external(bitmap_range/3, p_bitmap_range),
-   external(get_bitmap_lwb/2, p_get_bitmap_lwb),
-   external(get_bitmap_upb/2, p_get_bitmap_upb),
-   external(next_greater_member/3, p_next_greater_member),
-   external(next_smaller_member/3, p_next_smaller_member),
-   external(next_greater_non_member/3, p_next_greater_non_member),
-   external(next_smaller_non_member/3, p_next_smaller_non_member),
-   external(bitmap_size/2, p_bitmap_size),
-   external(bitmap_contains/2, p_bitmap_contains),
-   external(bitmap_contains_range/3, p_bitmap_contains_range),
-   external(compare_bitmaps/3, p_compare_bitmaps).
+:- external(create_bitmap/3, p_create_bitmap(args)),
+   external(set_bitmap_lwb/4, p_set_bitmap_lwb(args)),
+   external(set_bitmap_upb/4, p_set_bitmap_upb(args)),
+   external(remove_bitmap_element/4, p_remove_bitmap_element(args)),
+   external(remove_bitmap_range/5, p_remove_bitmap_range(args)),
+   external(bitmap_intersect_into/4, p_bitmap_intersect_into(args)),
+   external(bitmap_shifted_intersect_into/4, p_bitmap_shifted_intersect_into(args)),
+   external(bitmaps_have_non_empty_intersection/2, p_bitmaps_have_non_empty_intersection(args)),
+   external(bitmap_union/3, p_bitmap_union(args)),
+   external(copy_bitmap/2, p_copy_bitmap(args)),
+   external(copy_bitmap_shifted/3, p_copy_bitmap_shifted(args)),
+   external(bitmap_range/3, p_bitmap_range(args)),
+   external(get_bitmap_lwb/2, p_get_bitmap_lwb(args)),
+   external(get_bitmap_upb/2, p_get_bitmap_upb(args)),
+   external(next_greater_member/3, p_next_greater_member(args)),
+   external(next_smaller_member/3, p_next_smaller_member(args)),
+   external(next_greater_non_member/3, p_next_greater_non_member(args)),
+   external(next_smaller_non_member/3, p_next_smaller_non_member(args)),
+   external(bitmap_size/2, p_bitmap_size(args)),
+   external(bitmap_contains/2, p_bitmap_contains(args)),
+   external(bitmap_contains_range/3, p_bitmap_contains_range(args)),
+   external(compare_bitmaps/3, p_compare_bitmaps(args)).
 
 
 %
@@ -141,20 +141,20 @@
 	load(Load)
     ).
 
-:- external(ic_init/0, p_ic_init),
-   external(get_ic_attr/2, p_get_ic_attr),
-   external(get_bounds/3, p_get_bounds),
-   external(get_integer_bounds1/5, p_get_integer_bounds1),
-   external(get_domain_size/2, p_get_domain_size),
-   external(ic_impose_bounds/3, p_ic_impose_bounds),
-   external(ic_impose_min/2, p_ic_impose_min),
-   external(ic_impose_max/2, p_ic_impose_max),
-   external(ic_exclude/2, p_ic_exclude),
-   external(ic_exclude_range/3, p_ic_exclude_range),
-   external(set_var_integer/1, p_set_var_integer),
-   external(get_threshold/1, p_get_threshold),
-   external(set_threshold/1, p_set_threshold),
-   external(unify_ic/3, p_unify_ic).
+:- external(ic_init/0, p_ic_init(args)),
+   external(get_ic_attr/2, p_get_ic_attr(args)),
+   external(get_bounds/3, p_get_bounds(args)),
+   external(get_integer_bounds1/5, p_get_integer_bounds1(args)),
+   external(get_domain_size/2, p_get_domain_size(args)),
+   external(ic_impose_bounds/3, p_ic_impose_bounds(args)),
+   external(ic_impose_min/2, p_ic_impose_min(args)),
+   external(ic_impose_max/2, p_ic_impose_max(args)),
+   external(ic_exclude/2, p_ic_exclude(args)),
+   external(ic_exclude_range/3, p_ic_exclude_range(args)),
+   external(set_var_integer/1, p_set_var_integer(args)),
+   external(get_threshold/1, p_get_threshold(args)),
+   external(set_threshold/1, p_set_threshold(args)),
+   external(unify_ic/3, p_unify_ic(args)).
 
 
 %

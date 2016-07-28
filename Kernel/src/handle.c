@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Kernel Module
  *
- * $Id: handle.c,v 1.2 2012/02/11 17:09:31 jschimpf Exp $
+ * $Id: handle.c,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
  *
  * Author:	Stefano Novello, IC-Parc
  *		Joachim Schimpf, IC-Parc
@@ -108,9 +108,8 @@
 /*ARGSUSED*/
 static void
 _handle_cleanup(pword *pw,
-	word *pdata,
-	int size,	/* unused (untrail calling convention) */
-	int flags)	/* unused (untrail calling convention) */
+	/* following arguments unused (untrail calling convention) */
+	word *pdata, int size, int flags, ec_eng_t *ec_eng)
 {
 	if (!pw || DifferTypeC(pw->tag, TEXTERN))
 	{
@@ -125,7 +124,7 @@ _handle_cleanup(pword *pw,
  * Construct a new handle
  */
 pword Winapi
-ec_handle(const t_ext_type *class, const t_ext_ptr data)
+ecl_handle(ec_eng_t *ec_eng, const t_ext_type *class, const t_ext_ptr data)
 {
 	pword handle;
 	pword *pw;
@@ -144,7 +143,7 @@ ec_handle(const t_ext_type *class, const t_ext_ptr data)
 	handle.val.ptr = pw;
 
 	/* Trail cleanup */
-	ec_trail_undo(_handle_cleanup, pw, NULL, NULL, 0, 0);
+	ecl_trail_undo(ec_eng, _handle_cleanup, pw, NULL, NULL, 0, 0);
 
 	return handle;
 }
@@ -181,7 +180,7 @@ ec_free_handle(const pword handle, const t_ext_type *cl)
  * Free the handle eagerly (generic)
  */
 int
-p_handle_free(value v_handle, type t_handle)
+p_handle_free(value v_handle, type t_handle, ec_eng_t *ec_eng)
 {
 	Check_Type(t_handle, THANDLE);
 	Check_Type(v_handle.ptr->tag, TEXTERN);
@@ -194,12 +193,12 @@ p_handle_free(value v_handle, type t_handle)
  * Arrange for the handle to get freed on cut
  */
 int
-p_handle_free_on_cut(value v_handle, type t_handle)
+p_handle_free_on_cut(value v_handle, type t_handle, ec_eng_t *ec_eng)
 {
 	Check_Type(t_handle, THANDLE);
 	Check_Type(v_handle.ptr->tag, TEXTERN);
 
-	schedule_cut_fail_action((void (*)(value,type)) p_handle_free,v_handle,t_handle);
+	ecl_schedule_cut_fail_action(ec_eng, (void (*)(value,type,ec_eng_t*)) p_handle_free,v_handle,t_handle);
 	Succeed_;
 }
 
@@ -211,7 +210,7 @@ void
 handle_copy_anchor(
 	pword *from,	/* a heap or global stack location */
 	pword *to,	/* a heap or global stack location */
-	int trail)	/* should be true if *to is a global stack location */
+	ec_eng_t *ec_eng)/* destination engine (NULL for heap) */
 {
 	to[0] = from[0];
 	if (ExternalClass(from)->copy && ExternalData(from))
@@ -221,7 +220,7 @@ handle_copy_anchor(
 	to[1].tag.kernel = from[1].tag.kernel;
 
 	/* Trail cleanup */
-	if (trail)
-	    ec_trail_undo(_handle_cleanup, to, NULL, NULL, 0, 0);
+	if (ec_eng)
+	    ecl_trail_undo(ec_eng, _handle_cleanup, to, NULL, NULL, 0, 0);
 }
 

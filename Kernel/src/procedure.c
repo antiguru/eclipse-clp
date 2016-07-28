@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: procedure.c,v 1.4 2012/02/11 17:09:31 jschimpf Exp $
+ * VERSION	$Id: procedure.c,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
  *
  * IDENTIFICATION		procedure.c
  *
@@ -215,7 +215,7 @@ print_procedure(dident wdid, vmcode *code)
  ***********************************************************************/
 
 int
-ec_load_eco_from_stream(stream_id nst, int options, pword *module)
+ec_load_eco_from_stream(ec_eng_t *ec_eng, stream_id nst, int options, pword *module)
 {
     int res;
     pword *clause, *query, *pw;
@@ -257,14 +257,14 @@ ec_load_eco_from_stream(stream_id nst, int options, pword *module)
 	    if (nread < n)
 		return UNEXPECTED_EOF;
 
-	    clause = dbformat_to_term(s, module->val.did, module->tag);
+	    clause = dbformat_to_term(ec_eng, s, module->val.did, module->tag);
 	    if (!clause)
 		return NOT_DUMP_FILE;
 	}
 	else				/* text format, call the parser */
 	{
-	    res = ec_read_term(nst,
-    		(GlobalFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
+	    res = ec_read_term(ec_eng, nst,
+    		(EclGblFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
 		&query_pw, 0, 0, module->val, module->tag);
 	    if (res != PSUCCEED)
 	    	return (res == PEOF) ? PSUCCEED : NOT_DUMP_FILE;
@@ -358,12 +358,12 @@ ec_load_eco_from_stream(stream_id nst, int options, pword *module)
 	    pgoal[2] = exports_pw;
 	    pgoal[3] = language_pw;
 
-	    res = query_emulc(query->val, query->tag, kernel_pw.val, kernel_pw.tag);
+	    res = sub_emulc_opt(ec_eng, query->val, query->tag, kernel_pw.val, kernel_pw.tag, GOAL_NOTNOT);
 	}
 	else
 	{
 	    /* execute the query/directive */
-	    res = query_emulc(query->val, query->tag, module->val, module->tag);
+	    res = sub_emulc_opt(ec_eng, query->val, query->tag, module->val, module->tag, GOAL_NOTNOT);
 	}
 
 	if (res != PSUCCEED)
@@ -376,7 +376,7 @@ ec_load_eco_from_stream(stream_id nst, int options, pword *module)
 	    pw[4] = *module;
 	    query = &query_pw;
 	    Make_Struct(query, pw);
-	    (void) query_emulc(query->val, query->tag, kernel_pw.val, kernel_pw.tag);
+	    (void) sub_emulc_opt(ec_eng, query->val, query->tag, kernel_pw.val, kernel_pw.tag, GOAL_NOTNOT);
 	}
 
 	if (new_module)			/* change to new context module */

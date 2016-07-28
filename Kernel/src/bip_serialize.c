@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_serialize.c,v 1.1 2013/09/28 00:25:39 jschimpf Exp $
+ * VERSION	$Id: bip_serialize.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -48,13 +48,10 @@
 #include "ec_io.h"
 #include "module.h"
 #include "emu_export.h"
+#include "read.h"
 
-extern pword	*transf_meta_out(value val, type tag, pword *top, dident mod, pword *presult),
-		*transf_meta_in(pword *pw, dident mod, int *err);
 
-extern pword	*p_meta_arity_;
-
-static int	_fill_procedures(pword *prev_ld, dident mod, type tmod);
+static int	_fill_procedures(ec_eng_t*, pword *prev_ld, dident mod, type tmod);
 
 
 /*---------------------------------------------------------------------------
@@ -301,7 +298,7 @@ static int	_fill_procedures(pword *prev_ld, dident mod, type tmod);
  */
 
 pword *
-term_to_dbformat(pword *parg, dident mod)
+term_to_dbformat(ec_eng_t *ec_eng, pword *parg, dident mod)
 {
     pword **save_tt = TT;
     register word arity = 1, len;
@@ -514,7 +511,7 @@ term_to_dbformat(pword *parg, dident mod)
 		Store_Int(top_offset);
 		if (flag) {
 		    pword pw_out;
-		    (void) transf_meta_out(pw->val, pw->tag,
+		    (void) transf_meta_out(ec_eng, pw->val, pw->tag,
 			    (pword *) TempAlloc(meta_attr, ATTR_IO_TERM_SIZE * sizeof(pword)),
 			    D_UNKNOWN, &pw_out);
 		    pw = pw_out.val.ptr;
@@ -577,7 +574,7 @@ term_to_dbformat(pword *parg, dident mod)
  */
 
 pword *
-dbformat_to_term(register char *buf, dident mod, type tmod)
+dbformat_to_term(ec_eng_t *ec_eng, register char *buf, dident mod, type tmod)
 {
     register pword *pw;
     pword	*p;
@@ -729,7 +726,7 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
 	    {
 		Load_Int(n);
 		pw->tag.kernel = t;	/* from_string() may change tag! */
-		if (tag_desc[t].from_string(buf, pw, 10) != PSUCCEED)
+		if (tag_desc[t].from_string(ec_eng, buf, pw, 10) != PSUCCEED)
 		{
 		    /* this can happen e.g. if we try to read a bignum
 		     * in an Eclipse that doesn't support them */
@@ -755,18 +752,18 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
     while (IsList(p->tag)) {
 	p = p->val.ptr;
 	pw = (p++)->val.ptr;
-	r = transf_meta_in(pw, mod, &res);
+	r = transf_meta_in(ec_eng, pw, mod, &res);
 	if (!r) {
 	    p_fprintf(current_err_,
 		    "unknown attribute in dbformat_to_term: ");
-	    (void) ec_pwrite(0, 2, current_err_, pw->val, pw->tag, 1200, 0,
+	    (void) ec_pwrite(ec_eng, 0, 2, current_err_, pw->val, pw->tag, 1200, 0,
 		    mod, tdict);
 	    (void) ec_newline(current_err_);
 	    return (pword *) 0;
 	}
 	pw->val.ptr = r;
     }
-    res = _fill_procedures(prev_ld, mod, tmod);
+    res = _fill_procedures(ec_eng, prev_ld, mod, tmod);
     return (res == PSUCCEED) ? base : 0;
 }
 
@@ -774,7 +771,7 @@ dbformat_to_term(register char *buf, dident mod, type tmod)
  * Fill in pri's in the newly read suspensions
  */
 static int
-_fill_procedures(pword *prev_ld, dident mod, type tmod)
+_fill_procedures(ec_eng_t *ec_eng, pword *prev_ld, dident mod, type tmod)
 {
     pword	*p, *env;
     dident	pd;
@@ -787,6 +784,7 @@ _fill_procedures(pword *prev_ld, dident mod, type tmod)
 	{
 	    proc = SuspProc(env);
 	    if (!proc) {
+		int err;
 		p = env + SUSP_GOAL;
 		Dereference_(p);
 		pd = p->val.ptr->val.did;
@@ -797,10 +795,8 @@ _fill_procedures(pword *prev_ld, dident mod, type tmod)
 		if (!IsModule(module_ref))
 		    (void) ec_create_module(module_ref);
 		proc = visible_procedure(pd, module_ref,
-		    (module_ref == mod) ? tmod : tdict, PRI_CREATE|PRI_REFER);
+		    (module_ref == mod) ? tmod : tdict, PRI_CREATE|PRI_REFER, &err);
 		if (!proc) {
-		    int err;
-		    Get_Bip_Error(err);
 		    p_fprintf(current_err_,
 			    "locked module in dbformat_to_term: %s\n",
 			    DidName(module_ref));
@@ -814,30 +810,28 @@ _fill_procedures(pword *prev_ld, dident mod, type tmod)
 }
 
 static int
-p_term_to_bytes(value v, type t, value vs, type ts, value vm, type tm)
+p_term_to_bytes(value v, type t, value vs, type ts, value vm, type tm, ec_eng_t *ec_eng)
 {
     pword pw, *result;
     Check_Output_String(ts);
     Check_Atom(tm);
     pw.val.all = v.all;
     pw.tag.all = t.all;
-    result = term_to_dbformat(&pw, vm.did);
+    result = term_to_dbformat(ec_eng, &pw, vm.did);
     Return_Unify_String(vs, ts, result);
 }
 
 static int
-p_bytes_to_term(value vs, type ts, value v, type t, value vmod, type tmod)
+p_bytes_to_term(value vs, type ts, value v, type t, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     pword *result;
 
     Check_Atom(tmod);
     Check_String(ts);
-    result = dbformat_to_term(StringStart(vs), vmod.did, tmod);
+    result = dbformat_to_term(ec_eng, StringStart(vs), vmod.did, tmod);
     if (!result)
     {
-	value va;
-	va.did = d_.abort;
-	Bip_Throw(va, tdict);
+	Bip_Error(BAD_FORMAT_STRING);
     }
     Return_Unify_Pw(v, t, result->val, result->tag);
 }
@@ -1042,19 +1036,18 @@ _write_exdr(stream_id nst, pword *pw, t_heap_htable *strhm, int *perr)
 }
 
 
-int p_write_exdr(value vs, type ts, value v, type t)
+static int
+p_write_exdr(value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
     int res, err;
     pword vt;
     char buf[2];
     char *dest = buf;
     t_heap_htable *strhm = NULL;
+    stream_id nst;
 
-    stream_id nst = get_stream_id(vs, ts, SWRITE, &res);
-    if (nst == NO_STREAM)
-    	return res;
-    if (!IsWriteStream(nst))
-	return STREAM_MODE;
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
+
     Store_Byte('V');
     Store_Byte(EXDR_VERSION);
     if ((res = ec_outf(nst, buf, 2)) != PSUCCEED)
@@ -1091,7 +1084,7 @@ int p_write_exdr(value vs, type ts, value v, type t)
 }
 
 static int
-_read_exdr(stream_id nst, t_heap_htable *strhm, pword *pw)
+_read_exdr(ec_eng_t *ec_eng, stream_id nst, t_heap_htable *strhm, pword *pw)
 {
     word arity, len;
     char *buf;
@@ -1256,7 +1249,7 @@ _read_exdr(stream_id nst, t_heap_htable *strhm, pword *pw)
 	}
 	for (; arity > 1; arity--,arg++)
 	{
-	    if ((res = _read_exdr(nst, strhm, arg)) != PSUCCEED)
+	    if ((res = _read_exdr(ec_eng, nst, strhm, arg)) != PSUCCEED)
 	    	return res;
 	}
 	pw = arg;		/* tail recursion optimised */
@@ -1264,20 +1257,19 @@ _read_exdr(stream_id nst, t_heap_htable *strhm, pword *pw)
 }
 
 
-int p_read_exdr(value vs, type ts, value v, type t)
+static int
+p_read_exdr(value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
     char *buf;
     pword vt;
     int res;
     t_heap_htable *strhm = NULL;
+    stream_id nst;
 
-    stream_id nst = get_stream_id(vs, ts, SREAD, &res);
-    if (nst == NO_STREAM)
-    	return res;
+    Get_Locked_Stream(vs, ts, SREAD, nst);
+
     if (nst == null_)
 	return PEOF;
-    if (!(IsReadStream(nst)))
-	return STREAM_MODE;
     Get_Next(3);
     if (!buf)
     	return PEOF;
@@ -1294,7 +1286,7 @@ int p_read_exdr(value vs, type ts, value v, type t)
 	res = ec_ungetch(nst);
 	if (res != PSUCCEED) return res;
     }
-    res = _read_exdr(nst, strhm, &vt);
+    res = _read_exdr(ec_eng, nst, strhm, &vt);
     if (strhm)
 	htable_free(strhm);
     if (res != PSUCCEED) {

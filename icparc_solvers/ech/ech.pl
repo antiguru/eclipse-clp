@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: ech.pl,v 1.6 2013/02/16 02:55:20 kish_shen Exp $
+% Version:	$Id: ech.pl,v 1.7 2016/07/28 03:34:37 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %  New CHR implementation
@@ -242,8 +242,8 @@ check_if_new_or_update(Module) :-
       ; % indicates that CHR code is being added since last (if any) compile
         recorda('CHRadding_code', Module)
    ), 
-   (current_array('CHRcstore',_)@Module -> 
-    % CHRcstore will be defined in Module if CHR encountered for Module
+   (current_array('CHRmodule',_)@Module -> 
+    % CHRmodule will be defined in Module if CHR encountered for Module
     % must use something from Module as the module may have been erased
         true ; initialise_module_for_chr(Module)
    ).
@@ -1706,7 +1706,6 @@ initialise_module_for_chr(Module) :-
    % be initialised to empty list when used.
    local(reference('CHRcstore', 0))@Module,
 
-
    % the following probably should not use the index database and should be 
    % module-based; but this update minimise code changes Kish 2002-11-20
 
@@ -1730,7 +1729,11 @@ initialise_module_for_chr(Module) :-
                               true   % nothing to be done if ech erased
                           )
                       ))
-        )@Module.
+        )@Module,
+
+   % a flag to indicate that this module has been initalised for CHR
+   local(variable('CHRmodule'))@Module.
+
 
 redefine_cdelete_count(Error, Culprit, Module, LM) :-
     (Culprit = local(array('CHRcdelete_count'(_N), integer)) -> 
@@ -2377,10 +2380,7 @@ clean_each_module([]) :- !.
 clean_each_module([count(Module,_)|L]) :-
    erase_all('CHRcode')@Module,
    erase_all('CHRconstraints')@Module,
-   % get around bug b91: reset the store so a new store will not inherit 
-   % incorrect value 
-   setval_body('CHRcstore', 0, Module), 
-   erase_array('CHRcstore')@Module,
+   erase_array('CHRmodule')@Module,
    clean_each_module(L).
 
 

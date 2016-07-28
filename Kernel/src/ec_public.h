@@ -23,103 +23,19 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_public.h,v 1.6 2011/05/05 07:49:36 jschimpf Exp $
+ * $Id: ec_public.h,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
  *
  * Macro definitions needed for the ECLiPSe embedding interface.
  *
  */
 
-/* To allow to compile external include files under C++ */
 
-#if defined(__cplusplus)
-#  define Dots	...
-#  define Extern extern "C"
-#  define ARGS(x) x
-#  ifdef const
-#    undef const
-#  endif
-#else
-#  define Dots
-#  define Extern extern
-#  ifdef __STDC__
-#    define ARGS(x) x
-#  else
-#    define ARGS(x) ()
-#  endif
-#endif
-
-/******************************************************************/
-/*		Machine-dependent definitions			 */
-/******************************************************************/
-
-/* A "word" is a pointer-sized integer.
- * The following size/min/max definitions are all about "words",
- * even when they say "int".
- */
-#define SIZEOF_WORD	SIZEOF_CHAR_P
-
-/* suffix needed for word-sized constants */
-#if (SIZEOF_WORD == SIZEOF_INT)
-#define WSUF(X)  X
-#define UWSUF(X) X
-#define W_MOD ""
-#elif (SIZEOF_WORD == SIZEOF_LONG)
-#define WSUF(X) (X##L)
-#define UWSUF(X) (X##UL)
-#define W_MOD "l"
-#elif (defined(HAVE_LONG_LONG) || defined(__GNUC__)) && \
-     (SIZEOF_WORD == __SIZEOF_LONG_LONG__)
-#define WSUF(X) (X##LL)
-#define UWSUF(X) (X##ULL)
-# ifdef _WIN32
-/* MSVC did not support long long until V8 (2005). Cross-compiling with
-   MingGW can use long long, but as calling printf/scanf will use MS
-   rather than GNU libc, we need to use MS's 64 bit integer modifier
-*/ 
-# define W_MOD "I64"
-# else
-# define W_MOD "ll"
-# endif
-#elif (defined(HAVE___INT64) && SIZEOF_WORD == 8)
-#define WSUF(X) (X##I64)
-#define UWSUF(X) (X##UI64)
-#define W_MOD "I64"
-#else
-PROBLEM: word size do not correspond to size of common integer types
-#endif
-
-/* Important:  SIGN_BIT is unsigned! */
-#if (SIZEOF_WORD ==  8)
-#define SIGN_BIT	((uword) UWSUF(0x8000000000000000))
-#define MAX_NUMBER	"9223372036854775807"
-#elif (SIZEOF_WORD == 4)
-#define SIGN_BIT	((uword) UWSUF(0x80000000))
-#define MAX_NUMBER	"2147483647"
-#else
-PROBLEM: Cannot deal with word size SIZEOF_WORD.
-#endif
-
-
-#define MAX_U_WORD	((uword) -1)
-#define MAX_S_WORD	((word) ~SIGN_BIT)
-#define MIN_S_WORD      ((word) SIGN_BIT)
-
-/*
- * Min/max words as doubles.
- * These definitions are guaranteed to work fine regardless of word size as
- * as long as MIN_S_WORD is a power of 2 and MAX_S_WORD is one less than a
- * power of two --- assuming round-to-nearest during type conversion.
- */
-
-#define MIN_S_WORD_DBL		((double)MIN_S_WORD)
-#define MAX_S_WORD_1_DBL	((double)MAX_S_WORD+1.0)
+#include "ec_general.h"
 
 
 /*
  * If the word size is big enough, doubles are unboxed
  */
-
-#define SIZEOF_DOUBLE	8
 
 #if SIZEOF_WORD >= SIZEOF_DOUBLE
 #define UNBOXED_DOUBLES
@@ -161,17 +77,19 @@ PROBLEM: Cannot deal with word size SIZEOF_WORD.
 
 /*
  * The most common return values from C externals
- * and from resumed Eclipse executions
+ * and from resumed Eclipse executions.  Errors are negative.
  */
 
 #define PSUCCEED		0	/* success			*/
 #define PFAIL			1	/* failure			*/
-#define PTHROW			2	/* exit_block, ball in A1	*/
-#define PYIELD			4	/* Eclipse engine suspended	*/
-#define PRUNNING		5	/* Eclipse engine running	*/
+#define PTHROW			2	/* throw/1, ball in A1		*/
+#define PEXITED			3	/* engine exited explicitly	*/
+#define PYIELD			4	/* engine suspended		*/
+#define PRUNNING		5	/* engine running asynchronously*/
 #define PWAITIO			6	/* waiting for queue input	*/
 #define PFLUSHIO		7	/* request queue output		*/
 
+#define EC_EXTERNAL_ERROR	-3	/* error in a user-defined external */
 #define INSTANTIATION_FAULT	-4	/* variable instead of constant */
 #define TYPE_ERROR		-5	/* wrong type */
 #define RANGE_ERROR		-6	/* out of range */
@@ -186,22 +104,27 @@ PROBLEM: Cannot deal with word size SIZEOF_WORD.
  *	INIT_SHARED	shared/saveable heap
  *	REINIT_SHARED	heap was restored, some info must be updated
  *	INIT_PRIVATE	C variables, private heap
- *	INIT_ENGINE	abstract machine
  *	INIT_PROCESS	do initialisations that are needed once
+ *
+ * Options for engine initialization:
+ *
+ *	INIT_ASYNC	init engine with its own thread
+ *	INIT_NO_MAIN	don't call main/1 in new engine
+ *	INIT_CLONE	init engine from the parent engine
  *
  * Initialisation is done in different situations:
  *
- * raw boot		INIT_SHARED|INIT_PRIVATE|INIT_ENGINE|INIT_PROCESS
- * after -r		REINIT_SHARED|INIT_PROCESS|INIT_PRIVATE [|INIT_ENGINE]
+ * raw boot		INIT_SHARED|INIT_PRIVATE|INIT_PROCESS
+ * after -r		REINIT_SHARED|INIT_PROCESS|INIT_PRIVATE
  * after -c		INIT_PROCESS|INIT_PRIVATE
- * after restore/1	REINIT_SHARED|INIT_PRIVATE [|INIT_ENGINE]
- * after reset	0 (maybe INIT_PRIVATE)
  */
 
 #define	INIT_SHARED	1
-#define	INIT_PRIVATE	2
-#define	INIT_ENGINE	4
+#define	REINIT_SHARED	2
+#define	INIT_PRIVATE	4
 #define	INIT_PROCESS	8
-#define	REINIT_SHARED	16
+#define	INIT_NO_MAIN	16
+#define	INIT_ASYNC	32
+#define	INIT_CLONE	64
 
 

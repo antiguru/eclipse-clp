@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: module.h,v 1.1 2008/06/30 17:43:57 jschimpf Exp $
+ * VERSION	$Id: module.h,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -44,8 +44,12 @@
 	(IsLocked(mod) && !IsModuleTag(mod, mod_tag))
 
 #define ModuleItem(did) \
-   ((module_item *) (get_property(did, MODULE_PROP))->val.ptr)
+   ((module_item *) global_property(did, MODULE_PROP).val.ptr)
 #define ModuleSyntax(did)	(ModuleItem(did)->syntax)
+
+#define Make_Module_Atom(pw, wdid) \
+	(pw)->tag.kernel = ModuleTag(wdid); \
+	(pw)->val.did = wdid;
 
 /* This is obsolete!! */
 #define Check_Module(t,v)					\

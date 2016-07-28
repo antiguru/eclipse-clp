@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: property.h,v 1.1 2008/06/30 17:43:58 jschimpf Exp $
+ * VERSION	$Id: property.h,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  */
  
 /*************************************************************
@@ -32,12 +32,22 @@
  *
  *************************************************************/
  
+/* scope of properties, options for access */
 #define VISIBLE_PROP		0
 #define LOCAL_PROP		1
 #define GLOBAL_PROP		2
 
-#define PROPERTY_ERROR		0
+/* successful return codes */
+/* #define LOCAL_PROP		1 */
+/* #define GLOBAL_PROP		2 */
+#define PROP_SCOPE		3
+#define NEW_PROP		4	/* bit-significant */
 
+#define HIDING_PROP		3
+#define PropVisibility(res)	((res)&PROP_SCOPE)
+
+
+/* types of properties */
 #define EVENT_PROP		1
 #define HTABLE_PROP		2
 #define GLOBVAR_PROP		3
@@ -51,39 +61,16 @@
 #define POSTFIX_PROP		11
 #define TRANS_PROP		12  /* must be consecutive, write macros odd */
 #define WRITE_TRANS_PROP	13  /* some values used in kernel.pl !!!     */
-#define GOAL_TRANS_PROP		14
+#define GOAL_TRANS_PROP		14	/* UNUSED (now inline) */
 #define WRITE_GOAL_TRANS_PROP	15
 #define CLAUSE_TRANS_PROP	16
 #define WRITE_CLAUSE_TRANS_PROP	17
 #define SHELF_PROP		18
+#define GLOBREF_PROP		19
 
-/* Create and set a global variable local to sepia_kernel		*/
-#define	Set_Kernel_Var(var_name, vvalue, tvalue)			\
-    {									\
-	value kv; value v_type; value v_vis;				\
-	v_type.did = d_.prolog;						\
-	v_vis.did = d_.local0;					\
-	kv.did = d_.kernel_sepia;					\
-	(void) p_make_array_(var_name, tdict, v_type, tdict,		\
-			     v_vis, tdict, kv, tdict);			\
-	(void) p_setval_body(var_name, tdict, vvalue, tvalue, kv, tdict);\
-    }
-
-#define	Get_Kernel_Var(var_did, pointer)				\
-	{								\
-	    type kt;							\
-	    int	res;							\
-	    kt.kernel = ModuleTag(d_.kernel_sepia);			\
-	    pointer = get_modular_property(var_did, GLOBVAR_PROP,	\
-					   d_.kernel_sepia, kt,		\
-					   VISIBLE_PROP, &res);		\
-	}
 
 #define TransfTermIn(tr)	((tr) + 4)
 #define TransfTermOut(tr)	((tr) + 5)
-
-#define GetPointerToRecord(functor, mod, mod_tag, perr)			\
-    get_modular_property(functor, IDB_PROP, mod, mod_tag, VISIBLE_PROP, perr)
 
 #define GlobalPrologRefIndexTag	TGRS
 #define IsGlobalPrologRefIndex(p) SameTypeC((p)->tag, GlobalPrologRefIndexTag)
@@ -92,26 +79,30 @@
 #define IsGlobalPrologRef(p) SameTypeC((p)->tag, GlobalPrologRefTag)
 
 
-Extern pword *	get_property ARGS((dident, int));
-Extern pword *	set_property ARGS((dident, int));
-Extern pword *	get_modular_property ARGS((dident, int, dident, type, int, int*));
-Extern pword *	set_modular_property ARGS((dident, int, dident, type, int, int*));
-Extern int	erase_property ARGS((dident, int));
-Extern int	erase_modular_property ARGS((dident, int, dident, type, int));
+Extern int	get_property_ref ARGS((dident, int, dident, type, int, pword**));
+Extern int	swap_property ARGS((dident, int, dident, type, int, pword*, pword*));
+
+Extern int	get_visible_property(dident functor, int property_name, dident module, type mod_tag, pword *result);
+Extern int	get_visible_property_handle(dident functor, int property_name, dident module, type mod_tag, const t_ext_type *class, t_ext_ptr *result);
+Extern pword	visible_property(dident functor, int property_name, dident module, type mod_tag, int *res);
+
+Extern int	get_global_property ARGS((dident, int, pword*));
+Extern int	set_global_property ARGS((dident, int, pword*));
+Extern int	swap_global_property ARGS((dident, int, pword*, pword*));
+Extern pword	global_property(dident functor, int property_name);
+
+Extern int	erase_global_property ARGS((dident, int));
+Extern int	erase_property ARGS((dident, int, dident, type, int));
 Extern void	erase_module_props ARGS((property*));
 Extern void	erase_records ARGS((pword*));
 Extern void	mark_dids_from_properties ARGS((property*));
 
-Extern void	get_heapterm ARGS((pword*, pword*));
-Extern int	create_heapterm ARGS((pword*, value, type));
+Extern void	get_heapterm ARGS((ec_eng_t*,pword*, pword*));
+Extern int	create_heapterm ARGS((ec_eng_t*, pword*, value, type));
 Extern void	free_heapterm ARGS((pword*));
 Extern void	move_heapterm ARGS((pword*, pword*));
 Extern void	make_heapterm_persistent ARGS((pword*));
 Extern void	mark_dids_from_heapterm ARGS((pword*));
 Extern void	set_string ARGS((pword*, char*));
 Extern void	set_string_n ARGS((pword*, char*, int));
-
-Extern uword *	get_elt_address ARGS((value, type, uword*, dident, type, int*));
-Extern word	get_first_elt ARGS((pword*, pword*, uword*, uword*, dident, type));
-Extern pword *	init_kernel_var ARGS((int flags, dident vdid, value v, type t));
 

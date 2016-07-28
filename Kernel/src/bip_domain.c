@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_domain.c,v 1.3 2010/03/19 05:52:16 jschimpf Exp $
+ * VERSION	$Id: bip_domain.c,v 1.4 2016/07/28 03:34:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -92,44 +92,18 @@ int		domain_slot;
 /*
  * STATIC VARIABLE DEFINITIONS:
  */
-static int	p_dom_range(value vd, type td, value vmi, type tmi, value vma, type tma),
-		p_dom_check_in(value ve, type te, value vd, type td),
-		p_fd_init(void),
-		p_lt_test(value vh, type th, value vmi, type tmi, value vma, type tma),
-		p_make_extreme(value vt, type tt, value vm, type tm),
-		p_linear_term_range_ge(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff),
-		p_linear_term_range_eq(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff),
-		p_linear_term_range_only(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff),
-		_linear_term_range(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff, int ge),
-		p_ex_insert_suspension(value vt, type tt, value vs, type ts, value vl, type tl),
-		p_gec_insert_suspension(value vx, type tx, value vk, type tk, value vy, type ty, value vs, type ts),
-		p_gec_start(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vd, type td, value ve, type te, value vres, type tres),
-		p_gec_ent_start(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vd, type td, value ve, type te, value vres, type tres),
-		p_gec_test(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres),
-		p_gec_comp(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres),
-		p_ineq_test(value vt, type tt, value vres, type tres, value vvar, type tvar, value vval, type tval),
-		p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vsi, type tsi, value vsv, type tsv, value vres, type tres, value vnewi, type tnewi, value vnewv, type tnewv, value vs, type ts, value vnsv, type tnsv),
-		p_attr_instantiate(value va, type ta, value vc, type tc),
-		p_prune_woken_goals(value val, type tag),
-		p_dvar_remove_smaller(value vvar, type tvar, value vm, type tm),
-		p_dvar_remove_greater(value vvar, type tvar, value vm, type tm),
-		p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value vs, type ts),
-		p_dom_intersection(value vd1, type td1, value vd2, type td2, value vi, type ti, value vs, type ts),
-		p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, value vs, type ts),
-		p_dom_compare(value vc, type tc, value vd1, type td1, value vd2, type td2),
-		p_dvar_replace(value vvar, type tvar, value vn, type tn),
-		p_dvar_remove_element(value vvar, type tvar, value vel, type tel),
-		p_integer_list_to_dom(value vl, type tl, value vd, type td),
-		p_sdelta(value l1, type t1, value l2, type t2, value l3, type t3),
-		p_remove_element(value vvar, type tvar, value vel, type tel, value vres, type tres);
 
-static int	dom_remove_smaller(pword*,word);
-static int	dom_remove_greater(pword*,word);
-static pword	*insert_interval(word,word,pword*);
-static pword	*_dom_intersection(pword*,pword*,word*);
+static int
+	p_gec_comp(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres, ec_eng_t *ec_eng),
+	p_gec_test(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres, ec_eng_t *ec_eng);
+
+static int	dom_remove_smaller(ec_eng_t*,pword*,word);
+static int	dom_remove_greater(ec_eng_t*,pword*,word);
+static pword	*insert_interval(ec_eng_t*,word,word,pword*);
+static pword	*_dom_intersection(ec_eng_t*,pword*,pword*,word*);
 static word	_dom_value(pword*);
-static int	_domain_changed(pword*,word,int);
-static int	_remove_element(pword*,word,word);
+static int	_domain_changed(ec_eng_t*,pword*,word,int);
+static int	_remove_element(ec_eng_t*,pword*,word,word);
 
 static dident	d_interval,
 		d_delay,
@@ -139,94 +113,8 @@ static dident	d_interval,
 		d_max0;
 
 
-void
-bip_domain_init(int flags)
-{
-    d_interval = in_dict("..", 2);
-    d_delay = in_dict("delay", 2);
-    d_dom = in_dict("dom", 2);
-    d_max0 = in_dict("max", 0);
-    d_min0 = in_dict("min", 0);
-    d_fd_par = in_dict("fd_parameters",1);
-
-    if (flags & INIT_SHARED)
-    {
-	/* this array is used to save the slot parameters in saved states */
-	 (void) make_kernel_array(d_fd_par, 1, d_.integer0, d_.local0);
-    }
-    else /* get the slot parameters from the saved state */
-    {
-	word *fd_parameters = (word *) (get_kernel_array(d_fd_par)->val.ptr + 1);
-	domain_slot = fd_parameters[0];
-    }
-
-    if (!(flags & INIT_SHARED))
-	return;
-
-    (void) exported_built_in(in_dict("fd_init", 0), p_fd_init, B_SAFE);
-    (void) exported_built_in(in_dict("dom_check_in", 2), p_dom_check_in, B_UNSAFE);
-    exported_built_in(in_dict("dom_compare", 3), p_dom_compare, B_UNSAFE)
-	-> mode = BoundArg(1, CONSTANT);
-    exported_built_in(in_dict("dvar_remove_smaller", 2), p_dvar_remove_smaller,
-	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(2, CONSTANT);
-    exported_built_in(in_dict("dvar_remove_greater", 2), p_dvar_remove_greater,
-	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(2, CONSTANT);
-    exported_built_in(in_dict("dom_range", 3), p_dom_range, B_UNSAFE|U_GROUND)
-	-> mode = BoundArg(2, CONSTANT)|BoundArg(3, CONSTANT);
-    exported_built_in(in_dict("dom_intersection", 4), p_dom_intersection,
-	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND)|BoundArg(4, CONSTANT);
-    exported_built_in(in_dict("dom_union", 4), p_dom_union,
-	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND)|BoundArg(4, CONSTANT);
-    exported_built_in(in_dict("dom_difference", 4), p_dom_difference,
-	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND)|BoundArg(4, CONSTANT);
-    (void) exported_built_in(in_dict("lt_test", 3), p_lt_test,
-	B_UNSAFE|U_UNIFY);
-    exported_built_in(in_dict("linear_term_range_only", 6),
-	p_linear_term_range_only, B_UNSAFE|U_UNIFY) -> mode =
-	BoundArg(2, CONSTANT);
-    exported_built_in(in_dict("linear_term_range_eq", 6),
-	p_linear_term_range_eq, B_UNSAFE|U_UNIFY) -> mode =
-	BoundArg(2, CONSTANT);
-    exported_built_in(in_dict("linear_term_range_ge", 6),
-	p_linear_term_range_ge, B_UNSAFE|U_UNIFY) -> mode =
-	BoundArg(2, CONSTANT);
-    exported_built_in(in_dict("make_extreme", 2), p_make_extreme, B_UNSAFE|U_UNIFY)
-	-> mode = BoundArg(1, NONVAR);
-    (void) exported_built_in(in_dict("prune_woken_goals", 1),
-	p_prune_woken_goals, B_UNSAFE);
-    (void) exported_built_in(in_dict("ex_insert_suspension", 3),
-	p_ex_insert_suspension, B_UNSAFE);
-    exported_built_in(in_dict("gec_start", 7), p_gec_start, B_UNSAFE|U_GROUND)
-	-> mode = BoundArg(5, CONSTANT);
-    exported_built_in(in_dict("gec_ent_start", 7), p_gec_ent_start,
-	B_UNSAFE|U_GROUND) -> mode = BoundArg(5, CONSTANT);
-    exported_built_in(in_dict("gec_test", 5), p_gec_test, B_UNSAFE|U_GROUND)
-	-> mode = BoundArg(5, CONSTANT);
-    exported_built_in(in_dict("gec_comp", 5), p_gec_comp, B_UNSAFE|U_GROUND)
-	-> mode = BoundArg(5, CONSTANT);
-    (void) exported_built_in(in_dict("gec_insert_suspension", 4),
-	p_gec_insert_suspension, B_UNSAFE);
-    exported_built_in(in_dict("ineq_test", 4), p_ineq_test, B_UNSAFE|U_UNIFY)
-	-> mode = BoundArg(2, CONSTANT) | BoundArg(3, NONVAR) |
-	BoundArg(4, CONSTANT);
-    exported_built_in(in_dict("index_values", 10), p_index_values,
-	B_UNSAFE|U_UNIFY) -> mode = BoundArg(6, CONSTANT) | BoundArg(7, NONVAR);
-    (void) exported_built_in(in_dict("attr_instantiate", 2), p_attr_instantiate,
-	B_UNSAFE);
-    exported_built_in(in_dict("remove_element", 3), p_remove_element,
-	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(3, CONSTANT);
-    exported_built_in(in_dict("dvar_remove_element", 2), p_dvar_remove_element,
-	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(3, CONSTANT);
-    exported_built_in(in_dict("integer_list_to_dom", 2), p_integer_list_to_dom,
-	B_UNSAFE|U_GROUND) -> mode = BoundArg(2, CONSTANT);
-    (void) exported_built_in(in_dict("dvar_replace", 2), p_dvar_replace,
-	B_UNSAFE);
-    exported_built_in(in_dict("sdelta", 3), p_sdelta,
-	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND);
-}
-
 static int
-p_fd_init(void)
+p_fd_init(ec_eng_t *ec_eng)
 {
     word *fd_parameters = (word *) (get_kernel_array(d_fd_par)->val.ptr + 1);
     domain_slot   = fd_parameters[0] = meta_index(in_dict("fd", 0));
@@ -234,7 +122,7 @@ p_fd_init(void)
 }
 
 static int
-p_dom_range(value vd, type td, value vmi, type tmi, value vma, type tma)
+p_dom_range(value vd, type td, value vmi, type tmi, value vma, type tma, ec_eng_t *ec_eng)
 {
     word		min, max;
     Prepare_Requests;
@@ -251,7 +139,7 @@ p_dom_range(value vd, type td, value vmi, type tmi, value vma, type tma)
 }
 
 static int
-p_dom_check_in(value ve, type te, value vd, type td)
+p_dom_check_in(value ve, type te, value vd, type td, ec_eng_t *ec_eng)
 {
     Check_Domain(vd, td)
     Check_Element(ve, te)
@@ -261,7 +149,7 @@ p_dom_check_in(value ve, type te, value vd, type td)
 /* attr_instantiate(Attr, Val)	*/
 /*ARGSUSED*/
 static int
-p_attr_instantiate(value va, type ta, value vc, type tc)
+p_attr_instantiate(value va, type ta, value vc, type tc, ec_eng_t *ec_eng)
 {
     register pword	*d;
     word		min, max;
@@ -277,7 +165,7 @@ p_attr_instantiate(value va, type ta, value vc, type tc)
     atomic = dom_range(d, &min, &max);
     d = va.ptr + ANY_OFF;
     Dereference_(d);
-    res = p_schedule_woken(d->val, d->tag);
+    res = p_schedule_woken(d->val, d->tag, ec_eng);
     if (res != PSUCCEED) {
 	Bip_Error(res)
     }
@@ -285,9 +173,9 @@ p_attr_instantiate(value va, type ta, value vc, type tc)
 	d = va.ptr + MIN_OFF;
 	Dereference_(d);
 	if (vc.nint > min) {
-	    res = p_schedule_woken(d->val, d->tag);
+	    res = p_schedule_woken(d->val, d->tag, ec_eng);
 	} else {
-	    res = p_schedule_postponed(d->val, d->tag);
+	    res = p_schedule_postponed(d->val, d->tag, ec_eng);
 	}
 	if (res != PSUCCEED) {
 	    Bip_Error(res)
@@ -296,9 +184,9 @@ p_attr_instantiate(value va, type ta, value vc, type tc)
 	d = va.ptr + MAX_OFF;
 	Dereference_(d);
 	if (vc.nint < max) {
-	    res = p_schedule_woken(d->val, d->tag);
+	    res = p_schedule_woken(d->val, d->tag, ec_eng);
 	} else {
-	    res = p_schedule_postponed(d->val, d->tag);
+	    res = p_schedule_postponed(d->val, d->tag, ec_eng);
 	}
 	if (res != PSUCCEED) {
 	    Bip_Error(res)
@@ -311,7 +199,7 @@ p_attr_instantiate(value va, type ta, value vc, type tc)
 /*	lt_test(+H, +Min, +Max)	*/
 /*ARGSUSED*/
 static int
-p_lt_test(value vh, type th, value vmi, type tmi, value vma, type tma)
+p_lt_test(value vh, type th, value vmi, type tmi, value vma, type tma, ec_eng_t *ec_eng)
 {
     word	min, max, n, n1, k;
     pword	*p;
@@ -398,26 +286,26 @@ p_lt_test(value vh, type th, value vmi, type tmi, value vma, type tma)
 	}
     }
     if (res & RES_MIN) {
-	min = dom_remove_smaller(p, k > 0 ? n : n1);
+	min = dom_remove_smaller(ec_eng, p, k > 0 ? n : n1);
 	if (!min) {
 	    Fail_
 	}
     }
     if (res & RES_MAX) {
-	min = dom_remove_greater(p, k > 0 ? n1 : n);
+	min = dom_remove_greater(ec_eng, p, k > 0 ? n1 : n);
 	if (!min) {
 	    Fail_
 	}
     }
     if (res) {
-	k = _domain_changed(var, min, res);
+	k = _domain_changed(ec_eng, var, min, res);
 	Check_Return(k)
     }
     Succeed_;
 }
 
 static int
-p_make_extreme(value vt, type tt, value vm, type tm)
+p_make_extreme(value vt, type tt, value vm, type tm, ec_eng_t *ec_eng)
 {
     register pword	*p, *s, *t;
     pword		*unif1, *l1, *unif2, *l2;
@@ -483,32 +371,8 @@ p_make_extreme(value vt, type tt, value vm, type tm)
     Return_Unify_Pw(unif1->val, unif1->tag, unif2->val, unif2->tag)
 }
 
-/*    linear_term_range_ge(+Term, -Res, -Min, -Max, -NewTerm, -Offset) */
 static int
-p_linear_term_range_ge(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff)
-{
-    return _linear_term_range(vt, tt, vres, tres, vmi, tmi, vma, tma,
-	vnew, tnew, voff, toff, RANGE_GE);
-}
-
-/*    linear_term_range_eq(+Term, -Res, -Min, -Max, -NewTerm, -Offset) */
-static int
-p_linear_term_range_eq(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff)
-{
-    return _linear_term_range(vt, tt, vres, tres, vmi, tmi, vma, tma,
-	vnew, tnew, voff, toff, RANGE_EQ);
-}
-
-/*    linear_term_range_only(+Term, -Res, -Min, -Max, -NewTerm, -Offset) */
-static int
-p_linear_term_range_only(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff)
-{
-    return _linear_term_range(vt, tt, vres, tres, vmi, tmi, vma, tma,
-	vnew, tnew, voff, toff, RANGE_ONLY);
-}
-
-static int
-_linear_term_range(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff, int ge)
+_linear_term_range(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff, ec_eng_t *ec_eng, int ge)
 {
     register word	min = 0;
     register word	max = 0;
@@ -705,6 +569,30 @@ _linear_term_range(value vt, type tt, value vres, type tres, value vmi, type tmi
     Succeed_
 }
 
+/*    linear_term_range_ge(+Term, -Res, -Min, -Max, -NewTerm, -Offset) */
+static int
+p_linear_term_range_ge(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff, ec_eng_t *ec_eng)
+{
+    return _linear_term_range(vt, tt, vres, tres, vmi, tmi, vma, tma,
+	vnew, tnew, voff, toff, ec_eng, RANGE_GE);
+}
+
+/*    linear_term_range_eq(+Term, -Res, -Min, -Max, -NewTerm, -Offset) */
+static int
+p_linear_term_range_eq(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff, ec_eng_t *ec_eng)
+{
+    return _linear_term_range(vt, tt, vres, tres, vmi, tmi, vma, tma,
+	vnew, tnew, voff, toff, ec_eng, RANGE_EQ);
+}
+
+/*    linear_term_range_only(+Term, -Res, -Min, -Max, -NewTerm, -Offset) */
+static int
+p_linear_term_range_only(value vt, type tt, value vres, type tres, value vmi, type tmi, value vma, type tma, value vnew, type tnew, value voff, type toff, ec_eng_t *ec_eng)
+{
+    return _linear_term_range(vt, tt, vres, tres, vmi, tmi, vma, tma,
+	vnew, tnew, voff, toff, ec_eng, RANGE_ONLY);
+}
+
 /* p is the val.ptr of dom/2 */
 int
 dom_range(register pword *p, word *mi, word *ma)
@@ -755,7 +643,7 @@ dom_range(register pword *p, word *mi, word *ma)
 /*    ex_insert_suspension(List, Susp, Ge) */
 /*ARGSUSED*/
 static int
-p_ex_insert_suspension(value vt, type tt, value vs, type ts, value vl, type tl)
+p_ex_insert_suspension(value vt, type tt, value vs, type ts, value vl, type tl, ec_eng_t *ec_eng)
 {
     register pword	*p;
     register pword	*s;
@@ -777,14 +665,14 @@ p_ex_insert_suspension(value vt, type tt, value vs, type ts, value vl, type tl)
 		Dereference_(s);
 		if (!IsInteger(s->tag)) {
 		    if (vl.nint == 0) {
-			res = insert_suspension(s, k > 0 ? MAX_OFF : MIN_OFF,
+			res = insert_suspension(ec_eng, s, k > 0 ? MAX_OFF : MIN_OFF,
 				vs.ptr, domain_slot);
 			Check_Return(res)
 		    } else {	/* equality */
-			res = insert_suspension(s, MIN_OFF,
+			res = insert_suspension(ec_eng, s, MIN_OFF,
 			    vs.ptr, domain_slot);
 			Check_Return(res)
-			res = insert_suspension(s, MAX_OFF,
+			res = insert_suspension(ec_eng, s, MAX_OFF,
 			    vs.ptr, domain_slot);
 			Check_Return(res)
 		    }
@@ -802,16 +690,16 @@ p_ex_insert_suspension(value vt, type tt, value vs, type ts, value vl, type tl)
 /*  gec_insert_suspension(X, K, Y, Susp) */
 /*ARGSUSED*/
 static int
-p_gec_insert_suspension(value vx, type tx, value vk, type tk, value vy, type ty, value vs, type ts)
+p_gec_insert_suspension(value vx, type tx, value vk, type tk, value vy, type ty, value vs, type ts, ec_eng_t *ec_eng)
 {
     int			res;
 
     if (IsRef(tx)) {
-	res = insert_suspension(vx.ptr, MAX_OFF, vs.ptr, domain_slot);
+	res = insert_suspension(ec_eng, vx.ptr, MAX_OFF, vs.ptr, domain_slot);
 	Check_Return(res)
     }
     if (IsRef(ty)) {
-	res = insert_suspension(vy.ptr, vk.nint > 0 ? MAX_OFF : MIN_OFF,
+	res = insert_suspension(ec_eng, vy.ptr, vk.nint > 0 ? MAX_OFF : MIN_OFF,
 		vs.ptr, domain_slot);
 	Check_Return(res)
     }
@@ -826,7 +714,7 @@ p_gec_insert_suspension(value vx, type tx, value vk, type tk, value vy, type ty,
     otherwise we signal an error.
 */
 static int
-p_gec_start(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vd, type td, value ve, type te, value vres, type tres)
+p_gec_start(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vd, type td, value ve, type te, value vres, type tres, ec_eng_t *ec_eng)
 {
     register pword	*p;
 
@@ -847,7 +735,7 @@ p_gec_start(value vx, type tx, value vk, type tk, value vy, type ty, value vc, t
     }
     vc.nint -= vd.nint;
     Bind_Var(ve, te, vc.nint, TINT)
-    return p_gec_comp(vx, tx, vk, tk, vy, ty, vc, tc, vres, tres);
+    return p_gec_comp(vx, tx, vk, tk, vy, ty, vc, tc, vres, tres, ec_eng);
 
 _gec_err_:
     if (!IsInteger(tc) || vd.nint == 0) {
@@ -868,7 +756,7 @@ _gec_err_:
     otherwise we signal an error.
 */
 static int
-p_gec_ent_start(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vd, type td, value ve, type te, value vres, type tres)
+p_gec_ent_start(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vd, type td, value ve, type te, value vres, type tres, ec_eng_t *ec_eng)
 {
     register pword	*p;
 
@@ -889,7 +777,7 @@ p_gec_ent_start(value vx, type tx, value vk, type tk, value vy, type ty, value v
     }
     vc.nint -= vd.nint;
     Bind_Var(ve, te, vc.nint, TINT)
-    return p_gec_test(vx, tx, vk, tk, vy, ty, vc, tc, vres, tres);
+    return p_gec_test(vx, tx, vk, tk, vy, ty, vc, tc, vres, tres, ec_eng);
 
 _gec_ent_err_:
     if (!IsInteger(tc) || vd.nint == 0) {
@@ -904,7 +792,7 @@ _gec_ent_err_:
 
 /*ARGSUSED*/
 static int
-p_gec_comp(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres)
+p_gec_comp(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres, ec_eng_t *ec_eng)
 {
     register word	c;
     register pword	*dom1, *dom2;
@@ -940,11 +828,11 @@ _x_inst_:
 		    Bind_Var(vy, ty, c, TINT)
 		    Bind_Var(vres, tres, ret, TINT)
 		} else {
-		    miny = dom_remove_greater(dom2, c);
+		    miny = dom_remove_greater(ec_eng, dom2, c);
 		    if (!miny) {
 			Fail_
 		    }
-		    m = _domain_changed(vy.ptr, miny, RES_MAX);
+		    m = _domain_changed(ec_eng, vy.ptr, miny, RES_MAX);
 		    Check_Return(m)
 		    Bind_Var(vres, tres, RES_WAKE, TINT)
 		}
@@ -960,11 +848,11 @@ _x_inst_:
 		    Bind_Var(vy, ty, c, TINT)
 		    Bind_Var(vres, tres, ret, TINT)
 		} else {
-		    miny = dom_remove_smaller(dom2, c);
+		    miny = dom_remove_smaller(ec_eng, dom2, c);
 		    if (!miny) {
 			Fail_
 		    }
-		    m = _domain_changed(vy.ptr, miny, RES_MIN);
+		    m = _domain_changed(ec_eng, vy.ptr, miny, RES_MIN);
 		    Check_Return(m)
 		    Bind_Var(vres, tres, RES_WAKE, TINT)
 		}
@@ -989,11 +877,11 @@ _y_inst_:
 		Bind_Var(vx, tx, c, TINT)
 		Bind_Var(vres, tres, ret, TINT)
 	    } else {
-		minx = dom_remove_smaller(dom1, c);
+		minx = dom_remove_smaller(ec_eng, dom1, c);
 		if (!minx) {
 		    Fail_
 		}
-		m = _domain_changed(vx.ptr, minx, RES_MIN);
+		m = _domain_changed(ec_eng, vx.ptr, minx, RES_MIN);
 		Check_Return(m)
 		Bind_Var(vres, tres, RES_WAKE, TINT)
 	    }
@@ -1037,9 +925,9 @@ _y_inst_:
 	register word	s;
 
 	if (k > 0)
-	    s = dom_remove_smaller(dom2, m);
+	    s = dom_remove_smaller(ec_eng, dom2, m);
 	else
-	    s = dom_remove_greater(dom2, m);
+	    s = dom_remove_greater(ec_eng, dom2, m);
 	if (!s) {
 	    Fail_
 	}
@@ -1049,10 +937,10 @@ _y_inst_:
 	    c = -k * miny - vc.nint;
 	    goto _y_inst_;
 	}
-	m = _domain_changed(vy.ptr, s, k > 0 ? RES_MIN : RES_MAX);
+	m = _domain_changed(ec_eng, vy.ptr, s, k > 0 ? RES_MIN : RES_MAX);
 	Check_Return(m)
 	if (newminx > minx) {
-	    s = dom_remove_smaller(dom1, newminx);
+	    s = dom_remove_smaller(ec_eng, dom1, newminx);
 	    if (!s) {
 		Fail_
 	    }
@@ -1063,7 +951,7 @@ _y_inst_:
 		ret = RES_WAKE;
 		goto _x_inst_;
 	    }
-	    m = _domain_changed(vx.ptr, s, RES_MIN);
+	    m = _domain_changed(ec_eng, vx.ptr, s, RES_MIN);
 	    Check_Return(m)
 	    Bind_Var(vres, tres, RES_DELAY_WAKE, TINT)
 	} else {
@@ -1079,11 +967,11 @@ _y_inst_:
 	Fail_
     }
     else if (newminx > minx) {
-	minx = dom_remove_smaller(dom1, newminx);
+	minx = dom_remove_smaller(ec_eng, dom1, newminx);
 	if (!minx) {
 	    Fail_
 	}
-	m = _domain_changed(vx.ptr, minx, RES_MIN);
+	m = _domain_changed(ec_eng, vx.ptr, minx, RES_MIN);
 	Check_Return(m)
 	Bind_Var(vres, tres, RES_DELAY_WAKE, TINT)
     }
@@ -1098,7 +986,7 @@ _y_inst_:
 
 /*ARGSUSED*/
 static int
-p_gec_test(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres)
+p_gec_test(value vx, type tx, value vk, type tk, value vy, type ty, value vc, type tc, value vres, type tres, ec_eng_t *ec_eng)
 {
     register word	c;
     register pword	*dom1, *dom2;
@@ -1198,7 +1086,7 @@ _x_inst_test_:
 
 /*    ineq_test(+Term, -Res, -Var, -Val) */
 static int
-p_ineq_test(value vt, type tt, value vres, type tres, value vvar, type tvar, value vval, type tval)
+p_ineq_test(value vt, type tt, value vres, type tres, value vvar, type tvar, value vval, type tval, ec_eng_t *ec_eng)
 {
     register word	sum = 0;
     register pword	*p;
@@ -1264,7 +1152,7 @@ p_ineq_test(value vt, type tt, value vres, type tres, value vvar, type tvar, val
     }
     k = sum/kvar;
     if (k * kvar == sum) {
-	k = _remove_element(var, -k, (word) TINT);
+	k = _remove_element(ec_eng, var, -k, (word) TINT);
 	Check_Return(k);
 	if (k == RES_FAIL) {
 	    Fail_
@@ -1282,7 +1170,7 @@ p_ineq_test(value vt, type tt, value vres, type tres, value vvar, type tvar, val
    index_values(Index, Term, Value, SI, SV, Res, NewI, NewV, SizeI, SizeV) */
 /*ARGSUSED*/
 static int
-p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vsi, type tsi, value vsv, type tsv, value vres, type tres, value vnewi, type tnewi, value vnewv, type tnewv, value vs, type ts, value vnsv, type tnsv)
+p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vsi, type tsi, value vsv, type tsv, value vres, type tres, value vnewi, type tnewi, value vnewv, type tnewv, value vs, type ts, value vnsv, type tnsv, ec_eng_t *ec_eng)
 {
     word	size = 0;
     word	sizev = 0;
@@ -1376,7 +1264,7 @@ p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vs
 		if (i - 1 == lasti)
 		    lasti++;
 		else if (i - 1 > lasti) {
-		    newi = insert_interval(firsti, lasti, newi);
+		    newi = insert_interval(ec_eng, firsti, lasti, newi);
 		    firsti = lasti = i;
 		}
 		else
@@ -1411,7 +1299,7 @@ p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vs
 	    }
 	}
 	if (lasti <= to)
-	    newi = insert_interval(firsti, lasti, newi);
+	    newi = insert_interval(ec_eng, firsti, lasti, newi);
 	Dereference_(p);
     }
     if (updi && size == 0 || updv && sizev == 0) {
@@ -1461,9 +1349,9 @@ p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vs
 	Dereference_(p);
 	key.val.nint = 0;
 	key.tag.kernel = TINT;
-	sorted.val.ptr = ec_keysort(v1, key.val, key.tag, 0, 0, 0, &err);
+	sorted.val.ptr = ecl_keysort(ec_eng, v1, key.val, key.tag, 0, 0, 0, &err);
 	sorted.tag.kernel = TLIST;
-	vints = _dom_intersection(p, &sorted, &ssv);
+	vints = _dom_intersection(ec_eng, p, &sorted, &ssv);
 	if (ssv == 0) {
 	    Fail_
 	} else {
@@ -1551,7 +1439,7 @@ dom_check_in(word e, type tag, register pword *p)
 }
 
 pword *
-insert_interval(word first, word last, pword *newi)
+insert_interval(ec_eng_t *ec_eng, word first, word last, pword *newi)
 {
     newi->val.ptr = Gbl_Tg;
     newi->tag.kernel = TLIST;
@@ -1590,7 +1478,7 @@ insert_interval(word first, word last, pword *newi)
 
 /* dom_intersection(Dom1, Dom2, Inters, NewSize) */
 static int
-p_dom_intersection(value vd1, type td1, value vd2, type td2, value vi, type ti, value vs, type ts)
+p_dom_intersection(value vd1, type td1, value vd2, type td2, value vi, type ti, value vs, type ts, ec_eng_t *ec_eng)
 {
     register pword	*d1, *d2;	/* list pointers */
     register pword	*p;
@@ -1608,7 +1496,7 @@ p_dom_intersection(value vd1, type td1, value vd2, type td2, value vi, type ti, 
     if (IsNil(d1->tag) || IsNil(d2->tag)) {
 	Fail_;
     }
-    d1 = _dom_intersection(d1, d2, &size);
+    d1 = _dom_intersection(ec_eng, d1, d2, &size);
     if (size == 0) {
 	Fail_;
     }
@@ -1628,6 +1516,7 @@ p_dom_intersection(value vd1, type td1, value vd2, type td2, value vi, type ti, 
 
 static pword *
 _dom_intersection(
+	ec_eng_t *ec_eng,
     	register pword *d1,		/* input: list pointers */
 	register pword *d2,
 	word *dsize)			/* output: intersection size */
@@ -1699,7 +1588,7 @@ _dom_intersection(
 			    toj = toi;
 		    }
 		    else {
-			p = insert_interval(fromj, toj, p);
+			p = insert_interval(ec_eng, fromj, toj, p);
 			size += toj - fromj + 1;
 			fromj = fromi;
 			toj = toi;
@@ -1714,7 +1603,7 @@ _dom_intersection(
 	    res = ec_compare_terms(s1->val, s1->tag, s2->val, s2->tag);
 	    if (!res) {
 		if (was_int) {
-		    p = insert_interval(fromj, toj, p);
+		    p = insert_interval(ec_eng, fromj, toj, p);
 		    size += toj - fromj + 1;
 		    was_int = 0;
 		}
@@ -1774,7 +1663,7 @@ _dom_intersection(
 	}
     }
     if (was_int) {
-	p = insert_interval(fromj, toj, p);
+	p = insert_interval(ec_eng, fromj, toj, p);
 	size += toj - fromj + 1;
     }
     p->tag.all = TNIL;
@@ -1786,7 +1675,7 @@ _dom_intersection(
 
 /* dom_compare(Comp, Dom1, Dom2) */
 static int
-p_dom_compare(value vc, type tc, value vd1, type td1, value vd2, type td2)
+p_dom_compare(value vc, type tc, value vd1, type td1, value vd2, type td2, ec_eng_t *ec_eng)
 {
     register pword	*d1, *d2;	/* list pointers */
     register pword	*s1, *s2;
@@ -1968,7 +1857,7 @@ p_dom_compare(value vc, type tc, value vd1, type td1, value vd2, type td2)
 
 /* dom_union(Dom1, Dom2, Union, NewSize) */
 static int
-p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value vs, type ts)
+p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value vs, type ts, ec_eng_t *ec_eng)
 {
     register pword	*d1, *d2;	/* list pointers */
     register pword	*s1, *s2;
@@ -2073,7 +1962,7 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 			    toi = to1;
 			can_leave = 0;
 		    } else {
-			p = insert_interval(fromi, toi, p);
+			p = insert_interval(ec_eng, fromi, toi, p);
 			size += toi - fromi + 1;
 			fromi = from1;
 			toi = to1;
@@ -2088,7 +1977,7 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 		size1 -= to1 - from1 + 1;
 	    } else {	/* atomic */
 		if (was_int) {
-		    p = insert_interval(fromi, toi, p);
+		    p = insert_interval(ec_eng, fromi, toi, p);
 		    size += toi - fromi + 1;
 		    was_int = 0;
 		}
@@ -2138,7 +2027,7 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 			    toi = to2;
 			can_leave = 0;
 		    } else {
-			p = insert_interval(fromi, toi, p);
+			p = insert_interval(ec_eng, fromi, toi, p);
 			size += toi - fromi + 1;
 			fromi = from2;
 			toi = to2;
@@ -2153,7 +2042,7 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 		size2 -= to2 - from2 + 1;
 	    } else if (res > 0) {	/* atomic */
 		if (was_int) {
-		    p = insert_interval(fromi, toi, p);
+		    p = insert_interval(ec_eng, fromi, toi, p);
 		    size += toi - fromi + 1;
 		    was_int = 0;
 		}
@@ -2199,7 +2088,7 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 	}
     }
     if (was_int) {
-	p = insert_interval(fromi, toi, p);
+	p = insert_interval(ec_eng, fromi, toi, p);
 	size += toi - fromi + 1;
     }
     *p = *d1;
@@ -2222,7 +2111,7 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 
 /* dom_difference(Dom1, Dom2, Diff, NewSize) */
 static int
-p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, value vs, type ts)
+p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, value vs, type ts, ec_eng_t *ec_eng)
 {
     register pword	*d1, *d2;	/* list pointers */
     register pword	*s1, *s2;
@@ -2306,7 +2195,7 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
 	if (IsTag(tag1, TINT) && IsTag(tag2, TINT)) {
 	    if (from1 < from2) {
 		toi = to1 < from2 ? to1 : from2 - 1;
-		p = insert_interval(from1, toi, p);
+		p = insert_interval(ec_eng, from1, toi, p);
 		size += toi - from1 + 1;
 	    }
 	    if (to1 > to2) {
@@ -2323,7 +2212,7 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
 	    Dereference_(d2);
 	    if (res < 0 || res > 0 && IsNil(d2->tag)) {
 		if (IsTag(tag1, TINT)) {
-		    p = insert_interval(from1, to1, p);
+		    p = insert_interval(ec_eng, from1, to1, p);
 		    size += to1 - from1 + 1;
 		    was_int = 0;
 		} else {
@@ -2391,7 +2280,7 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
 	}
     }
     if (was_int) {
-	p = insert_interval(from1, to1, p);
+	p = insert_interval(ec_eng, from1, to1, p);
 	size += to1 - from1 + 1;
     }
     Dereference_(d1);
@@ -2416,7 +2305,7 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
 
 /* dvar_remove_smaller(Var, Min) */
 static int
-p_dvar_remove_smaller(value vvar, type tvar, value vm, type tm)
+p_dvar_remove_smaller(value vvar, type tvar, value vm, type tm, ec_eng_t *ec_eng)
 {
     register pword	*v;
     register pword	*p;
@@ -2432,20 +2321,20 @@ p_dvar_remove_smaller(value vvar, type tvar, value vm, type tm)
     p = v + 2;
     Dereference_(p);
     oldsize = p->val.nint;
-    size = dom_remove_smaller(v, vm.nint);
+    size = dom_remove_smaller(ec_eng, v, vm.nint);
     Check_Return(size)
     if (!size) {
 	Fail_
     }
     if (size < oldsize)
-	oldsize = _domain_changed(vvar.ptr, size, RES_MIN);
+	oldsize = _domain_changed(ec_eng, vvar.ptr, size, RES_MIN);
     Check_Return(oldsize)
     Succeed_
 }
 
 /* dvar_remove_greater(Var, Max) */
 static int
-p_dvar_remove_greater(value vvar, type tvar, value vm, type tm)
+p_dvar_remove_greater(value vvar, type tvar, value vm, type tm, ec_eng_t *ec_eng)
 {
     register pword	*v;
     register pword	*p;
@@ -2461,19 +2350,19 @@ p_dvar_remove_greater(value vvar, type tvar, value vm, type tm)
     p = v + 2;
     Dereference_(p);
     oldsize = p->val.nint;
-    size = dom_remove_greater(v, vm.nint);
+    size = dom_remove_greater(ec_eng, v, vm.nint);
     Check_Return(size)
     if (!size) {
 	Fail_
     }
     if (size < oldsize)
-	oldsize = _domain_changed(vvar.ptr, size, RES_MAX);
+	oldsize = _domain_changed(ec_eng, vvar.ptr, size, RES_MAX);
     Check_Return(oldsize)
     Succeed_
 }
 
 int
-dom_remove_greater(register pword *p, register word max)
+dom_remove_greater(ec_eng_t *ec_eng, register pword *p, register word max)
 {
     register pword	*s;
     register pword	*t;
@@ -2526,7 +2415,7 @@ dom_remove_greater(register pword *p, register word max)
 		    size += s->val.nint - t->val.nint + 1;
 		}
 		else {
-		    r = insert_interval(t->val.nint, max, r);
+		    r = insert_interval(ec_eng, t->val.nint, max, r);
 		    size += max - t->val.nint + 1;
 		    break;
 		}
@@ -2538,16 +2427,16 @@ dom_remove_greater(register pword *p, register word max)
     }
     r->tag.kernel = TNIL;
     if (size) {
-	(void) ec_assign(dom + 1, newd->val, newd->tag);
+	(void) ecl_assign(ec_eng, dom + 1, newd->val, newd->tag);
 	v0.nint = size;
-	(void) ec_assign(dom + 2, v0, tint);
+	(void) ecl_assign(ec_eng, dom + 2, v0, tint);
     }
     return size;
 }
 
 /* p is the val.ptr of dom/2 */
 int
-dom_remove_smaller(register pword *p, register word min)
+dom_remove_smaller(ec_eng_t *ec_eng, register pword *p, register word min)
 {
     register pword	*s;
     register pword	*t;
@@ -2591,7 +2480,7 @@ dom_remove_smaller(register pword *p, register word min)
 		    newd = r = Gbl_Tg;
 		    Gbl_Tg++;
 		    Check_Gc
-		    r = insert_interval(min, s->val.nint, r);
+		    r = insert_interval(ec_eng, min, s->val.nint, r);
 		    size -= min - t->val.nint;
 		    *r = *p;
 		    newd = newd->val.ptr;
@@ -2603,16 +2492,16 @@ dom_remove_smaller(register pword *p, register word min)
     }
     if (size) {
 	v0.ptr = newd;
-	(void) ec_assign(dom + 1, v0, tlist);
+	(void) ecl_assign(ec_eng, dom + 1, v0, tlist);
 	v0.nint = size;
-	(void) ec_assign(dom + 2, v0, tint);
+	(void) ecl_assign(ec_eng, dom + 2, v0, tint);
     }
     return size;
 }
 
 /* dvar_remove_element(DVar, El) */
 static int
-p_dvar_remove_element(value vvar, type tvar, value vel, type tel)
+p_dvar_remove_element(value vvar, type tvar, value vel, type tel, ec_eng_t *ec_eng)
 {
     register pword	*d;
     int			res;
@@ -2623,7 +2512,7 @@ p_dvar_remove_element(value vvar, type tvar, value vel, type tel)
 	Succeed_If(ec_compare_terms(vvar, tvar, vel, tel))
     }
     Check_Dvar(vvar.ptr, d);
-    res = _remove_element(vvar.ptr, vel.nint, tel.kernel);
+    res = _remove_element(ec_eng, vvar.ptr, vel.nint, tel.kernel);
     Check_Return(res);
     if (res == RES_FAIL) {
 	Fail_
@@ -2632,14 +2521,14 @@ p_dvar_remove_element(value vvar, type tvar, value vel, type tel)
 }
 
 static int
-_remove_element(pword *var, word el, word tag)
+_remove_element(ec_eng_t *ec_eng, pword *var, word el, word tag)
 {
     int			res;
     register pword	*v;
     pword		inst;
 
     Var_Domain(var, v);
-    res = dom_remove_element(v, el, tag, &inst);
+    res = dom_remove_element(ec_eng, v, el, tag, &inst);
     switch (res)
     {
     case RES_FAIL:
@@ -2654,15 +2543,15 @@ _remove_element(pword *var, word el, word tag)
 
     case RES_MIN:
 	/* We don't know the size, but we know it is > 1 */
-	res = _domain_changed(var, 2, RES_MIN);
+	res = _domain_changed(ec_eng, var, 2, RES_MIN);
 	return res < 0 ? res : RES_WAKE;
 
     case RES_MAX:
-	res = _domain_changed(var, 2, RES_MAX);
+	res = _domain_changed(ec_eng, var, 2, RES_MAX);
 	return res < 0 ? res : RES_WAKE;
 
     case RES_ANY:
-	res = _domain_changed(var, 2, 0);
+	res = _domain_changed(ec_eng, var, 2, 0);
 	return res < 0 ? res : RES_WAKE;
 
     default:
@@ -2671,7 +2560,7 @@ _remove_element(pword *var, word el, word tag)
 }
 
 static int
-p_remove_element(value vvar, type tvar, value vel, type tel, value vres, type tres)
+p_remove_element(value vvar, type tvar, value vel, type tel, value vres, type tres, ec_eng_t *ec_eng)
 {
     int			res;
 
@@ -2682,7 +2571,7 @@ p_remove_element(value vvar, type tvar, value vel, type tel, value vres, type tr
 	}
 	Succeed_If(!SameType(tvar,tel) || !IsNil(tvar) && vvar.all != vel.all)
     }
-    res = _remove_element(vvar.ptr, vel.nint, tel.kernel);
+    res = _remove_element(ec_eng, vvar.ptr, vel.nint, tel.kernel);
     Check_Return(res);
     if (res == RES_FAIL) {
 	Fail_
@@ -2692,7 +2581,7 @@ p_remove_element(value vvar, type tvar, value vel, type tel, value vres, type tr
 }
 
 int
-dom_remove_element(register pword *p, register word el, word tag, pword *inst)
+dom_remove_element(ec_eng_t *ec_eng, register pword *p, register word el, word tag, pword *inst)
 {
     register pword	*s;
     register pword	*t;
@@ -2785,14 +2674,14 @@ dom_remove_element(register pword *p, register word el, word tag, pword *inst)
 		if (t->val.nint <= el) {
 		    if (t->val.nint < el) {
 			elem = t;
-			r = insert_interval(t->val.nint, el - 1, r);
+			r = insert_interval(ec_eng, t->val.nint, el - 1, r);
 			res = RES_ANY;
 		    } else {
 			elem = s;
 			res = st ? RES_MIN : RES_ANY;
 		    }
 		    if (s->val.nint > el) {
-			r = insert_interval(el + 1, s->val.nint, r);
+			r = insert_interval(ec_eng, el + 1, s->val.nint, r);
 			if (!res)
 			    res = RES_ANY;
 		    } else
@@ -2817,9 +2706,9 @@ dom_remove_element(register pword *p, register word el, word tag, pword *inst)
 	}
 	if (res == RES_MAX && !IsNil(p->tag))
 	    res = RES_ANY;
-	(void) ec_assign(dom + 1, newd->val, newd->tag);
+	(void) ecl_assign(ec_eng, dom + 1, newd->val, newd->tag);
 	v0.nint = size - 1;
-	(void) ec_assign(dom + 2, v0, tint);
+	(void) ecl_assign(ec_eng, dom + 2, v0, tint);
 	return res;
     }
     else
@@ -2827,7 +2716,7 @@ dom_remove_element(register pword *p, register word el, word tag, pword *inst)
 }
 
 static int
-p_dvar_replace(value vvar, type tvar, value vn, type tn)
+p_dvar_replace(value vvar, type tvar, value vn, type tn, ec_eng_t *ec_eng)
 {
     register pword	*dom;
     register pword	*s;
@@ -2853,7 +2742,7 @@ p_dvar_replace(value vvar, type tvar, value vn, type tn)
     } else if (s->val.nint < size) {
 	Bip_Error(RANGE_ERROR)
     }
-    return ec_assign(dom, vn, tn);
+    return ecl_assign(ec_eng, dom, vn, tn);
 }
 
 static word
@@ -2878,7 +2767,7 @@ _dom_value(register pword *p)
  * the appropriate lists and reset them in the domain.
  */
 static int
-_domain_changed(pword *var, word size, int which)
+_domain_changed(ec_eng_t *ec_eng, pword *var, word size, int which)
 {
     register pword	*attr;
     register pword	*p;
@@ -2902,42 +2791,42 @@ _domain_changed(pword *var, word size, int which)
 	attr = attr->val.ptr;
 	p = attr + ANY_OFF;
 	Dereference_(p);
-	res = p_schedule_woken(p->val, p->tag);
+	res = p_schedule_woken(p->val, p->tag, ec_eng);
 	Check_Return(res);
 
 	if (which & RES_MIN) {
 	    p = attr + MIN_OFF;
 	    Dereference_(p);
-	    res = p_schedule_woken(p->val, p->tag);
+	    res = p_schedule_woken(p->val, p->tag, ec_eng);
 	    Check_Return(res);
 	}
 	if (which & RES_MAX) {
 	    p = attr + MAX_OFF;
 	    Dereference_(p);
-	    res = p_schedule_woken(p->val, p->tag);
+	    res = p_schedule_woken(p->val, p->tag, ec_eng);
 	    Check_Return(res);
 	}
     }
     else	/* schedule and update the suspension lists */
     {
 	attr = attr->val.ptr;
-	res = ec_schedule_susps(attr + ANY_OFF);
+	res = ecl_schedule_susps(ec_eng, attr + ANY_OFF);
 	Check_Return(res);
 
 	if (which & RES_MIN) {
-	    res = ec_schedule_susps(attr + MIN_OFF);
+	    res = ecl_schedule_susps(ec_eng, attr + MIN_OFF);
 	    Check_Return(res);
 	}
 	if (which & RES_MAX) {
-	    res = ec_schedule_susps(attr + MAX_OFF);
+	    res = ecl_schedule_susps(ec_eng, attr + MAX_OFF);
 	    Check_Return(res);
 	}
     }
-    return notify_constrained(var);
+    return ecl_notify_constrained(ec_eng, var);
 }
 
 static int
-p_prune_woken_goals(value val, type tag)	/* must be dereferenced */
+p_prune_woken_goals(value val, type tag, ec_eng_t *ec_eng)	/* must be dereferenced */
 {
     register word	arity;
     register int	res;
@@ -2962,11 +2851,11 @@ p_prune_woken_goals(value val, type tag)	/* must be dereferenced */
 	    if (!IsStructure(arg->tag))
 		{ Succeed_; }
 	    arg = arg->val.ptr;
-	    res = ec_prune_suspensions(arg + MIN_OFF);
+	    res = ecl_prune_suspensions(ec_eng, arg + MIN_OFF);
 	    Check_Return(res);
-	    res = ec_prune_suspensions(arg + MAX_OFF);
+	    res = ecl_prune_suspensions(ec_eng, arg + MAX_OFF);
 	    Check_Return(res);
-	    return ec_prune_suspensions(arg + ANY_OFF);
+	    return ecl_prune_suspensions(ec_eng, arg + ANY_OFF);
 	}
 	else
 	{
@@ -2977,7 +2866,7 @@ p_prune_woken_goals(value val, type tag)	/* must be dereferenced */
 	{
 	    arg = val.ptr++;
 	    Dereference_(arg);
-	    res = p_prune_woken_goals(arg->val, arg->tag);
+	    res = p_prune_woken_goals(arg->val, arg->tag, ec_eng);
 	    Check_Return(res);
 	}
 	arg = val.ptr;		/* tail recursion */
@@ -2989,7 +2878,7 @@ p_prune_woken_goals(value val, type tag)	/* must be dereferenced */
 
 
 static int
-p_integer_list_to_dom(value vl, type tl, value vd, type td)
+p_integer_list_to_dom(value vl, type tl, value vd, type td, ec_eng_t *ec_eng)
 {
     pword	*p;
     pword	*l;
@@ -3048,7 +2937,7 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td)
 		if (num == to + 1)
 		    to = num;
 		else if (num > to) {
-		    p = insert_interval((word) from, (word) to, p);
+		    p = insert_interval(ec_eng, (word) from, (word) to, p);
 		    size += to - from + 1;
 		    from = to = num;
 		} else {
@@ -3068,7 +2957,7 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td)
 		if (num == to + 1)
 		    to = s->val.nint;
 		else if (num > to) {
-		    p = insert_interval((word) from, (word) to, p);
+		    p = insert_interval(ec_eng, (word) from, (word) to, p);
 		    size += to - from + 1;
 		    from = num;
 		    to = s->val.nint;
@@ -3092,7 +2981,7 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td)
 	}
     }
     if (!IsNil(tl)) {
-	p = insert_interval((word) from, (word) to, p);
+	p = insert_interval(ec_eng, (word) from, (word) to, p);
 	p->tag.kernel = TNIL;
 	size += to - from + 1;
     }
@@ -3115,7 +3004,7 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td)
  */
 
 static int
-p_sdelta(value l1, type t1, value l2, type t2, value l3, type t3)
+p_sdelta(value l1, type t1, value l2, type t2, value l3, type t3, ec_eng_t *ec_eng)
 {
   pword result_pw;
   pword *result = &result_pw;
@@ -3159,3 +3048,91 @@ p_sdelta(value l1, type t1, value l2, type t2, value l3, type t3)
   Return_Unify_Pw(l3, t3, result_pw.val, result_pw.tag);
 }
 
+
+void
+bip_domain_init(int flags)
+{
+    d_interval = in_dict("..", 2);
+    d_delay = in_dict("delay", 2);
+    d_dom = in_dict("dom", 2);
+    d_max0 = in_dict("max", 0);
+    d_min0 = in_dict("min", 0);
+    d_fd_par = in_dict("fd_parameters",1);
+
+    if (flags & INIT_SHARED)
+    {
+	/* this array is used to save the slot parameters in saved states */
+	 (void) make_kernel_array(aux_eng, d_fd_par, 1, d_.integer0, d_.local0);
+    }
+    else /* get the slot parameters from the saved state */
+    {
+	word *fd_parameters = (word *) (get_kernel_array(d_fd_par)->val.ptr + 1);
+	domain_slot = fd_parameters[0];
+    }
+
+    if (!(flags & INIT_SHARED))
+	return;
+
+    (void) exported_built_in(in_dict("fd_init", 0), p_fd_init, B_SAFE);
+    (void) exported_built_in(in_dict("dom_check_in", 2), p_dom_check_in, B_UNSAFE);
+    exported_built_in(in_dict("dom_compare", 3), p_dom_compare, B_UNSAFE)
+	-> mode = BoundArg(1, CONSTANT);
+    exported_built_in(in_dict("dvar_remove_smaller", 2), p_dvar_remove_smaller,
+	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(2, CONSTANT);
+    exported_built_in(in_dict("dvar_remove_greater", 2), p_dvar_remove_greater,
+	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(2, CONSTANT);
+    exported_built_in(in_dict("dom_range", 3), p_dom_range, B_UNSAFE|U_GROUND)
+	-> mode = BoundArg(2, CONSTANT)|BoundArg(3, CONSTANT);
+    exported_built_in(in_dict("dom_intersection", 4), p_dom_intersection,
+	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND)|BoundArg(4, CONSTANT);
+    exported_built_in(in_dict("dom_union", 4), p_dom_union,
+	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND)|BoundArg(4, CONSTANT);
+    exported_built_in(in_dict("dom_difference", 4), p_dom_difference,
+	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND)|BoundArg(4, CONSTANT);
+    (void) exported_built_in(in_dict("lt_test", 3), p_lt_test,
+	B_UNSAFE|U_UNIFY);
+    exported_built_in(in_dict("linear_term_range_only", 6),
+	p_linear_term_range_only, B_UNSAFE|U_UNIFY) -> mode =
+	BoundArg(2, CONSTANT);
+    exported_built_in(in_dict("linear_term_range_eq", 6),
+	p_linear_term_range_eq, B_UNSAFE|U_UNIFY) -> mode =
+	BoundArg(2, CONSTANT);
+    exported_built_in(in_dict("linear_term_range_ge", 6),
+	p_linear_term_range_ge, B_UNSAFE|U_UNIFY) -> mode =
+	BoundArg(2, CONSTANT);
+    exported_built_in(in_dict("make_extreme", 2), p_make_extreme, B_UNSAFE|U_UNIFY)
+	-> mode = BoundArg(1, NONVAR);
+    (void) exported_built_in(in_dict("prune_woken_goals", 1),
+	p_prune_woken_goals, B_UNSAFE);
+    (void) exported_built_in(in_dict("ex_insert_suspension", 3),
+	p_ex_insert_suspension, B_UNSAFE);
+    exported_built_in(in_dict("gec_start", 7), p_gec_start, B_UNSAFE|U_GROUND)
+	-> mode = BoundArg(5, CONSTANT);
+    exported_built_in(in_dict("gec_ent_start", 7), p_gec_ent_start,
+	B_UNSAFE|U_GROUND) -> mode = BoundArg(5, CONSTANT);
+    exported_built_in(in_dict("gec_test", 5), p_gec_test, B_UNSAFE|U_GROUND)
+	-> mode = BoundArg(5, CONSTANT);
+    exported_built_in(in_dict("gec_comp", 5), p_gec_comp, B_UNSAFE|U_GROUND)
+	-> mode = BoundArg(5, CONSTANT);
+    (void) exported_built_in(in_dict("gec_insert_suspension", 4),
+	p_gec_insert_suspension, B_UNSAFE);
+    exported_built_in(in_dict("ineq_test", 4), p_ineq_test, B_UNSAFE|U_UNIFY)
+	-> mode = BoundArg(2, CONSTANT) | BoundArg(3, NONVAR) |
+	BoundArg(4, CONSTANT);
+    exported_built_in(in_dict("index_values", 10), p_index_values,
+	B_UNSAFE|U_UNIFY) -> mode = BoundArg(6, CONSTANT) | BoundArg(7, NONVAR);
+    (void) exported_built_in(in_dict("attr_instantiate", 2), p_attr_instantiate,
+	B_UNSAFE);
+    exported_built_in(in_dict("remove_element", 3), p_remove_element,
+	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(3, CONSTANT);
+    exported_built_in(in_dict("dvar_remove_element", 2), p_dvar_remove_element,
+	B_UNSAFE|U_SIMPLE) -> mode = BoundArg(3, CONSTANT);
+    exported_built_in(in_dict("integer_list_to_dom", 2), p_integer_list_to_dom,
+	B_UNSAFE|U_GROUND) -> mode = BoundArg(2, CONSTANT);
+    (void) exported_built_in(in_dict("dvar_replace", 2), p_dvar_replace,
+	B_UNSAFE);
+    exported_built_in(in_dict("sdelta", 3), p_sdelta,
+	B_UNSAFE|U_GROUND) -> mode = BoundArg(3, GROUND);
+}
+
+/* Add all new code in front of the initialization function! */

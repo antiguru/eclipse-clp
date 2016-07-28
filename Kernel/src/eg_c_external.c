@@ -23,20 +23,20 @@
 /*
  * Examples for ECLiPSe C externals, from the User Manual
  *
- * $Id: eg_c_external.c,v 1.1 2008/06/30 17:43:53 jschimpf Exp $
+ * $Id: eg_c_external.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  *
  */
 
 #include "eclipse.h"
 
 int
-p_isvar()
+p_isvar(ec_eng_t *ec_eng)
 {
     return ec_is_var(ec_arg(1));
 }
 
 int
-p_comp()
+p_comp(ec_eng_t *ec_eng)
 {
     return ec_unify_arg(1,
     	ec_compare(ec_arg(2),ec_arg(3)) < 0 ? ec_atom(ec_did("<",0)) :
@@ -45,7 +45,7 @@ p_comp()
 }
 
 int
-p_string_to_list()
+p_string_to_list(ec_eng_t *ec_eng)
 {
     pword  list;
     char *s;
@@ -65,7 +65,7 @@ p_string_to_list()
 
 
 int
-p_sumlist()
+p_sumlist(ec_eng_t *ec_eng)
 {
     int res;
     long x, sum = 0;

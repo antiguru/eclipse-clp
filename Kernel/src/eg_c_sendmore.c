@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Application Example
  *
- * $Id: eg_c_sendmore.c,v 1.1 2008/06/30 17:43:54 jschimpf Exp $
+ * $Id: eg_c_sendmore.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  *
  * IDENTIFICATION:	eg_sendmore.c
  *
@@ -34,6 +34,7 @@
  *	Example of solving a constraint problem from C
  */
 
+#define USES_NO_ENGINE_HANDLE
 #include	"eclipse.h"
 
 #define NVARS	8

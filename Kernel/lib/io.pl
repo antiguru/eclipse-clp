@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.20 2016/07/24 19:34:44 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.21 2016/07/28 03:34:35 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -90,7 +90,8 @@
 % if used for testing, a stream name is accepted as well.
 
 current_stream(Stream) :- var(Stream), !,
-	gen_open_stream(0, Stream).
+	open_streams(Streams),
+	member(Stream, Streams).
 current_stream(Stream) :- check_stream_spec(Stream), !,
 	is_open_stream(Stream).
 current_stream(Stream) :-
@@ -105,7 +106,8 @@ current_stream(File, Mode, Stream) :-
 	    check_var_or_stream_spec(Stream)
 	->
 		( var(Stream) ->
-		    gen_open_stream(0, Stream)
+		    open_streams(Streams),
+		    member(Stream, Streams)
 		;
 		    is_open_stream(Stream)	% else fail
 		),
@@ -186,6 +188,8 @@ stream_info_nr(input, 34).
 stream_info_nr(output, 35).
 stream_info_nr(end_of_stream, 36).
 stream_info_nr(eof_action, 37).
+stream_info_nr(event_engine, 38).
+stream_info_nr(locked, 39).
 
 stream_info_nr_hidden(physical_stream, 4).
 stream_info_nr_hidden(print_depth, 26).
@@ -1294,12 +1298,7 @@ peer_queue_close(Queue) :-
 	;
 	    true
 	),
-	close_remote_physical_streams(QType, StreamNum),
-	true.
-
-    sstream(stdin).
-    sstream(stdout).
-    sstream(stderr).
+	close_remote_physical_streams(QType, StreamNum).
 
     close_remote_physical_streams(sync(Socket), StreamNum) :-
 	(current_stream(StreamNum) ->

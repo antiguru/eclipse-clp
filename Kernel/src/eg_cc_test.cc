@@ -23,7 +23,7 @@
 /*
  * ECLiPSe SAMPLE CODE
  *
- * $Id: eg_cc_test.cc,v 1.3 2012/02/25 13:47:56 jschimpf Exp $
+ * $Id: eg_cc_test.cc,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf
  *
@@ -33,7 +33,10 @@
 
 
 #include	"eclipseclass.h"
+//#include	"eclipseclp.h"
 #include	<iostream>
+
+//using namespace eclipseclp;
 
 long	longs[] = {1,2,3,4,5};
 double	doubles[] = {1.1,2.2,3.3,4.4,5.5};

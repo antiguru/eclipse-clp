@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.14 2015/05/20 23:55:36 jschimpf Exp $
+ * $Id: sepia.h,v 1.15 2016/07/28 03:34:36 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -34,42 +34,22 @@
  */
 
 #ifdef _WIN32
+
 #ifndef EC_EXTERNAL
-/* For building Eclipse itself: avoid to include windows.h everywhere */
-/* Just define Winapi for the compiler we use (Microsoft C or gcc) */
-#define Winapi __stdcall
+/* For building Eclipse itself */
 #define DLLEXP __declspec(dllexport)
-
-#else
-#ifdef EC_EMBED
-This file must not be included with the embedding interface!
-
+#elif defined(EC_EMBED)
+#error "This file must not be included with the embedding interface!"
 #else
 /* For compiling old-style externals */
-#include <windows.h>
-#define Winapi WINAPI
 #define DLLEXP __declspec(dllimport)
-#endif
 #endif
 
 #else	/* UNIX */
-#define Winapi
 #define DLLEXP
-
 #endif
-
 
 #include "ec_public.h"
-
-
-#ifndef assert
-#ifdef NDEBUG
-#define assert(p)  	((void)0)
-#else
-#define assert(e)       ((e) ? (void)0 : p_fprintf(current_err_, \
-	"\nAssertion failed in %s:%d: %s\n", __FILE__, __LINE__, #e))
-#endif
-#endif
 
 
 /*****************************************************************/
@@ -349,9 +329,9 @@ This file must not be included with the embedding interface!
 	ec_os_errno_ = errno; \
 	errno = 0; }
 
-#define Bip_Throw(val, tag)	return return_throw(val, tag);
+#define Bip_Throw(val, tag)	return return_throw(ec_eng, val, tag);
 
-#define Exit_Block(val, tag)	longjmp_throw(val, tag);
+#define Exit_Block(val, tag)	longjmp_throw(ec_eng, val, tag);
 
 
 /*****************************************************************/
@@ -468,6 +448,7 @@ This file must not be included with the embedding interface!
 		Bip_Error(TYPE_ERROR)				\
 	}
 	
+
 /*****************************************************************/
 /*								 */
 /*	    C H E C K   O U T P U T   T Y P E     macros	 */
@@ -530,12 +511,12 @@ This file must not be included with the embedding interface!
 /*								  */
 /******************************************************************/
 
-#define Unify_Pw(vx,tx,vy,ty)		ec_unify_(vx,tx,vy,ty,&MU)
+#define Unify_Pw(vx,tx,vy,ty)		ec_unify_(ec_eng,vx,tx,vy,ty,&MU)
 
 #define Prepare_Requests		int uNiFy_result = PSUCCEED;
 
 #define Request_Unify_Pw(vx,tx,vy,ty)		\
-	uNiFy_result = uNiFy_result == PFAIL ? PFAIL : ec_unify_(vx,tx,vy,ty,&MU);
+	uNiFy_result = uNiFy_result == PFAIL ? PFAIL : ec_unify_(ec_eng,vx,tx,vy,ty,&MU);
 
 #define Request_Unify_Type(vx,tx,valytype,v,t)	\
 	{					\
@@ -578,7 +559,7 @@ This file must not be included with the embedding interface!
 #define Return_If_Error(_err)		{ if ((_err) < 0) return (_err); }
 #define Return_Unify			return uNiFy_result;
 
-#define Return_Unify_Pw(vx,tx,vy,ty)	return ec_unify_(vx,tx,vy,ty,&MU);
+#define Return_Unify_Pw(vx,tx,vy,ty)	return ec_unify_(ec_eng,vx,tx,vy,ty,&MU);
 
 #define Return_Unify_Type(vx,tx,valytype,v,t)	\
 	{					\
@@ -635,23 +616,23 @@ This file must not be included with the embedding interface!
 
 #define Remember(n, v, t)				\
 		{					\
-			int	code = ec_remember(n, v, t);\
+			int	code = ec_remember(ec_eng, n, v, t);\
 			if (code != PSUCCEED)		\
 			{				\
 				Bip_Error(code);	\
 			}				\
 		}
 
-#define Cut_External	cut_external();
+#define Cut_External	cut_external(ec_eng);
 
 
 /******************************************************************/
 /*		Overflow Checks    		       		  */
 /******************************************************************/
 
-#define Check_Trail_Ov  if (TT <= TT_LIM) trail_ov();
-#define Check_Gc        if (TG >= TG_LIM) global_ov();
-#define GlobalStackOverflow	(TG >= TG_LIM && final_overflow())
+#define Check_Trail_Ov  if (TT <= TT_LIM) trail_ov(ec_eng);
+#define Check_Gc        if (TG >= TG_LIM) global_ov(ec_eng);
+#define GlobalStackOverflow	(TG >= TG_LIM && final_overflow(ec_eng))
 #define Check_Available_Pwords(n) \
 	if ((uword)(n) > (uword)((pword*) TT - TG)) { \
 	    pword exit_tag; \
@@ -670,6 +651,9 @@ This file must not be included with the embedding interface!
 #define Make_Atom(pw, wdid) \
 	(pw)->tag.kernel = TDICT; \
 	(pw)->val.did = wdid;
+
+#define Make_Functor(pw, wdid) \
+	Make_Atom(pw, wdid)
 
 #define Make_Integer(pw, /* word */ n) \
 	(pw)->tag.kernel = TINT; \
@@ -1016,6 +1000,17 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 	(pw)->tag.kernel &= ~RAW_IVL;
 
 
+#define Get_Milliseconds(vtime, ttime, ms)			\
+	Error_If_Ref(ttime);					\
+	if (IsInteger(ttime)) {					\
+	    ms = 1000*(vtime).nint;				\
+	} else if (IsDouble(ttime)) {				\
+	    double dtime = Dbl(vtime);				\
+	    ms = (word) (1000.0 * dtime);			\
+	} else { Bip_Error(TYPE_ERROR); }
+
+
+
 /****************************************************************/
 /*	Handles to external data				*/
 /****************************************************************/
@@ -1039,6 +1034,17 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define HANDLE_ANCHOR_SIZE	2
 
 
+#define Acquire_Lock_Until_Done(eng,lock) \
+	mt_mutex_lock(lock); \
+	Require_Cleanup(ec_cleanup_unlock, lock)
+
+#define Hold_Lock_Until_Done(lock) \
+	Require_Cleanup(ec_cleanup_unlock, lock)
+
+#define Hold_Object_Until_Done(ptype,pobj) \
+	Require_Cleanup((ptype)->free, pobj)
+
+
 /****************************************************************/
 /*	Timestamps to optimize trailing				*/
 /****************************************************************/
@@ -1054,19 +1060,6 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 
 #define Trail_Needed(p) \
     ((pword *)(p) < GB)
-
-
-/* The context in which an undo function is being called */
-
-#define UNDO_FAIL		0	/* untrail during fail */
-#define UNDO_GC			1	/* untrail during gc */
-
-/* Type of trailed data */
-
-#define TRAILED_PWORD		0x0
-#define TRAILED_REF		0x4
-#define TRAILED_WORD32		0x8
-#define TRAILED_COMP		0xc
 
 
 /******************************************************************/
@@ -1190,27 +1183,6 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 	d = add_dict(vname.did, (int) varity.nint);
 
 
-/******************************************************************/
-/* 								  */
-/*	Protecting code sequences on C level			  */
-/*								  */
-/******************************************************************/
-
-/*
- * Disable interrupts (now in shared_mem.h)
- */
-
-/*
- * Protect code against being aborted via exit_block/1, i.e. allow
- * interrupt handling, but don't allow the handler to abort the
- * interrupted execution.
- */
-
-#define Disable_Exit()	VM_FLAGS |= NO_EXIT;
-
-#define Enable_Exit() \
-	{ if (VM_FLAGS & WAS_EXIT) delayed_exit(); else VM_FLAGS &= ~NO_EXIT; }
-
 
 /****************************************************************/
 /*	I / O							*/
@@ -1231,14 +1203,14 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
  */
 
 #define SharedDataLock		(shared_data->general_lock)
+#define ArraysLock		(shared_data->arrays_lock)
 #define ModuleLock		(shared_data->mod_desc_lock)
-#define PropertyLock		(shared_data->prop_desc_lock)
+#define PropertyLock		(shared_data->general_lock) /*TODO*/
 #define PropListLock		(shared_data->prop_list_lock)
 #define ProcedureLock		(shared_data->proc_desc_lock)
 #define ProcListLock		(shared_data->proc_list_lock)
 #define ProcChainLock		(shared_data->proc_chain_lock)
-#define AssertRetractLock	(shared_data->assert_retract_lock)
-#define GlobalFlags		(shared_data->global_flags)
+#define EclGblFlags		(shared_data->global_flags)
 #define PrintDepth		(shared_data->print_depth)
 #define LoadReleaseDelay	(shared_data->load_release_delay)
 #define PublishingParam		(shared_data->publishing_param)
@@ -1246,13 +1218,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define CompileId		(shared_data->compile_id)
 #define CodeHeapUsed		(shared_data->code_heap_used)
 #define GlobalVarIndex		(shared_data->global_var_index)
-#define SymbolTableVersion	(shared_data->symbol_table_version)
-#define DynGlobalClock		(shared_data->dyn_global_clock)
-#define DynKilledCodeSize	(shared_data->dyn_killed_code_size)
-#define DynNumOfKills		(shared_data->dyn_num_of_kills)
-#define AbolishedDynProcedures	(*(proc_duet **) &shared_data->abolished_dynamic_procedures)
 #define AbolishedProcedures	(*(proc_duet **) &shared_data->abolished_procedures)
-#define DynamicProcedures	(*(proc_duet **) &shared_data->dynamic_procedures)
 #define GlobalProcedures	(*(proc_duet **) &shared_data->global_procedures)
 #define CompiledStructures	(*(proc_duet **) &shared_data->compiled_structures)
 #define NbStreams		(shared_data->nbstreams)
@@ -1266,31 +1232,8 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define UserError		(shared_data->user_error)
 #define ErrorMessage		(*(char ***) &shared_data->error_message)
 #define MaxErrors		(shared_data->max_errors)
-
-
-/****************************************************************/
-/*      Global references                                       */
-/****************************************************************/
-
-/* If GLOBALREFS_ARE_ECREFS is defined, global references are implemented
- * with ec_refs.  They are on the heap and there is no limit on their
- * number.  This does not work with the parallel system because of
- * heap->stack pointers!
- */
-#define GLOBALREFS_ARE_ECREFS
-
-/* Otherwise, the global references are stored in the GLOBVAR array,
-	accessed by the index. The unused items are linked using
-	the index, the start of this list is stored in the last
-	array element. List end is marked by TNIL.
-*/
-#ifdef GLOBALREFS_ARE_ECREFS
-#define GLOBAL_VARS_NO		10	/* Size of the global variables array */
-#else
-#define GLOBAL_VARS_NO		100	/* Size of the global variables array */
-#endif
-#define GLOBAL_VARS_LAST	(GLOBAL_VARS_NO-1)
-#define GlobalVarFree		GLOBVAR[GLOBAL_VARS_NO-1]
+#define MetaArity		(shared_data->meta_arity)
+#define MetaAttribute		(*(dident **) &shared_data->meta_attribute)
 
 
 /****************************************************************/
@@ -1361,7 +1304,6 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define	PARSENV		g_emu_.parser_env
 #define POSTED  	g_emu_.posted
 #define POSTED_LAST	g_emu_.posted_last
-#define	GLOBVAR		(g_emu_.global_variable+1)
 #define	A		g_emu_.emu_args
 #define PostponedList	g_emu_.postponed_list
 
@@ -1395,11 +1337,10 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
  */
 
 #define Gbl_Tg	g_emu_.tg
-#define Gbl_Tt	g_emu_.tt
 
 
 /****************************************************************/
-/* The bits in GlobalFlags (shared memory flags)		*/
+/* The bits in EclGblFlags (shared memory flags)		*/
 /* CAUTION: These values also occur in environment.pl		*/
 /****************************************************************/
 
@@ -1437,7 +1378,10 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define SLEEP_REQUEST	0X00000002 /* engine should go to sleep		*/
 #define COUNT_DOWN	0X00000008 /* countdown running			*/
 #define EVENT_POSTED	0X00000010 /* events in posted_events-queue	*/
-#define DEL_IRQ_POSTED	0X00000020 /* maybe delayed irq among events	*/
+#define THROW_REQUEST	0X00000020 /* insert throw/1 asap		*/
+#define EXIT_REQUEST	0X00000040 /* exit engine as soon as possible	*/
+#define DICT_GC_REQUEST	0X00000080 /* do dictionary marking for gc	*/
+#define TEST_REQUEST	0X00000100 /* temporary	*/
 #define SYNC_MSG_PENDING (SCH_MSG_PENDING|ENG_MSG_PENDING)
 
 
@@ -1453,6 +1397,9 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define STATISTICS	0X00000020 /* we are counting VM instructions	*/
 #define STAT_PAIRS	0X00000800 /* we are counting pairs of VM instr. */
 #define PROFILING	0x00001000
+#define ENG_DETACHED	0x00002000 /* exit engine when finished		*/
+#define ENG_VERBOSE	0x00004000 /* print some debug messages		*/
+#define ENG_HIDDEN	0X00008000 /* engine not in current_engines/1	*/
 #define NO_EXIT		0X04000000 /* exit_block is forbidden		*/
 #define WAS_EXIT	0X08000000 /* an exit_block has been delayed	*/
 #define FP_EXCEPTION	0X10000000 /* floating point exception		*/
@@ -1526,8 +1473,8 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define ARITH_CLRBIT		36
 #define ARITH_GETBIT		37
 #define ARITH_CHGSIGN		38
-#define ARITH_BOXLONGLONG	39
-#define ARITH_TOCLONGLONG	40
+#define ARITH_INT		39
+#define ARITH_GCD_EXT		40
 #define ARITH_NICERAT		41
 #define ARITH_GCD		42
 #define ARITH_LCM		43
@@ -1538,10 +1485,8 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define ARITH_FLOORREM		48
 #define ARITH_ATAN2		49
 #define ARITH_TRUNCATE		50
-#define ARITH_INT		51
-#define ARITH_GCD_EXT		52
 /* Keep this definition in ec_public.h up-to-date: */
-/* #define ARITH_OPERATIONS	53 */
+/* #define ARITH_OPERATIONS	51 */
 
 
 /****************************************************************/
@@ -1551,7 +1496,16 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define tag_desc		(ec_.td)
 #define d_			(ec_.d)
 #define shared_data		(ec_.shared)
-#define g_emu_			(ec_.m)
+
+/* the initial, default engine, which always exists */
+#define eng_chain_header	(&ec_.m_aux)
+#define aux_eng			(&ec_.m_aux)
+#define default_eng		(&ec_.m)
+
+/* TEMPORARY alias for used engine */
+#define g_emu_			(*ec_eng)
+
+
 
 /****************************************************************/
 /*		Static / Dynamic event queue limits		*/

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.18 2016/07/24 19:34:45 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.19 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -105,12 +105,12 @@ static void	_find_matching_atom(unsigned char *end, stream_id nst, unsigned char
 /*
  * STATIC VARIABLE DEFINITIONS: 
  */
-static int 	p_set_chtab(value v1, type t1, value v2, type t2, value vm, type tm), 
-		p_get_chtab(value v1, type t1, value v2, type t2, value vm, type tm),
-		p_get_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm),
-		p_set_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm),
-		p_copy_syntax(value vfrom, type tfrom, value vto, type tto),
-		p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, type tm);
+static int 	p_set_chtab(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng_t *), 
+		p_get_chtab(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng_t *),
+		p_get_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm, ec_eng_t *),
+		p_set_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm, ec_eng_t *),
+		p_copy_syntax(value vfrom, type tfrom, value vto, type tto, ec_eng_t *),
+		p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, type tm, ec_eng_t *);
 
 static unsigned char	*_extend_lex_aux(stream_id nst);
 static int	_skip_blanks(stream_id nst, syntax_desc *sd, unsigned char **p_pligne, int *p_cc, int *p_ctype);
@@ -351,6 +351,7 @@ lex_init(int flags)	/* initialization: setting the name of types */
 int
 lex_an(	stream_id nst,		/* in: stream to read from */
 	syntax_desc *sd,	/* in: syntax descriptor */
+	ec_eng_t *ec_eng,	/* in: engine for compound data creation */
 	token_desc *token	/* out: token descriptor */
     )				/* returns: token or (negative) error code */
 {
@@ -716,7 +717,7 @@ _symbol_:
 
 
     case N:
-	pligne = string_to_number((char *) pligne - 1, &token->term, nst, sd);
+	pligne = string_to_number((char *) pligne - 1, &token->term, nst, sd, ec_eng);
 	if (token->term.tag.kernel == TEND) {
 	    Set_TokenString(StreamLexAux(nst), token->term.val.nint);
 	    tok = BAD_NUMERIC_CONSTANT;
@@ -1046,14 +1047,15 @@ _find_matching_predicate(char *string, int state)
 	search_arity = 0;
 	length = completion_length;
     }
-    while (next_functor(&completion_idx, &completion_dip))
+    while (next_functor(&completion_idx, &completion_dip, 1))
     {
 	if (s1 = DidName(completion_dip))
 	{
+	    int err;
 	    if (strncmp(string, s1, length) == 0 &&
 		((!search_arity && completion_start) ||
 		    visible_procedure(completion_dip,
-			d_.default_module, tdict, PRI_DONTIMPORT)))
+			d_.dummy_module, tdict, PRI_DONTIMPORT, &err)))
 	    {
 		if (search_arity) {
 		    if (strlen(s1) == length) {
@@ -1098,7 +1100,7 @@ _complete(unsigned char *string, unsigned char *end, char **out)
     int				idx = 0;
     dident			dip;
 
-    while (next_functor(&idx, &dip))
+    while (next_functor(&idx, &dip, 1))
     {
 	if (s1 = (unsigned char *) DidName(dip))
 	{
@@ -1177,7 +1179,7 @@ copy_syntax_desc(syntax_desc *sd)
 
 /*ARGSUSED*/
 static int
-p_copy_syntax(value vfrom, type tfrom, value vto, type tto)
+p_copy_syntax(value vfrom, type tfrom, value vto, type tto, ec_eng_t *ec_eng)
 {
     module_item		*from, *to;
 
@@ -1193,7 +1195,7 @@ p_copy_syntax(value vfrom, type tfrom, value vto, type tto)
  * get_chtab_(+Character, ?CharacterClass, Module)
  */
 static int
-p_get_chtab(value v1, type t1, value v2, type t2, value vm, type tm)
+p_get_chtab(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng_t *ec_eng)
 {
     Check_Integer(t1);
     Check_Output_Atom(t2);
@@ -1209,7 +1211,7 @@ p_get_chtab(value v1, type t1, value v2, type t2, value vm, type tm)
  * set_chtab_(+Character, +CharacterClass, Module)
  */
 static int
-p_set_chtab(value v1, type t1, value v2, type t2, value vm, type tm)
+p_set_chtab(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng_t *ec_eng)
 {
     unsigned char	c;	/* to hold the concerned character */
     int			new_cc;
@@ -1283,7 +1285,7 @@ p_set_chtab(value v1, type t1, value v2, type t2, value vm, type tm)
  */
 /*ARGSUSED*/
 static int
-p_get_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm)
+p_get_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm, ec_eng_t *ec_eng)
 {
     value	vi;
     int		syntax;
@@ -1308,12 +1310,11 @@ p_get_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm)
 /*	read_token_(Stream, Token, Class, Module)	*/
 /*ARGSUSED*/
 static int
-p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, type tm)
+p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, type tm, ec_eng_t *ec_eng)
 {
-    int		res;
     char	*s;
     token_desc	token;
-    stream_id	nst = get_stream_id(vs,ts, SREAD, &res);
+    stream_id	nst;
     register word len;
     syntax_desc	*sd = ModuleSyntax(vm.did);
     dident	tname;
@@ -1323,19 +1324,13 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
     {
 	Bip_Error(TYPE_ERROR)
     }
-    if (nst == NO_STREAM)
-    {
-	Bip_Error(res)
-    }
-    if (!IsReadStream(nst))
-    {
-	Bip_Error(STREAM_MODE);
-    }
+    Get_Locked_Stream(vs, ts, SREAD, nst);
     Check_Module_And_Access(vm, tm)
+
     if (StreamMode(nst) & REPROMPT_ONLY)
 	StreamMode(nst) |= DONT_PROMPT;
 
-    (void) lex_an(nst, sd, &token);
+    (void) lex_an(nst, sd, ec_eng, &token);
     tname = LexError(token.class) ? d_.err : tname_[token.class];
     switch(token.class)
     {
@@ -1415,7 +1410,7 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
  */
 /*ARGSUSED*/
 static int
-p_set_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm)
+p_set_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		i, flag;
     syntax_desc	*sd;
@@ -1455,7 +1450,7 @@ extern double infinity();
 #endif
 
 /*
- * char *string_to_number(start, result, nst, sd)
+ * char *string_to_number(start, result, nst, sd, ec_eng)
  *
  * 	Auxiliary function used to convert a string (pointed to by start)
  *	to a number. The result is a prolog word in *result
@@ -1510,7 +1505,7 @@ extern double infinity();
 #define PRECISE	16
 
 char *
-string_to_number(char *start, pword *result, stream_id nst, syntax_desc *sd)
+string_to_number(char *start, pword *result, stream_id nst, syntax_desc *sd, ec_eng_t *ec_eng)
 {
     unsigned register char *t;		/* next character to read */
     unsigned register char *aux;	/* next location in LexAux */
@@ -1909,7 +1904,7 @@ return_rat:				/* (start, base) */
     Push_Back();			/* pushback the delimiter */
     if (flags & IVL) goto return_err;
     if (nst) start = (char *) StreamLexAux(nst);
-    if (tag_desc[TRAT].from_string(start, result, base) != PSUCCEED)
+    if (tag_desc[TRAT].from_string(ec_eng, start, result, base) != PSUCCEED)
 	goto return_err;
     goto return_ok;
 
@@ -1923,7 +1918,7 @@ return_int:				/* (flags, iresult, start, base) */
     if (flags & BIG)
     {
 	if (nst) start = (char *) StreamLexAux(nst);
-	if (tag_desc[TBIG].from_string(start, result, base) != PSUCCEED)
+	if (tag_desc[TBIG].from_string(ec_eng, start, result, base) != PSUCCEED)
 	    goto return_err;
     }
     else	/* integer */

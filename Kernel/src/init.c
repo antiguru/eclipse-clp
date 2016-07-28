@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.9 2013/09/28 00:25:39 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.10 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -44,6 +44,7 @@
 #include	"module.h"
 #include	"os_support.h"
 #include	"ec_io.h"
+#include	"emu_export.h"
 
 #include <errno.h>
 #include <stdio.h>	/* for sprintf() */
@@ -67,9 +68,10 @@ extern int	io_init(int flags);
 
 
 extern void	bip_arith_init(int flags),
-		bip_array_init(int flags, char *installation_dir),
+		bip_array_init(int flags),
 		bip_comp_init(int flags),
 		bip_control_init(int flags),
+		bip_engines_init(int flags),
 		bip_db_init(int flags),
 		bip_delay_init(int flags),
 		bip_domain_init(int flags),
@@ -78,7 +80,7 @@ extern void	bip_arith_init(int flags),
 		bip_gc_init(int flags),
 		bip_io_init(int flags),
 		bip_load_init(int flags),
-		bip_misc_init(int flags),
+		bip_misc_init(int flags, char *),
 		bip_module_init(int flags),
 		bip_op_init(int flags),
 		bip_parallel_init(),
@@ -94,7 +96,6 @@ extern void	bip_arith_init(int flags),
 		code_init(int flags),
 		compiler_init(int flags),
 		dict_init(int flags),
-		emu_init(int flags, int vm_options),
 		error_init(int flags),
 		exit_mps(),
 		handlers_init(int flags),
@@ -112,15 +113,11 @@ extern void	bip_arith_init(int flags),
 		parallel_init(),
 		msg_init(),
 		read_init(int flags),
-#ifdef SAVEDSTATES
-		save_res_init(),
-#endif
 		setup_mps(),
 		worker_init(),
 		write_init(int flags);
 
-extern void	kegi_init(),
-		user_init();
+extern void	user_init();
 
 extern void	short_sleep();
 
@@ -151,6 +148,7 @@ static char * arg1 = "Embedded ECLiPSE";
    (Kish Shen 2010-09-24)
 */
 t_eclipse_data	ec_ = {};
+
 
 /* TODO: move the following into ec_ on main branch */
 char *ec_eclipse_home;		/* canonical, hp_allocated */
@@ -224,14 +222,76 @@ t_eclipse_options ec_options =
 	(char *) 0,
 
 	/* init_flags */
-	(INIT_SHARED|INIT_PRIVATE|INIT_ENGINE|INIT_PROCESS),
+	(INIT_SHARED|INIT_PRIVATE|INIT_PROCESS),
 
 	/* debug_level */
 	0,
 
 	/* default_language */
-	(char *) 0
+	(char *) 0,
+
+	/* vm_options */
+	0
 };
+
+
+/*----------------------------------------------------------------------
+ * Setting the initialisation options
+ *----------------------------------------------------------------------*/
+
+/* backwards compatibility */
+int Winapi
+ec_set_option_int(int opt, int val)
+{
+    return ec_set_option_long(opt, (word) val);
+}
+
+int Winapi
+ec_set_option_long(int opt, word val)
+{
+    return ecl_set_option_long(&ec_options, opt, val);
+}
+
+int Winapi
+ecl_set_option_long(t_eclipse_options *poptions, int opt, word val)
+{
+    switch (opt) {
+    case EC_OPTION_PARALLEL_WORKER:	poptions->parallel_worker = (int) val; break;
+    case EC_OPTION_ARGC:	poptions->Argc = (int) val; break;
+    case EC_OPTION_LOCALSIZE:	poptions->localsize = val; break;
+    case EC_OPTION_GLOBALSIZE:	poptions->globalsize = val; break;
+    case EC_OPTION_PRIVATESIZE:	poptions->privatesize = val; break;
+    case EC_OPTION_SHAREDSIZE:	poptions->sharedsize = val; break;
+    case EC_OPTION_ALLOCATION:	poptions->allocation = (int) val; break;
+    case EC_OPTION_IO:		poptions->io_option = (int) val; break;
+    case EC_OPTION_INIT:	poptions->init_flags = val; break;
+    case EC_OPTION_DEBUG_LEVEL:	poptions->debug_level = val; break;
+    case EC_OPTION_CWD_SEPARATE:ec_use_own_cwd = (int) val; break;
+    default:			return RANGE_ERROR;
+    }
+    return PSUCCEED;
+}
+
+int Winapi
+ec_set_option_ptr(int opt, void *val)
+{
+    return ecl_set_option_ptr(&ec_options, opt, val);
+}
+
+int Winapi
+ecl_set_option_ptr(t_eclipse_options *poptions, int opt, void *val)
+{
+    switch (opt) {
+    case EC_OPTION_MAPFILE:	poptions->mapfile = (char *) val; break;
+    case EC_OPTION_ARGV:	poptions->Argv = (char **) val; break;
+    case EC_OPTION_PANIC:	poptions->user_panic = (void(*)(const char*,const char *)) val; break;
+    case EC_OPTION_DEFAULT_MODULE:	poptions->default_module = (char *) val; break;
+    case EC_OPTION_DEFAULT_LANGUAGE:	poptions->default_language = (char *) val; break;
+    case EC_OPTION_ECLIPSEDIR:	poptions->eclipse_home = (char *) val; break;
+    default:			return RANGE_ERROR;
+    }
+    return PSUCCEED;
+}
 
 
 /*----------------------------------------------------------------
@@ -243,16 +303,13 @@ t_eclipse_options ec_options =
  *	INIT_SHARED	shared/saveable heap
  *	REINIT_SHARED	heap was restored, some info must be updated
  *	INIT_PRIVATE	C variables, private heap
- *	INIT_ENGINE	abstract machine
  *	INIT_PROCESS	do initialisations that are needed once
  *
  * Initialisation is done in different situations:
  *
- * raw boot		INIT_SHARED|INIT_PRIVATE|INIT_ENGINE|INIT_PROCESS
- * after -r		REINIT_SHARED|INIT_PROCESS|INIT_PRIVATE [|INIT_ENGINE]
+ * raw boot		INIT_SHARED|INIT_PRIVATE|INIT_PROCESS
+ * after -r		REINIT_SHARED|INIT_PROCESS|INIT_PRIVATE
  * after -c		INIT_PROCESS|INIT_PRIVATE
- * after restore/1	REINIT_SHARED|INIT_PRIVATE [|INIT_ENGINE]
- * after reset	0 (maybe INIT_PRIVATE)
  *----------------------------------------------------------------*/
 
 
@@ -262,12 +319,7 @@ eclipse_global_init(int init_flags)
     int err;
 
     ec_os_init();
-
-    if (!(init_flags & (INIT_SHARED|REINIT_SHARED)))
-    {
-	/* if we attach to a heap, it must be fully initialised */
-	wait_for_flag(&GlobalFlags, HEAP_READY);
-    }
+    mem_init(init_flags);	/* depends on -c and -m options */
 
     /*
      * convert pathname to canonical representation
@@ -307,9 +359,10 @@ eclipse_global_init(int init_flags)
     }
     bip_emu_init(init_flags);
     bip_arith_init(init_flags);
-    bip_array_init(init_flags, ec_eclipse_home);
+    bip_array_init(init_flags);
     bip_comp_init(init_flags);
     bip_control_init(init_flags);
+    bip_engines_init(init_flags);
     bip_db_init(init_flags);
     bip_delay_init(init_flags);
     bip_domain_init(init_flags);
@@ -333,15 +386,11 @@ eclipse_global_init(int init_flags)
     bip_load_init(init_flags);
     bip_strings_init(init_flags);
     bip_tconv_init(init_flags);
-#ifdef SAVEDSTATES
-    save_res_init(init_flags);
-#endif
-    kegi_init(init_flags);
     code_init(init_flags);
     bip_module_init(init_flags);
     if (init_flags & INIT_SHARED) megalog_boot_init();
     user_init(init_flags);
-    bip_misc_init(init_flags);
+    bip_misc_init(init_flags, ec_eclipse_home);
     handlers_init(init_flags);
     msg_init(init_flags);
     if (init_flags & INIT_PRIVATE)
@@ -350,8 +399,34 @@ eclipse_global_init(int init_flags)
     return 0;
 }
 
+
+int Winapi
+ecl_init(t_eclipse_options *opts, ec_eng_t **eng)
+{
+    if (!opts)
+	opts = &ec_options;	/* default to global options */
+
+    /*
+     * Init the global (shared) eclipse structures, dictionary, code...
+     * Note that we don't have an engine yet!
+     */
+    eclipse_global_init(opts->init_flags);
+
+    /* Initialize engines */
+    return ecl_engines_init(opts, eng);
+}
+
+
+int Winapi
+ec_init(void)
+{
+    ec_eng_t	*ec_eng;
+    return ecl_init(NULL, &ec_eng);
+}
+
+
 int
-eclipse_boot(char *initfile)
+eclipse_boot(ec_eng_t *ec_eng, char *initfile)
 {
     value	v1, v2;
     type	t1, t2;
@@ -359,7 +434,7 @@ eclipse_boot(char *initfile)
     t1.kernel = TDICT;
     v2.did = d_.kernel_sepia;
     t2.kernel = ModuleTag(d_.kernel_sepia);
-    return boot_emulc(v1, t1, v2, t2);
+    return boot_emulc(ec_eng, v1, t1, v2, t2);
 }
 
 
@@ -378,8 +453,8 @@ _make_error_message(int err, char *where, char *buf)
 }
 
 
-/*----------------------------------------------------------------
- * Shutdown code (see also p_exit(), exit/1 and halt/0)
+/*----------------------------------------------------------------*/
+/** Shutdown code (see also p_exit(), exit/1 and halt/0).
  *
  * Shutdown can be requested either from Prolog (exit/1,halt/0) or
  * from C (ec_cleanup()). In either case, we first do a cleanup at
@@ -405,7 +480,7 @@ _make_error_message(int err, char *where, char *buf)
  * retain pointers to such (hg/hp_allocated) data. In case ECLiPSe
  * makes any allocations with the system malloc(), these must be
  * freed explicitly otherwise they will constitute a memory leak.
- *----------------------------------------------------------------*/
+ */
 
 int
 ec_cleanup1(int exit_code)
@@ -426,19 +501,36 @@ int Winapi
 ec_cleanup(void)
 {
     int res;
-    pword goal, module;
+    pword goal;
+
+    /* For backward compatibility with single-engine ECLiPSe: */
+    if (EngIsOurs(default_eng)) {
+	ecl_relinquish_engine(default_eng);
+	ecl_free_engine(default_eng, 0);
+    }
 
     /* Do Prolog-level cleanup code: call cleanup_before_exit/0 */
-    Make_Atom(&goal, enter_dict("cleanup_before_exit", 0));
-    module.val.did = d_.kernel_sepia;
-    module.tag.kernel = ModuleTag(d_.kernel_sepia);
-    res = main_emulc_noexit(goal.val, goal.tag, module.val, module.tag);
-    if (!(res == PSUCCEED || res == PFAIL))
-	return res;
+    res = ecl_acquire_engine(aux_eng);
+    if (res >= 0) {
+	res = ecl_resume_goal(aux_eng, ec_atom(enter_dict("cleanup_before_exit", 0)),
+    				ec_nil(), NULL, GOAL_NOTNOT);
+    }
+    if (res < 0) {
+	char msg[] = "ECLiPSe: problem in cleanup_before_exit\n";
+	if (write(2, msg, strlen(msg))) /*ignore*/;
+    }
+    ecl_relinquish_engine(aux_eng);
+    ecl_free_engine(aux_eng, 0);
 
     return ec_cleanup1(0);
 }
 
+void
+ec_exit(int exit_code)
+{
+    ec_cleanup1(exit_code);
+    exit(exit_code);
+}
 
 /*
  * Cleanup one worker
@@ -451,7 +543,6 @@ ec_worker_cleanup(void)
     handlers_fini();		/* undo signal handler settings */
 				/* (before shutting down emu and i/o) */
 
-    ec_emu_fini();		/* destroy the engine */
     ec_embed_fini();
 
     /* TODO: find handles stored in the heap, and free them */
@@ -459,6 +550,11 @@ ec_worker_cleanup(void)
     bip_load_fini();		/* unload any shared libraries */
 
     flush_and_close_io(1);	/* shut down I/O system */
+
+    assert(ec_.m_aux.ref_ctr == 0);
+    assert(ec_.m_sig.ref_ctr == 0);
+    assert(ec_.m_timer.ref_ctr == 0);
+    assert(ec_.m.ref_ctr == 0);
     
     ec_os_fini();		/* timers, threads, sockets */
 
@@ -473,15 +569,6 @@ ec_worker_cleanup(void)
     mem_fini();
 }
 
-/*
- * HALT signal handler
- */
-int
-halt_session(void)
-{
-	ec_cleanup();
-	exit(0);
-}
 
 static void
 wait_for_flag(volatile int *pflag, int mask) /* volatile is important! */

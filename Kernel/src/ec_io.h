@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.5 2013/02/08 15:00:52 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.6 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -68,7 +68,9 @@
 #define StreamPrompt(nst)	(nst)->prompt
 #define StreamEncoding(nst)	(nst)->encoding
 #define StreamPromptStream(nst)	(nst)->prompt_stream
+#define StreamPairedStream(nst)	(nst)->paired_stream
 #define StreamEvent(nst)	(nst)->event
+#define StreamEventEngine(nst)	(nst)->event_eng
 #define StreamRand(nst)		(nst)->rand
 #define StreamLastWritten(nst)	(nst)->last_written
 #define StreamPastEof(nst)	((nst)->mode & MEOF)
@@ -77,14 +79,16 @@
 #define SetStreamMethods(nst,m)	(nst)->methods = (void_ptr) (m);
 
 #define StreamHandle(nst) \
-	( ++StreamNref(nst), ec_handle(&stream_tid, (t_ext_ptr) nst))
+	ecl_handle(ec_eng, &stream_tid, (t_ext_ptr)stream_tid.copy(nst))
 
 
 /* some of the data is used for sockets differently */
-#define SocketInputStream(nst)	StreamPromptStream(nst)
+#define SocketInputStream(nst)	StreamPairedStream(nst)
 #define SocketUnix(nst)		StreamPrompt(nst)
 #define SocketType(nst)		StreamLexSize(nst)
 #define SocketConnection(nst)	StreamLexAux(nst)
+
+#define StreamInputStream(nst)	(!IsReadStream(nst)? StreamPairedStream(nst): nst)
 
 #define IsOpened(nst)		(StreamMode(nst) != SCLOSED)
 
@@ -129,8 +133,6 @@
 
 #define NO_UNIT		(-1)
 
-#define MAX_NREF	32767	/* size of the nref field	*/
-
 /* stream mode flags */
 #define SCLOSED		0x0000	/* the channel is closed	*/
 #define SREAD		0x0001	/* READ allowed			*/
@@ -151,11 +153,11 @@
 #define SNULL		0x0020
 #define SSOCKET		0x0028
 #define STTY		0x0030
-/* #define 		0x0038 */
+/* #define 		0x0038	*/
 
 /* other stream properties */
 #define SEOLCR		0x0040	/* output CR(+LF) at end of line */
-#define SSYSTEM		0x0080	/* one of the system streams	*/
+#define SDONTCLOSE	0x0080	/* never close (stdin/out/err etc) */
 #define DONT_PROMPT	0x0100	/* don't print the next prompt	*/
 #define MREAD		0x0200	/* we have read a buffer	*/
 #define MWRITE		0x0400	/* we wrote into the buffer	*/
@@ -179,6 +181,9 @@
 #define SEOF_ERROR	0x0000000 /* treat past-eof as permission error	*/
 #define SEOF_RESET	0x2000000 /* return eof code and allow repeat	*/
 #define SEOF_CODE	0x4000000 /* return eof code (-1,end_of_file)	*/
+
+#define SSLAVE		0x8000000 /* paired stream descriptor, only reachable */
+				  /* from master (e.g. SSOCKET|SREAD)	*/
 
 
 /* how many characters can be ungotten */
@@ -207,19 +212,34 @@
 #define IO_LISTEN	7
 #define IO_ACCEPT	8
 
-#define Lock_Stream(nst) {              \
-        if (ec_options.parallel_worker) {          \
-           a_mutex_lock(&nst->lock);    \
-        }                               \
-}
-#define Unlock_Stream(nst) {            \
-        if (ec_options.parallel_worker) {          \
-           a_mutex_unlock(&nst->lock);  \
-        }                               \
-}
+#define Lock_Stream(nst)	mt_mutex_lock(&nst->lock)
+#define Unlock_Stream(nst)	mt_mutex_unlock(&nst->lock)
 
 #define RemoteStream(nst) \
 	(nst->fd_pid && nst->fd_pid != own_pid && nst->aport)
+
+
+#define Trigger_Gc_If_Out_Of_Streams { \
+        if (NbStreamsFree == 0) { Set_Tg_Soft_Lim(TG) } \
+}
+
+
+#ifdef _WIN32
+#undef USE_REAL_SIGIO
+#define StreamCanNotifyViaThread(nst) IsSocket(nst)
+#else
+/* can use real SIGIO in Unix, but no longer done by default */
+/*#define USE_REAL_SIGIO*/
+#define StreamCanNotifyViaThread(nst) (IsSocket(nst) || IsPipeStream(nst))
+#endif
+
+#ifdef USE_REAL_SIGIO
+#define StreamNeedsThread(nst) \
+	((StreamMode(nst) & SSIGIO) || !IsNil(StreamEvent(nst).tag))
+#else
+#define StreamNeedsThread(nst) \
+	(!IsNil(StreamEvent(nst).tag))
+#endif
 
 
 /* defines for the output functions */
@@ -294,7 +314,7 @@ typedef struct {
 Extern int		own_pid;
 Extern void		my_io_aport();
 
-Extern	int	ec_pwrite ARGS((int,int,stream_id,value,type,int,int,dident,type));
+Extern	int	ec_pwrite ARGS((ec_eng_t*,int,int,stream_id,value,type,int,int,dident,type));
 Extern	int	ec_tty_in ARGS((stream_id));
 Extern	int	ec_tty_out ARGS((stream_id, int));
 Extern	int	ec_tty_outs ARGS((stream_id, char*, int));
@@ -310,17 +330,18 @@ Extern	int	fill_buffer ARGS((stream_id));
 Extern	int	io_flush_out ARGS((stream_id));
 Extern	int	set_sigio ARGS((int));
 Extern	int	reset_sigio ARGS((int));
-Extern	int	ec_stream_set_sigio ARGS((stream_id, int));
-Extern	int	ec_stream_reset_sigio ARGS((stream_id, int));
+Extern	int	ec_stream_set_sigio ARGS((stream_id));
+Extern	int	ec_stream_reset_sigio ARGS((stream_id));
 Extern	int	ec_setup_stream_sigio_thread ARGS((stream_id));
+Extern	int	ec_teardown_stream_sigio_thread ARGS((stream_id,int));
 Extern	int	ec_reenable_sigio ARGS((stream_id, int, int));
 Extern	void	mark_dids_from_streams ARGS((void));
-Extern	int	p_reset ARGS((void));
 Extern stream_id find_free_stream ARGS((void));
+Extern stream_id alloc_slave_stream ARGS((void));
 Extern void	init_stream ARGS((stream_id,int unit,int mode,dident name,
-			dident prompt,stream_id pstream, int size));
+			stream_id pstream, int size));
 Extern stream_id ec_open_file ARGS((char*,int,int*));
-Extern stream_id get_stream_id ARGS((value,type,int,int*));
+Extern stream_id get_stream_id ARGS((value,type,int,int,ec_eng_t*,int*));
 Extern char	*ec_getstring ARGS((stream_id,word,word*));
 Extern 	int	set_stream(dident, stream_id);
 

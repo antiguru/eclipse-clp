@@ -236,6 +236,7 @@ should be tested on.  :)
   next merge knows where to start from.  To move the tag, first delete it:
 
   	cvs rtag -a -d last_merge_patches_X_Y Eclipse
+  	cvs rtag -a -d last_merge_patches_X_Y Tests
 
   [ CAUTION: if you are only merging a part of the system, then only
     remove the last_merge_patches_X_Y tags on the files you are changing:
@@ -246,5 +247,6 @@ should be tested on.  :)
   today's merge tag:
 
   	cvs rtag -r merge_2001_07_24 last_merge_patches_X_Y Eclipse
+  	cvs rtag -r merge_2001_07_24 last_merge_patches_X_Y Tests
 
 

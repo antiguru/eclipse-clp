@@ -101,6 +101,7 @@ PRIVATE_EPLEX_SOLVERS="\
 	cplex102 \
 	cplex110 \
 	cplex121 \
+	cplex124 \
 	$I386NT_CPLEX_SOLVER \
 	xpress1427 \
 	xpress1427icp \

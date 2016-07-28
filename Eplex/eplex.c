@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.18 2016/07/24 19:34:43 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.19 2016/07/28 03:34:35 jschimpf Exp $
  *
  */
 
@@ -218,7 +218,7 @@ logged call!)
 
 /* should be used only if v,t is a number */
 #define DoubleVal(v, t) ( IsInteger(t) ? (double) (v).nint : \
-			  IsDouble(t) ? Dbl(v) : coerce_to_double(v,t) )
+			  IsDouble(t) ? Dbl(v) : coerce_to_double(ec_eng,v,t) )
 
 #define Check_Constant_Range(x) \
 	{if ((x) < -CPX_INFBOUND || (x) > CPX_INFBOUND) {Bip_Error(RANGE_ERROR);}}
@@ -251,7 +251,7 @@ static int next_matno = 0, current_matno = -1;
 #endif
 
 
-#define IsArray(t) IsString(t)
+#define IsIDArray(t) IsString(t)
 #define Check_Array(t) Check_String(t)
 #define IArrayStart(pw) ((int *)BufferStart(pw))
 #define DArrayStart(pw) ((double *)BufferStart(pw))
@@ -260,9 +260,9 @@ static int next_matno = 0, current_matno = -1;
 #define DArraySize(pbuf) ((BufferSize(pbuf) - 1) / sizeof(double))
 #define IArraySize(pbuf) ((BufferSize(pbuf) - 1) / sizeof(int))
 
-static pword * _create_carray();
-static pword * _create_darray();
-static pword * _create_iarray();
+static pword * _create_carray(ec_eng_t*,int);
+static pword * _create_darray(ec_eng_t*,int);
+static pword * _create_iarray(ec_eng_t*,int);
 
 
 /*
@@ -376,6 +376,14 @@ _tostr_lp_handle(lp_desc *lpd, char *buf, int quoted)
     return strlen(buf); /* size of actual string */
 }
 
+static dident d_eplex;
+
+static dident
+_kind_eplex()
+{
+    return d_eplex;
+}
+
 t_ext_type lp_handle_tid = {
     (void (*)(t_ext_ptr)) _free_lp_handle,  /* free */
     NULL,  /* copy */
@@ -385,7 +393,8 @@ t_ext_type lp_handle_tid = {
     NULL,  /* equal */
     NULL,  /* remote_copy */
     NULL,  /* get */
-    NULL   /* set */
+    NULL,   /* set */
+    _kind_eplex
 };
 
 
@@ -523,18 +532,18 @@ static void _grow_numbers_array(lp_desc * lpd, int m);
 
 
 static double 
-coerce_to_double(value vval, type tval)
+coerce_to_double(ec_eng_t *ec_eng, value vval, type tval)
 {
     /* tval MUST be a number type */
     value buffer;
 
-    tag_desc[TagType(tval)].coerce_to[TDBL](vval, &buffer);
+    tag_desc[TagType(tval)].coerce_to[TDBL](ec_eng, vval, &buffer);
     return Dbl(buffer);
 }
 
 
 int
-p_cpx_cleanup(value vlp, type tlp)
+p_cpx_cleanup(value vlp, type tlp, ec_eng_t *ec_eng)
 {
     pword handle;
     handle.val.all = vlp.all;
@@ -679,7 +688,7 @@ _free_lp_handle(lp_desc *lpd)
 int
 p_cpx_init(value vlicloc, type tlicloc, 
 	   value vserialnum, type tserialnum, 
-	   value vsubdir, type tsubdir)
+	   value vsubdir, type tsubdir, ec_eng_t *ec_eng)
 {
     int i;
 
@@ -692,6 +701,7 @@ p_cpx_init(value vlicloc, type tlicloc,
     d_optimizer = ec_did(SOLVER_ATOMIC_NAME, 0);
     d_yes = ec_did("yes", 0);
     d_no = ec_did("no", 0);
+    d_eplex = ec_did("eplex", 0);
 
     if (!cpx_env)
     {
@@ -930,7 +940,7 @@ p_cpx_init(value vlicloc, type tlicloc,
 
 
 int
-p_cpx_challenge(value v, type t)
+p_cpx_challenge(value v, type t, ec_eng_t *ec_eng)
 {
 # ifdef XPRESS
     int nvalue;
@@ -953,7 +963,7 @@ p_cpx_challenge(value v, type t)
 
 
 int
-p_cpx_exit()
+p_cpx_exit(ec_eng_t *ec_eng)
 {
     if (cpx_env)
     {
@@ -972,7 +982,7 @@ p_cpx_prob_init(value vpre, type tpre,
 		value vnz, type tnz,
 		value vdir, type tdir, 
 		value vsense, type tsense, 
-		value vhandle, type thandle)
+		value vhandle, type thandle, ec_eng_t *ec_eng)
 {
     int	i;
     lp_desc *lpd;
@@ -1087,7 +1097,7 @@ p_cpx_prob_init(value vpre, type tpre,
 
 
 int
-p_cpx_get_prob_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
+p_cpx_get_prob_param(value vlp, type tlp, value vp, type tp, value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int i;
@@ -1127,7 +1137,7 @@ p_cpx_get_prob_param(value vlp, type tlp, value vp, type tp, value vval, type tv
 
 
 int
-p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
+p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval, ec_eng_t *ec_eng)
 {
     double dres;
     int i, ires;
@@ -1266,7 +1276,7 @@ p_cpx_get_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
 
 
 int
-p_cpx_set_param(value vlp, type tlp, value vp, type tp, value vval, type tval)
+p_cpx_set_param(value vlp, type tlp, value vp, type tp, value vval, type tval, ec_eng_t *ec_eng)
 /* fails if parameter unknown */
 {
     int i;
@@ -1383,7 +1393,7 @@ eclipse_out(void * nst, char * msg)
 
 
 int
-p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type ts)
+p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type ts, ec_eng_t *ec_eng)
 {
     stream_id nst;
     CPXCHANNELptr ch;
@@ -1394,9 +1404,6 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
     {
 	Bip_Error(EC_LICENSE_ERROR);
     }
-    pw.val = vs; pw.tag = ts;
-    err = ec_get_stream(pw, &nst);
-    if (err) { Bip_Error(err); }
     Check_Integer(tc);
     switch (vc.nint) {
     case 0: ch = cpxresults; break;
@@ -1406,9 +1413,14 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
     default: Bip_Error(RANGE_ERROR);
     }
     Check_Integer(twhat);
+    pw.val = vs; pw.tag = ts;
+    err = ec_get_stream(pw, &nst);	/* get a stream copy */
+    if (err) { Bip_Error(err); }
     if (vwhat.nint == 0)
     {
 	CPXdelfuncdest(cpx_env, ch, (void *) nst, eclipse_out);
+	ec_release_stream(nst);	/* the copy made just now */
+	ec_release_stream(nst);	/* the copy made for CPXaddfuncdest */
     } else {
 	/* raise error only if adding a stream */
 	if (CPXaddfuncdest(cpx_env, ch, (void *) nst, eclipse_out))
@@ -1456,7 +1468,7 @@ eclipse_out(int msgtype, const char* message)
 # endif
 
 int
-p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type ts)
+p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type ts, ec_eng_t *ec_eng)
 {
     stream_id nst;
     stream_id *solver_stream;
@@ -1469,9 +1481,6 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 	Bip_Error(EC_LICENSE_ERROR);
     }
 # endif
-    pw.val = vs; pw.tag = ts;
-    err = ec_get_stream(pw, &nst);
-    if (err) { Bip_Error(err); }
     Check_Integer(tc);
     Check_Integer(twhat);
     switch (vc.nint) {
@@ -1481,10 +1490,15 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 	case 3: solver_stream = &solver_streams[LogType]; break;
 	default: Bip_Error(RANGE_ERROR);
     }
+    pw.val = vs; pw.tag = ts;
+    err = ec_get_stream(pw, &nst);
+    if (err) { Bip_Error(err); }
     if (vwhat.nint == 1)
 	*solver_stream = nst;
-    else if (*solver_stream == nst)
+    else if (*solver_stream == nst) {
 	*solver_stream = Current_Null;
+	ec_release_stream(nst);
+    }
     Succeed;
 }
 
@@ -1496,7 +1510,7 @@ p_cpx_output_stream(value vc, type tc, value vwhat, type twhat, value vs, type t
 
 int
 p_cpx_get_rhs(value vlp, type tlp, value vpool, type tpool, value vi, type ti, 
-	      value vsense, type tsense, value vval, type tval)
+	      value vsense, type tsense, value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     Prepare_Requests
@@ -1539,7 +1553,7 @@ p_cpx_get_rhs(value vlp, type tlp, value vpool, type tpool, value vi, type ti,
 }
 
 int
-p_cpx_set_rhs_coeff(value vlp, type tlp, value vi, type ti, value vsense, type tsense, value vval, type tval)
+p_cpx_set_rhs_coeff(value vlp, type tlp, value vi, type ti, value vsense, type tsense, value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     LpDescOnly(vlp, tlp, lpd);
@@ -1557,7 +1571,7 @@ p_cpx_set_rhs_coeff(value vlp, type tlp, value vi, type ti, value vsense, type t
 }
 
 int
-p_cpx_set_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tval)
+p_cpx_set_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd;  
     int j;
@@ -1577,7 +1591,7 @@ p_cpx_set_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tva
 
 #if 0
 int
-p_cpx_get_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tval)
+p_cpx_get_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     LpDescOnly(vlp, tlp, lpd);
@@ -1588,7 +1602,7 @@ p_cpx_get_obj_coeff(value vlp, type tlp, value vj, type tj, value vval, type tva
 #endif
 
 int
-p_cpx_set_qobj_coeff(value vlp, type tlp, value vi, type ti, value vj, type tj, value vval, type tval)
+p_cpx_set_qobj_coeff(value vlp, type tlp, value vi, type ti, value vj, type tj, value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     double coef;
@@ -1639,7 +1653,7 @@ p_cpx_set_qobj_coeff(value vlp, type tlp, value vi, type ti, value vj, type tj, 
 
 
 int
-p_cpx_load_varname(value vlp, type tlp, value vj, type tj, value vname, type tname)
+p_cpx_load_varname(value vlp, type tlp, value vj, type tj, value vname, type tname, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
 
@@ -1692,7 +1706,7 @@ p_cpx_load_varname(value vlp, type tlp, value vj, type tj, value vname, type tna
  */
 int
 p_cpx_change_rhs(value vlp, type tlp, value vsize, type tsize, 
-	      value vidxs, type tidxs, value vvals, type tvals)
+	      value vidxs, type tidxs, value vvals, type tvals, ec_eng_t *ec_eng)
 {
     lp_desc *lpd;
     int i, err;
@@ -1768,7 +1782,7 @@ p_cpx_change_rhs(value vlp, type tlp, value vsize, type tsize,
  */
 int
 p_cpx_change_cols_bounds(value vlp, type tlp, value vsize, type tsize, 
-      value vidxs, type tidxs, value vlos, type tlos, value vhis, type this)
+      value vidxs, type tidxs, value vlos, type tlos, value vhis, type this, ec_eng_t *ec_eng)
 {
     lp_desc *lpd;
     int i, err, size;
@@ -1859,7 +1873,7 @@ p_cpx_change_cols_bounds(value vlp, type tlp, value vsize, type tsize,
 }
 
 int
-p_cpx_lo_hi(value vlo, type tlo, value vhi, type thi)
+p_cpx_lo_hi(value vlo, type tlo, value vhi, type thi, ec_eng_t *ec_eng)
 {
     Prepare_Requests;
     Request_Unify_Float(vlo, tlo, -CPX_INFBOUND);
@@ -1871,10 +1885,8 @@ p_cpx_lo_hi(value vlo, type tlo, value vhi, type thi)
  * Changing problem type
  */
 
-static void _cpx_reset_probtype ARGS((pword*,word*,int,int));
-
 static void
-_cpx_reset_probtype(pword * pw, word * pdata, int size, int flags)
+_cpx_reset_probtype(pword * pw, word * pdata, int size, int flags, ec_eng_t *ec_eng)
 {
     int err;
     lp_desc *lpd = ExternalData(pw[HANDLE_CPH].val.ptr); 
@@ -1914,7 +1926,7 @@ _cpx_reset_probtype(pword * pw, word * pdata, int size, int flags)
 }
 
 int
-p_cpx_change_lp_to_mip(value vhandle, type thandle)
+p_cpx_change_lp_to_mip(value vhandle, type thandle, ec_eng_t *ec_eng)
 {
     lp_desc *lpd;
     int err;
@@ -1980,7 +1992,7 @@ p_cpx_change_lp_to_mip(value vhandle, type thandle)
 */
 int 
 p_cpx_set_problem_type(value vlp, type tlp, value vtype, type ttype, 
-		       value vsetsolver, type tsetsolver)
+		       value vsetsolver, type tsetsolver, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     LpDescOnly(vlp, tlp, lpd);
@@ -2083,14 +2095,14 @@ p_cpx_set_problem_type(value vlp, type tlp, value vtype, type ttype,
 }
 
 
-static void _cpx_restore_bounds ARGS((pword*,word*,int,int));
+static void _cpx_restore_bounds ARGS((pword*,word*,int,int,ec_eng_t*));
 
-static void _cpx_reset_col_type ARGS((pword*,word*,int,int));
+static void _cpx_reset_col_type ARGS((pword*,word*,int,int,ec_eng_t*));
 
 int
 p_cpx_change_col_type(value vhandle, type thandle, 
 		      value vj, type tj, 
-		      value vtype, type ttype)
+		      value vtype, type ttype, ec_eng_t *ec_eng)
 {
     int idx[1], res;
     char ctype[1];
@@ -2189,7 +2201,7 @@ p_cpx_change_col_type(value vhandle, type thandle,
 }
 
 
-static void _cpx_reset_col_type(pword * phandle, word * udata, int size, int flags)
+static void _cpx_reset_col_type(pword * phandle, word * udata, int size, int flags, ec_eng_t *ec_eng)
 
 {
     int idx[1];
@@ -2205,7 +2217,7 @@ static void _cpx_reset_col_type(pword * phandle, word * udata, int size, int fla
 
 #if 0
     Fprintf(Current_Error, "Resetting col %d to %c, in gc:%d\n",
-	idx[0], octype[0], ec_.m.vm_flags & NO_EXIT);
+	idx[0], octype[0], ec_eng->vm_flags & NO_EXIT);
     ec_flush(Current_Error);
 #endif
 
@@ -2269,7 +2281,7 @@ static void _cpx_reset_col_type(pword * phandle, word * udata, int size, int fla
 int
 p_cpx_new_row(value vlp, type tlp, value vsense, type tsense, 
 	      value vrhs, type trhs, value vgtype, type tgtype, 
-	      value vidx, type tidx)
+	      value vidx, type tidx, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int    idx, sense; 
@@ -2316,7 +2328,7 @@ p_cpx_new_row(value vlp, type tlp, value vsense, type tsense,
 int
 p_cpx_new_row_idc(value vlp, type tlp, value vsense, type tsense, 
 	  value vrhs, type trhs, value vcompl, type tcompl,
-	  value vindind, type tindind)
+	  value vindind, type tindind, ec_eng_t *ec_eng)
 {
     int sense; 
     lp_desc *lpd;
@@ -2372,7 +2384,7 @@ p_cpx_new_row_idc(value vlp, type tlp, value vsense, type tsense,
 }
 
 int
-p_cpx_add_coeff(value vlp, type tlp, value vj, type tj, value v, type t, value vpool, type tpool)
+p_cpx_add_coeff(value vlp, type tlp, value vj, type tj, value v, type t, value vpool, type tpool, ec_eng_t *ec_eng)
 {
     lp_desc *lpd;
 
@@ -2442,7 +2454,7 @@ _grow_numbers_array(lp_desc * lpd, int m)   /* make sure array contains 0..m-1 *
 }
 
 
-static void _cpx_restore_bounds(pword * phandle, word * udata, int size, int undo_context)
+static void _cpx_restore_bounds(pword * phandle, word * udata, int size, int undo_context, ec_eng_t *ec_eng)
 {
     lp_desc *lpd = ExternalData(phandle[HANDLE_CPH].val.ptr); 
 
@@ -2580,7 +2592,7 @@ reset_rowcols(lp_desc * lpd, int oldmar, int oldmac)
 }
 
 
-static void _cpx_del_rowcols(pword * phandle,word * udata, int size, int flags)
+static void _cpx_del_rowcols(pword * phandle,word * udata, int size, int flags, ec_eng_t *ec_eng)
 {
     lp_desc *lpd = ExternalData(phandle[HANDLE_CPH].val.ptr); 
 
@@ -2596,7 +2608,7 @@ static void _cpx_del_rowcols(pword * phandle,word * udata, int size, int flags)
 	    "Removing rows %d..%d, cols %d..%d, soss %d..%d, idcs %d..%d, in gc:%d\n",
 	    oldmar, lpd->mar-1, oldmac, lpd->macadded-1,
 	    oldsos, lpd->nsos_added, oldidc, lpd->nidc,
-	    ec_.m.vm_flags & NO_EXIT);
+	    ec_eng->vm_flags & NO_EXIT);
 	ec_flush(Current_Error);
 #endif
 	reset_idc(lpd, oldidc);
@@ -2625,7 +2637,7 @@ static void _cpx_del_rowcols(pword * phandle,word * udata, int size, int flags)
  */
 /* newcolobjs == 1  if non-zero objective coeffs are to be added */
 int
-p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tnewcolobjs)
+p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tnewcolobjs, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int res, coladded, rowadded, nzadded;
@@ -2800,7 +2812,7 @@ p_cpx_flush_new_rowcols(value vhandle, type thandle, value vnewcolobjs, type tne
  */
 
 int
-p_cpx_flush_idcs(value vhandle, type thandle)
+p_cpx_flush_idcs(value vhandle, type thandle, ec_eng_t *ec_eng)
 {
 #ifdef HAS_INDICATOR_CONSTRAINTS
     int i;
@@ -2866,7 +2878,7 @@ p_cpx_impose_col_lwb(value vhandle, type thandle,
 		     value vatt, type tatt, 
 		     value vj, type tj, 
 		     value vlo, type tlo, 
-		     value vchanged, type tchanged)
+		     value vchanged, type tchanged, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     double lo0, hi0, newlo;
@@ -2910,7 +2922,7 @@ p_cpx_impose_col_upb(value vhandle, type thandle,
 		     value vatt, type tatt, 
 		     value vj, type tj, 
 		     value vhi, type thi, 
-		     value vchanged, type tchanged)
+		     value vchanged, type tchanged, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     double lo0, hi0, newhi;
@@ -2957,7 +2969,7 @@ p_cpx_impose_col_bounds(value vhandle, type thandle,
 			value vflag, type tflag, 
 			value vlo, type tlo, 
 			value vhi, type thi, 
-			value vchanged, type tchanged)
+			value vchanged, type tchanged, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     double  lo0, hi0, newlo, newhi;
@@ -3062,7 +3074,7 @@ int
 p_cpx_get_col_bounds(value vlp, type tlp, 
 		     value vj, type tj, 
 		     value vlo, type tlo, 
-		     value vhi, type thi)
+		     value vhi, type thi, ec_eng_t *ec_eng)
 {
     Prepare_Requests
     lp_desc *lpd; 
@@ -3128,7 +3140,7 @@ p_cpx_get_col_bounds(value vlp, type tlp,
  */
 
 int
-p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, type tobjs, value vlos, type tlos, value vhis, type this, value vnzs, type tnzs)
+p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, type tobjs, value vlos, type tlos, value vhis, type this, value vnzs, type tnzs, ec_eng_t *ec_eng)
 {
     /* the column `buffer arrays' are needed by CPLEX and Xpress's interface
        to pass information for the columns. Except for ctype
@@ -3575,7 +3587,7 @@ p_cpx_set_new_cols(value vlp, type tlp, value vadded, type tadded, value vobjs, 
 
 
 int
-p_cpx_init_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
+p_cpx_init_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int j;
@@ -3621,7 +3633,7 @@ p_cpx_init_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
  * Used for initial setup and for adding variables.
  */
 int
-p_cpx_init_bound(value vlp, type tlp, value vj, type tj, value vwhich, type twhich, value vval, type tval)
+p_cpx_init_bound(value vlp, type tlp, value vj, type tj, value vwhich, type twhich, value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int j;
@@ -3663,7 +3675,7 @@ p_cpx_init_bound(value vlp, type tlp, value vj, type tj, value vwhich, type twhi
 
 
 int
-p_cpx_get_col_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype)
+p_cpx_get_col_type(value vlp, type tlp, value vj, type tj, value vtype, type ttype, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     char ctype[1];
@@ -3755,7 +3767,7 @@ _grow_cb_arrays(lp_desc * lpd, int with_index2)
 
 
 int
-p_cpx_new_obj_coeff(value vlp, type tlp, value vj, type tj, value vcoeff, type tcoeff)
+p_cpx_new_obj_coeff(value vlp, type tlp, value vj, type tj, value vcoeff, type tcoeff, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     double coeff;
@@ -3784,7 +3796,7 @@ p_cpx_new_obj_coeff(value vlp, type tlp, value vj, type tj, value vcoeff, type t
 }
 
 int
-p_cpx_flush_obj(value vlp, type tlp)
+p_cpx_flush_obj(value vlp, type tlp, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     LpDesc(vlp, tlp, lpd);
@@ -3819,7 +3831,7 @@ int
 p_cpx_new_qobj_coeff(value vlp, type tlp, 
 		     value vi, type ti, 
 		     value vj, type tj, 
-		     value vcoeff, type tcoeff)
+		     value vcoeff, type tcoeff, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     double coeff;
@@ -3850,7 +3862,7 @@ p_cpx_new_qobj_coeff(value vlp, type tlp,
 
 
 int
-p_cpx_change_obj_sense(value vlp, type tlp, value vsense, type tsense)
+p_cpx_change_obj_sense(value vlp, type tlp, value vsense, type tsense, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
 
@@ -3874,7 +3886,7 @@ int
 p_cpx_set_matbeg(value vlp, type tlp, 
 		 value vj, type tj, 
 		 value vk, type tk, 
-		 value vk1, type tk1)
+		 value vk1, type tk1, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int j;
@@ -3896,7 +3908,7 @@ int
 p_cpx_set_matval(value vlp, type tlp, 
 		 value vk, type tk, 
 		 value vi, type ti, 
-		 value vval, type tval)
+		 value vval, type tval, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     Check_Integer(tk);
@@ -3914,7 +3926,7 @@ p_cpx_set_matval(value vlp, type tlp,
 }
 
 int
-p_cpx_loadprob(value vlp, type tlp)
+p_cpx_loadprob(value vlp, type tlp, ec_eng_t *ec_eng)
 {
     int err;
     lp_desc *lpd; 
@@ -4313,7 +4325,7 @@ _setup_initial_cp_constraints(lp_desc * lpd, int add_all, int * unadded_cntp,
 
 int
 p_cpx_lpwrite(value vfile, type tfile, value vformat, type tformat, 
-	      value vlp, type tlp)
+	      value vlp, type tlp, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     char has_cp = 0, *file, *format;
@@ -4353,7 +4365,7 @@ int
 p_cpx_lpread(value vfile, type tfile, 
 	     value vformat, type tformat, 
 	     value vpresolve, type tpresolve,
-	     value vhandle, type thandle)
+	     value vhandle, type thandle, ec_eng_t *ec_eng)
 {
     lp_desc *lpd;
     char *file, *format;
@@ -4400,7 +4412,7 @@ p_cpx_lpread(value vfile, type tfile,
 
 
 void
-_create_result_darray(value vhandle, int pos, int size, pword* pw, double** start)
+_create_result_darray(ec_eng_t *ec_eng, value vhandle, int pos, int size, pword* pw, double** start)
 {
     pword *argp = &vhandle.ptr[pos];
 
@@ -4410,13 +4422,13 @@ _create_result_darray(value vhandle, int pos, int size, pword* pw, double** star
     else
     {
 	pw->tag.kernel = TSTRG;
-	pw->val.ptr = _create_darray(size);
+	pw->val.ptr = _create_darray(ec_eng, size);
 	*start = DArrayStart(pw->val.ptr);
     }
 }
 
 void
-_create_result_iarray(value vhandle, int pos, int size, pword *pw, int** start)
+_create_result_iarray(ec_eng_t *ec_eng, value vhandle, int pos, int size, pword *pw, int** start)
 {
     pword *argp = &vhandle.ptr[pos];
 
@@ -4426,7 +4438,7 @@ _create_result_iarray(value vhandle, int pos, int size, pword *pw, int** start)
     else
     {
 	pw->tag.kernel = TSTRG;
-	pw->val.ptr = _create_iarray(size);
+	pw->val.ptr = _create_iarray(ec_eng, size);
 	*start = IArrayStart(pw->val.ptr);
     }
 }
@@ -4577,7 +4589,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
          value vtimeout, type ttimeout, value vdump, type tdump, 
          value vmipstart, type tmipstart,
 	 value vout, type tout, value vres, type tres, value vstat, type tstat,
-	 value vworst, type tworst, value vbest, type tbest) 
+	 value vworst, type tworst, value vbest, type tbest, ec_eng_t *ec_eng) 
 {
     lp_desc *lpd; 
     int res, oldmar;
@@ -4668,7 +4680,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 
 	pword map;
 
-	_create_result_iarray(vhandle, cpcondmappos, lpd->cp_nr2, &map, &cp_map2);
+	_create_result_iarray(ec_eng, vhandle, cpcondmappos, lpd->cp_nr2, &map, &cp_map2);
 
 	cp_unadded = (int *)Malloc(lpd->cp_nr2*sizeof(int));
 
@@ -4686,10 +4698,10 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     */
     pw = &vhandle.ptr[solspos];
     Dereference_(pw);
-    sol.oldmac = IsArray(pw->tag) ? DArraySize(pw->val.ptr) : 0;
-    sol.oldsols = IsArray(pw->tag) ? DArrayStart(pw->val.ptr) : NULL;
+    sol.oldmac = IsIDArray(pw->tag) ? DArraySize(pw->val.ptr) : 0;
+    sol.oldsols = IsIDArray(pw->tag) ? DArrayStart(pw->val.ptr) : NULL;
 
-    _create_result_darray(vhandle, solspos, lpd->mac, &outsols, &sol.sols);
+    _create_result_darray(ec_eng, vhandle, solspos, lpd->mac, &outsols, &sol.sols);
 #ifdef HAS_LIMITED_MIP_RESULTS
     if (IsMIPProb(lpd->prob_type)) {
 	sol.djs = NULL;
@@ -4699,15 +4711,15 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     {/* djs, basis, pis are available for non-MIP problems only for CPLEX;
         for XPRESS, the returned values are for the optimal LP node
      */
-	_create_result_darray(vhandle,   djspos, lpd->mac, &outdjs, &sol.djs);
-	_create_result_iarray(vhandle, cbasepos, lpd->mac, &outcbase, &sol.cbase);
+	_create_result_darray(ec_eng, vhandle,   djspos, lpd->mac, &outdjs, &sol.djs);
+	_create_result_iarray(ec_eng, vhandle, cbasepos, lpd->mac, &outcbase, &sol.cbase);
     }
 
     /* allocate the row-wise arrays later as these may need to be expanded
        with the addition cutpool constraints
     */
     old_tg = TG; 
-    _create_result_darray(vhandle, slackspos, lpd->mar, &outslacks, &sol.slacks);
+    _create_result_darray(ec_eng, vhandle, slackspos, lpd->mar, &outslacks, &sol.slacks);
 #ifdef HAS_LIMITED_MIP_RESULTS
     if (IsMIPProb(lpd->prob_type)) {
 	sol.pis = NULL;
@@ -4715,8 +4727,8 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
     } else
 #endif
     {
-	_create_result_iarray(vhandle, rbasepos, lpd->mar, &outrbase, &sol.rbase);
-	_create_result_darray(vhandle,   pispos, lpd->mar, &outpis, &sol.pis);
+	_create_result_iarray(ec_eng, vhandle, rbasepos, lpd->mar, &outrbase, &sol.rbase);
+	_create_result_darray(ec_eng, vhandle,   pispos, lpd->mar, &outpis, &sol.pis);
     }
     sol.mac = lpd->mac;
 
@@ -4825,11 +4837,11 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 			iis_ncols = 0;
 		    }
 		    old_tg1 = TG;
-		    iis_rowidxs.val.ptr = _create_iarray(iis_nrows);
+		    iis_rowidxs.val.ptr = _create_iarray(ec_eng, iis_nrows);
 		    iis_rowidxs.tag.kernel = TSTRG;
-		    iis_colidxs.val.ptr = _create_iarray(iis_ncols);
+		    iis_colidxs.val.ptr = _create_iarray(ec_eng, iis_ncols);
 		    iis_colidxs.tag.kernel = TSTRG;
-		    iis_colstats.val.ptr = _create_carray(iis_ncols);
+		    iis_colstats.val.ptr = _create_carray(ec_eng, iis_ncols);
 		    iis_colstats.tag.kernel = TSTRG;
 
 
@@ -4843,9 +4855,9 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 			TG = old_tg1;
 			iis_nrows = 0;
 			iis_ncols = 0;
-			iis_rowidxs.val.ptr = _create_iarray(0);
-			iis_colidxs.val.ptr = _create_iarray(0);
-			iis_colstats.val.ptr = _create_carray(0);
+			iis_rowidxs.val.ptr = _create_iarray(ec_eng, 0);
+			iis_colidxs.val.ptr = _create_iarray(ec_eng, 0);
+			iis_colstats.val.ptr = _create_carray(ec_eng, 0);
 		    }
 
 		    ec_assign(vhandle.ptr+iis_rowspos, iis_rowidxs.val, iis_rowidxs.tag);
@@ -4937,11 +4949,11 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 		Mark_Copy_As_Modified(lpd);
 		TG = old_tg; /* reallocate row-wise result arrays */
 		if (sol.slacks != NULL)
-		    _create_result_darray(vhandle, slackspos, lpd->mar, &outslacks, &sol.slacks);
+		    _create_result_darray(ec_eng, vhandle, slackspos, lpd->mar, &outslacks, &sol.slacks);
 		if (sol.rbase != NULL)
-		    _create_result_iarray(vhandle, rbasepos, lpd->mar, &outrbase, &sol.rbase);
+		    _create_result_iarray(ec_eng, vhandle, rbasepos, lpd->mar, &outrbase, &sol.rbase);
 		if (sol.pis != NULL)
-		    _create_result_darray(vhandle,   pispos, lpd->mar, &outpis, &sol.pis);
+		    _create_result_darray(ec_eng, vhandle,   pispos, lpd->mar, &outpis, &sol.pis);
 	    }
 	} /* if (add_cp_cstr) */
 	
@@ -5002,7 +5014,7 @@ p_cpx_optimise(value vhandle, type thandle, value vmeths, type tmeths,
 
 
 int
-p_cpx_loadbase(value vlp, type tlp, value vcarr, type tcarr, value vrarr, type trarr)
+p_cpx_loadbase(value vlp, type tlp, value vcarr, type tcarr, value vrarr, type trarr, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int res;
@@ -5023,14 +5035,14 @@ p_cpx_loadbase(value vlp, type tlp, value vcarr, type tcarr, value vrarr, type t
 
 #ifdef COIN
 int
-p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl)
+p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl, ec_eng_t *ec_eng)
 {
     Succeed;
 }
 #else
 
 int
-p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl)
+p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     int *idx, *prio;
@@ -5110,7 +5122,7 @@ p_cpx_loadorder(value vlp, type tlp, value vn, type tn, value vl, type tl)
  */
 
 int
-p_cpx_flush_sos(value vhandle, type thandle)
+p_cpx_flush_sos(value vhandle, type thandle, ec_eng_t *ec_eng)
 {
 #ifdef HAS_NO_ADDSOS
     Bip_Error(UNIMPLEMENTED);
@@ -5154,7 +5166,7 @@ int
 p_cpx_add_new_sos(value vlp, type tlp, 
 	      value vsostype, type tsostype, 	/* 1 or 2 */
 	      value vn, type tn,		/* member count */
-	      value vl, type tl)		/* member list */
+	      value vl, type tl, ec_eng_t *ec_eng)		/* member list */
 {
     lp_desc *lpd; 
     double weight;
@@ -5235,7 +5247,7 @@ p_cpx_add_new_sos(value vlp, type tlp,
 
 
 int
-p_cpx_get_objval(value vlp, type tlp, value v, type t)
+p_cpx_get_objval(value vlp, type tlp, value v, type t, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
 
@@ -5249,7 +5261,7 @@ int
 p_cpx_get_coef(value vlp, type tlp, 
 	       value vi, type ti, 
 	       value vj, type tj, 
-	       value vc, type tc)
+	       value vc, type tc, ec_eng_t *ec_eng)
 {
 #ifdef CPLEX
     lp_desc *lpd; 
@@ -5289,7 +5301,7 @@ p_cpx_get_coef(value vlp, type tlp,
 
 int
 p_cpx_get_row(value vlp, type tlp, value vpool, type tpool,  
-	      value vi, type ti, value vbase, type tbase)
+	      value vi, type ti, value vbase, type tbase, ec_eng_t *ec_eng)
 {
     lp_desc *lpd;
     int base;
@@ -5361,7 +5373,7 @@ p_cpx_get_row(value vlp, type tlp, value vpool, type tpool,
 int
 p_cpx_get_col_coef(value vlp, type tlp, value vpool, type tpool, 
 		   value vbase, type tbase, 
-		   value vj, type tj, value vc, type tc)
+		   value vj, type tj, value vc, type tc, ec_eng_t *ec_eng)
 {
     int i;
     lp_desc *lpd; 
@@ -5394,7 +5406,7 @@ p_cpx_get_col_coef(value vlp, type tlp, value vpool, type tpool,
 }
 
 int
-p_cpx_get_obj_coef(value vlp, type tlp, value vj, type tj, value vc, type tc)
+p_cpx_get_obj_coef(value vlp, type tlp, value vj, type tj, value vc, type tc, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     double d[1];
@@ -5415,16 +5427,16 @@ p_cpx_get_obj_coef(value vlp, type tlp, value vj, type tj, value vc, type tc)
 
 
 int
-p_create_darray(value vi, type ti, value varr, type tarr)
+p_create_darray(value vi, type ti, value varr, type tarr, ec_eng_t *ec_eng)
 {
     pword *pbuf;
     Check_Integer(ti);
-    pbuf = _create_darray(vi.nint);
+    pbuf = _create_darray(ec_eng, vi.nint);
     Return_Unify_String(varr, tarr, pbuf);
 }
 
 static pword *
-_create_carray(int i)
+_create_carray(ec_eng_t *ec_eng, int i)
 {
     pword *pbuf = TG;
     Push_Buffer(i*sizeof(char) + 1);
@@ -5432,7 +5444,7 @@ _create_carray(int i)
 }
 
 static pword *
-_create_darray(int i)
+_create_darray(ec_eng_t *ec_eng, int i)
 {
     pword *pbuf = TG;
     Push_Buffer(i*sizeof(double) + 1);
@@ -5440,7 +5452,7 @@ _create_darray(int i)
 }
 
 static pword *
-_create_iarray(int i)
+_create_iarray(ec_eng_t *ec_eng, int i)
 {
     pword *pbuf = TG;
     Push_Buffer(i*sizeof(int) + 1);
@@ -5448,14 +5460,14 @@ _create_iarray(int i)
 }
 
 int
-p_darray_size(value varr, type tarr, value vi, type ti)
+p_darray_size(value varr, type tarr, value vi, type ti, ec_eng_t *ec_eng)
 {
     Check_Array(tarr);
     Return_Unify_Integer(vi, ti, DArraySize(varr.ptr));
 }
 
 int
-p_get_darray_element(value varr, type tarr, value vi, type ti, value vel, type tel)
+p_get_darray_element(value varr, type tarr, value vi, type ti, value vel, type tel, ec_eng_t *ec_eng)
 {
     double f;
     Check_Array(tarr);
@@ -5468,7 +5480,7 @@ p_get_darray_element(value varr, type tarr, value vi, type ti, value vel, type t
 }
 
 int
-p_set_darray_element(value varr, type tarr, value vi, type ti, value vel, type tel)
+p_set_darray_element(value varr, type tarr, value vi, type ti, value vel, type tel, ec_eng_t *ec_eng)
 {
     Check_Array(tarr);
     Check_Integer(ti);
@@ -5489,7 +5501,7 @@ p_set_darray_element(value varr, type tarr, value vi, type ti, value vel, type t
 }
 
 int
-p_darray_list(value varr, type tarr, value vmr, type tmr, value vlst, type tlst)
+p_darray_list(value varr, type tarr, value vmr, type tmr, value vlst, type tlst, ec_eng_t *ec_eng)
 {
     pword	list;
     pword	*car;
@@ -5513,13 +5525,13 @@ p_darray_list(value varr, type tarr, value vmr, type tmr, value vlst, type tlst)
 
 /* returns the base (start) of the solver matrix (0 or 1) */
 int
-p_cpx_matrix_base(value vbase, type tbase)
+p_cpx_matrix_base(value vbase, type tbase, ec_eng_t *ec_eng)
 {
     Return_Unify_Integer(vbase, tbase, SOLVER_MAT_BASE);
 }
 
 int
-p_cpx_matrix_offset(value voff, type toff)
+p_cpx_matrix_offset(value voff, type toff, ec_eng_t *ec_eng)
 {
     Return_Unify_Integer(voff, toff, SOLVER_MAT_OFFSET);
 }
@@ -5539,7 +5551,7 @@ p_cpx_matrix_offset(value voff, type toff)
 */
 
 int
-p_cpx_get_cutpool_size(value vlp, type tlp,  value vnr, type tnr, value vnnz, type tnnz)
+p_cpx_get_cutpool_size(value vlp, type tlp,  value vnr, type tnr, value vnnz, type tnnz, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     Prepare_Requests
@@ -5552,7 +5564,7 @@ p_cpx_get_cutpool_size(value vlp, type tlp,  value vnr, type tnr, value vnnz, ty
 
 int
 p_cpx_reset_cutpool_size(value vlp, type tlp, 
-     value vnr, type tnr, value vnnz, type tnnz)
+     value vnr, type tnr, value vnnz, type tnnz, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     LpDescOnly(vlp, tlp, lpd);
@@ -5569,7 +5581,7 @@ p_cpx_reset_cutpool_size(value vlp, type tlp,
 
 int
 p_cpx_set_cpcstr_cond(value vlp, type tlp, value vidx, type tidx,
-		      value vtype, type ttype, value vc, type tc)
+		      value vtype, type ttype, value vc, type tc, ec_eng_t *ec_eng)
 {
     int i; 
     lp_desc *lpd;
@@ -5600,7 +5612,7 @@ p_cpx_set_cpcstr_cond(value vlp, type tlp, value vidx, type tidx,
 
 int
 p_cpx_init_cpcstr(value vlp, type tlp, value vidx, type tidx, value vgrp, type tgrp,
-		   value vact, type tact, value vinit_add, type tinit_add)
+		   value vact, type tact, value vinit_add, type tinit_add, ec_eng_t *ec_eng)
 {
     lp_desc *lpd; 
     LpDescOnly(vlp, tlp, lpd);
@@ -5650,7 +5662,7 @@ p_cpx_init_cpcstr(value vlp, type tlp, value vidx, type tidx, value vgrp, type t
 
 int
 p_cpx_get_named_cp_index(value vlp, type tlp, value vname, type tname,
-		         value vnew, type tnew, value vidx, type tidx)
+		         value vnew, type tnew, value vidx, type tidx, ec_eng_t *ec_eng)
 {
     int i, n;
     lp_desc *lpd;
@@ -5690,7 +5702,7 @@ p_cpx_get_named_cp_index(value vlp, type tlp, value vname, type tname,
 
 int
 p_cpx_get_cpcstr_info(value vlp, type tlp, value vidx, type tidx, 
-		      value vitype, type titype, value vval, type tval)
+		      value vitype, type titype, value vval, type tval, ec_eng_t *ec_eng)
 {
     int i, val;
 
@@ -5720,7 +5732,7 @@ p_cpx_get_cpcstr_info(value vlp, type tlp, value vidx, type tidx,
 
 int
 p_cpx_get_named_cpcstr_indices(value vlp, type tlp, value vpidx, type tpidx,
-				value vilst, type tilst)
+				value vilst, type tilst, ec_eng_t *ec_eng)
 {
     int i;
     pword list;
@@ -5751,29 +5763,29 @@ p_cpx_get_named_cpcstr_indices(value vlp, type tlp, value vpidx, type tpidx,
 
 
 int
-p_create_extended_iarray(value varr, type tarr, value vi, type ti, value vxarr, type txarr)
+p_create_extended_iarray(value varr, type tarr, value vi, type ti, value vxarr, type txarr, ec_eng_t *ec_eng)
 {
     pword *pbuf;
 
     Check_Integer(ti);
     Check_Array(tarr);
-    pbuf = _create_iarray(vi.nint + IArraySize(varr.ptr));
+    pbuf = _create_iarray(ec_eng, vi.nint + IArraySize(varr.ptr));
     Return_Unify_String(vxarr, txarr, pbuf);
 }
 
 int
-p_create_extended_darray(value varr, type tarr, value vi, type ti, value vxarr, type txarr)
+p_create_extended_darray(value varr, type tarr, value vi, type ti, value vxarr, type txarr, ec_eng_t *ec_eng)
 {
     pword *pbuf;
 
     Check_Integer(ti);
     Check_Array(tarr);
-    pbuf = _create_darray(vi.nint + DArraySize(varr.ptr));
+    pbuf = _create_darray(ec_eng, vi.nint + DArraySize(varr.ptr));
     Return_Unify_String(vxarr, txarr, pbuf);
 }
 
 int
-p_decode_basis(value varr, type tarr, value vout, type tout)
+p_decode_basis(value varr, type tarr, value vout, type tout, ec_eng_t *ec_eng)
 {
     int i,n;
     int *v;
@@ -5791,7 +5803,7 @@ p_decode_basis(value varr, type tarr, value vout, type tout)
 
 int
 p_copy_extended_column_basis(value varr, type tarr, value vlos, type tlos,
-	value vhis, type this, value vxarr, type txarr)
+	value vhis, type this, value vxarr, type txarr, ec_eng_t *ec_eng)
 {
     unsigned i;
     int      *v;
@@ -5847,7 +5859,7 @@ p_copy_extended_column_basis(value varr, type tarr, value vlos, type tlos,
 }
 
 int
-p_copy_extended_arrays(value vbarr, type tbarr, value vsarr, type tsarr, value vdarr, type tdarr, value vxbarr, type txbarr, value vxsarr, type txsarr, value vxdarr, type txdarr)
+p_copy_extended_arrays(value vbarr, type tbarr, value vsarr, type tsarr, value vdarr, type tdarr, value vxbarr, type txbarr, value vxsarr, type txsarr, value vxdarr, type txdarr, ec_eng_t *ec_eng)
 {
     int     i;
     int     *vb;
@@ -5902,23 +5914,23 @@ p_copy_extended_arrays(value vbarr, type tbarr, value vsarr, type tsarr, value v
 
 
 int
-p_create_iarray(value vi, type ti, value varr, type tarr)
+p_create_iarray(value vi, type ti, value varr, type tarr, ec_eng_t *ec_eng)
 {
     pword *pbuf;
     Check_Integer(ti);
-    pbuf = _create_iarray(vi.nint);
+    pbuf = _create_iarray(ec_eng, vi.nint);
     Return_Unify_String(varr, tarr, pbuf);
 }
 
 int
-p_iarray_size(value varr, type tarr, value vi, type ti)
+p_iarray_size(value varr, type tarr, value vi, type ti, ec_eng_t *ec_eng)
 {
     Check_Array(tarr);
     Return_Unify_Integer(vi, ti, IArraySize(varr.ptr));
 }
 
 int
-p_get_iarray_element(value varr, type tarr, value vi, type ti, value vel, type tel)
+p_get_iarray_element(value varr, type tarr, value vi, type ti, value vel, type tel, ec_eng_t *ec_eng)
 {
     int i;
     Check_Array(tarr);
@@ -5930,7 +5942,7 @@ p_get_iarray_element(value varr, type tarr, value vi, type ti, value vel, type t
 }
 
 int
-p_set_iarray_element(value varr, type tarr, value vi, type ti, value vel, type tel)
+p_set_iarray_element(value varr, type tarr, value vi, type ti, value vel, type tel, ec_eng_t *ec_eng)
 {
     Check_Array(tarr);
     Check_Integer(ti);
@@ -5949,7 +5961,7 @@ p_set_iarray_element(value varr, type tarr, value vi, type ti, value vel, type t
 }
 
 int
-p_iarray_list(value varr, type tarr, value vlst, type tlst)
+p_iarray_list(value varr, type tarr, value vlst, type tlst, ec_eng_t *ec_eng)
 {
     pword      list;
     pword      *car;

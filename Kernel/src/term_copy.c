@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: term_copy.c,v 1.1 2013/09/28 00:25:39 jschimpf Exp $
+ * VERSION	$Id: term_copy.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  *
  * IDENTIFICATION:	term_copy.c (was part of property.c)
  *
@@ -46,15 +46,12 @@
 #include "error.h"
 #include "mem.h"
 #include "dict.h"
+#include "property.h"
 #include "emu_export.h"
 
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-
-extern void	handle_copy_anchor(pword*,pword*,int);
-extern void	mark_dids_from_pwords(pword *from, register pword *to);
-
 
 
 /*---------------------------------------------------------
@@ -185,12 +182,12 @@ extern void	mark_dids_from_pwords(pword *from, register pword *to);
 	    dest->val.all = v.all;\
 	    dest->tag.all = t.all;\
 	} else {\
-	    top = _copy_term_to_heap(v, t, top, handle_slot, dest);\
+	    top = _copy_term_to_heap(ec_eng, v, t, top, handle_slot, dest);\
 	    if (!top) return top;\
 	}
 
 static pword *
-_copy_term_to_heap(value v, type t, register pword *top, value **handle_slot, register pword *dest)
+_copy_term_to_heap(ec_eng_t *ec_eng, value v, type t, register pword *top, value **handle_slot, register pword *dest)
 {
     register pword *pw, *arg_pw;
     register word arity;
@@ -330,7 +327,7 @@ _copy_term_to_heap(value v, type t, register pword *top, value **handle_slot, re
 	    arg_pw->tag.kernel &= ~(ALREADY_SEEN|NEED_FWD);
 	    dest->val.ptr = top;		/* make the copy */
 	    *(*handle_slot)++ = dest->val; 	/* Enter into handle table */
-	    handle_copy_anchor(arg_pw, top, 0);
+	    handle_copy_anchor(arg_pw, top, NULL);
 	    if (t.kernel & NEED_FWD)
 	    {
 		Trail_Pword(arg_pw);		/* install forwarding pointer */
@@ -703,7 +700,7 @@ _copy_size_error_:
  */
 
 static void
-_copy_block(register pword *from, register pword *to, word size)
+_copy_block(ec_eng_t *ec_eng, pword *from, pword *to, word size)
 {
     word offset = (char *) to - (char *) from;
     pword *start = from;
@@ -754,7 +751,7 @@ _copy_block(register pword *from, register pword *to, word size)
 
 	    case TEXTERN:
 	    {
-		handle_copy_anchor(from, to, 1);
+		handle_copy_anchor(from, to, ec_eng);
 		to += HANDLE_ANCHOR_SIZE;
 		from += HANDLE_ANCHOR_SIZE;
 		break;
@@ -858,7 +855,7 @@ make_heapterm_persistent(pword *root)
  */
 
 static int
-_copy_term(value v, type t, register pword *dest, register pword *meta, int marked_vars_only)
+_copy_term(ec_eng_t *ec_eng, value v, type t, register pword *dest, register pword *meta, int marked_vars_only)
 {
 	register pword *pw, *arg_pw, *arg;
 	register word arity;
@@ -1029,7 +1026,7 @@ _global_var_:	/* A variable that doesn't get copied */
 	    if (IsSimple(pw->tag))
 		*arg = *pw;
 	    else
-		copied |= _copy_term(pw->val, pw->tag, arg, meta, marked_vars_only);
+		copied |= _copy_term(ec_eng, pw->val, pw->tag, arg, meta, marked_vars_only);
 	    arg += 1;
 	}
 	if (!copied)
@@ -1040,6 +1037,265 @@ _global_var_:	/* A variable that doesn't get copied */
 	}
 	return copied;
 }
+
+
+/**
+ * Copy a given term to the global stack of another engine.
+ *
+ * No sharing except heap subterms.  Attributes are either not copied
+ * or fully copied (we can't use the handler mechanism).
+ * Caution: this function works on two engines at the same time, which it
+ * must both own.
+ * ec_eng is the destination engine (Macros apply to this one!).
+ * from_eng is the origin engine, where forwarding pointers get installed
+ * and trailed.
+ * The temporary redefinitions of ec_eng make the macros work on the
+ * other engine.
+ */
+
+static int
+_copy_term_across(ec_eng_t *from_eng, ec_eng_t *ec_eng, value v, type t, pword *dest, int with_attributes)
+{
+    pword *pw, *arg_pw, *arg;
+    word arity;
+    dident fdid;
+
+    for(;;)			/* tail recursion loop	*/
+    {
+	if (!IsRef(t) && ISPointer(t.kernel) && IsPersistent(t)) {
+	    dest->val.all = v.all;	/* share PERSISTENT ground subterm */
+	    dest->tag.all = t.all;
+	    return PSUCCEED;
+	}
+	switch(TagType(t))
+	{
+	case TVAR_TAG:
+	    dest->val.ptr = dest;
+	    dest->tag.kernel = TREF;
+#define ec_eng from_eng
+	    Trail_(v.ptr);
+#undef ec_eng
+	    v.ptr->val.ptr = dest;
+	    v.ptr->tag.kernel = Tag(TFORWARD);
+	    return PSUCCEED;
+
+	case TFORWARD:
+	    dest->val = v.ptr->val;	/* was already copied		*/
+	    dest->tag.kernel = TREF;
+	    return PSUCCEED;
+
+	case TUNIV:
+	case TNAME:
+	    Make_Ref(dest, TG);
+#define ec_eng from_eng
+	    Trail_Tag(v.ptr);
+#undef ec_eng
+	    v.ptr->val.ptr = TG;
+	    v.ptr->tag.kernel = Tag(TFORWARD);
+	    dest = TG++;
+	    Check_Gc
+	    dest->val.ptr = dest;
+	    dest->tag.kernel = t.kernel;	/* copy tag */
+	    return PSUCCEED;
+
+	case TMETA:
+#define ec_eng from_eng
+	    Trail_Tag(v.ptr);			/* make forwarding pointer */
+#undef ec_eng
+	    v.ptr->tag.kernel = Tag(TFORWARD);
+	    if (!with_attributes)
+	    {
+		v.ptr->val.ptr = dest;
+		Make_Var(dest);			/* free variable */
+		return PSUCCEED;
+	    }
+	    v.ptr->val.ptr = TG;
+	    Make_Ref(dest, TG);
+	    arg = TG;				/* make new TMETA */
+	    TG += 2;
+	    Check_Gc
+	    arg->val.ptr = arg;
+	    arg->tag.kernel = t.kernel;		/* copy tag */
+	    ++arg;				/* go copy attribute */
+	    arg_pw = v.ptr+1;
+	    arity = 1;
+	    break;
+
+	case TSUSP:
+	    dest->tag.all = t.all;
+	    if (IsForward(v.ptr->tag))	/* already copied */
+	    {
+		dest->val.ptr = v.ptr->val.ptr;
+		return PSUCCEED;
+	    }
+	    Assert(IsTag(v.ptr->tag.kernel,TDE));
+	    dest->val.ptr = arg = TG;
+	    TG += SUSP_SIZE;
+	    Check_Gc
+	    arg[SUSP_FLAGS].tag.all = v.ptr[SUSP_FLAGS].tag.all;
+	    arg[SUSP_PRI].val.all = v.ptr[SUSP_PRI].val.all;
+	    arg[SUSP_INVOC].tag.all = 0;
+	    Init_Susp_State(arg, SuspPrio(v.ptr), SuspRunPrio(v.ptr));
+#define ec_eng from_eng
+	    Trail_Pword(v.ptr); /* install forwarding pointer */
+#undef ec_eng
+	    v.ptr->val.ptr = arg;
+	    v.ptr->tag.kernel = Tag(TFORWARD);
+	    if (SuspDead(arg)) {
+		TG -= SUSP_SIZE-SUSP_HEADER_SIZE;
+		arg[SUSP_LD].val.ptr = NULL;
+		return PSUCCEED;
+	    }
+	    arg[SUSP_LD].val.ptr = LD;
+	    Update_LD(arg)
+	    /* copy remaining pwords in the suspension */
+	    arg_pw = v.ptr += SUSP_GOAL;
+	    arity = SUSP_SIZE-SUSP_GOAL;
+	    arg += SUSP_GOAL;
+	    break;
+
+	case TLIST:
+	    dest->val.ptr = TG;
+	    dest->tag.kernel = TLIST;
+	    arg = TG;
+	    TG += 2;
+	    Check_Gc
+	    arg_pw = v.ptr;
+	    arity = 2;
+	    break;
+
+	case TCOMP:
+	    dest->val.ptr = TG;
+	    dest->tag.kernel = TCOMP;
+	    arg_pw = v.ptr;
+	    fdid = arg_pw++->val.did;
+	    arity = DidArity(fdid);
+	    arg = TG;
+	    TG += arity +1;
+	    Check_Gc
+	    arg->val.did = fdid;
+	    arg++->tag.kernel = TDICT;
+	    break;
+
+	case THANDLE:	/* copy anchor only once, use forwarding */
+	    arg_pw = v.ptr;
+	    dest->tag = t;
+	    t.kernel = arg_pw->tag.kernel;	/* the TEXTERN word's tag */
+	    if (IsForward(t))
+	    {
+		dest->val = arg_pw->val;	/* anchor already copied		*/
+		return PSUCCEED;
+	    }
+	    Assert(SameTypeC(t, TEXTERN));
+	    if (!ExternalClass(arg_pw)->copy)
+		return UNIMPLEMENTED;
+	    arg = dest->val.ptr = TG;		/* copy the anchor */
+	    TG += HANDLE_ANCHOR_SIZE;
+	    Check_Gc
+	    handle_copy_anchor(arg_pw, arg, ec_eng);
+#define ec_eng from_eng
+	    Trail_Pword(arg_pw);	/* install forwarding pointer */
+#undef ec_eng
+	    arg_pw->val.ptr = arg;
+	    arg_pw->tag.kernel = Tag(TFORWARD);
+	    return PSUCCEED;
+
+	case TSTRG:
+	case TBIG:
+	case TIVL:
+	case TRAT:
+#ifndef UNBOXED_DOUBLES
+	case TDBL:
+#endif
+	    arg_pw = v.ptr;
+	    dest->tag = t;			/* PERSISTENT checked above */
+	    t.kernel = arg_pw->tag.kernel;	/* the TBUFFER word's tag */
+	    if (IsForward(t))
+	    {
+		dest->val = arg_pw->val;	/* buffer already copied */
+		return PSUCCEED;
+	    }
+	    Assert(SameTypeC(t, TBUFFER));
+	    arg = dest->val.ptr = TG;		/* copy the buffer */
+	    arity = BufferPwords(arg_pw);
+	    TG += arity;
+	    Check_Gc;
+	    pw = arg_pw;
+	    do					/* copy arity pwords */
+		*arg++ = *pw++;
+	    while(--arity > 0);
+#define ec_eng from_eng
+	    Trail_Pword(arg_pw);		/* install forwarding pointer */
+#undef ec_eng
+	    arg_pw->val.ptr = dest->val.ptr;
+	    arg_pw->tag.kernel = Tag(TFORWARD);
+	    return PSUCCEED;
+
+
+/* EXTENSION SLOT HERE */
+
+	case TEXTERN:
+	case TBUFFER:
+	case TPTR:
+	case TDE:
+	    p_fprintf(current_err_,"ECLiPSe: bad type in _copy_term_across: 0x%x\n",t.kernel);
+	    return UNIFY_OVNI;
+
+	default:	/* simple, ground stuff */
+	    Assert(IsSimple(t));
+	    dest->val.all = v.all;
+	    dest->tag.all = t.all;
+	    return PSUCCEED;
+	}
+
+	for(;;)		/* copy <arity> pwords beginning at <arg_pw>	*/
+	{
+	    int	res;
+	    pw = arg_pw++;
+	    Dereference_(pw);
+	    if (--arity == 0)
+		break;
+	    if (IsSimple(pw->tag))
+		*arg = *pw;
+	    else if ((res = _copy_term_across(from_eng, ec_eng, pw->val, pw->tag, arg, with_attributes)) != PSUCCEED)
+	    	return res;
+	    arg += 1;
+	}
+	v.all = pw->val.all;
+	t.all = pw->tag.all;
+	dest = arg;
+    }
+}
+
+/*
+ * Can return UNIMPLEMENTED for uncopyable handles
+ */
+
+int
+ec_copy_term_across(ec_eng_t *from_eng, ec_eng_t *ec_eng, value v, type t, pword *dest, int with_attributes)
+{
+    pword old_dest = *dest;
+    pword *old_tg = TG;
+#define ec_eng from_eng
+    pword **old_tt = TT;
+#undef ec_eng
+    if (IsRef(t)) {
+	Dereference_(v.ptr);
+	t.all = v.ptr->tag.all;
+	v.all = v.ptr->val.all;
+    }
+    int res = _copy_term_across(from_eng, ec_eng, v, t, dest, with_attributes);
+#define ec_eng from_eng
+    Untrail_Variables(old_tt);
+#undef ec_eng
+    if (res != PSUCCEED)
+    {
+        TG = old_tg;
+	*dest = old_dest;	/* restore, as something went wrong */
+    }
+    return res;
+}
+
 
 
 /*
@@ -1110,7 +1366,9 @@ free_heapterm(pword *root)
  */
 
 int
-create_heapterm(pword *root, value v, type t)
+create_heapterm(
+	ec_eng_t *ec_eng,	/* only for accessing the trail */
+	pword *root, value v, type t)
 {
     pword **old_tt = TT;
     pword *pw = (pword*) 0, *top;
@@ -1123,9 +1381,7 @@ create_heapterm(pword *root, value v, type t)
      * because we must not leave behind any ALREADY_SEEN/NEED_FWD bits.
      * Even if _copy_size() finds an error (err=1), we still need to call
      * _copy_term_to_heap() in order to reset all the marker bits!
-     * This is ensured by wrapping into Disable_Exit()/Enable_Exit().
      */
-    Disable_Exit();
 
     /* Find out how much space we are going to need, and allocate it */
     size = _copy_size(v, t, 0, &num_handles, &err);
@@ -1144,11 +1400,8 @@ create_heapterm(pword *root, value v, type t)
      * Before calling, if t is a variable's tag, we reload it from memory
      * in order to pick up any bits that were set in it by _copy_size().
      */
-    top = _copy_term_to_heap(v, IsRef(t) ? v.ptr->tag : t, pw, &handle_slot, root);
+    top = _copy_term_to_heap(ec_eng, v, IsRef(t) ? v.ptr->tag : t, pw, &handle_slot, root);
     Untrail_Variables(old_tt);
-
-    /* Mark bits are now reset, we can release the Exit-protection */
-    Enable_Exit();
 
     /* If there was a problem, throw the incomplete copy away */
     if (err)
@@ -1206,7 +1459,7 @@ set_string(pword *root, char *string)		/* NUL-terminated string */
  */
 
 void
-get_heapterm(pword *root, pword *result)
+get_heapterm(ec_eng_t *ec_eng, pword *root, pword *result)
 {
 
     if (ISPointer(root->tag.kernel))
@@ -1224,7 +1477,7 @@ get_heapterm(pword *root, pword *result)
 	    result->val.ptr = dest = TG;	/* push complex term	*/
 	    TG += size/sizeof(pword);
 	    Check_Gc;
-	    _copy_block(orig, dest, size);
+	    _copy_block(ec_eng, orig, dest, size);
 	}
     }
     else
@@ -1255,12 +1508,12 @@ move_heapterm(pword *root_old, pword *root_new)
  */
 
 static int
-p_copy_simple_term(value v, type t, value vc, type tc)
+p_copy_simple_term(value v, type t, value vc, type tc, ec_eng_t *ec_eng)
 {
     pword	result;
     pword	**old_tt = TT;
 
-    (void) _copy_term(v, t, &result, (pword *) 0, 0);
+    (void) _copy_term(ec_eng, v, t, &result, (pword *) 0, 0);
     Untrail_Variables(old_tt);
     if (!(IsRef(result.tag) && IsSelfRef(&result)))
     {
@@ -1271,14 +1524,14 @@ p_copy_simple_term(value v, type t, value vc, type tc)
 
 
 static int
-p_copy_term3(value v, type t, value vc, type tc, value vl, type tl)
+p_copy_term3(value v, type t, value vc, type tc, value vl, type tl, ec_eng_t *ec_eng)
 {
     pword	result, list;
     pword	**old_tt = TT;
     Prepare_Requests
 
     list.tag.kernel = TNIL;
-    (void) _copy_term(v, t, &result, &list, 0);
+    (void) _copy_term(ec_eng, v, t, &result, &list, 0);
     Untrail_Variables(old_tt);
     if (!(IsRef(result.tag) && IsSelfRef(&result)))
     {
@@ -1292,7 +1545,8 @@ p_copy_term3(value v, type t, value vc, type tc, value vl, type tl)
 /* auxiliary function for copy_term_vars/4 */
 
 static void
-_mark_variables_trailed(value val, /* a dereferenced argument */
+_mark_variables_trailed(ec_eng_t *ec_eng,
+			value val, /* a dereferenced argument */
 			type tag)
 {
     register int arity;
@@ -1327,7 +1581,7 @@ _mark_variables_trailed(value val, /* a dereferenced argument */
 	{
 	    arg_i = val.ptr++;
 	    Dereference_(arg_i);
-	    _mark_variables_trailed(arg_i->val,arg_i->tag);
+	    _mark_variables_trailed(ec_eng, arg_i->val,arg_i->tag);
 	}
 	arg_i = val.ptr;		/* tail recursion */
 	Dereference_(arg_i);
@@ -1338,17 +1592,17 @@ _mark_variables_trailed(value val, /* a dereferenced argument */
 
 
 static int
-p_copy_term_vars(value vvars, type tvars, value v, type t, value vc, type tc, value vl, type tl)
+p_copy_term_vars(value vvars, type tvars, value v, type t, value vc, type tc, value vl, type tl, ec_eng_t *ec_eng)
 {
     pword	result, list;
     pword	**old_tt = TT;
     Prepare_Requests
 
     list.tag.kernel = TNIL;
-    _mark_variables_trailed(vvars, tvars);
+    _mark_variables_trailed(ec_eng, vvars, tvars);
     if (TT != old_tt)
     {
-	(void) _copy_term(v, t, &result, &list, 1);
+	(void) _copy_term(ec_eng, v, t, &result, &list, 1);
 	Untrail_Variables(old_tt);
     }
     else	/* nothing to do */
@@ -1366,13 +1620,13 @@ p_copy_term_vars(value vvars, type tvars, value v, type t, value vc, type tc, va
 
 
 static int
-p_term_size(value v, type t, value vs, type ts)
+p_term_size(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
 {
     word size;
     pword root;
 
     Check_Output_Integer(ts);
-    create_heapterm(&root, v, t);
+    create_heapterm(ec_eng, &root, v, t);
     if (ISPointer(root.tag.kernel))
     {
 	if (IsSelfRef(&root))

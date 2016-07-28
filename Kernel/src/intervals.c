@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
 * System:	ECLiPSe Constraint Logic Programming System
-* Version:	$Id: intervals.c,v 1.14 2016/07/24 19:34:45 jschimpf Exp $
+* Version:	$Id: intervals.c,v 1.15 2016/07/28 03:34:36 jschimpf Exp $
 *
 
 Supported operations:
@@ -92,6 +92,7 @@ mindeltas(+Xold, +Xnew, -LwdDelta:double, -UpbDelta:double)
 #include        "error.h"
 #include        "mem.h"
 #include        "dict.h"
+#include        "lex.h"
 #include	"emu_export.h"
 #include	"opcode.h"
 #include	"intervals.h"
@@ -146,7 +147,9 @@ Declare_Rounding_Control_State
 int result_inexact;
 #endif
 
+#undef min
 #define min(x,y) ((x) < (y) ? (x) : (y))
+#undef max
 #define max(x,y) ((x) > (y) ? (x) : (y))
 
 #define NEGZERO	(-1*(0.0))
@@ -1281,7 +1284,7 @@ ec_ria_ternop(int op, double xl, double xu, double yl, double yu, double zl, dou
  * ---------------------------------------------------------------------- */
 
 int
-p_breal_from_bounds(value vl, type tl, value vu, type tu, value vx, type tx)
+p_breal_from_bounds(value vl, type tl, value vu, type tu, value vx, type tx, ec_eng_t *ec_eng)
 {
     double lo, hi;
     value ivl;
@@ -1298,7 +1301,7 @@ p_breal_from_bounds(value vl, type tl, value vu, type tu, value vx, type tx)
 	if (IsInterval(tl)) {
 	    ivl = vl;
 	} else {
-	    err = tag_desc[TagType(tl)].coerce_to[TIVL](vl, &ivl);
+	    err = tag_desc[TagType(tl)].coerce_to[TIVL](ec_eng, vl, &ivl);
 	    if (err != PSUCCEED) return err;
 	}
 	lo = IvlLwb(ivl.ptr);
@@ -1312,7 +1315,7 @@ p_breal_from_bounds(value vl, type tl, value vu, type tu, value vx, type tx)
 	if (IsInterval(tu)) {
 	    ivl = vu;
 	} else {
-	    err = tag_desc[TagType(tu)].coerce_to[TIVL](vu, &ivl);
+	    err = tag_desc[TagType(tu)].coerce_to[TIVL](ec_eng, vu, &ivl);
 	    if (err != PSUCCEED) return err;
 	}
 	hi = IvlUpb(ivl.ptr);
@@ -1323,7 +1326,7 @@ p_breal_from_bounds(value vl, type tl, value vu, type tu, value vx, type tx)
 
 
 int
-p_breal_min(value vx, type tx, value vmin, type tmin)
+p_breal_min(value vx, type tx, value vmin, type tmin, ec_eng_t *ec_eng)
 {
     double  min;
 
@@ -1338,7 +1341,7 @@ p_breal_min(value vx, type tx, value vmin, type tmin)
 	int	result;
 
 	Check_Number(tx);
-	result = tag_desc[TagType(tx)].coerce_to[TIVL](vx, &ivl);
+	result = tag_desc[TagType(tx)].coerce_to[TIVL](ec_eng, vx, &ivl);
 	Return_If_Not_Success(result);
 
 	Return_Unify_Double(vmin, tmin, IvlLwb(ivl.ptr));
@@ -1347,7 +1350,7 @@ p_breal_min(value vx, type tx, value vmin, type tmin)
 
 
 int
-p_breal_max(value vx, type tx, value vmax, type tmax)
+p_breal_max(value vx, type tx, value vmax, type tmax, ec_eng_t *ec_eng)
 {
     Check_Output_Float(tmax);
 
@@ -1360,7 +1363,7 @@ p_breal_max(value vx, type tx, value vmax, type tmax)
 	int	result;
 
 	Check_Number(tx);
-	result = tag_desc[TagType(tx)].coerce_to[TIVL](vx, &ivl);
+	result = tag_desc[TagType(tx)].coerce_to[TIVL](ec_eng, vx, &ivl);
 	Return_If_Not_Success(result);
 
 	Return_Unify_Double(vmax, tmax, IvlUpb(ivl.ptr));
@@ -1369,7 +1372,7 @@ p_breal_max(value vx, type tx, value vmax, type tmax)
 
 
 int
-p_breal_bounds(value vx, type tx, value vmin, type tmin, value vmax, type tmax)
+p_breal_bounds(value vx, type tx, value vmin, type tmin, value vmax, type tmax, ec_eng_t *ec_eng)
 {
     Prepare_Requests
 
@@ -1387,7 +1390,7 @@ p_breal_bounds(value vx, type tx, value vmin, type tmin, value vmax, type tmax)
 	int	result;
 
 	Check_Number(tx);
-	result = tag_desc[TagType(tx)].coerce_to[TIVL](vx, &ivl);
+	result = tag_desc[TagType(tx)].coerce_to[TIVL](ec_eng, vx, &ivl);
 	Return_If_Not_Success(result);
 
 	Request_Unify_Double(vmin, tmin, IvlLwb(ivl.ptr));
@@ -1407,7 +1410,7 @@ p_breal_bounds(value vx, type tx, value vmin, type tmin, value vmax, type tmax)
 */
 
 int
-p_ria_unop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, value v_zl, type t_zl, value v_zu, type t_zu)
+p_ria_unop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, value v_zl, type t_zl, value v_zu, type t_zu, ec_eng_t *ec_eng)
 {
     double lwb, upb;
     int result;
@@ -1425,7 +1428,7 @@ p_ria_unop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, va
 
 
 int
-p_ria_binop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, value v_yl, type t_yl, value v_yu, type t_yu, value v_zl, type t_zl, value v_zu, type t_zu)
+p_ria_binop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, value v_yl, type t_yl, value v_yu, type t_yu, value v_zl, type t_zl, value v_zu, type t_zu, ec_eng_t *ec_eng)
 {
     double lwb, upb;
     int result;
@@ -1445,7 +1448,7 @@ p_ria_binop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, v
 
 
 int
-p_ria_ternop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, value v_yl, type t_yl, value v_yu, type t_yu, value v_zl, type t_zl, value v_zu, type t_zu, value v_rl, type t_rl, value v_ru, type t_ru)
+p_ria_ternop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, value v_yl, type t_yl, value v_yu, type t_yu, value v_zl, type t_zl, value v_zu, type t_zu, value v_rl, type t_rl, value v_ru, type t_ru, ec_eng_t *ec_eng)
 {
     double lwb, upb;
     int result;
@@ -1473,7 +1476,7 @@ p_ria_ternop(value vop, type top, value v_xl, type t_xl, value v_xu, type t_xu, 
 
 
 static int
-_int_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
+_int_ivl(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     pword *pw;
 
@@ -1494,7 +1497,7 @@ _int_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
 
 
 static int
-_dbl_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
+_dbl_ivl(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     pword *pw;
     double in_dbl = Dbl(in) ;
@@ -1505,13 +1508,13 @@ _dbl_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
 
 
 static int
-_big_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
+_big_ivl(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     pword *pw;
     value dval;
     double d;
     int err;
-    err = tag_desc[TBIG].coerce_to[TDBL](in, &dval);
+    err = tag_desc[TBIG].coerce_to[TDBL](ec_eng, in, &dval);
     if (err != PSUCCEED) return(err);
     d = Dbl(dval);
     if (d >= DOUBLE_INT_LIMIT_AS_DOUBLE || d <= -DOUBLE_INT_LIMIT_AS_DOUBLE) {
@@ -1527,7 +1530,7 @@ _big_ivl(value in, value *out)	/* CAUTION: we allow out == &in */
 
 /*ARGSUSED*/
 static int
-_ivl_dbl(value in, value *out)	/* CAUTION: we allow out == &in */
+_ivl_dbl(ec_eng_t *ec_eng, value in, value *out)	/* CAUTION: we allow out == &in */
 {
     double d;
     if (logsplit(0.0, 0.5, IvlLwb(in.ptr), IvlUpb(in.ptr), 0, &d) != 0)
@@ -1585,9 +1588,9 @@ _write_ivl(int quoted, stream_id stream, value v, type t)
 
 
 static int
-_ivl_from_string(char *s, pword *result, int base)
+_ivl_from_string(ec_eng_t *ec_eng, char *s, pword *result, int base)
 {
-    (void) string_to_number(s, result, (stream_id) 0, 0);
+    (void) string_to_number(s, result, (stream_id) 0, 0, ec_eng);
     if (IsTag(result->tag.kernel, TEND))
 	{ Bip_Error(BAD_FORMAT_STRING) }
     Succeed_;
@@ -1595,7 +1598,7 @@ _ivl_from_string(char *s, pword *result, int base)
 
 
 static int
-_ivl_nop(value v1, pword *pres)
+_ivl_nop(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     pres->tag.kernel = TIVL;
     pres->val.all = v1.all;
@@ -1604,7 +1607,7 @@ _ivl_nop(value v1, pword *pres)
 
 
 static int
-_ivl_add(value v1, value v2, pword *pres)
+_ivl_add(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double lwb, upb;
     double v1_lwb, v1_upb, v2_lwb, v2_upb ;
@@ -1619,7 +1622,7 @@ _ivl_add(value v1, value v2, pword *pres)
 
  
 static int
-_ivl_sub(value v1, value v2, pword *pres)
+_ivl_sub(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double lwb, upb;
     double v1_lwb, v1_upb, v2_lwb, v2_upb ;
@@ -1634,7 +1637,7 @@ _ivl_sub(value v1, value v2, pword *pres)
 
  
 static int
-_ivl_mul(value v1, value v2, pword *pres)
+_ivl_mul(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double lwb, upb;
     double v1_lwb, v1_upb, v2_lwb, v2_upb ;
@@ -1649,7 +1652,7 @@ _ivl_mul(value v1, value v2, pword *pres)
 
 
 static int
-_ivl_div(value v1, value v2, pword *pres)
+_ivl_div(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double lwb, upb;
     double v1_lwb, v1_upb, v2_lwb, v2_upb ;
@@ -1664,7 +1667,7 @@ _ivl_div(value v1, value v2, pword *pres)
 
 
 static int
-_ivl_min(value v1, value v2, pword *pres)
+_ivl_min(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double t1, t2;
     double lwb, upb;
@@ -1680,7 +1683,7 @@ _ivl_min(value v1, value v2, pword *pres)
 
 
 static int
-_ivl_max(value v1, value v2, pword *pres)
+_ivl_max(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double t1, t2;
     double lwb, upb;
@@ -1696,7 +1699,7 @@ _ivl_max(value v1, value v2, pword *pres)
 
 
 static int
-_ivl_neg(value v1, pword *pres)
+_ivl_neg(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     Make_Interval(pres, -IvlUpb(v1.ptr), -IvlLwb(v1.ptr));
     Succeed_;
@@ -1716,10 +1719,10 @@ _ivl_neg(value v1, pword *pres)
  * lower bound. The raw-flag is reset in the parser or read_token.
  */ 
 static int
-_ivl_chgsign(value v1, pword *pres)
+_ivl_chgsign(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     if (!RawInterval(v1.ptr))
-    	return _ivl_neg(v1, pres);
+    	return _ivl_neg(ec_eng, v1, pres);
 
     Make_Interval(pres, -IvlLwb(v1.ptr), IvlUpb(v1.ptr));
     Succeed_;
@@ -1727,7 +1730,7 @@ _ivl_chgsign(value v1, pword *pres)
 
 
 static int
-_ivl_abs(value v1, pword *pres)
+_ivl_abs(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     if (IvlLwb(v1.ptr) >= 0.0) {
@@ -1745,7 +1748,7 @@ _ivl_abs(value v1, pword *pres)
 
 
 static int
-_ivl_sqrt(value v1, pword *pres)
+_ivl_sqrt(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     if (IvlLwb(v1.ptr) < 0.0) {
@@ -1762,7 +1765,7 @@ _ivl_sqrt(value v1, pword *pres)
 
 
 static int
-_ivl_sin(value v1, pword *pres)
+_ivl_sin(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     i_sin(IvlLwb(v1.ptr), IvlUpb(v1.ptr), &lwb, &upb, 0);
@@ -1772,7 +1775,7 @@ _ivl_sin(value v1, pword *pres)
 
 
 static int
-_ivl_cos(value v1, pword *pres)
+_ivl_cos(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     i_sin(IvlLwb(v1.ptr), IvlUpb(v1.ptr), &lwb, &upb, 1);
@@ -1781,7 +1784,7 @@ _ivl_cos(value v1, pword *pres)
 }
 
 static int
-_ivl_exp(value v1, pword *pres)
+_ivl_exp(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     i_exp(IvlLwb(v1.ptr), IvlUpb(v1.ptr), &lwb, &upb);
@@ -1791,7 +1794,7 @@ _ivl_exp(value v1, pword *pres)
 
 
 static int
-_ivl_ln(value v1, pword *pres)
+_ivl_ln(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     lwb = IvlLwb(v1.ptr);
@@ -1808,7 +1811,7 @@ _ivl_ln(value v1, pword *pres)
 
 
 static int
-_ivl_atan(value v1, pword *pres)
+_ivl_atan(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     lwb = down(atan(IvlLwb(v1.ptr)));
@@ -1818,7 +1821,7 @@ _ivl_atan(value v1, pword *pres)
 }
 
 static int
-_ivl_atan2(value vy, value vx, pword *pres)
+_ivl_atan2(ec_eng_t *ec_eng, value vy, value vx, pword *pres)
 {
     double lwb, upb;
     double xl, xu, yl, yu;
@@ -1850,7 +1853,7 @@ _ivl_atan2(value vy, value vx, pword *pres)
 /* TODO: rewrite this with set_round_xxx */
 
 static int
-_ivl_pow(value v1, value v2, pword *pres)
+_ivl_pow(ec_eng_t *ec_eng, value v1, value v2, pword *pres)
 {
     double	xl, xu, yl, yu;
     double	lwb, upb, yi;
@@ -1913,7 +1916,7 @@ _ivl_pow(value v1, value v2, pword *pres)
 
 
 static int
-_ivl_floor(value v1, pword *pres)
+_ivl_floor(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     lwb = floor(IvlLwb(v1.ptr));	/* integers, no inaccuracy */
@@ -1924,7 +1927,7 @@ _ivl_floor(value v1, pword *pres)
 
 
 static int
-_ivl_ceil(value v1, pword *pres)
+_ivl_ceil(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
     lwb = Ceil(IvlLwb(v1.ptr));		/* integers, no inaccuracy */
@@ -1935,7 +1938,7 @@ _ivl_ceil(value v1, pword *pres)
 
 
 static int
-_ivl_truncate(value v1, pword *pres)
+_ivl_truncate(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
 #ifdef HAVE_TRUNC
@@ -1953,7 +1956,7 @@ _ivl_truncate(value v1, pword *pres)
 
 
 static int
-_ivl_sgn(value v1, pword *pres)
+_ivl_sgn(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     int res;
     if (IvlLwb(v1.ptr) > 0.0)
@@ -1969,7 +1972,7 @@ _ivl_sgn(value v1, pword *pres)
 
 
 static int
-_ivl_round(value v1, pword *pres)
+_ivl_round(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double lwb, upb;
 #if defined(HAVE_RINT) && !defined(HP_RINT) && !defined(HAVE_RINT_BUG)
@@ -1993,14 +1996,14 @@ _ivl_round(value v1, pword *pres)
 
 
 static int
-_ivl_int2(value v1, pword *pres)
+_ivl_int2(ec_eng_t *ec_eng, value v1, pword *pres)
 {
     double ipart;
     if (IsExactIntIvl(v1.ptr, &ipart))
     {
 	value dval;
 	Make_Double_Val(dval, ipart);
-	return tag_desc[TDBL].arith_op[ARITH_FIX](dval, pres);
+	return tag_desc[TDBL].arith_op[ARITH_FIX](ec_eng, dval, pres);
     }
     else
     {
@@ -2045,9 +2048,13 @@ _compare_ivl(value v1, value v2)
 	 : PedanticGreater(upb1,upb2) ?  1	/* arbitrary (overlap) */
 	 : PedanticLess(upb1,upb2)    ? -1	/* arbitrary (overlap) */
     /* both lower bounds and both upper bounds are exactly equal */
-	 : !(GlobalFlags & BREAL_EXCEPTIONS) ? 0
+#if 0
+	 : !(EclGblFlags & BREAL_EXCEPTIONS) ? 0
 	 : lwb1 == upb2 ? 0			/* zero width */
 	 : v1.ptr > v2.ptr ? 1 : -1;		/* arbitrary (same bounds) */
+#else
+	 : 0;
+#endif
 }
 
 
@@ -2153,7 +2160,8 @@ _equal_ivl(pword *pw1, pword *pw2)
     if (pw1 == pw2)
 	return 1;	/* pointers identical */
 
-    if (GlobalFlags & BREAL_EXCEPTIONS)
+#if 0
+    if (EclGblFlags & BREAL_EXCEPTIONS)
     {
 	if (IvlUpb(pw1) < IvlLwb(pw2) || IvlUpb(pw2) < IvlLwb(pw1))
 	    return 0;	/* no overlap */
@@ -2177,6 +2185,7 @@ _equal_ivl(pword *pw1, pword *pw2)
 	}
     }
     else
+#endif
     {
 #if SIZEOF_DOUBLE < SIZEOF_WORD  ||  SIZEOF_DOUBLE > 2*SIZEOF_WORD
 	PROBLEM: Cannot deal with word size SIZEOF_WORD.
@@ -2195,7 +2204,7 @@ _equal_ivl(pword *pw1, pword *pw2)
 
 /*ARGSUSED*/
 static int
-_unimp_err(void)
+_unimp_err()
 {
     return UNIMPLEMENTED;
 }

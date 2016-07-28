@@ -51,6 +51,9 @@
 /* Define to empty if the keyword does not work.  */
 #undef inline
 
+/* Define the C compiler supports variable-length arrays */
+#undef HAVE_C_VARARRAYS
+
 /* ignored if not available */
 #undef finite
 
@@ -272,6 +275,9 @@
 
 /* Define if you have sigprocmask.  */
 #undef HAVE_SIGPROCMASK
+
+/* Define if you have sigsetjmp.  */
+#undef HAVE_DECL_SIGSETJMP
 
 /* Define if you have sigstack.  */
 #undef HAVE_SIGSTACK

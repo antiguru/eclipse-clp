@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.3 2012/02/12 02:16:13 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -37,30 +37,36 @@
 #include        "mem.h"
 #include        "error.h"
 #include	"dict.h"
+#include	"emu_export.h"
 #include	"property.h"
 #include	"module.h"
+#include	"os_support.h"
 
 
 #include <stdio.h>	/* for sprintf() */
 
 
-static dident	d_visible_;
-
+static dident	d_record_, d_dbref_;
 
 
 /*----------------------------------------------------------------------
  * Recorded database primitives
  *
  * Data structure is a circular doubly linked list with one dummy
- * element as header. The header is referred to by the IDB_PROP
- * property (but could also be passed around as a handle of type
- * heap_rec_header_tid).
+ * element as header. The header is referred to by the IDB_PROP property,
+ * or passed around as a handle of type heap_rec_header_tid.
  * 
- * Individual recorded iterms are identified by their list element
+ * Individual recorded items are identified by their list element
  * and handles of type heap_rec_tid are used as "db references".
  * They are always created as part of a record-list, but can continue
  * to exist independently when their db-reference was obtained and
  * they were subsequently erased from the list.
+ *
+ * Locking policy:
+ *  - all list elements (incl header) are individually reference-counted
+ *  - read/write of the circular chain uses the header's lock
+ *  - reading the .term can be done without lock (by any reference owner)
+ *    because it is not mutable
  *----------------------------------------------------------------------*/
 
 
@@ -69,24 +75,52 @@ static dident	d_visible_;
 typedef struct record_elem {
     uword		ref_ctr;	/* one count for list membership */
     struct record_elem	*next, *prev;	/* NULL if not in list */
-    uword		hash;
-    pword		term;		/* TEND for header cell */
+
+    struct record_header *header;	/* const */
+    pword		term;		/* const */
 } t_heap_rec;
+
+/* first 3 fields must match those in struct record_elem! */
+typedef struct record_header {
+    uword		ref_ctr;	/* one count for list membership */
+    struct record_elem	*next, *prev;	/* never NULL (self ref if empty) */
+
+    word		max;		/* number of list elements */
+    word		count;		/* number of list elements */
+    ec_mutex_t		lock;		/* protect next/prev list access */
+    ec_cond_t		cond;
+} t_heap_rec_hdr;
 
 
 /* METHODS */
 
 
-/* Allocation of both header and proper elements */
+/* Allocation of record elements */
 
 static t_heap_rec *
-_rec_create(void)
+_rec_create_elem(t_heap_rec_hdr *header)
 {
     t_heap_rec *obj = (t_heap_rec *) hg_alloc_size(sizeof(t_heap_rec));
     obj->ref_ctr = 1;
     obj->next = obj->prev = obj;
+    obj->header = header;
     obj->term.val.nint = 0;
-    obj->term.tag.kernel = TEND;	/* remains TEND for header cells */
+    obj->term.tag.kernel = TEND;
+    return obj;
+}
+
+/* Allocation of record header */
+
+static t_heap_rec_hdr *
+_rec_create(void)
+{
+    t_heap_rec_hdr *obj = (t_heap_rec_hdr *) hg_alloc_size(sizeof(t_heap_rec_hdr));
+    obj->ref_ctr = 1;
+    obj->next = obj->prev = (t_heap_rec*) obj;
+    obj->max = MAX_S_WORD;
+    obj->count = 0;
+    mt_mutex_init_recursive(&obj->lock);
+    ec_cond_init(&obj->cond);
     return obj;
 }
 
@@ -103,11 +137,10 @@ ec_record_create(void)
 static void
 _rec_free_elem(t_heap_rec *this)
 {
-    if (--this->ref_ctr <= 0)
+    int rem = atomic_add(&this->ref_ctr, -1);
+    if (rem <= 0)
     {
-	if (this->term.tag.kernel == TEND)
-	    ec_panic("Trying to free record list header", "_rec_free_elem()");
-
+	assert(rem==0);
 #ifdef DEBUG_RECORDS
 	p_fprintf(current_err_, "\n_rec_free_elem(0x%x)", this);
 	ec_flush(current_err_);
@@ -122,36 +155,35 @@ _rec_free_elem(t_heap_rec *this)
  * elements may survive if db-references to them still exist) */
 
 static void
-_rec_free_elems(t_heap_rec *header)
+_rec_free_elems(t_heap_rec_hdr *header)
 {
     t_heap_rec *this = header->next;
-    if (header->term.tag.kernel != TEND)
-	ec_panic("Not a record list header", "_rec_free_all()");
-
-    while (this != header)
+    while (this != (t_heap_rec *)header)
     {
 	t_heap_rec *next = this->next;
 	this->prev = this->next = 0;
 	_rec_free_elem(this);
 	this = next;
     }
-    header->next = header->prev = header;
+    header->count = 0;
+    header->next = header->prev = (t_heap_rec *)header;
 }
 
 
 /* Lose a reference to the whole list identified by header */
 
 static void
-_rec_free_all(t_heap_rec *header)
+_rec_free_all(t_heap_rec_hdr *header)
 {
-    if (--header->ref_ctr <= 0)
+    int rem = atomic_add(&header->ref_ctr, -1);
+    if (rem <= 0)
     {
 #ifdef DEBUG_RECORDS
 	p_fprintf(current_err_, "\n_rec_free_all(0x%x)", header);
 	ec_flush(current_err_);
 #endif
-	_rec_free_elems(header);
-	hg_free_size((generic_ptr) header, sizeof(t_heap_rec));
+	_rec_free_elems(header); /* last ref, no lock needed */
+	hg_free_size((generic_ptr) header, sizeof(t_heap_rec_hdr));
     }
 }
 
@@ -159,7 +191,7 @@ _rec_free_all(t_heap_rec *header)
 static t_heap_rec *
 _rec_copy_elem(t_heap_rec *this)	/* this != NULL */
 {
-    ++this->ref_ctr;
+    atomic_add(&this->ref_ctr, 1);
     return this;
 }
 
@@ -172,12 +204,10 @@ _rec_mark_elem(t_heap_rec *this)	/* this != NULL */
 
 
 static void
-_rec_mark_all(t_heap_rec *header)	/* header != NULL */
+_rec_mark_all(t_heap_rec_hdr *header)	/* header != NULL */
 {
     t_heap_rec *this = header->next;
-    if (header->term.tag.kernel != TEND)
-	ec_panic("Not a record list header", "_rec_mark_all()");
-    while (this != header)
+    while (this != (t_heap_rec*)header)
     {
 	_rec_mark_elem(this);
 	this = this->next;
@@ -188,7 +218,7 @@ static int
 _rec_tostr_elem(t_heap_rec *obj, char *buf, int quoted)	/* obj != NULL */
 {
 #define STRSZ_DBREF 20
-    sprintf(buf, "'DBREF'(16'%08x)", obj);
+    sprintf(buf, "'DBREF'(16'%08x)", (int)(word)obj);
     return STRSZ_DBREF;
 }
 
@@ -200,19 +230,60 @@ _rec_strsz_elem(t_heap_rec *obj, int quoted) /* obj != NULL */
 
 
 static int
-_rec_tostr_all(t_heap_rec *obj, char *buf, int quoted) /* obj != NULL */
+_rec_tostr_all(t_heap_rec_hdr *obj, char *buf, int quoted) /* obj != NULL */
 {
 #define STRSZ_REC 18
-    sprintf(buf, "'REC'(16'%08x)", obj);
+    sprintf(buf, "'REC'(16'%08x)", (int)(word)obj);
     return STRSZ_REC;
 }
 
 static int
-_rec_strsz_all(t_heap_rec *obj, int quoted) /* obj != NULL */
+_rec_strsz_all(t_heap_rec_hdr *obj, int quoted) /* obj != NULL */
 {
     return STRSZ_REC;
 }
 
+static dident
+_kind_record()
+{
+    return d_record_;
+}
+
+static dident
+_kind_dbref()
+{
+    return d_dbref_;
+}
+
+static int
+_rec_lock(t_heap_rec_hdr *obj)
+{
+    return mt_mutex_lock(&obj->lock);
+}
+
+static int
+_rec_trylock(t_heap_rec_hdr *obj)
+{
+    return mt_mutex_trylock(&obj->lock);
+}
+
+static int
+_rec_unlock(t_heap_rec_hdr *obj)
+{
+    return mt_mutex_unlock(&obj->lock);
+}
+
+static int
+_rec_signal(t_heap_rec_hdr *obj, int all)
+{
+    return ec_cond_signal(&obj->cond, all);
+}
+
+static int
+_rec_wait(t_heap_rec_hdr *obj, int timeout_ms)
+{
+    return ec_cond_wait(&obj->cond, &obj->lock, timeout_ms);
+}
 
 
 /* CLASS DESCRIPTOR (method table) */
@@ -225,7 +296,11 @@ t_ext_type heap_rec_tid = {
     0,	/* equal */
     (t_ext_ptr (*)(t_ext_ptr)) _rec_copy_elem,
     0,	/* get */
-    0	/* set */
+    0,	/* set */
+    _kind_dbref, /* kind */
+    0,	/* lock */
+    0,	/* trylock */
+    0	/* unlock */
 };
 
 t_ext_type heap_rec_header_tid = {
@@ -237,7 +312,13 @@ t_ext_type heap_rec_header_tid = {
     0,	/* equal */
     (t_ext_ptr (*)(t_ext_ptr)) _rec_copy_elem,
     0,	/* get */
-    0	/* set */
+    0,	/* set */
+    _kind_record,
+    (int (*)(t_ext_ptr)) _rec_lock,
+    (int (*)(t_ext_ptr)) _rec_trylock,
+    (int (*)(t_ext_ptr)) _rec_unlock,
+    (int (*)(t_ext_ptr,int)) _rec_signal,
+    (int (*)(t_ext_ptr,int)) _rec_wait
 };
 
 
@@ -246,29 +327,56 @@ t_ext_type heap_rec_header_tid = {
  *----------------------------------------------------------------------*/
 
 
-/* get the record header from either the functor key or a handle */
+/* Get the record header from either the functor key or a handle.
+ * "Hold" the object for later release.
+ */
 
 static int
-_get_rec_list(value vrec, type trec, value vmod, type tmod, t_heap_rec **pheader)
+_get_rec_list(value vrec, type trec, value vmod, type tmod, t_heap_rec_hdr **pheader, ec_eng_t *ec_eng)
 {
     if (SameTypeC(trec, THANDLE))
     {
-	Get_Typed_Object(vrec, trec, &heap_rec_header_tid, *pheader);
+	Get_Typed_Object(vrec, trec, &heap_rec_header_tid, *pheader); /* may return STALE_HANDLE */
     }
     else
     {
+	t_ext_ptr header;
 	dident key_did;
-	pword *prop;
 	int err;
 	Get_Key_Did(key_did,vrec,trec)
-	prop = get_modular_property(key_did, IDB_PROP, vmod.did, tmod, VISIBLE_PROP, &err);
-	if (!prop)
+	err = get_visible_property_handle(key_did, IDB_PROP, vmod.did, tmod, &heap_rec_header_tid, &header);
+	if (err < 0)
 	    return err == PERROR ? NO_LOCAL_REC : err;
-	*pheader = (t_heap_rec *) prop->val.ptr;
-        if (!IsTag(prop->tag.kernel,TPTR) || !IsTag((*pheader)->term.tag.kernel,TEND))
-	    ec_panic("Not a valid record-property", "_get_rec_list()");
+	Hold_Object_Until_Done(&heap_rec_header_tid,header);
+	*pheader = (t_heap_rec_hdr*) header;
     }
     return PSUCCEED;
+}
+
+
+static int
+p_record_handle(value vrec, type trec, value vh, type th, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    if (SameTypeC(trec, THANDLE))
+    {
+	if (ExternalClass(vrec.ptr) != &heap_rec_header_tid)
+	    { Bip_Error(TYPE_ERROR); }
+	Return_Unify_Pw(vh, th, vrec, trec);
+    }
+    else
+    {
+	t_ext_ptr header;
+	dident key_did;
+	pword rec;
+	int err;
+	Get_Key_Did(key_did,vrec,trec)
+	err = get_visible_property_handle(key_did, IDB_PROP, vmod.did, tmod, &heap_rec_header_tid, &header);
+	if (err < 0) {
+	    Bip_Error(err == PERROR ? NO_LOCAL_REC : err);
+	}
+	rec = ecl_handle(ec_eng, &heap_rec_header_tid, header);
+	Return_Unify_Pw(vh, th, rec.val, rec.tag);
+    }
 }
 
 
@@ -278,102 +386,120 @@ _get_rec_list(value vrec, type trec, value vmod, type tmod, t_heap_rec **pheader
  */
 
 static int
-p_is_record_body(value vrec, type trec, value vmod, type tmod)
+p_is_record_body(value vrec, type trec, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *header;
+    t_heap_rec_hdr *header;
     int		err;
 
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
     if (err == NO_LOCAL_REC || err == STALE_HANDLE)
 	err = PFAIL;
-    else if (err == PSUCCEED && header->next == header)
+    else if (err == PSUCCEED && header->next == (t_heap_rec*) header)
 	err = PFAIL;
-    a_mutex_unlock(&PropertyLock);
     return err;
 }
 
   
+static int
+p_recorded_count(value vrec, type trec, value vc, type tc, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    t_heap_rec_hdr *header;
+    word count;
+    int err;
+
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
+    if (err == PSUCCEED)
+    	count = atomic_load(&header->count);
+    else if (err == NO_LOCAL_REC)
+    	count = 0;
+    else
+	{ Bip_Error(err); }
+    Return_Unify_Integer(vc, tc, count);
+}
+
+
 /* record_create(-Handle) creates an anonymous record */
 
 static int
-p_record_create(value vrec, type trec)
+p_record_create(value vrec, type trec, ec_eng_t *ec_eng)
 {
     pword rec;
     Check_Ref(trec);
-    rec = ec_handle(&heap_rec_header_tid, (t_ext_ptr) _rec_create());
+    rec = ecl_handle(ec_eng, &heap_rec_header_tid, (t_ext_ptr) _rec_create());
     Return_Unify_Pw(vrec, trec, rec.val, rec.tag);
 }
 
 
 static int
-p_local_record_body(value vkey, type tkey, value vmod, type tmod)
+p_local_record_body(value vkey, type tkey, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    pword	*prop, *p;
+    dident	key_did;
+    pword	old, new;
+    int		err;
+
+    Get_Functor_Did(vkey, tkey, key_did);
+
+    mt_mutex_lock(&PropertyLock);
+    err = get_property_ref(key_did, IDB_PROP, vmod.did, tmod,
+				LOCAL_PROP, &prop);
+    if (err < 0) {
+	mt_mutex_unlock(&PropertyLock);
+	Bip_Error(err);
+    }
+    if (!(err & NEW_PROP)) {
+	assert(prop->tag.kernel == TPTR);
+	_rec_free_all((t_heap_rec_hdr*) prop->val.wptr);
+    }
+    prop->tag.kernel = TPTR;
+    prop->val.wptr = (uword *) _rec_create();
+    mt_mutex_unlock(&PropertyLock);
+    Succeed_;
+}
+
+
+static int
+p_global_record_body(value vkey, type tkey, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     pword	*prop, *p;
     dident	key_did;
     int		err;
 
     Get_Functor_Did(vkey, tkey, key_did);
-    
-    a_mutex_lock(&PropertyLock);
 
-    prop = set_modular_property(key_did, IDB_PROP, vmod.did, tmod,
-				LOCAL_PROP, &err);
-    if (!prop)
-    {
-	a_mutex_unlock(&PropertyLock);
-	if (err == PERROR)
-	    { Succeed_; }	/* exists already */
-	else
-	    Bip_Error(err);
+    mt_mutex_lock(&PropertyLock);
+    err = get_property_ref(key_did, IDB_PROP, vmod.did, tmod,
+				GLOBAL_PROP, &prop);
+    if (err < 0) {
+	mt_mutex_unlock(&PropertyLock);
+	Bip_Error(err);
     }
-    prop->val.wptr = (uword *) _rec_create();
+    if (!(err & NEW_PROP)) {
+	assert(prop->tag.kernel == TPTR);
+	_rec_free_all((t_heap_rec_hdr*) prop->val.wptr);
+    }
     prop->tag.kernel = TPTR;
-    a_mutex_unlock(&PropertyLock);
+    prop->val.wptr = (uword *) _rec_create();
+    mt_mutex_unlock(&PropertyLock);
     Succeed_;
 }
 
 
 static int
-p_global_record_body(value vkey, type tkey, value vmod, type tmod)
-{
-    pword	*prop, *p;
-    dident	key_did;
-    int		err;
-
-    Get_Functor_Did(vkey, tkey, key_did);
-    
-    a_mutex_lock(&PropertyLock);
-
-    prop = set_modular_property(key_did, IDB_PROP, vmod.did, tmod,
-				GLOBAL_PROP, &err);
-    if (!prop)
-    {
-	a_mutex_unlock(&PropertyLock);
-	Bip_Error((err == PERROR) ? LOCAL_REC : err);
-    }
-    prop->val.wptr = (uword *) _rec_create();
-    prop->tag.kernel = TPTR;
-    a_mutex_unlock(&PropertyLock);
-    Succeed_;
-}
-
-
-static int
-p_abolish_record_body(value vkey, type tkey, value vmod, type tmod)
+p_abolish_record_body(value vkey, type tkey, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     dident	key_did;
     int		err;
     
     if (IsHandle(tkey))
     {
-	return p_handle_free(vkey, tkey);
+	return p_handle_free(vkey, tkey, ec_eng);
     }
     else
     {
 	Get_Functor_Did(vkey, tkey, key_did);
 
-	err = erase_modular_property(key_did, IDB_PROP, vmod.did,tmod, LOCAL_PROP);
+	err = erase_property(key_did, IDB_PROP, vmod.did,tmod, LOCAL_PROP);
 
 	if (err < 0)
 	{
@@ -388,118 +514,110 @@ p_abolish_record_body(value vkey, type tkey, value vmod, type tmod)
 /* record[az](+Key, ?Term)@Module */
 
 static int
-p_recorda_body(value vrec, type trec, value vterm, type tterm, value vmod, type tmod)
+p_recorda_body(value vrec, type trec, value vterm, type tterm, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *obj, *header;
+    t_heap_rec_hdr *header;
+    t_heap_rec *obj;
     pword copy_pw;
-    int err = PSUCCEED;
+    int err;
 
-    if ((err = create_heapterm(&copy_pw, vterm, tterm)) != PSUCCEED)
-	{ Bip_Error(err); }
-
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
-    if (err != PSUCCEED) goto _unlock_return_err_;
-
-    obj = _rec_create();
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
+    Return_If_Error(err);
+    err = create_heapterm(ec_eng, &copy_pw, vterm, tterm);
+    Return_If_Error(err);
+    obj = _rec_create_elem(header);
     move_heapterm(&copy_pw, &obj->term);
+
+    mt_mutex_lock(&header->lock);
     obj->next = header->next;
-    obj->prev = header;
+    obj->prev = (t_heap_rec*) header;
     header->next->prev = obj;
     header->next = obj;
-
-_unlock_return_err_:
-    a_mutex_unlock(&PropertyLock);
-    return err;
+    header->count++;
+    mt_mutex_unlock(&header->lock);
+    Succeed_;
 }
 
 static int
-p_recordz_body(value vrec, type trec, value vterm, type tterm, value vmod, type tmod)
+p_recordz_body(value vrec, type trec, value vterm, type tterm, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *obj, *header;
+    t_heap_rec_hdr *header;
+    t_heap_rec *obj;
     pword copy_pw;
-    int err = PSUCCEED;
+    int err;
 
-    if ((err = create_heapterm(&copy_pw, vterm, tterm)) != PSUCCEED)
-	{ Bip_Error(err); }
-
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
-    if (err != PSUCCEED) goto _unlock_return_err_;
-
-    obj = _rec_create();
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
+    Return_If_Error(err);
+    err = create_heapterm(ec_eng, &copy_pw, vterm, tterm);
+    Return_If_Error(err);
+    obj = _rec_create_elem(header);
     move_heapterm(&copy_pw, &obj->term);
-    obj->next = header;
+
+    mt_mutex_lock(&header->lock);
+    obj->next = (t_heap_rec*) header;
     obj->prev = header->prev;
     header->prev->next = obj;
     header->prev = obj;
-
-_unlock_return_err_:
-    a_mutex_unlock(&PropertyLock);
-    return err;
+    header->count++;
+    mt_mutex_unlock(&header->lock);
+    Succeed_;
 }
 
 
 /* record[az](+Key, ?Term, -DbRef)@Module */
 
 static int
-p_recorda3_body(value vrec, type trec, value vterm, type tterm, value vdref, type tdref, value vmod, type tmod)
+p_recorda3_body(value vrec, type trec, value vterm, type tterm, value vdref, type tdref, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *obj, *header;
+    t_heap_rec_hdr *header;
+    t_heap_rec *obj;
     pword copy_pw, ref_pw;
-    int err = PSUCCEED;
+    int err;
 
-    if ((err = create_heapterm(&copy_pw, vterm, tterm)) != PSUCCEED)
-	{ Bip_Error(err); }
-
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
-    if (err != PSUCCEED) goto _unlock_return_err_;
-
-    obj = _rec_create();
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
+    Return_If_Error(err);
+    err = create_heapterm(ec_eng, &copy_pw, vterm, tterm);
+    Return_If_Error(err);
+    obj = _rec_create_elem(header);
     move_heapterm(&copy_pw, &obj->term);
+
+    mt_mutex_lock(&header->lock);
     obj->next = header->next;
-    obj->prev = header;
+    obj->prev = (t_heap_rec*) header;
     header->next->prev = obj;
     header->next = obj;
-    obj = _rec_copy_elem(obj);
-    a_mutex_unlock(&PropertyLock);
-    ref_pw = ec_handle(&heap_rec_tid, (t_ext_ptr) obj);
-    Return_Unify_Pw(vdref, tdref, ref_pw.val, ref_pw.tag);
+    header->count++;
+    mt_mutex_unlock(&header->lock);
 
-_unlock_return_err_:
-    a_mutex_unlock(&PropertyLock);
-    return err;
+    ref_pw = ecl_handle(ec_eng, &heap_rec_tid, (t_ext_ptr) _rec_copy_elem(obj));
+    Return_Unify_Pw(vdref, tdref, ref_pw.val, ref_pw.tag);
 }
 
 static int
-p_recordz3_body(value vrec, type trec, value vterm, type tterm, value vdref, type tdref, value vmod, type tmod)
+p_recordz3_body(value vrec, type trec, value vterm, type tterm, value vdref, type tdref, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *obj, *header;
+    t_heap_rec_hdr *header;
+    t_heap_rec *obj;
     pword copy_pw, ref_pw;
-    int err = PSUCCEED;
+    int err;
 
-    if ((err = create_heapterm(&copy_pw, vterm, tterm)) != PSUCCEED)
-	{ Bip_Error(err); }
-
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
-    if (err != PSUCCEED) goto _unlock_return_err_;
-
-    obj = _rec_create();
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
+    Return_If_Error(err);
+    err = create_heapterm(ec_eng, &copy_pw, vterm, tterm);
+    Return_If_Error(err);
+    obj = _rec_create_elem(header);
     move_heapterm(&copy_pw, &obj->term);
-    obj->next = header;
+
+    mt_mutex_lock(&header->lock);
+    obj->next = (t_heap_rec*) header;
     obj->prev = header->prev;
     header->prev->next = obj;
     header->prev = obj;
-    obj = _rec_copy_elem(obj);
-    a_mutex_unlock(&PropertyLock);
-    ref_pw = ec_handle(&heap_rec_tid, (t_ext_ptr) obj);
-    Return_Unify_Pw(vdref, tdref, ref_pw.val, ref_pw.tag);
+    header->count++;
+    mt_mutex_unlock(&header->lock);
 
-_unlock_return_err_:
-    a_mutex_unlock(&PropertyLock);
-    return err;
+    ref_pw = ecl_handle(ec_eng, &heap_rec_tid, (t_ext_ptr) _rec_copy_elem(obj));
+    Return_Unify_Pw(vdref, tdref, ref_pw.val, ref_pw.tag);
 }
 
 
@@ -590,38 +708,37 @@ _may_match_filter(value vfilter, uword tfilter, value vterm, type tterm)
 /* recorded_list(+Key, -Terms)@Module */
 
 static int
-p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type tmod)
+p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *header, *obj;
+    t_heap_rec_hdr *header;
+    t_heap_rec *obj;
     int err;
 
     Check_Output_List(tl);
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
     if (err == PSUCCEED)
     {
 	pword list;
 	pword *tail = &list;
-	for (obj = header->next; obj != header; obj = obj->next)
+	mt_mutex_lock(&header->lock);
+	for (obj = header->next; obj != (t_heap_rec*) header; obj = obj->next)
 	{
 	    pword *car = TG;
 	    Make_List(tail, car);
 	    Push_List_Frame();
-	    get_heapterm(&obj->term, car);
+	    get_heapterm(ec_eng, &obj->term, car);
 	    tail = car+1;
 	}
 	Make_Nil(tail);
-	a_mutex_unlock(&PropertyLock);
+	mt_mutex_unlock(&header->lock);
 	Return_Unify_Pw(vl, tl, list.val, list.tag);
     }
     else if (err == NO_LOCAL_REC)
     {
-	a_mutex_unlock(&PropertyLock);
 	Return_Unify_Nil(vl, tl);
     }
     else
     {
-	a_mutex_unlock(&PropertyLock);
 	Bip_Error(err);
     }
 }
@@ -630,19 +747,20 @@ p_recorded_list_body(value vrec, type trec, value vl, type tl, value vmod, type 
 /* recorded_refs(+Key, ?Filter, -Refs)@Module */
 
 static int
-p_recorded_refs_body(value vrec, type trec, value vfilter, type tfilter, value vl, type tl, value vmod, type tmod)
+p_recorded_refs_body(value vrec, type trec, value vfilter, type tfilter, value vl, type tl, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *header, *obj;
+    t_heap_rec_hdr *header;
+    t_heap_rec *obj;
     int err;
 
     Check_Output_List(tl);
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
     if (err == PSUCCEED)
     {
 	pword list;
 	pword *tail = &list;
-	for (obj = header->next; obj != header; obj = obj->next)
+	mt_mutex_lock(&header->lock);
+	for (obj = header->next; obj != (t_heap_rec*) header; obj = obj->next)
 	{
 	    if (ISRef(tfilter.kernel) ||
 		_may_match_filter(vfilter, tfilter.kernel, obj->term.val, obj->term.tag))
@@ -650,22 +768,20 @@ p_recorded_refs_body(value vrec, type trec, value vfilter, type tfilter, value v
 		pword *car = TG;
 		Make_List(tail, car);
 		Push_List_Frame();
-		*car = ec_handle(&heap_rec_tid, (t_ext_ptr) _rec_copy_elem(obj));
+		*car = ecl_handle(ec_eng, &heap_rec_tid, (t_ext_ptr) _rec_copy_elem(obj));
 		tail = car+1;
 	    }
 	}
 	Make_Nil(tail);
-	a_mutex_unlock(&PropertyLock);
+	mt_mutex_unlock(&header->lock);
 	Return_Unify_Pw(vl, tl, list.val, list.tag);
     }
     else if (err == NO_LOCAL_REC)
     {
-	a_mutex_unlock(&PropertyLock);
 	Return_Unify_Nil(vl, tl);
     }
     else
     {
-	a_mutex_unlock(&PropertyLock);
 	Bip_Error(err);
     }
 }
@@ -674,22 +790,22 @@ p_recorded_refs_body(value vrec, type trec, value vfilter, type tfilter, value v
 /* erase_all(+Key)@Module */
 
 static int
-p_erase_all_body(value vrec, type trec, value vmod, type tmod)
+p_erase_all_body(value vrec, type trec, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *header;
+    t_heap_rec_hdr *header;
     int err;
 
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
     if (err == PSUCCEED)
     {
+	mt_mutex_lock(&header->lock);
 	_rec_free_elems(header);
+	mt_mutex_unlock(&header->lock);
     }
     else if (err == NO_LOCAL_REC)
     {
 	err = PSUCCEED;
     }
-    a_mutex_unlock(&PropertyLock);
     Bip_Error(err);
 }
 
@@ -697,13 +813,13 @@ p_erase_all_body(value vrec, type trec, value vmod, type tmod)
 /* referenced_record(+DbRef, -Term) */
 
 static int
-p_referenced_record(value vrec, type trec, value vl, type tl)
+p_referenced_record(value vrec, type trec, value vl, type tl, ec_eng_t *ec_eng)
 {
     t_heap_rec *obj;
     pword result;
 
     Get_Typed_Object(vrec, trec, &heap_rec_tid, obj);
-    get_heapterm(&obj->term, &result);
+    get_heapterm(ec_eng, &obj->term, &result);
     if (IsRef(result.tag) && result.val.ptr == &result)
     {
 	Succeed_;
@@ -715,25 +831,25 @@ p_referenced_record(value vrec, type trec, value vl, type tl)
 /* erase(+DbRef) */
 
 static int
-p_erase(value vrec, type trec)
+p_erase(value vrec, type trec, ec_eng_t *ec_eng)
 {
     t_heap_rec *obj;
     pword result;
 
     Get_Typed_Object(vrec, trec, &heap_rec_tid, obj);
-    a_mutex_lock(&PropertyLock);
     if (obj->next)
     {
+	mt_mutex_lock(&obj->header->lock);
 	obj->next->prev = obj->prev;
 	obj->prev->next = obj->next;
 	obj->prev = obj->next = 0;
+	obj->header->count--;
+	mt_mutex_unlock(&obj->header->lock);
 	_rec_free_elem(obj);
-	a_mutex_unlock(&PropertyLock);
 	Succeed_;
     }
     else /* was already removed from record-list */
     {
-	a_mutex_unlock(&PropertyLock);
 	Fail_;
     }
 }
@@ -747,52 +863,54 @@ p_erase(value vrec, type trec)
  */
 
 static int
-p_first_recorded(value vrec, type trec, value vfilter, type tfilter, value vdref, type tdref, value vmod, type tmod)
+p_first_recorded(value vrec, type trec, value vfilter, type tfilter, value vdref, type tdref, value vmod, type tmod, ec_eng_t *ec_eng)
 {
-    t_heap_rec *header, *obj;
+    t_heap_rec_hdr *header;
+    t_heap_rec *obj;
     pword ref_pw;
     int err;
 
-    a_mutex_lock(&PropertyLock);
-    err = _get_rec_list(vrec, trec, vmod, tmod, &header);
+    err = _get_rec_list(vrec, trec, vmod, tmod, &header, ec_eng);
     if (err == PSUCCEED)
     {
-	for(obj=header->next; obj != header; obj=obj->next)
+	mt_mutex_lock(&header->lock);
+	for(obj=header->next; obj != (t_heap_rec*) header; obj=obj->next)
 	{
 	    if (IsRef(tfilter) ||
 		_may_match_filter(vfilter, tfilter.kernel, obj->term.val, obj->term.tag))
 	    {
 		obj = _rec_copy_elem(obj);
-		a_mutex_unlock(&PropertyLock);
-		ref_pw = ec_handle(&heap_rec_tid, (t_ext_ptr) obj);
+		mt_mutex_unlock(&header->lock);
+		ref_pw = ecl_handle(ec_eng, &heap_rec_tid, (t_ext_ptr) obj);
 		Return_Unify_Pw(vdref, tdref, ref_pw.val, ref_pw.tag);
 	    }
 	}
+	mt_mutex_unlock(&header->lock);
     }
     else if (err != NO_LOCAL_REC)
     {
-	a_mutex_unlock(&PropertyLock);
 	Bip_Error(err);
     }
-    a_mutex_unlock(&PropertyLock);
     Fail_;
 }
 
 
 static int
-p_next_recorded(value vref1, type tref1, value vfilter, type tfilter, value vref2, type tref2)
+p_next_recorded(value vref1, type tref1, value vfilter, type tfilter, value vref2, type tref2, ec_eng_t *ec_eng)
 {
+    t_heap_rec_hdr *header;
     t_heap_rec *obj;
     pword ref_pw;
 
     Get_Typed_Object(vref1, tref1, &heap_rec_tid, obj);
-    a_mutex_lock(&PropertyLock);
+    header = obj->header;
+    mt_mutex_lock(&header->lock);
     for(;;)
     {
         obj = obj->next;
-        if (!obj || IsTag(obj->term.tag.kernel,TEND))
+        if (!obj || obj == (t_heap_rec*) header)
         {
-            a_mutex_unlock(&PropertyLock);
+	    mt_mutex_unlock(&header->lock);
             Fail_;
         }
 	if (IsRef(tfilter) ||
@@ -802,44 +920,9 @@ p_next_recorded(value vref1, type tref1, value vfilter, type tfilter, value vref
         }
     }
     obj = _rec_copy_elem(obj);
-    a_mutex_unlock(&PropertyLock);
-    ref_pw = ec_handle(&heap_rec_tid, (t_ext_ptr) obj);
+    mt_mutex_unlock(&header->lock);
+    ref_pw = ecl_handle(ec_eng, &heap_rec_tid, (t_ext_ptr) obj);
     Return_Unify_Pw(vref2, tref2, ref_pw.val, ref_pw.tag);
-}
-
-
-/*----------------------------------------------------------------------
- * Special purpose record meta_attribute/0 for storing attribute-name
- * mapping.  We assume the record contains [Name|Index] pairs.
- *----------------------------------------------------------------------*/
-
-static t_heap_rec	*rec_meta_attribute_;
-
-int
-meta_index(dident wd)
-{
-    t_heap_rec *this;
-
-    for (this = rec_meta_attribute_->next; this != rec_meta_attribute_; this = this->next)
-    {
-	if (this->term.val.ptr[0].val.did == wd)
-	    return this->term.val.ptr[1].val.nint;
-    }
-    return 0;
-}
-
-
-dident
-meta_name(int slot)
-{
-    t_heap_rec *this;
-
-    for (this = rec_meta_attribute_->next; this != rec_meta_attribute_; this = this->next)
-    {
-	if (this->term.val.ptr[1].val.nint == slot)
-	    return this->term.val.ptr[0].val.did;
-    }
-    return D_UNKNOWN;
 }
 
 
@@ -856,7 +939,7 @@ meta_name(int slot)
 
 /* ARGSUSED */
 static int
-p_valid_key(value v, type t)
+p_valid_key(value v, type t, ec_eng_t *ec_eng)
 {
     Error_If_Ref(t);
     if (IsAtom(t) || IsStructure(t) || IsNil(t) || IsList(t))
@@ -880,7 +963,8 @@ bip_record_init(int flags)
     value	v1, v2;
     int		res;
 
-    d_visible_ = in_dict("visible", 0);
+    d_record_ = in_dict("record", 0);
+    d_dbref_ = in_dict("dbref", 0);
 
     if (flags & INIT_SHARED)
     {
@@ -907,6 +991,10 @@ bip_record_init(int flags)
 	exported_built_in(in_dict("referenced_record", 2),
 				 p_referenced_record, B_UNSAFE|U_FRESH)
 	    -> mode = BoundArg(2, NONVAR);
+	(void) exported_built_in(in_dict("recorded_count_", 3),
+				 p_recorded_count, B_UNSAFE);
+	(void) exported_built_in(in_dict("record_handle_", 3),
+				 p_record_handle, B_UNSAFE);
 	(void) exported_built_in(in_dict("erase", 1), p_erase, B_UNSAFE);
 	(void) exported_built_in(in_dict("record_create", 1),
 				 p_record_create, B_UNSAFE);
@@ -921,16 +1009,5 @@ bip_record_init(int flags)
 	(void) local_built_in(in_dict("next_recorded", 3),
 				 p_next_recorded, B_UNSAFE);
     }
-
-    t.kernel = ModuleTag(d_.kernel_sepia);
-    v1.did = in_dict("meta_attribute", 0);
-    v2.did = d_.kernel_sepia;
-    if (flags & INIT_SHARED)
-    {
-	(void) p_local_record_body(v1, tdict, v2, t);
-    }
-    rec_meta_attribute_ = (t_heap_rec *) get_modular_property(v1.did,
-			IDB_PROP, v2.did, t, LOCAL_PROP, &res)->val.ptr;
 }
-
 

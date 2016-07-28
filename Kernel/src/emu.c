@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.32 2015/01/14 01:31:09 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.33 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -43,6 +43,10 @@
 #undef USE_LAST_FLAG
 
 #include "config.h"
+
+#ifdef __GNUC__
+#define _GNU_SOURCE     /* to get REG_R13 from ucontext.h */
+#endif
 #include "sepia.h"
 #undef	SP
 #undef	TT
@@ -53,10 +57,6 @@
 #undef	S
 #undef	B
 #undef	PP
-
-#ifdef __GNUC__
-#define _GNU_SOURCE     /* to get REG_R13 from ucontext.h */
-#endif
 
 #if defined(_WIN32) && defined(__GNUC__)
 /* work around gcc bug */
@@ -119,7 +119,6 @@
 typedef union s_code_item {
     vmcode		inst;
     word		offset;
-    pword		*arg;
     pword               *ptr;
     word		nint;
     char		*str;
@@ -254,23 +253,22 @@ register emu_code	pp	asm("$12");
 #define Import_None	Restore_Pp g_emu_.vm_flags &= ~EXPORTED;
 #define Import_All	Import_Pp Import_B_Sp_Tg_Tt_Eb_Gb
 
+#if defined(PRINTAM)
+#define Lock_Heap { if (ec_eng->cleanup!=ec_eng->cleanup_bot) {\
+	p_fprintf(log_output_,"Cleanup stack not empty\n"); ec_flush(log_output_); }\
+    }
+#else
+#define Lock_Heap
+#endif
+
+
 
  /*
   * EXTERNAL VARIABLE DECLARATIONS:
   */
 
-#if defined(PRINTAM) || defined(LASTPP)
-extern uword		*vm_inst_ctr_;
-extern char		*vm_inst_flag_;
-#endif /* PRINTAM */
-
-#ifdef SAVEDSTATES
-extern int	p_restore();
-extern int	p_save();
-#endif
 
 extern void
-		ec_handle_async(void),
 		eng_msg_loop(),
 		get_job(),
 		sch_load_report(),
@@ -434,7 +432,8 @@ extern dident	*interrupt_name_;
 #define Get_Temporary_Offs(off, p) \
 			p = ByteOffsetPlus(SP, (PP+(off))->offset);
 
-#define Get_Argument(d)	d = (PP++->arg);
+#define ArgP(pp)	(&A[(pp)->nint])
+#define Get_Argument(d)	d = ArgP(PP++);
 
 #define Dereference_Pw_Tag(pw, t) \
 		while(ISRef(((t) = (pw)->tag.kernel)) && pw->val.ptr != pw) {\
@@ -446,7 +445,6 @@ extern dident	*interrupt_name_;
 			    pw = pw->val.ptr;\
 			}
 
-#define Set_Val(pw,v)		pw->val.ptr = v;
 
 #define DELAY_SLOT		1	/* first extension */
 #define DELAY_INST		1
@@ -515,7 +513,7 @@ extern dident	*interrupt_name_;
 	GB = Chp(Old_B_Reg)->tg;			\
 	while (LCA >= GB) {				\
 	    Export_B_Sp_Tg_Tt;				\
-	    do_cut_action();				\
+	    do_cut_action(ec_eng);			\
 	    Import_Tg_Tt;				\
 	}						\
 	Cut_To_Parallel(B.args);			\
@@ -532,7 +530,7 @@ extern dident	*interrupt_name_;
 #define Cut_To_Parallel(Old_B_Reg) { 			\
 	if (Old_B_Reg < PB) {				\
 	    Export_B_Sp_Tg_Tt;				\
-	    if (cut_across_pb(Old_B_Reg)) {		\
+	    if (cut_across_pb(ec_eng, Old_B_Reg)) {	\
 		Import_Tg_Tt;				\
 	    } else {					\
 		Import_Tg_Tt;				\
@@ -671,25 +669,12 @@ int tg_above_trap = 0;		/* true while TG is above tg_trap */
 
 #if defined(PRINTAM) || defined(LASTPP)
 
-#define MAX_BACKTRACE 1024
-
-static vmcode      *dummy_l = NULL;	/* dummy arg for print_am()  */
-static int 	    dummy_r;		/* dummy arg for print_am()  */
-static emu_code	stop_address = 0; /* for address breakpoints in the emulator */
-vmcode *ec_backtrace[MAX_BACKTRACE];	/* record recent PP values   */
-int bt_index = 0;
-int bt_max = MAX_BACKTRACE;
-
-#define Begin_Execution(iptr)				\
-    if(VM_FLAGS & (TRACE | STATISTICS)) {			\
-	if(VM_FLAGS & STATISTICS)				\
-	    vm_inst_ctr_[iptr->inst]++;			\
-	if(VM_FLAGS & TRACE)					\
-	    (void) print_am((vmcode *) iptr, &dummy_l, &dummy_r, 2);\
-    }							\
-    if (iptr == stop_address) {emu_break();}		\
-    ec_backtrace[bt_index] = (vmcode *) iptr;		\
-    bt_index = (bt_index + 1) % MAX_BACKTRACE;		\
+#define Begin_Execution(iptr)					\
+    if(VM_FLAGS & TRACE)					\
+	print_instr((vmcode *) iptr, 2);			\
+    if ((vmcode*) iptr == ec_eng->stop_address) {emu_break();}	\
+    ec_eng->backtrace[ec_eng->bt_index] = (vmcode *) iptr;	\
+    ec_eng->bt_index = (ec_eng->bt_index + 1) % MAX_BACKTRACE;	\
     Trap_Tg
 
 #else /* PRINTAM */
@@ -706,14 +691,14 @@ int bt_max = MAX_BACKTRACE;
 #define Check_Local_Overflow					\
 	if (SP <= g_emu_.sp_limit) {			\
 	    Export_B_Sp_Tg_Tt					\
-	    if (local_ov()) goto _local_control_overflow_;	\
+	    if (local_ov(ec_eng)) goto _local_control_overflow_;	\
 	    Import_None						\
 	}
 
 #define Check_Control_Overflow					\
 	if (B.args >= g_emu_.b_limit) {			\
 	    Export_B_Sp_Tg_Tt					\
-	    if (control_ov()) goto _local_control_overflow_;	\
+	    if (control_ov(ec_eng)) goto _local_control_overflow_;	\
 	    Import_None						\
 	}
 
@@ -767,13 +752,11 @@ int bt_max = MAX_BACKTRACE;
 /*
  * FUNCTION NAME:	emulc()
  *
- * PARAMETERS:		m		the abstract machine descriptor
- *					(currently still in g_emu_)
+ * PARAMETERS:		ec_eng		the abstract machine descriptor
  */
 
-
 func_ptr
-ec_emulate(void)		/* (struct machine *m) */
+ec_emulate(ec_eng_t *ec_eng)
 {
     Declare_Pp
     Declare_Sp
@@ -797,19 +780,12 @@ ec_emulate(void)		/* (struct machine *m) */
     emu_code	back_code;
     double	dbl_res;
 
-#ifdef lint 
-    scratch_pw.tag.kernel = TNIL;
-    proc = (pri *) 0;
-    err_code = 0;
-#endif
-
 #if defined(__GNUC__) && defined(THREADED)
-    if (!op_addr[0])
+    if (!ec_eng)	/* initialize the array of instruction addresses */
     {
 	i = 0;
 #include "emu_op_addr.h"
-	A[0].val.nint = PSUCCEED;
-	return (func_ptr) 0;
+	return NULL;
     }
 #endif
 
@@ -1058,9 +1034,9 @@ _diff_delay_:				/* (SV, proc, PP points behind args) */
 	    Make_Atom(TG, val_did);
 	    S = TG+1;
 	    TG += 3;
-	    pw1 = PP[-2].ptr;
+	    pw1 = ArgP(PP-2);
 	    Move_Pw_To_Global_Stack(pw1, S, ;);
-	    pw1 = PP[-1].ptr;
+	    pw1 = ArgP(PP-1);
 	    Move_Pw_To_Global_Stack(pw1, S, ;);
 	    Check_Gc
 	}
@@ -1168,7 +1144,7 @@ _unify_bind_cref_nvar_:				/* (pw1, tmp1, pw2) */
 	    /* else call bind_c() */
 	}
 	Export_B_Sp_Tg_Tt_Eb_Gb
-	if (bind_c(pw1, pw2, &MU) == PSUCCEED) {
+	if (bind_c(ec_eng, pw1, pw2, &MU) == PSUCCEED) {
 	    Import_Tg_Tt
 	    goto _unify_ok_;
 	} else {
@@ -1272,7 +1248,7 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
 	scratch_pw.val.ptr = pw2;
 	scratch_pw.tag.kernel = tmp1;
 	Export_B_Sp_Tg_Tt_Eb_Gb
-	err_code = bind_c(pw1, &scratch_pw, &MU);
+	err_code = bind_c(ec_eng, pw1, &scratch_pw, &MU);
 	Import_Tg_Tt
 	if (err_code == PFAIL) { Fail; }
     }
@@ -1291,8 +1267,8 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
  * Mask describes the preceding argument words, 2 bits for each argument:
  *
  *     mask   code contains
- *	0	pointer to argument register
- *	1	pointer to uninitialised argument register
+ *	0	ref to argument register
+ *	1	ref to uninitialised argument register
  *	2	32-bit integer
  *	3	module did
  * 	?	possible extension: pri (for make_suspension/4)
@@ -1313,10 +1289,10 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
 	do {\
 	    switch((_mask) & 3) {\
 	    case 0:\
-		*TG = *(PP[-(_i)].ptr);\
+		*TG = *ArgP(PP-(_i));\
 		break;\
 	    case 1:\
-		PP[-(_i)].ptr->val.ptr=TG; PP[-(_i)].ptr->tag.kernel=TREF;\
+		ArgP(PP-(_i))->val.ptr=TG; ArgP(PP-(_i))->tag.kernel=TREF;\
 		TG->val.ptr=TG; TG->tag.kernel=TREF;\
 		break;\
 	    case 2:\
@@ -1336,7 +1312,7 @@ _bind_nonstandard_:			/* *pw1 = (pw2,tmp1) */
 	while ((_mask) && (_i)>1) {\
 	    switch((_mask) & 3) {\
 	    case 1:\
-		PP[-(_i)].ptr->val.ptr=TG; PP[-(_i)].ptr->tag.kernel=TREF;\
+		ArgP(PP-(_i))->val.ptr=TG; ArgP(PP-(_i))->tag.kernel=TREF;\
 		TG->val.ptr=TG; TG++->tag.kernel=TREF;\
 		break;\
 	    }\
@@ -1362,11 +1338,11 @@ _nbip_kill_succeed_:
 _nbip_fail_:
 	    Fail;
 	}
-	else if ((err_code & ~PDELAY_MASK) == PDELAY)
+	else if (err_code >= PDELAY)
 	{
 
 _npdelay_:				/* (err_code, proc)	*/
-	    if (!(GlobalFlags & CORTN))
+	    if (!(EclGblFlags & CORTN))
 	    {
 		SV = (pword *) 0;
 		err_code = INSTANTIATION_FAULT;
@@ -1408,21 +1384,21 @@ _npdelay_always_:			/* (err_code, proc)	*/
 		if (err_code & (PDELAY_1 & PDELAY_MASK)) {
 		    pw1 = &DE[SUSP_GOAL].val.ptr[1];
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
+		    tmp1 = insert_suspension(ec_eng, pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0)
 			goto _ndelay_err_;
 		}
 		if (err_code & (PDELAY_2 & PDELAY_MASK)) {
 		    pw1 = &DE[SUSP_GOAL].val.ptr[2];
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
+		    tmp1 = insert_suspension(ec_eng, pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0)
 			goto _ndelay_err_;
 		}
 		if (err_code & (PDELAY_3 & PDELAY_MASK)) {
 		    pw1 = &DE[SUSP_GOAL].val.ptr[3];
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
+		    tmp1 = insert_suspension(ec_eng, pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0)
 			goto _ndelay_err_;
 		}
@@ -1437,7 +1413,7 @@ _ndelay_de_sv_:		/* (proc,de,sv,args) */
 		{
 		    pw1 = pw2[0].val.ptr;
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1,
+		    tmp1 = insert_suspension(ec_eng, pw1,
 			    err_code & PDELAY_BOUND ? DELAY_BOUND: DELAY_INST,
 			    DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
@@ -1607,9 +1583,9 @@ _bip_res1_:				/* (err_code,proc) */
 	{
 	    Fail;
 	}
-	else if ((err_code & ~PDELAY_MASK) == PDELAY)
+	else if (err_code >= PDELAY)
 	{
-	    if (!(GlobalFlags & CORTN))
+	    if (!(EclGblFlags & CORTN))
 	    {
 		SV = (pword *) 0;
 		err_code = INSTANTIATION_FAULT;
@@ -1650,7 +1626,7 @@ _bip_res1_:				/* (err_code,proc) */
 		if (err_code & (PDELAY_1 & PDELAY_MASK)) {
 		    pw1 = A[1].val.ptr;
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
+		    tmp1 = insert_suspension(ec_eng, pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
 			Import_Tg_Tt
 			err_code = tmp1;
@@ -1660,7 +1636,7 @@ _bip_res1_:				/* (err_code,proc) */
 		if (err_code & (PDELAY_2 & PDELAY_MASK)) {
 		    pw1 = A[2].val.ptr;
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
+		    tmp1 = insert_suspension(ec_eng, pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
 			Import_Tg_Tt
 			err_code = tmp1;
@@ -1670,7 +1646,7 @@ _bip_res1_:				/* (err_code,proc) */
 		if (err_code & (PDELAY_3 & PDELAY_MASK)) {
 		    pw1 = A[3].val.ptr;
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1, 1, DE, DELAY_SLOT);
+		    tmp1 = insert_suspension(ec_eng, pw1, 1, DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
 			Import_Tg_Tt
 			err_code = tmp1;
@@ -1687,7 +1663,7 @@ _bip_res1_:				/* (err_code,proc) */
 		{
 		    pw1 = pw2[0].val.ptr;
 		    Dereference_Pw(pw1)
-		    tmp1 = insert_suspension(pw1,
+		    tmp1 = insert_suspension(ec_eng, pw1,
 			    err_code & PDELAY_BOUND ? DELAY_BOUND: DELAY_INST,
 			    DE, DELAY_SLOT);
 		    if (tmp1 < 0) {
@@ -1902,7 +1878,41 @@ _handle_events_at_return_:
 	}
 	else if (EVENT_FLAGS && !PO)
 	{
-	    if (EVENT_FLAGS & EVENT_POSTED)
+	    if (EVENT_FLAGS & EXIT_REQUEST)
+	    {
+		Make_Integer(&scratch_pw, ec_eng->requested_exit_code);
+		if (EVENT_FLAGS &= ~EXIT_REQUEST)
+		    { Fake_Overflow; }
+		goto _exit_engine_;
+	    }
+	    else if (EVENT_FLAGS & DICT_GC_REQUEST)
+	    {
+		if (EVENT_FLAGS &= ~DICT_GC_REQUEST)
+		    { Fake_Overflow; }
+		Export_B_Sp_Tg_Tt_Eb_Gb
+		ecl_mark_engine(ec_eng, 0L);
+		Import_None;
+		Pop_Ret_Code
+		Next_Pp;
+	    }
+	    else if (EVENT_FLAGS & THROW_REQUEST)
+	    {
+_do_requested_throw_:
+		if (EVENT_FLAGS &= ~THROW_REQUEST)
+		    { Fake_Overflow; }		/* postpone it further */
+		A[1] = ec_eng->requested_throw_ball;
+		PP = (emu_code) do_exit_block_code_;
+		Next_Pp;
+	    }
+#ifdef PRINTAM
+	    else if (EVENT_FLAGS & TEST_REQUEST)
+	    {
+		p_fprintf(log_output_, "Handling test_request in emulator!\n"); ec_flush(log_output_);
+		if (EVENT_FLAGS &= ~TEST_REQUEST)
+		    { Fake_Overflow; }		/* postpone it further */
+	    }
+#endif
+	    else if (EVENT_FLAGS & EVENT_POSTED)
 	    {
 		if (VM_FLAGS & EVENTS_DEFERRED)
 		{
@@ -1913,48 +1923,40 @@ _handle_events_at_return_:
 		else
 		{
 		    /* NOTE: Sync events are only handled in nesting level 1! */
-		    next_posted_event(&A[1]);	/* may redo Fake_Overflow */
-		    if (IsInteger(A[1].tag))	/* indicates delayed signal */
+		    next_posted_event(ec_eng, &A[1]);	/* may redo Fake_Overflow */
+		    if (g_emu_.nesting_level > 1)	/* don't handle now */
 		    {
-			PP = (emu_code) sync_it_code_;
+			ecl_post_event(ec_eng, A[1]); /* re-post */
+			Pop_Ret_Code
+			Next_Pp;
 		    }
-		    else				/* posted event */
+		    else	/* handle posted event now */
 		    {
-			if (g_emu_.nesting_level > 1)	/* don't handle now */
+			if (IsTag(A[1].tag.kernel, TPTR))        /* Heap copied event */
 			{
-			    ec_post_event(A[1]); /* re-post */
-			    Pop_Ret_Code
-			    Next_Pp;
-			}
-			else	/* handle posted event now */
-			{
-			    if (IsTag(A[1].tag.kernel, TPTR))        /* Heap copied event */
-			    {
-				extern t_ext_type heap_event_tid;
-				t_heap_event *event = (t_heap_event *)A[1].val.ptr;
-				A[2] = A[3] = event->module;
-				if (event->enabled) {
-				    Export_B_Sp_Tg_Tt;
-				    get_heapterm(&event->goal, &A[1]);
-				    Import_Tg_Tt;
-				    if (event->defers)
-				    {
-					/* p_fprintf(log_output_,"event defers others\n"); ec_flush(log_output_); */
-					VM_FLAGS |= EVENTS_DEFERRED;
-				    }
-				} else {
-				    Make_Atom(&A[1], d_.true0);
+			    t_heap_event *event = (t_heap_event *)A[1].val.ptr;
+			    A[2] = A[3] = event->module;
+			    if (event->enabled) {
+				Export_B_Sp_Tg_Tt;
+				get_heapterm(ec_eng, &event->goal, &A[1]);
+				Import_Tg_Tt;
+				if (event->defers)
+				{
+				    /* p_fprintf(log_output_,"event defers others\n"); ec_flush(log_output_); */
+				    VM_FLAGS |= EVENTS_DEFERRED;
 				}
-				heap_event_tid.free((t_ext_ptr)event);
-				PP = (emu_code) do_call_code_;
+			    } else {
+				Make_Atom(&A[1], d_.true0);
 			    }
-			    else 
-			    {
-				A[2].tag.kernel = TNIL;
-				Make_Atom(&A[3], d_.kernel_sepia);
-				Make_Atom(&A[4], d_.kernel_sepia);
-				PP = (emu_code) prolog_error_code_;
-			    }
+			    heap_event_tid.free((t_ext_ptr)event);
+			    PP = (emu_code) do_call_code_;
+			}
+			else 
+			{
+			    A[2].tag.kernel = TNIL;
+			    Make_Atom(&A[3], d_.kernel_sepia);
+			    Make_Atom(&A[4], d_.kernel_sepia);
+			    PP = (emu_code) prolog_error_code_;
 			}
 		    }
 		    if (EVENT_FLAGS & ~EVENT_POSTED)
@@ -2333,7 +2335,7 @@ _read_meta_:			/* unify *pw1 with a new meta with tag i */
 		S->val.ptr = S;
 		S->tag.all = i;
 		Export_B_Sp_Tg_Tt_Eb_Gb
-		err_code = bind_c(pw1, S, &MU);
+		err_code = bind_c(ec_eng, pw1, S, &MU);
 		Import_Tg_Tt
 		if (err_code == PFAIL) { Fail; }
 	    } else {				/* TMETA = nonvar */
@@ -4317,62 +4319,6 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT,back_code) */
 	    Next_Pp;
 
 
-#ifdef OLD_DYNAMIC
-/*
- * Instructions for the dynamic predicates
- *
- *	(Re)Try_me_dynamic	birth, death, next, arity, gc/source
- *
- * We only make a choicepoint if there is a living alternative.
- * Hence all executed Retry_me_dynamic's belong to living clauses.
- */
-
-        Case(Try_me_dynamic, I_Try_me_dynamic)
-	    i = DynGlobalClock;			/* the current clock	*/
-	    while (Dead((PP-1), i))
-	    {
-		PP = (PP+2)->code;		/* skip dead clauses	*/
-		if (PP == FAIL) Fail;		/* all dead -> fail	*/
-		PP += 1;
-	    }
-	    back_code = (PP+2)->code;
-	    tmp1 = (PP+3)->nint & SRC_CLAUSE_ARITY_MASK;
-	    PP += DYNAMIC_INSTR_SIZE - 1; /* start of first living clause */
-
-	    while (back_code != FAIL)	/* look for living alternative	*/
-	    {
-		if (!Dead(back_code, i))
-		{
-		    A[++tmp1].val.nint = i;	/* add call clock argument */
-		    A[tmp1].tag.kernel = TINT;
-		    goto _make_choice_point_;	/* (arity in tmp1, back_code) */
-		}
-		back_code = (back_code+3)->code;
-	    }
-	    Next_Pp;				/* single clause	*/
-
-
-        Case(Retry_me_dynamic, I_Retry_me_dynamic)
-			/* get the call clock (the last argument)	*/
-	    i = ((pword *)(B.top - 1) - 1)->val.nint;
-	    back_code = (PP+2)->code;
-	    while (back_code != FAIL)	/* look for living alternative	*/
-	    {
-		if (!Dead(back_code, i))
-		{
-		    DBG_PORT = NEXT_PORT;
-		    PP += DYNAMIC_INSTR_SIZE - 1;
-		    goto _retry_me_;		/* (DBG_PORT,back_code)	*/
-		}
-		back_code = (back_code+3)->code;
-	    }
-						/* the last living clause */
-	    back_code = PP;
-	    PP += DYNAMIC_INSTR_SIZE - 1;
-	    DBG_PORT = NEXT_PORT;
-	    goto _trust_me_;			/* (back_code,PP,DBG_PORT) */
-#endif
-
 
 /***********************************************
  *	Indexing instructions
@@ -5547,10 +5493,9 @@ _metacall_check_goal_:
 		goto _metacall_err_call_;       /* (err_code,val_did,tmp1,i,pw1) */
 	    } 
 	    Export_B_Sp_Tg_Tt
-	    proc = visible_procedure(val_did, pw2->val.did, pw2->tag, err_code);
+	    proc = visible_procedure(val_did, pw2->val.did, pw2->tag, err_code, &err_code);
 	    Import_None
-	    if( proc == (pri*) 0) {
-		Get_Bip_Error(err_code);
+	    if (!proc) {
 		if (err_code == NOENTRY)
 		    err_code = CALLING_AUTOLOAD;
 		goto _metacall_err_call_;       /* (err_code,val_did,tmp1,i,pw1) */
@@ -5871,7 +5816,7 @@ _susp_wake_:					/* suspension in pw2 */
 		    proc = err_code >= MAX_ERRORS ? 0 : error_handler_[err_code];
 	    }
 	    else if (IsAtom(pw1->tag)  &&  PSUCCEED ==
-		get_simple_property(pw1->val.did, EVENT_PROP, &scratch_pw))
+		get_global_property(pw1->val.did, EVENT_PROP, &scratch_pw))
 	    {
 		if (scratch_pw.tag.kernel & EVENT_DEFERS)
 		    VM_FLAGS |= EVENTS_DEFERRED;
@@ -5981,14 +5926,16 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	Case(External0, I_External0)	/* (proc,address) arity 0 */
 	    proc = PP++->proc_entry;
 	    Export_B_Sp_Tg_Tt_Eb_Gb
-	    err_code = (*(PP->func)) ();
+	    Lock_Heap
+	    err_code = (*(PP->func)) (ec_eng);
 	    goto _end_external_;
 
 	Case(External1, I_External1)	/* (proc,address) arity 1 */
 	    proc = PP++->proc_entry;
 	    pw1 = &A[1]; Dereference_Pw(pw1);
 	    Export_B_Sp_Tg_Tt_Eb_Gb
-	    err_code = (*(PP->func)) (pw1->val, pw1->tag);
+	    Lock_Heap
+	    err_code = (*(PP->func)) (pw1->val, pw1->tag, ec_eng);
 	    goto _end_external_;
 
 	Case(External2, I_External2)	/* (proc,address) arity 2 */
@@ -5996,9 +5943,10 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	    pw1 = &A[1]; Dereference_Pw(pw1);
 	    pw2 = &A[2]; Dereference_Pw(pw2);
 	    Export_B_Sp_Tg_Tt_Eb_Gb
+	    Lock_Heap
 	    err_code = (*(PP->func)) (
 				pw1->val, pw1->tag,
-				pw2->val, pw2->tag);
+				pw2->val, pw2->tag, ec_eng);
 	    goto _end_external_;
 
 	Case(External3, I_External3)	/* (proc,address) arity 3 */
@@ -6007,10 +5955,11 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	    pw2 = &A[2]; Dereference_Pw(pw2);
 	    S = &A[3]; Dereference_Pw(S);
 	    Export_B_Sp_Tg_Tt_Eb_Gb
+	    Lock_Heap
 	    err_code = (*(PP->func)) (
 				pw1->val, pw1->tag,
 				pw2->val, pw2->tag,
-				S->val, S->tag);
+				S->val, S->tag, ec_eng);
 	    goto _end_external_;
 
 	Case(External, I_External)	/* (proc, address) arity 4..16 */
@@ -6025,13 +5974,14 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	    pw1 = &A[1]; Dereference_Pw(pw1);
 	    tmp1 = DidArity(PriDid(proc));
 	    Export_B_Sp_Tg_Tt_Eb_Gb
+	    Lock_Heap
 	    switch(tmp1) {
 		case 4:
 		    err_code = (*(PP->func)) (
 				pw1->val, pw1->tag,
 				pw2->val, pw2->tag,
 				S->val, S->tag,
-				A[4].val, A[4].tag);
+				A[4].val, A[4].tag, ec_eng);
 		    break;
 		case 5:
 		    err_code = (*(PP->func)) (
@@ -6039,7 +5989,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				pw2->val, pw2->tag,
 				S->val, S->tag,
 				A[4].val, A[4].tag,
-				A[5].val, A[5].tag);
+				A[5].val, A[5].tag, ec_eng);
 		    break;
 		case 6:
 		    err_code = (*(PP->func)) (
@@ -6048,7 +5998,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				S->val, S->tag,
 				A[4].val, A[4].tag,
 				A[5].val, A[5].tag,
-				A[6].val, A[6].tag);
+				A[6].val, A[6].tag, ec_eng);
 		    break;
 		case 7:
 		    err_code = (*(PP->func)) (
@@ -6058,7 +6008,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[4].val, A[4].tag,
 				A[5].val, A[5].tag,
 				A[6].val, A[6].tag,
-				A[7].val, A[7].tag);
+				A[7].val, A[7].tag, ec_eng);
 		    break;
 		case 8:
 		    err_code = (*(PP->func)) (
@@ -6069,7 +6019,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[5].val, A[5].tag,
 				A[6].val, A[6].tag,
 				A[7].val, A[7].tag,
-				A[8].val, A[8].tag);
+				A[8].val, A[8].tag, ec_eng);
 		    break;
 		case 9:
 		    err_code = (*(PP->func)) (
@@ -6081,7 +6031,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[6].val, A[6].tag,
 				A[7].val, A[7].tag,
 				A[8].val, A[8].tag,
-				A[9].val, A[9].tag);
+				A[9].val, A[9].tag, ec_eng);
 		    break;
 		case 10:
 		    err_code = (*(PP->func)) (
@@ -6094,7 +6044,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[7].val, A[7].tag,
 				A[8].val, A[8].tag,
 				A[9].val, A[9].tag,
-				A[10].val, A[10].tag);
+				A[10].val, A[10].tag, ec_eng);
 		    break;
 		case 11:
 		    err_code = (*(PP->func)) (
@@ -6108,7 +6058,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[8].val, A[8].tag,
 				A[9].val, A[9].tag,
 				A[10].val, A[10].tag,
-				A[11].val, A[11].tag);
+				A[11].val, A[11].tag, ec_eng);
 		    break;
 		case 12:
 		    err_code = (*(PP->func)) (
@@ -6123,7 +6073,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[9].val, A[9].tag,
 				A[10].val, A[10].tag,
 				A[11].val, A[11].tag,
-				A[12].val, A[12].tag);
+				A[12].val, A[12].tag, ec_eng);
 		    break;
 		case 13:
 		    err_code = (*(PP->func)) (
@@ -6139,7 +6089,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[10].val, A[10].tag,
 				A[11].val, A[11].tag,
 				A[12].val, A[12].tag,
-				A[13].val, A[13].tag);
+				A[13].val, A[13].tag, ec_eng);
 		    break;
 		case 14:
 		    err_code = (*(PP->func)) (
@@ -6156,7 +6106,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[11].val, A[11].tag,
 				A[12].val, A[12].tag,
 				A[13].val, A[13].tag,
-				A[14].val, A[14].tag);
+				A[14].val, A[14].tag, ec_eng);
 		    break;
 		case 15:
 		    err_code = (*(PP->func)) (
@@ -6174,7 +6124,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[12].val, A[12].tag,
 				A[13].val, A[13].tag,
 				A[14].val, A[14].tag,
-				A[15].val, A[15].tag);
+				A[15].val, A[15].tag, ec_eng);
 		    break;
 		case 16:
 		    err_code = (*(PP->func)) (
@@ -6193,12 +6143,14 @@ _handler_call_:				/* (proc,DBG_PORT) */
 				A[13].val, A[13].tag,
 				A[14].val, A[14].tag,
 				A[15].val, A[15].tag,
-				A[16].val, A[16].tag);
+				A[16].val, A[16].tag, ec_eng);
 		    break;
 		default:
 		    err_code = ARITY_LIMIT;
 	    }
 _end_external_:
+	    /* Unlock and/or free any object used in the external */
+	    Do_Cleanup()
 	    Import_Tg_Tt
 	    if (Deterministic)
 	    {
@@ -6333,7 +6285,7 @@ _end_external_:
 	do {\
 	    switch((_mask) & 3) {\
 	    case 0:\
-		*TG = *(_pp[-(_i)].ptr);\
+		*TG = *ArgP((_pp)-(_i));\
 		break;\
 	    case 1:\
 		Make_Atom(TG,d_.ellipsis);\
@@ -6355,7 +6307,7 @@ _end_external_:
 	    ++(_pgoal);\
 	    switch((_mask) & 3) {\
 	    case 1:\
-		*(_pgoal) = *(_pp[-(_i)].ptr);\
+		*(_pgoal) = *ArgP((_pp)-(_i));\
 		break;\
 	    }\
 	    --(_i); (_mask) >>= 2;\
@@ -6581,8 +6533,8 @@ _end_external_:
 
 
 /*
- * The first instruction of exit_block/1:
- * check whether the argument is ok, then find a block frame which
+ * The first instruction of throw/1:
+ * check whether the argument is ok, then find a catch frame which
  * has a suitable tag and is an ancestor of this goal,
  * reset the machine and unify the two tags
  */
@@ -6601,7 +6553,7 @@ _end_external_:
 		scratch_pw = *pw3;
 	    } else {
 		Export_B_Sp_Tg_Tt
-		create_heapterm(&scratch_pw, pw3->val, pw3->tag);
+		create_heapterm(ec_eng, &scratch_pw, pw3->val, pw3->tag);
 		Import_None;
 	    }
 
@@ -6614,7 +6566,7 @@ _end_external_:
 		    /* find the first environment older than the catch frame */
 		    while (RetCodeAddr(pw2) < BChp(pw1)->sp)
 			pw2 = RetEnv(pw2);
-		    /* was the block/3 called from this environment? */
+		    /* was the catch/3 called from this environment? */
 		    if (RetCodeAddr(pw2) == BChp(pw1)->sp)
 		    {
 			pw2 = (pword *)(BChp(pw1) + 1);
@@ -6632,7 +6584,7 @@ _end_external_:
 				    break;
 			    } else {
 				Export_B_Sp_Tg_Tt_Eb_Gb
-				if (ec_unify_(pw3->val, pw3->tag, pw2->val, pw2->tag, &MU) == PSUCCEED)
+				if (ec_unify_(ec_eng, pw3->val, pw3->tag, pw2->val, pw2->tag, &MU) == PSUCCEED)
 				{
 				    Import_Tg_Tt;
 				    break;
@@ -6645,7 +6597,7 @@ _end_external_:
 		    /* not the right catch frame, skip it */
 		    pw1 = BPrev(pw1);
 		}
-		else if (IsInterruptFrame(BTop(pw1))||IsRecursionFrame(BTop(pw1)))
+		else if (IsRecursionFrame(BTop(pw1)))
 		{
 		/* exit an emulator: restore everything from the invoc frame.
 		 * Normally we will continue throwing in an earlier emulator
@@ -6764,7 +6716,7 @@ _end_external_:
 	    {
 		pw1 = &A[6];		/* use any free pword */
 		Export_B_Sp_Tg_Tt
-		get_heapterm(&scratch_pw, pw1);
+		get_heapterm(ec_eng, &scratch_pw, pw1);
 		free_heapterm(&scratch_pw);
 		Import_Tg_Tt;
 	    }
@@ -6789,7 +6741,7 @@ _end_external_:
 	    GB = Exception(pw1)->gb;
 	    while (LCA >= GB) {
 		Export_B_Sp_Tg_Tt_Eb_Gb
-		do_cut_action();
+		do_cut_action(ec_eng);
 		Import_Tg_Tt;
 	    }
 	    Cut_To_Parallel(pw1);
@@ -6816,8 +6768,8 @@ _end_external_:
 _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    pw1 = (B.top - 1)->frame.args;
 	    SP = (pword *)((emu_code *)Invoc(pw1)->sp + 1);
-	    if (err_code == PKEEP) {
-		err_code = PSUCCEED;
+	    if (err_code & PKEEP) {
+		err_code &= ~PKEEP;
 	    } else {
 		if (err_code != PTHROW) {
 		    /* for PTHROW, this is done in I_Throw */
@@ -6833,18 +6785,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    EB = Invoc(pw1)->eb;
 	    GB = Invoc(pw1)->gb;
 	    Debug_Check_Global
-	    if (IsInterruptFrame((B.top - 1)))
-	    {
-		VM_FLAGS = (VM_FLAGS & ~INT_SAFE_BITS)
-				| (Invoc(pw1)->flags & INT_SAFE_BITS);
-		destroy_parser_env();
-		PARSENV = Invoc(pw1)->parser_env;
-		g_emu_.trace_data = Invoc(pw1)->trace_data;
-		PostponedList = Invoc(pw1)->postponed_list;
-	    }
-	    g_emu_.it_buf = Invoc(pw1)->it_buf;
 	    g_emu_.nesting_level = Invoc(pw1)->nesting_level;
-	    g_emu_.global_variable = Invoc(pw1)->global_variable;
 
 	    WP = Invoc(pw1)->wp;
 	    WP_STAMP = Invoc(pw1)->wp_stamp;
@@ -6868,11 +6809,15 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    pw1 = &Invoc(pw1)->arg_0;
 	    while(Top(pw1) < B.top - 1)
 		*pw2++ = *pw1++;
-	    B.args = Top(pw1)->frame.args - SAFE_B_AREA;
+	    if (IsNestingFrame(B.top - 1)) {
+		B.args = Top(pw1)->frame.args;
+	    } else {
+		B.args = Top(pw1)->frame.args - SAFE_B_AREA;
+	    }
 	    Export_All
-	    re_fake_overflow();		/* after export */
+	    re_fake_overflow(ec_eng);		/* after export */
 	    A[0].val.nint = err_code;
-	    if (err_code == PTHROW)
+	    if (err_code == PTHROW || err_code == PEXITED)
 	    	A[1] = scratch_pw;
 	    return (func_ptr) 0;
 
@@ -6891,7 +6836,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	Case(Gc, I_Gc)			/* (forceflag) */
 	    tmp1 = PP++->offset;
 	    Export_B_Sp_Tg_Tt_Eb_Gb
-	    err_code = collect_stacks(0, tmp1);
+	    err_code = collect_stacks(ec_eng, 0, tmp1);
 	    Import_B_Sp_Tg_Tt_Eb_Gb
 #if 0
 	    if (err_code > 0)		/* request to leave a choicepoint */
@@ -6931,7 +6876,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 		while (LCA >= GB)
 		{
 		    Export_B_Sp_Tg_Tt;
-		    do_cut_action();
+		    do_cut_action(ec_eng);
 		    Import_Tg_Tt;
 		}
 		GCTG = TG;
@@ -6940,77 +6885,26 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    Next_Pp;
 
 
-#ifdef OLD_DYNAMIC
-      Case(Clause, I_Clause)	/* Head, Body, Ref, Module, Error */
-	    err_code = 0;
-	    pw1 = &A[1];		/* clause head	*/
-	    Dereference_Pw(pw1);
-	    pw2 = &A[4];		/* module	*/
-	    Dereference_Pw(pw2);
-	    if (IsRef(pw1->tag) || IsRef(pw2->tag))
-		err_code = INSTANTIATION_FAULT;
-	    else if (!IsAtom(pw2->tag))
-		err_code = TYPE_ERROR;
-	    else if (!IsModule(pw2->val.did))
-		err_code = MODULENAME;
-	    else if IsStructure(pw1->tag)		/* find the did	*/
-		val_did = pw1->val.ptr->val.did;
-	    else if IsAtom(pw1->tag)
-		val_did = pw1->val.did;
-	    else if IsList(pw1->tag)
-		val_did = d_.list;
-	    else if IsNil(pw1->tag)
-		val_did = d_.nil;
-	    else
-		err_code = TYPE_ERROR;
-
-	    if (err_code == 0)	/* there is no instantiation fault 
-				       or type error */
-	    {
-		Export_B_Sp_Tg_Tt
-		proc = visible_procedure(val_did, pw2->val.did, pw2->tag, 0);
-		Import_None
-		if (proc)
-		{
-		    if (proc->module_ref == pw2->val.did)
-		    {
-			if (DynamicProc(proc))
-			{
-			    PP = (emu_code) StartOfProcSource(PriCode(proc));
-			    Next_Pp;    /* go and execute the source clause*/
-			}
-			else if (PriFlags(proc) & CODE_DEFINED)
-			    err_code = NOT_DYNAMIC;
-			else
-			    err_code = ACCESSING_UNDEF_DYN_PROC;
-		    }
-		    else
-			err_code = ACCESSING_NON_LOCAL;
-		}
-		else
-		{
-		    Get_Bip_Error(err_code);
-		    if (err_code == NOENTRY)
-			err_code = ACCESSING_UNDEF_DYN_PROC;
-		}
-	    }
-	    /* we have an error */
-	    pw1 = &A[5];		/* bind error code */
-	    Dereference_Pw(pw1);
-	    Trail_If_Needed(pw1);
-	    pw1->val.nint = -err_code;
-	    pw1->tag.kernel = TINT;
-	    Next_Pp;
-#endif
-
 
 /*----------------------------------------------------------------------
  * Abstract machine instructions for compilation of builtins
  *----------------------------------------------------------------------*/
 
+	    /* This essentially cuts everything, untrails the whole engine,
+	     * and returns as if with yield(PEXITED,ExitCode,_)
+	     */
 	Case(BI_Exit, I_BI_Exit)
-	    err_code = PP->arg->val.nint;
-	    goto _exit_emulator_;
+	    Get_Argument(pw1)
+	    Dereference_Pw(pw1);
+	    scratch_pw = *pw1;		/* must be integer (no check here) */
+_exit_engine_:				/* (scratch_pw) */
+	    /* cut back to the engine's first invocation frame */
+	    while(BPrev(B.top) > B_ORIG + SAFE_B_AREA)
+		B.args = BPrev(B.top);
+	    if(!IsRecursionFrame(B.top-1))
+		ec_panic("can't find first invocation frame", "emulator exit");
+	    err_code = PEXITED;
+	    goto _exit_emulator_;	/* (err_code,scratch_pw) */
 
          Case(BI_CutToStamp, I_BI_CutToStamp)	/* Ai Aj Mask=0000 */
             Get_Argument(pw2) 
@@ -7294,10 +7188,10 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 #define NCompare_Bip(Proc, BIxx, Op) /* arity 3 */\
 	proc = Proc;\
 	PP+= 4;\
-        pw1 = PP[-4].arg;\
+        pw1 = ArgP(PP-4);\
         Dereference_Pw(pw1)\
 	NDelay_Check_1(pw1)\
-        pw2 = PP[-3].arg;\
+        pw2 = ArgP(PP-3);\
         Dereference_Pw(pw2)\
 	NDelay_Check_2(pw2)\
 	/* don't Kill_DE here since arith_compare() can return PDELAY */\
@@ -7328,8 +7222,8 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	if (IsNumber(pw1->tag) && IsNumber(pw2->tag)) {\
 	    int relation = BIxx; /* don't use a register */ \
 	    Export_B_Sp_Tg_Tt\
-	    err_code = (word) arith_compare(pw1->val, pw1->tag,\
-		pw2->val, pw2->tag, &relation);\
+	    err_code = (word) arith_compare(ec_eng,\
+		pw1->val, pw1->tag, pw2->val, pw2->tag, &relation);\
 	    Import_Tg_Tt\
 	    if (err_code == PDELAY){\
 		SV = (pword *) 0;\
@@ -7349,9 +7243,9 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 
 #define NGeneric_Arith_Overflow_Bip(BIxx, Op, SignOp, OpNr) /* arity 3 */\
 	PP += 4;\
-        pw1 = PP[-4].arg;\
+        pw1 = ArgP(PP-4);\
         Dereference_Pw(pw1);\
-	pw2 = PP[-3].arg;\
+	pw2 = ArgP(PP-3);\
         Dereference_Pw(pw2);\
 	NDelay_Check_1(pw1)\
 	NDelay_Check_2(pw2)\
@@ -7366,8 +7260,8 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 		    err_code = INTEGER_OVERFLOW;\
 		    goto _nbip_err_;\
 		} \
-		PP[-2].arg->val.nint = tmp1;\
-		PP[-2].arg->tag.kernel = TINT;\
+		ArgP(PP-2)->val.nint = tmp1;\
+		ArgP(PP-2)->tag.kernel = TINT;\
 		Next_Pp;\
 	    }\
 	    if (IsDouble(pw2->tag)) {\
@@ -7392,16 +7286,16 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 #define NInt_Arith_Bip(Proc, BIxx, Op, OpNr) /* arity 3 */\
 	proc = Proc;\
 	PP += 4;\
-        pw1 = PP[-4].arg;\
+        pw1 = ArgP(PP-4);\
         Dereference_Pw(pw1);\
 	NDelay_Check_1(pw1)\
-        pw2 = PP[-3].arg;\
+        pw2 = ArgP(PP-3);\
         Dereference_Pw(pw2);\
 	NDelay_Check_2(pw2)\
 	Kill_DE;\
 	if (IsInteger(pw1->tag) && IsInteger(pw2->tag)) {\
-	    PP[-2].arg->val.nint = pw1->val.nint Op pw2->val.nint;\
-	    PP[-2].arg->tag.kernel = TINT;\
+	    ArgP(PP-2)->val.nint = pw1->val.nint Op pw2->val.nint;\
+	    ArgP(PP-2)->tag.kernel = TINT;\
 	    Next_Pp;\
 	}\
 	err_code = OpNr;\
@@ -7412,7 +7306,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	Case(BI_Minus, I_BI_Minus)
 	    proc = minus_proc_;
 	    PP += 3;
-	    pw1 = PP[-3].arg;
+	    pw1 = ArgP(PP-3);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
 	    if (IsInteger(pw1->tag))
@@ -7421,19 +7315,19 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		}
-		Make_Integer(PP[-2].arg, tmp1);
+		Make_Integer(ArgP(PP-2), tmp1);
 		Next_Pp;
 	    }
 	    else if (IsDouble(pw1->tag))
 	    {
-		Make_Double(PP[-2].arg, -Dbl(pw1->val));
+		Make_Double(ArgP(PP-2), -Dbl(pw1->val));
 		Next_Pp;
 	    }
 	    err_code = ARITH_NEG;
 
 _nun_op_:				/* (err_code,pw1,PP,proc) */
 	    Export_B_Sp_Tg_Tt_Eb_Gb
-	    err_code = un_arith_op(pw1->val, pw1->tag, PP[-2].arg, err_code, TINT);
+	    err_code = un_arith_op(pw1->val, pw1->tag, ArgP(PP-2), ec_eng, err_code, TINT);
 	    Import_Tg_Tt
 	    goto _nbip_res_;
 
@@ -7441,7 +7335,7 @@ _nun_op_:				/* (err_code,pw1,PP,proc) */
 	Case(BI_Addi, I_BI_Addi)
 	    proc = add_proc_;
 	    PP += 4;
-	    pw1 = PP[-4].arg;
+	    pw1 = ArgP(PP-4);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
 	    Kill_DE;
@@ -7454,7 +7348,7 @@ _nun_op_:				/* (err_code,pw1,PP,proc) */
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		} 
-		Make_Integer(PP[-2].arg, tmp1);
+		Make_Integer(ArgP(PP-2), tmp1);
 		Next_Pp;
 	    } else if (IsDouble(pw1->tag)) {
 		dbl_res = Dbl(pw1->val) + (double)PP[-3].nint;
@@ -7464,7 +7358,7 @@ _nis_float_check_:			/* (dbl_res) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _nbip_err_;
 		}
-		Make_Double(PP[-2].arg, dbl_res);
+		Make_Double(ArgP(PP-2), dbl_res);
 		Next_Pp;
 	    }
 	    Make_Integer(&scratch_pw, PP[-3].nint);
@@ -7473,7 +7367,7 @@ _nis_float_check_:			/* (dbl_res) */
 
 _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	    Export_B_Sp_Tg_Tt_Eb_Gb
-	    err_code = bin_arith_op(pw1->val, pw1->tag, pw2->val, pw2->tag, PP[-2].arg, err_code);
+	    err_code = bin_arith_op(pw1->val, pw1->tag, pw2->val, pw2->tag, ArgP(PP-2), ec_eng, err_code);
 	    Import_Tg_Tt
 	    goto _nbip_res_;
 
@@ -7489,10 +7383,10 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_Mul, I_BI_Mul)
 	    proc = mul_proc_;
 	    PP += 4;
-	    pw1 = PP[-4].arg;
+	    pw1 = ArgP(PP-4);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
-	    pw2 = PP[-3].arg;
+	    pw2 = ArgP(PP-3);
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2)
 	    Kill_DE		/* it's a demon */
@@ -7509,7 +7403,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 			    goto _nbip_err_;
 			}
 		    }
-		    Make_Integer(PP[-2].arg, tmp1);
+		    Make_Integer(ArgP(PP-2), tmp1);
 		    Next_Pp;
 		}
 		if (IsDouble(pw2->tag)) {
@@ -7533,17 +7427,17 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_Quot, I_BI_Quot)
 	    proc = quot_proc_;
 	    PP += 4;
-	    pw1 = PP[-4].arg;
+	    pw1 = ArgP(PP-4);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
-	    pw2 = PP[-3].arg;
+	    pw2 = ArgP(PP-3);
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2)
 	    Kill_DE		/* it's a demon */
 	    if (IsInteger(pw2->tag))
 	    {
 		if (IsInteger(pw1->tag)) {
-		    if (GlobalFlags & PREFER_RATIONALS)
+		    if (EclGblFlags & PREFER_RATIONALS)
 		    {
 			err_code = ARITH_DIV;
 			goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
@@ -7576,10 +7470,10 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_Div, I_BI_Div)
 	    proc = div_proc_;
 	    PP += 4;
-	    pw1 = PP[-4].arg;
+	    pw1 = ArgP(PP-4);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1)
-	    pw2 = PP[-3].arg;
+	    pw2 = ArgP(PP-3);
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7595,7 +7489,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		    err_code = INTEGER_OVERFLOW;
 		    goto _nbip_err_;
 		}
-		Make_Integer(PP[-2].arg, pw1->val.nint / pw2->val.nint);
+		Make_Integer(ArgP(PP-2), pw1->val.nint / pw2->val.nint);
 		Next_Pp;
 	    }
 	    err_code = ARITH_IDIV;
@@ -7604,10 +7498,10 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_Rem, I_BI_Rem)
 	    proc = rem_proc_;
 	    PP += 4;
-	    pw1 = PP[-4].arg;
+	    pw1 = ArgP(PP-4);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
-	    pw2 = PP[-3].arg;
+	    pw2 = ArgP(PP-3);
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7618,14 +7512,14 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		    err_code = ARITH_EXCEPTION;
 		    goto _nbip_err_;
 		}
-		PP[-2].arg->val.nint =
+		ArgP(PP-2)->val.nint =
 #if defined(i386) || defined(__x86_64) || defined(__POWERPC__) || defined(sparc)
 		    /* need to check this, causes arith exception on i386 */
 		    (/* pw1->val.nint == MIN_S_WORD && */ pw2->val.nint == -1) ? 0 :
 #endif
 		    /* Assume % truncates towards zero */
 		       pw1->val.nint % pw2->val.nint;
-		PP[-2].arg->tag.kernel = TINT;
+		ArgP(PP-2)->tag.kernel = TINT;
 		Next_Pp;
 	    }
 	    err_code = ARITH_MOD;
@@ -7634,10 +7528,10 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_FloorDiv, I_BI_FloorDiv)
 	    proc = fdiv_proc_;
 	    PP += 4;
-	    pw1 = PP[-4].arg;
+	    pw1 = ArgP(PP-4);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
-	    pw2 = PP[-3].arg;
+	    pw2 = ArgP(PP-3);
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7657,7 +7551,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		/* Need to adjust rounding if opposite signs */
 		if (((pw1->val.nint ^ pw2->val.nint) < 0) && (pw1->val.nint % pw2->val.nint))
 		    --tmp1;
-		Make_Integer(PP[-2].arg, tmp1);
+		Make_Integer(ArgP(PP-2), tmp1);
 		Next_Pp;
 	    }
 	    err_code = ARITH_FLOORDIV;
@@ -7666,10 +7560,10 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_FloorRem, I_BI_FloorRem)
 	    proc = mod_proc_;
 	    PP += 4;
-	    pw1 = PP[-4].arg;
+	    pw1 = ArgP(PP-4);
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
-	    pw2 = PP[-3].arg;
+	    pw2 = ArgP(PP-3);
 	    Dereference_Pw(pw2);
 	    NDelay_Check_2(pw2);
 	    Kill_DE		/* it's a demon */
@@ -7695,7 +7589,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 		    if (tmp1 && (pw1->val.nint ^ pw2->val.nint) < 0)
 			tmp1 += pw2->val.nint;
 		}
-		Make_Integer(PP[-2].arg, tmp1);
+		Make_Integer(ArgP(PP-2), tmp1);
 		Next_Pp;
 	    }
 	    err_code = ARITH_FLOORREM;
@@ -7712,13 +7606,13 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 
 	Case(BI_Bitnot, I_BI_Bitnot)
 	    proc = bitnot_proc_;
-	    pw1 = PP->arg;
+	    pw1 = ArgP(PP);
 	    PP += 3;
 	    Dereference_Pw(pw1);
 	    NDelay_Check_1(pw1);
 	    if (IsInteger(pw1->tag))
 	    {
-		Make_Integer(PP[-2].arg, ~ pw1->val.nint);
+		Make_Integer(ArgP(PP-2), ~ pw1->val.nint);
 		Next_Pp;
 	    }
 	    err_code = ARITH_COM;
@@ -7744,17 +7638,17 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	    NCompare_Bip(ne_proc3_, BINe, !=)
 
 	Case(BI_Arity, I_BI_Arity)		/* arity(+Term,-N)	*/
-	    pw1 = PP->arg;
+	    pw1 = ArgP(PP);
 	    PP += 3;	/* 2 args + desc */
 	    Dereference_Pw_Tag(pw1, tmp1);
 	    if (IsTag(tmp1, TCOMP)) {
-		Make_Integer(PP[-2].arg, DidArity(pw1->val.ptr->val.did));
+		Make_Integer(ArgP(PP-2), DidArity(pw1->val.ptr->val.did));
 		Next_Pp;
 	    } else if (IsTag(tmp1, TLIST)) {
-		Make_Integer(PP[-2].arg, 2);
+		Make_Integer(ArgP(PP-2), 2);
 		Next_Pp;
 	    } else if (!ISRef(tmp1)) {
-		Make_Integer(PP[-2].arg, 0);
+		Make_Integer(ArgP(PP-2), 0);
 		Next_Pp;
 	    }
 	    proc = arity_proc_;
@@ -7764,12 +7658,12 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	Case(BI_Arg, I_BI_Arg)			/* arg(+N, +Term, -Arg)	*/
 	    proc = arg_proc_;
             PP += 4;
-	    pw1 = PP[-3].arg;		/* check Term */
+	    pw1 = ArgP(PP-3);		/* check Term */
 	    if (PP[-1].nint & 2) {
 		pw2 = &scratch_pw;	/* immediate integer argument */
 		Make_Integer(&scratch_pw, PP[-4].nint);
 	    } else {
-		pw2 = PP[-4].arg;
+		pw2 = ArgP(PP-4);
 	    }
 _narg_: 
 /* pw1 and pw2 must be set correctly before jumping here */
@@ -7811,7 +7705,7 @@ _narg_:
 		if (tmp1 >= 1 && tmp1 <= i)
 		{
 		    Kill_DE;			/* necessary before success */
-		    *PP[-2].arg = pw1[tmp1];
+		    *ArgP(PP-2) = pw1[tmp1];
 		    Next_Pp;
 		}
 		else
@@ -7842,7 +7736,7 @@ _narg_:
 			if (IsTag(pw2->tag.kernel, TNIL))
 			{
 			    Kill_DE;		/* necessary before success */
-			    *PP[-2].arg = *pw1;
+			    *ArgP(PP-2) = *pw1;
 			    Next_Pp;
 			}
 			else
@@ -7882,7 +7776,7 @@ _narg_:
 	Case(BI_MakeSuspension, I_BI_MakeSuspension)
 	    proc = make_suspension_proc_;
             PP += 5;
-	    pw1 = PP[-5].arg;
+	    pw1 = ArgP(PP-5);
 	    Dereference_Pw_Tag(pw1, tmp1);	/* check goal argument */
 	    if (IsTag(tmp1, TCOMP))
 		val_did = pw1->val.ptr->val.did;
@@ -7899,7 +7793,7 @@ _narg_:
 	    pw2 = TG;				/* allocate suspension */
 	    TG += SUSP_SIZE;
 	    Check_Gc
-	    pw3 = PP[-2].arg;
+	    pw3 = ArgP(PP-2);
 	    Dereference_Pw_Tag(pw3, tmp1);	/* find the pri */
 	    if (IsTag(tmp1, TINT))		/* we have the pri already */
 	    {
@@ -7915,11 +7809,10 @@ _narg_:
 		    goto _nbip_err_;
 		}
 		Export_B_Sp_Tg_Tt
-		procb = visible_procedure(val_did, pw3->val.did, pw3->tag, 0);
+		procb = visible_procedure(val_did, pw3->val.did, pw3->tag, 0, &err_code);
 		Import_None
 		if (!procb) {
 		    TG = pw2;			/* pop incomplete suspension */
-		    Get_Bip_Error(err_code);
 		    goto _nbip_err_;
 		}
 		pw2[SUSP_MODULE] = *pw3;
@@ -7929,7 +7822,7 @@ _narg_:
 		err_code = ISRef(tmp1) ? INSTANTIATION_FAULT : TYPE_ERROR;
 		goto _nbip_err_;		/* (proc, err_code) */
 	    }
-	    pw3 = PP[-4].arg;
+	    pw3 = ArgP(PP-4);
 	    Dereference_Pw_Tag(pw3, tmp1);	/* find the priority */
 	    if (IsTag(tmp1, TINT))
 	    {
@@ -7967,7 +7860,7 @@ _narg_:
 		}
 	    }
 
-	    pw1 = PP[-3].arg;			/* output unification */
+	    pw1 = ArgP(PP-3);			/* output unification */
 	    Dereference_Pw(pw1);
 	    if (IsRef(pw1->tag))
 	    {
@@ -7991,30 +7884,30 @@ _narg_:
 
 
 	Case(BI_Compare, I_BI_Compare)		/* compare(-R, ?X, ?Y) */
-            pw1 = PP[1].arg;
-            pw2 = PP[2].arg;
+            pw1 = ArgP(PP+1);
+            pw2 = ArgP(PP+2);
 	    Dereference_Pw(pw1);
 	    Dereference_Pw(pw2);
             Export_B_Sp_Tg_Tt
             err_code = ec_compare_terms(pw1->val, pw1->tag, pw2->val, pw2->tag);
             Import_None
-            PP[0].arg->val.did = err_code<0 ? d_.inf0 : err_code>0 ? d_.sup0 : d_.unify0;
-            PP[0].arg->tag.kernel = TDICT;
+            ArgP(PP)->val.did = err_code<0 ? d_.inf0 : err_code>0 ? d_.sup0 : d_.unify0;
+            ArgP(PP)->tag.kernel = TDICT;
             PP += 3;
 	    Next_Pp;
 
 
          Case(BI_Qualify, I_BI_Qualify) /* qualify_(?Term,-QualTerm,+Module) */
-            pw1 = PP[0].arg;
+            pw1 = ArgP(PP);
 	    Dereference_Pw_Tag(pw1, tmp1);
 	    if (IsTag(tmp1, TCOMP) && pw1->val.ptr->val.did == d_.colon) {
-		*PP[1].arg = *pw1;
+		*ArgP(PP+1) = *pw1;
 	    } else {
 		TG[0].val.did = d_.colon;
 		TG[0].tag.kernel = TDICT;
-		TG[1] = *PP[2].arg;
+		TG[1] = *ArgP(PP+2);
 		TG[2] = *pw1;
-		Make_Struct(PP[1].arg, TG);
+		Make_Struct(ArgP(PP+1), TG);
 		TG += 3;
 		Check_Gc
 	    }
@@ -8033,12 +7926,15 @@ _narg_:
 	Case(Puts_float, I_Puts_float)
 	Case(In_get_floatAM, I_In_get_floatAM)
 #endif
-#ifndef OLD_DYNAMIC
+/***** obsolete/unused *****/
+#ifndef DFID
+	Case(Dfid_testL, I_Dfid_testL)
+	Case(Dfid_test, I_Dfid_test)
+	Case(Depth, I_Depth)
+#endif
         Case(Try_me_dynamic, I_Try_me_dynamic)
         Case(Retry_me_dynamic, I_Retry_me_dynamic)
         Case(Clause, I_Clause)
-#endif
-/***** obsolete/unused *****/
 	Case(Neckcut_par, I_Neckcut_par)
 	Case(Neckcut, I_Neckcut)
 /***** not yet implemented *****/
@@ -8070,6 +7966,9 @@ emu_break(void) {}	/* a dummy function to put a breakpoint in */
  * Signal handler for WAM-level profiling
  *--------------------------------------------------*/
 
+/* This handler works on the default engine! */
+#define ec_eng default_eng
+
 #if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
 
 #include <signal.h>
@@ -8077,7 +7976,6 @@ emu_break(void) {}	/* a dummy function to put a breakpoint in */
 #ifndef REG_ESI
 #define REG_ESI ESI	/* e.g. on Solaris 10 */
 #endif
-
 
 RETSIGTYPE
 sigprof_handler(int signr, siginfo_t* dummy, void *context)

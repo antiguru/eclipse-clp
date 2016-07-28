@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.17 2015/05/05 15:11:30 jschimpf Exp $
+ * $Id: os_support.c,v 1.18 2016/07/28 03:34:36 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -39,6 +39,12 @@
  *----------------------------------------------------------------------*/
 
 #include "config.h"
+
+#ifdef _WIN32
+#define DLLEXP __declspec(dllexport)
+#else
+#define DLLEXP
+#endif
 #include "os_support.h"
 
 /*----------------------------------------------------------------------*
@@ -54,11 +60,7 @@
 #include <ctype.h>	/* for toupper() etc */
 
 #ifdef _WIN32
-#if (HAVE_WIN32_WINNT >= 0x500)
-#define _WIN32_WINNT 0x500	/* for GetLongPathName() */
-#else
-#define _WIN32_WINNT HAVE_WIN32_WINNT
-#endif
+
 /* FILETIMEs are in 100 nanosecond units */
 #define FileTimeToDouble(t) ((double) (t).dwHighDateTime * 429.4967296 \
 			    + (double) (t).dwLowDateTime * 1e-7)
@@ -112,7 +114,7 @@ extern char *getenv();
 #include <net/if.h>
 #endif
 
-#ifdef HAVE_PTHREAD_H
+#if !defined(_WIN32) && defined(HAVE_PTHREAD_H)
 #include <pthread.h>
 #endif
 
@@ -158,6 +160,12 @@ int		ec_os_errgrp_;	/* which group of error numbers it is from */
 
 int		ec_use_own_cwd = 0;
 static char	ec_cwd[MAX_PATH_LEN];	/* should always have a trailing '/' */
+
+
+#if !defined(_WIN32) && defined(HAVE_PTHREAD_H)
+static pthread_mutexattr_t recursive_mutex_attr;
+static pthread_mutexattr_t checked_mutex_attr;
+#endif
 
 
 /*----------------------------------------------------------------------*
@@ -212,6 +220,13 @@ ec_os_init(void)
 
     ec_use_own_cwd = 0;
     (void) get_cwd(ec_cwd, MAX_PATH_LEN);
+
+#if !defined(_WIN32) && defined(HAVE_PTHREAD_H)
+    pthread_mutexattr_init(&recursive_mutex_attr);
+    pthread_mutexattr_settype(&recursive_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutexattr_init(&checked_mutex_attr);
+    pthread_mutexattr_settype(&checked_mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
+#endif
 }
 
 
@@ -883,23 +898,28 @@ get_cwd(char *buf, int size)
     /* Signal blocking here is to work around a bug that occurred
      * on Suns when the profiler signal interupts getcwd()
      */
-# ifdef HAVE_SIGPROCMASK
+#if !defined(_WIN32) && defined(HAVE_PTHREAD_H)
+    sigset_t old_mask, block_mask;
+    (void) sigemptyset(&block_mask);
+    (void) sigaddset(&block_mask, SIGPROF);
+    (void) pthread_sigmask(SIG_BLOCK, &block_mask, &old_mask);
+# elif defined(HAVE_SIGPROCMASK)
     sigset_t old_mask, block_mask;
     (void) sigemptyset(&block_mask);
     (void) sigaddset(&block_mask, SIGPROF);
     (void) sigprocmask(SIG_BLOCK, &block_mask, &old_mask);
-# else
-#  ifdef HAVE_SIGVEC
+# elif defined(HAVE_SIGVEC)
     int old_mask = sigblock(sigmask(SIGPROF));
-#  endif
 # endif
+
     s = getcwd(buf1, (size_t) MAX_PATH_LEN);
-# ifdef HAVE_SIGPROCMASK
+
+#if !defined(_WIN32) && defined(HAVE_PTHREAD_H)
+    (void) pthread_sigmask(SIG_SETMASK, &old_mask, (sigset_t *) 0);
+# elif defined(HAVE_SIGPROCMASK)
     (void) sigprocmask(SIG_SETMASK, &old_mask, (sigset_t *) 0);
-# else
-#  ifdef HAVE_SIGVEC
+# elif defined(HAVE_SIGVEC)
     (void) sigsetmask(old_mask);
-#  endif
 # endif
 #else
     s = getwd(buf1);	/* system or our own definition from getwd.c */
@@ -1093,6 +1113,29 @@ ec_date_string(char *buf)
 }
 
 
+#ifndef _WIN32
+
+static void
+_future_time(int ms_offset, struct timespec *pts)
+{
+    long ns;
+#ifdef HAVE_CLOCK_GETTIME
+    clock_gettime(CLOCK_REALTIME, pts);
+    ns = pts->tv_nsec + (ms_offset%1000)*1000000;
+    pts->tv_nsec = ns%1000000000L;
+    pts->tv_sec += (time_t) (ms_offset/1000 + ns/1000000000L);
+#else
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    ns = tv.tv_usec*1000 + (ms_offset%1000)*1000000;
+    pts->tv_nsec = ns%1000000000L;
+    pts->tv_sec = tv.tv_sec + (time_t) (ms_offset/1000 + ns/1000000000L);
+#endif
+}
+
+#endif
+
+
 /*----------------------------------------------------------------------*
  * Other system services
  *----------------------------------------------------------------------*/
@@ -1203,14 +1246,14 @@ ec_gethostid(char *buf, int len)
     }
     else /* use gethostid() if it didn't work */
     {
-	(void) sprintf(buf, "H#%d", gethostid());
+	(void) sprintf(buf, "H#%ld", gethostid());
     }
     close(sockFd);
 
 
 #else
 
-    (void) sprintf(buf, "H#%d", gethostid());
+    (void) sprintf(buf, "H#%ld", gethostid());
 
 #endif
 #endif
@@ -1306,8 +1349,8 @@ ec_bad_exit(char *msg)
 #ifdef _WIN32
     FatalAppExit(0, msg);
 #else
-    (void) write(2, msg, strlen(msg));
-    (void) write(2, "\n", 1);
+    if(write(2, msg, strlen(msg))) /*ignore*/;
+    if(write(2, "\n", 1)) /*ignore*/;
     exit(-1);
 #endif
 }
@@ -1391,12 +1434,309 @@ int strcmp(char *s1, char *s2)
 
 
 /*----------------------------------------------------------------------
- * Simple thread interface
+ * Thin abstraction wrappers for threads, mutexes and condition variables
  *----------------------------------------------------------------------*/
 
 #ifdef _WIN32
 
-typedef struct {
+int
+ec_thread_create(void **os_thread, void*(*fun)(void*), void *arg)
+{
+    HANDLE t;
+    DWORD thread_id;
+
+    /* Stack: default reserved size is 1MB. dwStackSize normally specifies
+     * committed size, and if committed>reserved, then reserved:=committed.
+     * If dwCreationFlags=STACK_SIZE_PARAM_IS_A_RESERVATION, dwStackSize
+     * specifies the reserved stack size, and commit size is automatic.
+     * The former seems useful to specify min, that latter for max size.
+     */
+    t = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) fun, (LPVOID) arg, 0, &thread_id);
+    if (!t)
+    	return (int)GetLastError();
+    if (!CloseHandle(t)) {
+    	return (int)GetLastError();
+    }
+    *os_thread = (void*)(DWORD_PTR)thread_id;
+    return 0;
+}
+
+void *
+ec_thread_self(void)
+{
+    return (void*)(DWORD_PTR)GetCurrentThreadId();
+}
+
+void
+ec_thread_exit(void* retval)
+{
+    ExitThread((DWORD)(DWORD_PTR)retval);
+}
+
+
+int
+ec_mutex_init(CRITICAL_SECTION *pm, int recursive)
+{
+    InitializeCriticalSection(pm);	/* always recursive */
+    return 1;
+}
+
+int
+ec_mutex_destroy(CRITICAL_SECTION *pm)
+{
+    DeleteCriticalSection(pm);
+    return 1;
+}
+
+int
+ec_mutex_lock(CRITICAL_SECTION *pm)
+{
+    EnterCriticalSection(pm);
+    return 1;
+}
+
+int
+ec_mutex_trylock(CRITICAL_SECTION *pm) /* returns 1 (lock), -1 (busy), 0 (error) */
+{
+    return TryEnterCriticalSection(pm) ? 1 : -1;
+}
+
+int
+ec_mutex_unlock(CRITICAL_SECTION *pm)
+{
+    LeaveCriticalSection(pm);
+    return 1;
+}
+
+/* ONLY FOR DEVELOPMENT: uses undocumented Windows internals */
+int
+ec_mutex_was_locked(CRITICAL_SECTION *pm)
+{
+    return pm->LockCount;
+}
+
+
+int
+ec_cond_init(CONDITION_VARIABLE *pcv)
+{
+    InitializeConditionVariable(pcv);
+    return 0;
+}
+
+int
+ec_cond_destroy(CONDITION_VARIABLE *pcv)
+{
+    return 0;
+}
+
+int
+ec_cond_signal(CONDITION_VARIABLE *pcv, int all)
+{
+    if (all) WakeAllConditionVariable(pcv);
+    else WakeConditionVariable(pcv);
+    return 0;
+}
+
+int
+ec_cond_wait(CONDITION_VARIABLE *pcv, CRITICAL_SECTION *pm, int timeout_ms)
+{
+    int res = SleepConditionVariableCS(pcv, pm, timeout_ms>=0? (DWORD)timeout_ms : INFINITE);
+    if (res)
+	return 0;
+    res = GetLastError();
+    return res==ERROR_TIMEOUT? -1 : res;
+}
+
+
+#elif defined(HAVE_PTHREAD_H)
+
+/**
+ * Simple general (detached) thread creation.
+ * Returns 0 on success (result in *os_thread), OS error code otherwise.
+ */
+
+int
+ec_thread_create(void **os_thread, void*(*fun)(void*), void *arg)
+{
+    int res;
+    sigset_t block, old;
+
+    sigfillset(&block);				/* block all signals */
+    pthread_sigmask(SIG_BLOCK, &block, &old);	/* thread will inherit */
+    res = pthread_create((pthread_t*) os_thread, NULL, fun, arg);
+    if (res == 0)
+	res = pthread_detach(*(pthread_t*)os_thread);
+    pthread_sigmask(SIG_SETMASK, &old, NULL);	/* reset signal mask */
+    return res;
+}
+
+void *
+ec_thread_self(void)
+{
+    return (void*) pthread_self();
+}
+
+void
+ec_thread_exit(void* retval)
+{
+    pthread_exit(retval);
+}
+
+
+int
+ec_mutex_init(pthread_mutex_t *pm, int recursive)
+{
+    int res = pthread_mutex_init(pm, recursive? &recursive_mutex_attr :
+#if 0
+	NULL
+#else
+	&checked_mutex_attr
+#endif
+	);
+    assert(!res);
+    if (res) {
+	Set_Sys_Errno(res, ERRNO_UNIX);
+	return 0;
+    }
+    return 1;
+}
+
+int
+ec_mutex_destroy(pthread_mutex_t *pm)
+{
+    int res;
+    for(;;) {
+	res = pthread_mutex_destroy(pm);
+	if (res != EBUSY)
+	    break;
+	/* if locked, try to unlock and retry */
+	if (pthread_mutex_unlock(pm) != 0)
+	    break;
+    }
+    if (res) {
+	Set_Sys_Errno(res, ERRNO_UNIX);
+	return 0;
+    }
+    return 1;
+}
+
+int
+ec_mutex_lock(pthread_mutex_t *pm)
+{
+    int res = pthread_mutex_lock(pm);
+    assert(!res);
+    if (res) {
+	Set_Sys_Errno(res, ERRNO_UNIX);
+	return 0;
+    }
+    return 1;
+}
+
+int
+ec_mutex_trylock(pthread_mutex_t *pm) /* returns 1 (lock), -1 (busy), 0 (error) */
+{
+    int res = pthread_mutex_trylock(pm);
+    if (res == 0)
+    	return 1;
+    if (res == EBUSY)
+    	return -1;
+    Set_Sys_Errno(res, ERRNO_UNIX);
+    return 0;
+}
+
+int
+ec_mutex_unlock(pthread_mutex_t *pm)
+{
+    int res = pthread_mutex_unlock(pm);
+    if (res) {
+	Set_Sys_Errno(res, ERRNO_UNIX);
+	return 0;
+    }
+    return 1;
+}
+
+/* ONLY FOR DEVELOPMENT: uses undocumented pthread internals */
+int
+ec_mutex_was_locked(pthread_mutex_t *pm)
+{
+    return pm->__data.__lock;
+}
+
+
+
+/**
+ * Intialize a condition variable
+ * @return	0 on success, or OS error code
+ */
+int
+ec_cond_init(pthread_cond_t *pcv)
+{
+    return pthread_cond_init(pcv, NULL);
+}
+
+int
+ec_cond_destroy(pthread_cond_t *pcv)
+{
+    return pthread_cond_destroy(pcv);
+}
+
+/**
+ * Signal a condition variable
+ * @return	0 on success, or OS error code
+ */
+int
+ec_cond_signal(pthread_cond_t *pcv, int all)
+{
+    if (all) return pthread_cond_broadcast(pcv);
+    else return pthread_cond_signal(pcv);
+}
+
+/**
+ * Wait for condition variable.
+ * @param pcv		pointer to condition variable
+ * @param pm		pointer to associated mutex
+ * @param timeout_ms	timeout in milliseconds, <0 means no timeout
+ * @return -1 for timeout, 0 if wait succeeded, >0 OS error code
+ *
+ * Usage:
+ *
+ *	ec_mutex_lock(&mutex);
+ *	while (!stop_condition) {
+ *	    res = ec_cond_wait(&cv, &mutex, timeout_ms);
+ *	    if (res)
+ *		if (res < 0) timeout
+ *		else error(res)
+ *	}
+ *	do something
+ *	ec_mutex_unlock(&mutex);
+ */
+int
+ec_cond_wait(pthread_cond_t *pcv, pthread_mutex_t *pm, int timeout_ms)
+{
+    int res;
+    if (timeout_ms >= 0) {
+	struct timespec timeout_spec;
+	_future_time(timeout_ms, &timeout_spec);
+	res = pthread_cond_timedwait(pcv, pm, &timeout_spec);
+    } else {
+	res = pthread_cond_wait(pcv, pm);
+    }
+    return res==0? 0 : res==ETIMEDOUT? -1 : res;
+}
+
+
+#else
+#error "Synchronization primitives not supported"
+#endif
+
+
+/*----------------------------------------------------------------------
+ * Simple thread interface (to be phased out)
+ *----------------------------------------------------------------------*/
+
+#ifdef _WIN32
+
+typedef struct thread_data {
     HANDLE thread_handle;
 
     /* this event signals that a function and data has been supplied */
@@ -1485,30 +1825,12 @@ ec_make_thread(void)
 
 
 /*
- * Test whether the thread has finished (without waiting).
- * Returns: 1 if thread stopped, 0 otherwise
- * If stopped, *result contains the result of the thread computation>
- */
-
-int
-ec_thread_stopped(void *desc, int *result)
-{
-    if (!((thread_data*)desc)->fun)
-    {
-	*result = ((thread_data*)desc)->result;
-	return 1;
-    }
-    return 0;
-}
-
-
-/*
  * Wait for the thread to finish (max timeout milliseconds)
  * timeout == -1:	wait indefinitely
  * timeout == 0:	don't wait
  * timeout > 0:		wait timeout milliseconds
  * Returns: 1 if thread stopped, 0 otherwise
- * If stopped, *result contains the result of the thread computation>
+ * If stopped, *result contains the result of the thread computation
  */
 
 int
@@ -1617,7 +1939,222 @@ ec_thread_terminate(void *desc, int timeout)
     return thread_exit_code;	/* 0 or 1 */
 }
 
+
+#elif defined(HAVE_PTHREAD_H)
+
+typedef struct thread_data {
+    pthread_t thread_handle;
+    pthread_mutex_t mutex;
+
+    /* this event signals that a function and data has been supplied */
+    pthread_cond_t start_event;
+
+    /* this event signals that the function has terminated */
+    pthread_cond_t done_event;
+
+    /* the function to execute (or currently executing),
+     * NULL indicates idle,
+     * _termination_indicator indicates thread terminated
+     */
+    int (* volatile fun)(void *);
+
+    /* argument for the function call: valid iff fun!=NULL */
+    void * volatile data;
+
+    /* result of the function call: valid iff fun==NULL */
+    int volatile result;
+
+    /* terminate after current job is done */
+    int detached;
+
+} thread_data;
+
+
+static int
+_termination_indicator(void *dummy)
+{
+    return 0;
+}
+
+
+/* The general thread procedure */
+
+static void
+_thread_cleanup(thread_data *desc)
+{
+    pthread_mutex_destroy(&desc->mutex);
+    pthread_cond_destroy(&desc->start_event);
+    pthread_cond_destroy(&desc->done_event);
+    pthread_detach(desc->thread_handle);
+    free(desc);
+}
+
+static int
+ec_fun_thread(thread_data *desc)
+{
+    pthread_cleanup_push((void(*)(void*))_thread_cleanup, desc);
+    pthread_mutex_lock(&desc->mutex);
+    for(;;)
+    {
+	int res;
+
+	while (!desc->fun) {			/* wait for a start_event */
+	    res = pthread_cond_wait(&desc->start_event, &desc->mutex);
+	    if (res) ec_bad_exit("ECLiPSe: thread wait failed");
+	}
+	pthread_mutex_unlock(&desc->mutex);
+
+	res = (*desc->fun)(desc->data);		/* run function ...	*/
+						/* (may get cancelled)	*/
+
+	pthread_mutex_lock(&desc->mutex);
+	if (desc->detached)			/* terminate if requested */
+	    break;
+	desc->result = res;			/* ... and signal stopping */
+	desc->fun = NULL;
+	pthread_cond_signal(&desc->done_event);
+    }
+    pthread_mutex_unlock(&desc->mutex);
+    pthread_cleanup_pop(1);
+    return 1;
+}
+
+
+void *
+ec_make_thread(void)	/* with all signals blocked */
+{
+    int res;
+    sigset_t block, old;
+    thread_data *desc = malloc(sizeof(thread_data));
+
+    desc->fun = NULL;
+    desc->detached = 0;
+
+    sigfillset(&block);				/* block all signals */
+    pthread_sigmask(SIG_BLOCK, &block, &old);	/* thread will inherit */
+
+    if ((res = pthread_mutex_init(&desc->mutex, NULL))
+     || (res = pthread_cond_init(&desc->start_event, NULL))
+     || (res = pthread_cond_init(&desc->done_event, NULL))
+     || (res = pthread_create(&desc->thread_handle, NULL,
+	    (void*(*)(void*))ec_fun_thread, (void*) desc))
+    )
+    {
+	Set_Sys_Errno(res, ERRNO_UNIX);
+	free(desc);
+	desc = NULL;
+    }
+    pthread_sigmask(SIG_SETMASK, &old, NULL);	/* reset signal mask */
+    return (void *) desc;
+}
+
+
+/*
+ * Wait for the thread to finish executing fun(data) (max timeout milliseconds)
+ * timeout == -1:	wait indefinitely
+ * timeout == 0:	don't wait
+ * timeout > 0:		wait timeout milliseconds
+ * Returns: 1 if thread stopped, 0 otherwise
+ * If stopped, *result contains the result of the thread computation
+ */
+
+int
+ec_thread_wait(void *vdesc, int *result, int timeout)
+{
+    thread_data *desc = (thread_data*) vdesc;
+    int res = 0;
+    int stopped;
+    struct timespec timeout_spec;
+
+    if (timeout >= 0)
+	_future_time(timeout, &timeout_spec);
+
+    pthread_mutex_lock(&desc->mutex);
+    while (!((stopped = (desc->fun == NULL)) || res == ETIMEDOUT))
+    {
+	res = timeout >= 0
+		? pthread_cond_timedwait(&desc->done_event, &desc->mutex, &timeout_spec)
+		: pthread_cond_wait(&desc->done_event, &desc->mutex);
+	if (res  &&  res != ETIMEDOUT)
+	    ec_bad_exit("ECLiPSe: thread wait failed");
+    }
+    if (stopped)
+	*result = desc->result;
+    pthread_mutex_unlock(&desc->mutex);
+    return stopped;
+}
+
+
+/*
+ * Let the thread execute the function fun(data).
+ * Returns: 1 if successfully started, 0 if still busy or terminated
+ */
+
+int
+ec_start_thread(void *vdesc, int (*fun)(void *), void *data)
+{
+    thread_data *desc = (thread_data*) vdesc;
+
+    pthread_mutex_lock(&desc->mutex);
+    if (desc->fun) {
+	pthread_mutex_unlock(&desc->mutex);
+    	return 0;	/* thread still busy or terminated */
+    }
+    desc->detached = 0;
+    desc->data = data;
+    desc->fun = fun;
+    pthread_cond_signal(&desc->start_event);
+    pthread_mutex_unlock(&desc->mutex);
+    return 1;
+}
+
+/*
+ * Terminate the thread. This should only be done when already stopped.
+ * Returns: 1 if cleanly terminated, 0 if detached, -1 error
+ */
+int
+ec_thread_terminate(void *vdesc, int timeout)
+{
+    thread_data *desc = (thread_data*) vdesc;
+    int dummy, res;
+    int return_code = 1;
+
+    pthread_mutex_lock(&desc->mutex);
+    desc->detached = 1;
+    if (desc->fun)
+    {
+	pthread_mutex_unlock(&desc->mutex);
+	pthread_cancel(desc->thread_handle);
+	return 0;
+    }
+    else
+    {
+	/* restart the detached thread with dummy function: leads to termination */
+	desc->fun = _termination_indicator;
+	pthread_cond_signal(&desc->start_event);
+	pthread_mutex_unlock(&desc->mutex);
+	return 1;
+    }
+}
+
 #endif
+
+/*
+ * Test whether the thread has finished (without waiting).
+ * Returns: 1 if thread stopped, 0 otherwise
+ * If stopped, *result contains the result of the thread computation>
+ */
+
+int
+ec_thread_stopped(void *desc, int *result)
+{
+    if (!((thread_data*)desc)->fun)
+    {
+	*result = ((thread_data*)desc)->result;
+	return 1;
+    }
+    return 0;
+}
 
 
 /*----------------------------------------------------------------------
@@ -2048,18 +2585,18 @@ ec_set_alarm(
     {
 	alarm_thread.terminate_req = 0;
 	alarm_thread.running = 0;
-        if (pthread_mutex_init(&alarm_thread.mutex, NULL)
-         || pthread_cond_init(&alarm_thread.time_set_event, NULL)
-         || pthread_cond_init(&alarm_thread.time_accept_event, NULL)
-         || pthread_mutex_lock(&alarm_thread.mutex)
-	 || pthread_create(&alarm_thread.thread_handle, NULL,
-                (void*(*)(void*))ec_alarm_thread, (void*) &alarm_thread)
+        if ((res = pthread_mutex_init(&alarm_thread.mutex, NULL))
+         || (res = pthread_cond_init(&alarm_thread.time_set_event, NULL))
+         || (res = pthread_cond_init(&alarm_thread.time_accept_event, NULL))
+         || (res = pthread_mutex_lock(&alarm_thread.mutex))
+	 || (res = pthread_create(&alarm_thread.thread_handle, NULL,
+                (void*(*)(void*))ec_alarm_thread, (void*) &alarm_thread))
             /* wait for ec_alarm_thread to be ready */
-         || pthread_cond_wait(&alarm_thread.time_accept_event, &alarm_thread.mutex)
+         || (res = pthread_cond_wait(&alarm_thread.time_accept_event, &alarm_thread.mutex))
         )
         {
             pthread_mutex_unlock(&alarm_thread.mutex);
-	    Set_Sys_Errno(errno, ERRNO_UNIX);
+	    Set_Sys_Errno(res, ERRNO_UNIX);
 	    return 0;
         }
     }
@@ -2081,7 +2618,7 @@ ec_set_alarm(
     pthread_mutex_unlock(&alarm_thread.mutex);
     if (res)
     {
-        Set_Sys_Errno(errno, ERRNO_UNIX);
+        Set_Sys_Errno(res, ERRNO_UNIX);
 	return 0;
     }
 
@@ -2098,6 +2635,7 @@ ec_set_alarm(
 int
 ec_terminate_alarm()
 {
+    int res;
     void *thread_exit_code = NULL;
 
     if (!alarm_thread.thread_handle)
@@ -2110,9 +2648,9 @@ ec_terminate_alarm()
     pthread_mutex_unlock(&alarm_thread.mutex);
 
     /* wait for termination */
-    if (pthread_join(alarm_thread.thread_handle, &thread_exit_code))
+    if ((res = pthread_join(alarm_thread.thread_handle, &thread_exit_code)))
     {
-        Set_Sys_Errno(errno, ERRNO_UNIX);
+        Set_Sys_Errno(res, ERRNO_UNIX);
 	return -1;
     }
 

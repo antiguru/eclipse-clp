@@ -23,7 +23,7 @@
 /*
  * ECLiPSe C SOURCE MODULE
  *
- * $Id: eclipsedir.c,v 1.1 2008/06/30 17:43:53 jschimpf Exp $
+ * $Id: eclipsedir.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  *
  * Note that this file is used by different executables
  * (eclipse, worker manager)
@@ -31,6 +31,7 @@
  */
 
 #include "config.h"
+#include "ec_public.h"
 #include "os_support.h"
 
 #ifdef STDC_HEADERS

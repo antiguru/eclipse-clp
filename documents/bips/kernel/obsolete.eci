@@ -25,6 +25,9 @@
 :- comment(categories, ["Built-In Predicates","Compatibility"]).
 
 :- tool(abolish_op / 2).
+:- tool(b_external / 1).
+:- tool(b_external / 2).
+:- tool(block / 3).
 :- tool(call_explicit / 2).
 :- tool(event_create / 2).
 :- tool(global_op / 3).
@@ -33,6 +36,8 @@
 :- tool(make_array / 2).
 :- tool(make_local_array / 1).
 :- tool(make_local_array / 2).
+:- tool(mutex / 2).
+:- tool(mutex_init / 1).
 :- tool(erase_macro / 1).
 :- tool(local_record / 1).
 :- tool(abolish_record / 1).
@@ -42,6 +47,7 @@
 :- tool(portray_goal / 2).
 :- tool(tool / 1).
 :- tool(retract_all / 1).
+:- tool(mutex / 2).
 
 :- comment(lib / 2, [
 	summary:"The library LibraryName is loaded into the module ModuleName if not loaded
@@ -3007,6 +3013,104 @@ Error:
 ",
         see_also:[open / 3, open / 4, close / 1, get_stream_info / 3, stream_select / 3]]).
 
+
+:- comment(mutex_init / 1, [
+	summary:"Initialise the mutual exclusion lock MutexId",
+	amode:(mutex_init(+) is det),
+	desc:html("\
+   This built-in is used in parallel programs in connection with mutex/2
+   to implement mutual exclusion between parallel workers.
+    "),
+	args:["MutexId" : "Atom."],
+	exceptions:[4 : "MutexId is not instantiated",
+		5 : "MutexId is not an atom"],
+	see_also:[mutex/ 2]]).
+
+
+:- comment(mutex / 2, [
+	summary:"Equivalent to once(Goal) but with mutual exclusion among parallel workers.
+
+",
+	amode:(mutex(+,+) is det),
+	desc:html("   This built-in can be used in parallel programs to implement mutual
+   exclusion between parallel workers.  A Goal that is called via mutex/2
+   can be sure that no parallel worker is executing at the same time any
+   goal that is protected by a mutex/2 with the same MutexId.
+
+<P>
+   Note that in a side effect free program there is no need ever to worry
+   about mutual exclusion.  Only when side effects are involved (e.g.
+   read/1,2 and write/1,2, assert/1, setval/2, record/2 etc.)  it may be
+   necessary to acquire exclusive access to the common resource by using
+   mutex/2.
+
+<P>
+"),
+	args:["MutexId" : "Atom.", "Goal" : "Atom or compound term."],
+	fail_if:"Fails if Goal fails",
+	exceptions:[4 : "Goal is not instantiated.", 5 : "Goal is not an atom or a compound term."],
+	eg:"
+    :- mutex_init(my_lock).
+
+    atomic_write_list(List) :-
+        % make sure the list is printed in one chunk
+        mutex(my_lock, write_list(List)).
+
+    write_list([]) :- nl.
+    write_list([X|Xs]) :- writeln(X), write_list(Xs).
+
+    [eclipse]: generate_lists_in_parallel(L),
+               atomic_write_list(L), fail.
+
+
+
+",
+	see_also:[mutex_init / 1, (once) / 1]]).
+
+
+:- comment(block / 3, [
+	summary:"Equivalent to call(Goal) if Goal succeeds or fails.
+If Goal throws an exception that unifies with Catcher, Recovery is executed",
+	args:["Goal" : "A callable term.",
+		"Catcher" : "Any term.",
+		"Recovery" : "A callable term."],
+	desc:"This is a deprecated alias for catch/3 - see there.",
+	resat:"Resatisfiable if Goal is resatisfiable, or Goal exits and Recovery is resatisfiable",
+	fail_if:"Fail if Goal fails, or if Goal exits and Recovery fails",
+	see_also:[catch/3, throw/1, exit_block/1]]).
+
+:- comment(exit_block / 1, [
+	summary:"Throw an exception described by Ball. Continue execution
+at the recovery procedure of a matching ancestor catch/3 or block/3",
+	desc:"This is a deprecated alias for throw/1 - see there.",
+	amode:(exit_block(+) is erroneous),
+	args:["Ball" : "Any term, but no variable"],
+	exceptions:[
+	    4 : "Ball is uninstantiated.",
+	    230 : "Ball does not unify with a Catcher of any uncompleted call of catch/3 or block/3."],
+	see_also:[throw/1, catch/3, block/3]]).
+
+
+:- comment(reference / 1, [
+	summary:"Creates a named reference called Name.",
+	template:"local reference(+Name)",
+	amode:(reference(+) is det),
+	desc:html("\
+   This creates a named reference with the atomic name Name and an initial
+   value of 0.  This form is deprecated, please use the equivalent
+<PRE>
+        local reference(Name, 0).	
+</PRE>
+"),
+	args:["Name" : "An atom."],
+	exceptions:[4 : "Name is not instantiated.",
+	    5 : "Name is not an atom."],
+	eg:"
+
+",
+	see_also:[reference/2]]).
+
+
 :- comment(number_sort / 4, [
 	summary:"Succeeds if Sorted is the numerically sorted list
 	version of Random.  The sort is done according to the Key and
@@ -3164,3 +3268,4 @@ Error:
 
 ",
 	see_also:[merge / 3, merge / 5, number_merge / 3]]).
+

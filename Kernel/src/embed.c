@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.7 2013/04/17 01:34:21 jschimpf Exp $
+ * $Id: embed.c,v 1.8 2016/07/28 03:34:36 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -62,456 +62,6 @@ extern char *	strcpy();
 #endif
 
 
-/*
- * EXTERN declarations
- */
-
-extern int	eclipse_global_init(int init_flags);
-extern int	eclipse_boot(char *initfile);
-extern int	mem_init(int flags);
-
-
-/*
- * Global state
- */
-
-#ifdef _WIN32
-static void *resume_thread = NULL;
-#endif
-
-
-/*----------------------------------------------------------------------
- * Setting the initialisation options
- *----------------------------------------------------------------------*/
-
-/* backwards compatibility */
-int Winapi
-ec_set_option_int(int opt, int val)
-{
-    return ec_set_option_long(opt, (word) val);
-}
-
-int Winapi
-ec_set_option_long(int opt, word val)
-{
-    switch (opt) {
-    case EC_OPTION_PARALLEL_WORKER:	ec_options.parallel_worker = (int) val; break;
-    case EC_OPTION_ARGC:	ec_options.Argc = (int) val; break;
-    case EC_OPTION_LOCALSIZE:	ec_options.localsize = val; break;
-    case EC_OPTION_GLOBALSIZE:	ec_options.globalsize = val; break;
-    case EC_OPTION_PRIVATESIZE:	ec_options.privatesize = val; break;
-    case EC_OPTION_SHAREDSIZE:	ec_options.sharedsize = val; break;
-    case EC_OPTION_ALLOCATION:	ec_options.allocation = (int) val; break;
-    case EC_OPTION_IO:		ec_options.io_option = (int) val; break;
-    case EC_OPTION_INIT:	ec_options.init_flags = val; break;
-    case EC_OPTION_DEBUG_LEVEL:	ec_options.debug_level = val; break;
-    case EC_OPTION_CWD_SEPARATE:ec_use_own_cwd = (int) val; break;
-    default:			return RANGE_ERROR;
-    }
-    return PSUCCEED;
-}
-
-int Winapi
-ec_set_option_ptr(int opt, void *val)
-{
-    switch (opt) {
-    case EC_OPTION_MAPFILE:	ec_options.mapfile = (char *) val; break;
-    case EC_OPTION_ARGV:	ec_options.Argv = (char **) val; break;
-    case EC_OPTION_PANIC:	ec_options.user_panic = (void(*)(const char*,const char *)) val; break;
-    case EC_OPTION_DEFAULT_MODULE:	ec_options.default_module = (char *) val; break;
-    case EC_OPTION_DEFAULT_LANGUAGE:	ec_options.default_language = (char *) val; break;
-    case EC_OPTION_ECLIPSEDIR:	ec_options.eclipse_home = (char *) val; break;
-    default:			return RANGE_ERROR;
-    }
-    return PSUCCEED;
-}
-
-/*----------------------------------------------------------------------
- * Initialising an embedded Eclipse
- *----------------------------------------------------------------------*/
-
-int Winapi
-ec_init(void)
-{
-    char *	initfile = (char *) 0;
-    char	filename_buf[MAX_PATH_LEN];
-    pword	goal,module;
-    int		res;
-
-    
-    /*----------------------------------------------------------------
-     * Make the connection to the shared heap, if any.
-     * Because of mmap problems on some machines this should
-     * happen AFTER initializing the message passing system.
-     *----------------------------------------------------------------*/
-    mem_init(ec_options.init_flags);	/* depends on -c and -m options */
-
-    /*
-     * Init the global (shared) eclipse structures, dictionary, code...
-     * Maybe load a saved state.
-     * Note that we don't have an engine yet!
-     */
-    eclipse_global_init(ec_options.init_flags);
-
-
-    /*----------------------------------------------------------------
-     * Setup the Prolog engine
-     *----------------------------------------------------------------*/
-    /*
-     * Initialize the Prolog engine
-     */
-    emu_init(ec_options.init_flags, 0);
-
-    initfile = strcat(strcpy(filename_buf, ec_eclipse_home), "/lib/kernel.eco");
-    if (ec_access(initfile, R_OK) < 0)
-    {
-	initfile = strcat(strcpy(filename_buf, ec_eclipse_home), "/lib/kernel.pl");
-	if (ec_access(initfile, R_OK) < 0)
-	{
-	    ec_panic("Aborting: Can't find boot file! Please check either\na) your program's setting for eclipsedir in ec_set_option(), or\nb) your setting for ECLIPSEDIR environment variable.\n","ec_init()");
-	}
-    }	    
-
-    res = eclipse_boot(initfile);
-    if (res != PSUCCEED)
-    	return res;
-
-    goal = ec_term(ec_did("main",1), ec_long(ec_options.init_flags & INIT_SHARED ? 0 : 1));
-    module.val.did = ec_.d.kernel_sepia;
-    module.tag.kernel = ModuleTag(ec_.d.kernel_sepia);
-    if (main_emulc_noexit(goal.val, goal.tag, module.val, module.tag) != PYIELD)
-	return PFAIL;
-    return PSUCCEED;
-}
-
-void
-ec_embed_fini(void)
-{
-#ifdef _WIN32
-    if (resume_thread)
-    {
-	(void) ec_thread_terminate(resume_thread, 3000/*ms timeout*/);
-	resume_thread = NULL;
-    }
-#endif
-    hp_free(ec_eclipse_home);
-    ec_eclipse_home = 0;
-}
-
-/*----------------------------------------------------------------------
- * Posting goals
- *----------------------------------------------------------------------*/
-
-void Winapi
-ec_post_goal(const pword goal)
-{
-    pword *pw;
-
-    if (g_emu_.nesting_level > 1)
-	ec_panic("can't post goal to nested engine","ec_post_goal()");
-
-    pw = TG;					/* new list element */
-    Push_List_Frame();
-    pw[0] = goal;
-    Make_Var(&pw[1]);
-
-    Bind_(POSTED_LAST.val.ptr, pw, TLIST);	/* append */
-    ec_assign(&POSTED_LAST, pw[1].val, pw[1].tag);
-}
-
-static pword
-_get_posted_goals(void)
-{
-    pword posted, empty;
-
-    /* terminate the posted-goals-list and copy its beginning */
-    Bind_(POSTED_LAST.val.ptr, 0, TNIL);
-    posted = POSTED;
-
-    /* reinitialise the list to an empty difference list */
-    Make_Ref(&empty, TG);
-    Push_Var();
-    ec_assign(&POSTED, empty.val, empty.tag);
-    ec_assign(&POSTED_LAST, empty.val, empty.tag);
-
-    return posted;
-}
-
-void Winapi
-ec_post_string(const char *callstring)
-{
-    ec_post_goal(ec_term(ec_.d.colon,
-	ec_atom(ec_.d.kernel_sepia),
-	ec_term(ec_did("exec_string",2), ec_string(callstring), ec_newvar())));
-}
-
-void Winapi
-ec_post_exdr(int length, const char *exdr_string)
-{
-    ec_post_goal(ec_term(ec_.d.colon,
-	ec_atom(ec_.d.kernel_sepia),
-    	ec_term(ec_did("exec_exdr",1), ec_length_string(length, exdr_string))));
-}
-
-int Winapi
-ec_exec_string(
-    	char *callstring,
-	ec_ref varsref)		/* NULL is allowed */
-{
-    pword	vars;
-    dident exec_string_2 =  enter_dict("exec_string",2);
-    
-    vars = ec_newvar();
-    if (varsref)
-	ec_ref_set(varsref, vars);
-    ec_post_goal(ec_term(ec_.d.colon,
-	ec_atom(ec_.d.kernel_sepia),
-	ec_term(exec_string_2, ec_string(callstring), vars)));
-	    
-    return ec_resume1(0);
-}
-
-
-/*----------------------------------------------------------------------
- * Resuming Eclipse execution
- *----------------------------------------------------------------------*/
-
-int Winapi
-ec_resume(void)
-{
-    return ec_resume1(0);
-}
-
-int Winapi
-ec_resume1(ec_ref chp)
-{
-    return ec_resume2(_get_posted_goals(), chp);
-}
-
-int Winapi
-ec_resume2(const pword term, ec_ref chp)
-{
-    int res;
-    pword * pw;
-    pword tterm;
-    /* this assignment is needed to get around a compiler bug on Alpha Linux
-       that otherwise corrupts chp
-    */
-    tterm = term;
-
-    if (g_emu_.nesting_level > 1)
-	ec_panic("can't resume nested engine","ec_resume2()");
-
-    if (ec_running())
-	return PRUNNING;
-
-    A[1] = tterm;
-    Make_Integer(&A[2], RESUME_CONT);
-    res = restart_emulc();
-    if (res != PYIELD)
-	ec_panic("eclipse emulator did not yield properly","ec_resume()");
-
-    if (chp)
-	ec_ref_set(chp,A[2]);
-
-    pw = &A[1];
-    Dereference_(pw)
-    if (IsInteger(pw->tag))
-	return pw->val.nint;
-    else
-	return  TYPE_ERROR;
-}
-
-int Winapi
-ec_resume_long(long int *to_c)
-{
-    int res;
-    pword * pw;
-
-    if (g_emu_.nesting_level > 1)
-	ec_panic("can't resume nested engine","ec_resume_long()");
-
-    if (ec_running())
-	return PRUNNING;
-
-    A[1] = _get_posted_goals();
-    Make_Integer(&A[2], RESUME_CONT);
-
-    res = restart_emulc();
-    if (res != PYIELD)
-	ec_panic("eclipse emulator did not yield properly","ec_resume_long()");
-
-    pw = &A[2];
-    Dereference_(pw)
-    if (IsInteger(pw->tag))
-    	*to_c = pw->val.nint;
-    else
-    	*to_c = 0;
-
-    pw = &A[1];
-    Dereference_(pw)
-    if (IsInteger(pw->tag))
-	return pw->val.nint;
-    else
-	return  TYPE_ERROR;
-}
-
-
-
-int Winapi
-ec_running(void)
-{
-#ifdef _WIN32
-    int res;
-    if (resume_thread  &&  !ec_thread_stopped(resume_thread, &res))
-	return 1;
-#endif
-    return 0;
-}
-
-#ifdef _WIN32
-
-/* this will be called in a thread */
-static int
-restart_emulc_thread(void *dummy_arg_for_thread)
-{
-    return restart_emulc();
-}
-
-#endif
-
-int Winapi
-ec_resume_async(void)
-{
-    if (g_emu_.nesting_level > 1)
-	ec_panic("can't resume nested engine","ec_resume2()");
-
-#ifdef _WIN32
-    if (!resume_thread)	/* if we don't have a thread yet, make one */
-    {
-    	resume_thread = ec_make_thread();
-	if (!resume_thread)
-	    return SYS_ERROR;
-    }
-    else		/* make sure the thread is not running */
-    {
-	if (ec_running())
-	    return PRUNNING;
-    }
-#endif
-
-    A[1] = _get_posted_goals();
-    Make_Integer(&A[2], RESUME_CONT);
-
-#ifdef _WIN32
-    if (!ec_start_thread(resume_thread, restart_emulc_thread, NULL))
-	return SYS_ERROR;
-#endif
-
-    return PSUCCEED;
-}
-
-
-int Winapi
-ec_resume_status(void)
-{
-    long dummy;
-    return ec_resume_status_long(&dummy);
-}
-
-int Winapi
-ec_resume_status_long(long int *to_c)
-{
-    return ec_wait_resume_status_long(to_c, 0);
-}
-
-int Winapi
-ec_wait_resume_status_long(long int *to_c, int timeout)
-{
-    pword *pw;
-    int res;
-
-#ifdef _WIN32
-    /* This is supposed to be called only after a resume_async! */
-    if (!resume_thread)
-    	return PERROR;
-    if (!ec_thread_wait(resume_thread, &res, timeout))
-	return PRUNNING;
-#else
-    /* We don't have threads: resume here in order to make resume_async-
-     * resume_status sequences work anyway, so we can write portable code.
-     */
-    res = restart_emulc();
-#endif
-    if (res != PYIELD)
-	ec_panic("eclipse emulator did not yield properly","ec_resume_long()");
-
-    pw = &A[2];
-    Dereference_(pw)
-    if (IsInteger(pw->tag))
-	*to_c = pw->val.nint;
-    else
-	*to_c = 0;
-
-    pw = &A[1];
-    Dereference_(pw)
-    if (IsInteger(pw->tag))
-	return pw->val.nint;
-    else
-	return TYPE_ERROR;
-}
-
-
-/*----------------------------------------------------------------------
- * Resuming Eclipse without continuing
- * just create an opportunity for event handling
- * Return values:
- *	PRUNNING
- *		engine not yet ready (previous resume_async)
- *	PFLUSHIO,PWAITIO
- *		nested request from within handler
- *	PSUCCEED
- *		handler finished
- *	PFAIL,PTHROW
- *		should never occur (prevented by yield/3)
- *	PYIELD
- *		programmer error (yield/2 in handler)
- *----------------------------------------------------------------------*/
-
-int Winapi
-ec_handle_events(long int *to_c)
-{
-    int res;
-    pword * pw;
-
-    if (g_emu_.nesting_level > 1)
-	ec_panic("can't resume nested engine","ec_handle_events()");
-
-    if (ec_running())
-	return PRUNNING;
-
-    Make_Nil(&A[1])		/* don't care */
-    Make_Integer(&A[2], RESUME_SIMPLE);
-    res = restart_emulc();
-    if (res != PYIELD)
-	ec_panic("eclipse emulator did not yield properly","ec_handle_events()");
-
-    pw = &A[2];
-    Dereference_(pw)
-    if (IsInteger(pw->tag))
-	*to_c = pw->val.nint;
-    else
-	*to_c = 0;
-
-    pw = &A[1];
-    Dereference_(pw)
-    if (IsInteger(pw->tag))
-	return pw->val.nint;
-    else
-	return TYPE_ERROR;
-}
-
-
 /*----------------------------------------------------------------------
  * External references:
  *
@@ -520,7 +70,7 @@ ec_handle_events(long int *to_c)
  * EC_REF_C:	hp_allocated, simple value, not in global list
  *
  *	This is the state just after an ec_refs has been created by a
- *	call to ec_refs_create(), or after backtracking to such a point.
+ *	call to ecl_refs_create(), or after backtracking to such a point.
  *	It is not "initialised" yet, i.e. no array (structure) for the
  *	n slots has been allocated on the global stack, and it is not
  *	yet known to the garbage collector. The var-field preliminarily
@@ -532,7 +82,7 @@ ec_handle_events(long int *to_c)
  *	C program, its var-field points to a global stack array of arity
  *	n, and it is known to the garbage collector via the global list.
  *	The transition from EC_REF_C to EC_REF_C_P happens on the first
- *	access to the ec_refs: a global stack arary is allocated and its
+ *	access to the ec_refs: a global stack array is allocated and its
  *	slots initialised with the requested init value.
  *
  * EC_REF_FREE:	deallocated, no value, not in global list
@@ -565,12 +115,12 @@ ec_refs_destroy(ec_refs variable)
 
 /*ARGSUSED*/
 static void
-_ec_refs_untrail(pword *parray, word *pdata, int size, int flags)
+_ec_refs_untrail(pword *parray, word *pdata, int size, int flags, ec_eng_t *ec_eng)
 {
-    ec_refs variable = g_emu_.allrefs.next;
+    ec_refs variable = ec_eng->allrefs.next;
     /* Find the ec_ref corresponding to parray in the global list. */
     /* If it's not in there, then it has already been destroyed! */
-    while (variable != &g_emu_.allrefs)
+    while (variable != &ec_eng->allrefs)
     {
 	if (variable->var.val.ptr == parray)
 	{
@@ -593,30 +143,32 @@ ec_refs_size(const ec_refs variable)
 }
 
 ec_refs Winapi
-ec_refs_create_newvars(int n)
+ecl_refs_create_newvars(ec_eng_t *ec_eng, int n)
 {
     ec_ref new;
 
     new = hp_alloc_size(sizeof(struct eclipse_ref_));
-    new->var = g_emu_.allrefs.var;
+    new->var = ec_eng->allrefs.var;	/* a TREF|NULL (means: init as var) */
     new->refstate = EC_REF_C;
     new->size = n;
     new->next = new->prev = 0;
+    new->eng = ec_eng;
     return new;
 }
 
 ec_refs Winapi
-ec_refs_create(int n, const pword initpw)
+ecl_refs_create(ec_eng_t *ec_eng, int n, const pword initpw)
 {
     ec_ref new;
 
     if (!(IsSimple(initpw.tag) || IsPersistent(initpw.tag)))
-	    ec_panic("non-atomic initializer","ec_refs_create()");
+	    ec_panic("non-atomic initializer","ecl_refs_create()");
     new = hp_alloc_size(sizeof(struct eclipse_ref_));
     new->var = initpw;
     new->refstate = EC_REF_C;
     new->size = n;
     new->next = new->prev = 0;
+    new->eng = ec_eng;
     return new;
 }
 
@@ -626,6 +178,7 @@ _ec_ref_init(ec_refs variable)
     pword * pw, initpw;
     int i;
     int n = variable->size;
+    ec_eng_t *ec_eng = variable->eng;
 
     if (variable->refstate != EC_REF_C)
     	ec_panic("ec_refs already freed from C","_ec_ref_init()");
@@ -636,7 +189,7 @@ _ec_ref_init(ec_refs variable)
     /* Use the global stack array as trail item, so the trail entry */
     /* gets garbage collected together with it. */
     pw = TG;
-    ec_trail_undo(_ec_refs_untrail, pw, NULL,
+    ecl_trail_undo(ec_eng, _ec_refs_untrail, pw, NULL,
 	    (word *) &initpw, sizeof(pword)/sizeof(word), TRAILED_PWORD);
 
     Make_Struct(&(variable->var), pw);
@@ -653,10 +206,10 @@ _ec_ref_init(ec_refs variable)
 	for (i=1; i<=n; i++)
 	    pw[i] = initpw;
     }
-    variable->next = g_emu_.allrefs.next;
-    variable->prev = &g_emu_.allrefs;
-    g_emu_.allrefs.next->prev = variable;
-    g_emu_.allrefs.next = variable;
+    variable->next = ec_eng->allrefs.next;
+    variable->prev = &ec_eng->allrefs;
+    ec_eng->allrefs.next->prev = variable;
+    ec_eng->allrefs.next = variable;
 }
 
 void Winapi
@@ -667,7 +220,7 @@ ec_refs_set(ec_refs variable, int i, const pword w)
     if (i >= variable->size)
 	ec_panic("out of bounds","ec_refs_set()");
 
-    (void) ec_assign(variable->var.val.ptr+i+1, w.val,w.tag);
+    (void) ecl_assign(variable->eng, variable->var.val.ptr+i+1, w.val,w.tag);
 }
 
 pword Winapi
@@ -683,21 +236,36 @@ ec_refs_get(const ec_refs variable, int i)
 
 
 ec_ref Winapi
-ec_ref_create(pword initpw)
+ecl_ref_create(ec_eng_t *ec_eng, pword initpw)
 {
-    return (ec_ref) ec_refs_create(1, initpw);
+    return (ec_ref) ecl_refs_create(ec_eng, 1, initpw);
 }
 
 ec_ref Winapi
-ec_ref_create_newvar(void)
+ecl_ref_create_newvar(ec_eng_t *ec_eng)
 {
-    return (ec_ref) ec_refs_create_newvars(1);
+    return (ec_ref) ecl_refs_create_newvars(ec_eng, 1);
 }
 
 void Winapi
 ec_ref_set(ec_ref variable, const pword w)
 {
     ec_refs_set((ec_refs) variable, 0, w);
+}
+
+void Winapi
+ec_ref_set_safe(ec_ref variable, const pword w)
+{
+    if (!EngIsDead(variable->eng)) {
+	ec_refs_set((ec_refs) variable, 0, w);
+	return;
+    }
+    /* Allow a simple value to be returned via an ec_ref even when the
+     * engine is already dead. Used for returning an integer exit/1 value.
+     */
+    if (!(IsSimple(w.tag) || IsPersistent(w.tag)))
+	return;
+    variable->var = w;
 }
 
 pword Winapi
@@ -718,11 +286,11 @@ ec_ref_destroy(ec_ref variable)
  *----------------------------------------------------------------------*/
 
 void Winapi
-ec_cut_to_chp(ec_ref chp)
+ecl_cut_to_chp(ec_eng_t *ec_eng, ec_ref chp)
 {
-    ec_post_goal(ec_term(ec_.d.call_explicit,
-    			ec_term(ec_.d.cut_to,ec_ref_get(chp)),
-			ec_atom(ec_.d.kernel_sepia)));
+    ecl_post_goal(ec_eng, ecl_term(ec_eng, ec_.d.colon,
+			ec_atom(ec_.d.kernel_sepia),
+    			ecl_term(ec_eng, ec_.d.cut_to,ec_ref_get(chp))));
 }
 
 
@@ -762,7 +330,7 @@ ec_get_atom(const pword w, dident *a)
 }
 
 pword Winapi
-ec_string(const char *s)
+ecl_string(ec_eng_t *ec_eng, const char *s)
 {
 	pword w;
 	Make_String(&w, (char *) s);
@@ -770,7 +338,7 @@ ec_string(const char *s)
 }
 
 pword Winapi
-ec_length_string(int l, const char *s)
+ecl_length_string(ec_eng_t *ec_eng, int l, const char *s)
 {
 	pword w;
 	char *s1;
@@ -861,48 +429,8 @@ ec_get_long(const pword w, long int *l)
     return PSUCCEED;
 }
 
-#ifdef HAVE_LONG_LONG
-#ifndef SIZEOF_LONG_LONG
-#ifdef __SIZEOF_LONG_LONG__
-#define SIZEOF_LONG_LONG __SIZEOF_LONG_LONG__
-#else
-#define SIZEOF_LONG_LONG 8
-#endif
-#endif
-
 pword Winapi
-ec_long_long(const long long int l)
-{
-    pword w;
-    tag_desc[TBIG].arith_op[ARITH_BOXLONGLONG](l, &w);
-    return w;
-}
-
-int Winapi
-ec_get_long_long(const pword w, long long int *l)
-{
-    const pword *pw = &w;
-    Dereference_(pw);
-
-    if (IsInteger(pw->tag)) {
-#if SIZEOF_WORD > SIZEOF_LONG_LONG
-	/* range error if val.nint is too large for long long */
-	if (pw->val.nint > LLONG_MAX || pw->val.nint < LLONG_MIN)
-	    return RANGE_ERROR;
-#endif
-	*l = pw->val.nint;
-    } else if (IsBignum(pw->tag)) 
-	return tag_desc[TBIG].arith_op[ARITH_TOCLONGLONG](&w, l) < 0 ? RANGE_ERROR : PSUCCEED;
-    else if (IsRef(pw->tag))
-	return INSTANTIATION_FAULT;
-    else
-	return TYPE_ERROR;
-    return PSUCCEED;
-}
-#endif
-
-pword Winapi
-ec_double(const double d)
+ecl_double(ec_eng_t *ec_eng, const double d)
 {
     pword result;
 
@@ -928,8 +456,7 @@ ec_get_double(const pword w, double *d)
 }
 
 
-#ifdef STDC_HEADERS
-
+#if 0
 pword
 ec_term(dident functor, ...)
 {
@@ -950,24 +477,18 @@ ec_term(dident functor, ...)
     Make_Struct(&result,pw);
     return result;
 }
-
-#else
+#endif
 
 pword
-ec_term(va_alist)
-va_dcl
+ecl_term(ec_eng_t *ec_eng, dident functor, ...)
 {
     va_list ap;
-    dident functor;
-    int arity;
+    int arity = DidArity(functor);
     pword * pw;
     pword result;
     int i;
 
-    va_start(ap);
-
-    functor = va_arg(ap,dident);
-    arity = DidArity(functor);
+    va_start(ap, functor);
 
     pw = TG;
     Push_Struct_Frame(functor);
@@ -979,10 +500,9 @@ va_dcl
     return result;
 }
 
-#endif
 
 pword Winapi
-ec_term_array(const dident functor, const pword *args)
+ecl_term_array(ec_eng_t *ec_eng, const dident functor, const pword *args)
 {
     int arity;
     pword * pw;
@@ -1003,7 +523,7 @@ ec_term_array(const dident functor, const pword *args)
 
 
 pword Winapi
-ec_matrixofdouble(int n, int m, const double *darr)
+ecl_matrixofdouble(ec_eng_t *ec_eng, int n, int m, const double *darr)
 {
     dident row_functor = enter_dict("[]", n);
     dident col_functor = enter_dict("[]", m);
@@ -1028,7 +548,7 @@ ec_matrixofdouble(int n, int m, const double *darr)
 }
 
 pword Winapi
-ec_arrayofdouble(int n, const double *darr)
+ecl_arrayofdouble(ec_eng_t *ec_eng, int n, const double *darr)
 {
     dident functor = enter_dict("[]", n);
     pword result;
@@ -1047,7 +567,7 @@ ec_arrayofdouble(int n, const double *darr)
 
 
 pword Winapi
-ec_list(const pword head, const pword tail)
+ecl_list(ec_eng_t *ec_eng, const pword head, const pword tail)
 {
     pword * pw;
     pword result;
@@ -1062,7 +582,7 @@ ec_list(const pword head, const pword tail)
 }
 
 pword Winapi
-ec_listofdouble(int length, const double *array)
+ecl_listofdouble(ec_eng_t *ec_eng, int length, const double *array)
 {
     pword result;
     pword *pw = &result;
@@ -1071,30 +591,14 @@ ec_listofdouble(int length, const double *array)
 	Make_List(pw,TG);
 	pw = TG;
 	Push_List_Frame();
-	*pw++ = ec_double(*array++);
+	*pw++ = ecl_double(ec_eng, *array++);
     }
     Make_Nil(pw);
     return result;
 }
 
 pword Winapi
-ec_listoflong(int length, const long int *array)
-{
-    pword result;
-    pword *pw = &result;
-    while (length-- > 0)
-    {
-	Make_List(pw,TG);
-	pw = TG;
-	Push_List_Frame();
-	*pw++ = ec_long(*array++);
-    }
-    Make_Nil(pw);
-    return result;
-}
-
-pword Winapi
-ec_listofchar(int length, const char *array)
+ecl_listoflong(ec_eng_t *ec_eng, int length, const long int *array)
 {
     pword result;
     pword *pw = &result;
@@ -1110,7 +614,23 @@ ec_listofchar(int length, const char *array)
 }
 
 pword Winapi
-ec_listofrefs(ec_refs refs)
+ecl_listofchar(ec_eng_t *ec_eng, int length, const char *array)
+{
+    pword result;
+    pword *pw = &result;
+    while (length-- > 0)
+    {
+	Make_List(pw,TG);
+	pw = TG;
+	Push_List_Frame();
+	*pw++ = ec_long(*array++);
+    }
+    Make_Nil(pw);
+    return result;
+}
+
+pword Winapi
+ecl_listofrefs(ec_eng_t *ec_eng, ec_refs refs)
 {
     pword result;
     pword *pw = &result;
@@ -1222,7 +742,7 @@ ec_arity(const pword term)
 }
 
 pword Winapi
-ec_newvar(void)
+ecl_newvar(ec_eng_t *ec_eng)
 {
     pword * pw;
 
@@ -1254,7 +774,7 @@ ec_deref(pword *ppw)	/* dereference in place */
 
 
 int Winapi
-ec_var_lookup(ec_ref vars, char *name, pword *var)
+ecl_var_lookup(ec_eng_t *ec_eng, ec_ref vars, char *name, pword *var)
 {
 	pword list;
 	pword pair;
@@ -1287,22 +807,16 @@ ec_var_lookup(ec_ref vars, char *name, pword *var)
  *----------------------------------------------------------------------*/
 
 int Winapi
-ec_unify(pword pw1, pword pw2)
+ecl_unify(ec_eng_t *ec_eng, pword pw1, pword pw2)
 {
-    return ec_unify_(pw1.val, pw1.tag, pw2.val, pw2.tag, &MU);
+    return ec_unify_(ec_eng, pw1.val, pw1.tag, pw2.val, pw2.tag, &MU);
 }
 
 
 int Winapi
-ec_unify_arg(int n, pword term)
+ecl_unify_arg(ec_eng_t *ec_eng, int n, pword term)
 {
-#ifdef __STDC__
-    static type tref = {TREF};
-#else
-    type tref;
-    tref.kernel = TREF;
-#endif
-    return ec_unify_(A[n].val, A[n].tag, term.val, term.tag, &MU);
+    return ec_unify_(ec_eng, A[n].val, A[n].tag, term.val, term.tag, &MU);
 }
 
 int Winapi
@@ -1316,28 +830,27 @@ ec_compare(pword pw1, pword pw2)
 }
 
 pword Winapi
-ec_arg(int n)
+ecl_arg(ec_eng_t *ec_eng, int n)
 {
     return A[n];
 }
 
 int Winapi
-ec_schedule_suspensions(pword attr, int pos)
+ecl_schedule_suspensions(ec_eng_t *ec_eng, pword attr, int pos)
 {
     Check_Structure(attr.tag);
     if (pos < 1 || pos > DidArity(attr.val.ptr[0].val.did))
     	return RANGE_ERROR;
-    return ec_schedule_susps(&(attr.val.ptr[pos]));
+    return ecl_schedule_susps(ec_eng, &(attr.val.ptr[pos]));
 }
 
 int Winapi
 ec_visible_procedure(dident proc_did, pword module, void **pproc)
 {
-    pri *proc = visible_procedure(proc_did, module.val.did, module.tag, 0);
+    int res;
+    pri *proc = visible_procedure(proc_did, module.val.did, module.tag, 0, &res);
     if (!proc)
     {
-	int res;
-	Get_Bip_Error(res);
 	return res;
     }
     *pproc = (void*) proc;
@@ -1354,13 +867,13 @@ ec_visible_procedure(dident proc_did, pword module, void **pproc)
  */
 
 static pword
-_double_arr_get(t_ext_ptr h, int i)
+_double_arr_get(t_ext_ptr h, int i, ec_eng_t *ec_eng)
 {
-    return ec_double(((double*)h)[i]);
+    return ecl_double(ec_eng, ((double*)h)[i]);
 }
 
 static int
-_double_arr_set(t_ext_ptr h, int i, pword pw)
+_double_arr_set(t_ext_ptr h, int i, pword pw, ec_eng_t *ec_eng)
 {
     return ec_get_double(pw, &((double*)h)[i]);
 }
@@ -1377,13 +890,13 @@ t_ext_type ec_xt_double_arr = {
  */
 
 static pword
-_long_arr_get(t_ext_ptr h, int i)
+_long_arr_get(t_ext_ptr h, int i, ec_eng_t *ec_eng)
 {
     return ec_long(((long*)h)[i]);
 }
 
 static int
-_long_arr_set(t_ext_ptr h, int i, pword pw)
+_long_arr_set(t_ext_ptr h, int i, pword pw, ec_eng_t *ec_eng)
 {
     return ec_get_long(pw, &((long*)h)[i]);
 }
@@ -1400,13 +913,13 @@ t_ext_type ec_xt_long_arr = {
  */
 
 static pword
-_char_arr_get(t_ext_ptr h, int i)
+_char_arr_get(t_ext_ptr h, int i, ec_eng_t *ec_eng)
 {
     return ec_long((long) ((char*)h)[i]);
 }
 
 static int
-_char_arr_set(t_ext_ptr h, int i, pword pw)
+_char_arr_set(t_ext_ptr h, int i, pword pw, ec_eng_t *ec_eng)
 {
     long l;
     int err = ec_get_long(pw, &l);

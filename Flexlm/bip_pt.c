@@ -22,7 +22,7 @@
  *
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: bip_pt.c,v 1.1 2006/09/23 01:53:18 snovello Exp $
+ * $Id: bip_pt.c,v 1.2 2016/07/28 03:34:35 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	bip_pt.c
@@ -44,6 +44,7 @@
 
 
 #define EC_EXTERNAL
+#include "external.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -66,7 +67,6 @@
 #endif
 
 
-#include "external.h"
 
 int DLLEXP pteclipse_init(int flags);
 

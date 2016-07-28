@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.18 2016/07/24 19:34:45 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.19 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -60,6 +60,8 @@
 #include	"emu_export.h"
 #include	"module.h"
 #include	"property.h"
+#include	"read.h"	/* for transformation functions */
+#include	"os_support.h"
 
 #ifdef STDC_HEADERS
 #include <stdlib.h>
@@ -99,8 +101,8 @@
 #define Handle_Type_Macro(t)						\
 	if (MacrosAllowed(idwrite) && DidMacro(TransfDid(t))) {		\
 	    pword *tr_res = _write_trafo(TransfDid(t),			\
-				GoalMacro(idwrite),			\
-				&idwrite, val, tag, module, mod_tag);	\
+				GoalMacro(idwrite), &idwrite,		\
+				val, tag, module, mod_tag, ec_eng);	\
 	    if (tr_res) {						\
 		val.all = tr_res->val.all;				\
 		tag.all = tr_res->tag.all;				\
@@ -108,57 +110,35 @@
 	    }								\
 	}
 
+
+
 /*
  * FUNCTION DECLARATIONS:
  */
 
-int 
-		    p_write3(value vals, type tags, value val, type tag, value vm, type tm),
-		    p_writeq3(value vals, type tags, value val, type tag, value vm, type tm);
-
 static int 
-		    p_write(value val, type tag, value vm, type tm),
-		    p_writeln(value vals, type tags, value val, type tag, value vm, type tm),
-		    p_writeq(value val, type tag, value vm, type tm),
-		    p_print(value val, type tag, value vm, type tm),
-		    p_print3(value vals, type tags, value val, type tag, value vm, type tm),
-		    p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, value vm, type tm, value vfc, type tfc, value vse, type tse, value vle, type tle, value verr, type terr),
-		    p_write_canonical(value val, type tag, value vm, type tm),
-		    p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm),
-		    p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm, value vsm, type tsm, value vdepth, type tdepth, value vprec, type tprec, value vm, type tm),
-		    p_display(value vs, type ts, value val, type tag),
-		    p_output_mode(value val, type tag),
-		    p_output_mode_mask(value val, type tag),
-
-		    _get_mode_mask(char *string, int *clr_mask, int *mask),
-		    _merge_output_modes(int mask, int remove, int add),
-		    _handle_string_size(value v, type t, int quoted_or_base),
-		    _handle_to_string(value v, type t, char *buf, int quoted_or_base),
-		    _num_string_size(value v, type t, int quoted),
-		    _int_to_string(value v, type t, char *buf, int quoted_or_base),
-		    _float_to_string(value v, type t, char *buf, int precise),
-		    _float_to_string_opt(value v, type t, char *buf, int precise, int options),
-		    _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd),
-		    _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, register int flags),
-		    _is_proper_list(pword *list),
-		    _write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags),
-		    _write_quoted(int idwrite, stream_id out, char *name, register word len, char quotechar, syntax_desc *sd, int depth),
-		    _write_infix(int idwrite, stream_id out, dident d, register int flags, dident module, type mod_tag, syntax_desc *sd, pword *right, int depth),
-		    _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth),
-		    _write_string(int idwrite, stream_id out, char *start, word length, int depth),
-		    _portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag);
+		_get_mode_mask(char *string, int *clr_mask, int *mask),
+		_merge_output_modes(int mask, int remove, int add),
+		_handle_string_size(value v, type t, int quoted_or_base),
+		_handle_to_string(value v, type t, char *buf, int quoted_or_base),
+		_num_string_size(value v, type t, int quoted),
+		_int_to_string(value v, type t, char *buf, int quoted_or_base),
+		_float_to_string(value v, type t, char *buf, int precise),
+		_float_to_string_opt(value v, type t, char *buf, int precise, int options),
+		_printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par),
+		_print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *),
+		_pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng),
+		_is_proper_list(pword *list),
+		_write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng),
+		_write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth),
+		_write_infix(int idwrite, stream_id out, dident d, int flags, dident module, type mod_tag, syntax_desc *sd, pword *right, int depth),
+		_write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth),
+		_write_string(int idwrite, stream_id out, char *start, word length, int depth),
+		_portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag, ec_eng_t*);
 
 static void	_output_mode_string(char *s, int mask);
 
-static pword	*_write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident module, type mod_tag);
-
-
-/*
- * EXTERNAL VARIABLE DECLARATIONS:
- */
-
-extern pword		*transf_meta_out(value val, type tag, pword *top, dident mod, pword *presult);
-extern pword		*p_meta_arity_;
+static pword	*_write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng);
 
 
 /*
@@ -177,56 +157,10 @@ static char	output_mode_chars[OUTPUT_MODES+1] = "OD.QvVPKmGMTCN_IUFL";
 static int	output_mode_mask = QUOTED | PRINT_CALL | ATTRIBUTE;
 
 
- /*
-  * FUNCTION DEFINITIONS: 
-  */
 
 /*
- * FUNCTION NAME:
- *
- * PARAMETERS:
- *
- * DESCRIPTION:
+ * FUNCTION DEFINITIONS: 
  */
-
-void
-write_init(int flags)
-{
-    d_portray1 = in_dict("portray", 1);
-    d_portray2 = in_dict("portray", 2);
-    d_dollar_var = in_dict("$VAR", 1);
-    d_print_attributes = in_dict("print_attributes", 2);
-    d_var_name = in_dict("var_name", 0);
-    d_vname2 = in_dict("vname", 2);
-
-    tag_desc[TINT].string_size = _num_string_size;
-    tag_desc[TINT].to_string = _int_to_string;
-    tag_desc[TDBL].string_size = _num_string_size;
-    tag_desc[TDBL].to_string = _float_to_string;
-    tag_desc[THANDLE].string_size = _handle_string_size;
-    tag_desc[THANDLE].to_string = _handle_to_string;
-
-    if (!(flags & INIT_SHARED))
-	return;
-    
-    PrintDepth = 20;
-
-    (void) exported_built_in(in_dict("write_", 2), p_write, B_SAFE);
-    (void) exported_built_in(in_dict("writeq_", 2), p_writeq, B_SAFE);
-    (void) exported_built_in(in_dict("print_", 2), p_print, B_SAFE);
-    (void) exported_built_in(in_dict("write_canonical_", 2), p_write_canonical, B_SAFE);
-    (void) exported_built_in(in_dict("print_", 3), p_print3, B_SAFE);
-    (void) exported_built_in(in_dict("printf_", 8), p_printf5, B_SAFE);
-    (void) exported_built_in(in_dict("write_", 3), p_write3, B_SAFE);
-    (void) local_built_in(in_dict("writeln_body", 3), p_writeln, B_SAFE);
-    (void) exported_built_in(in_dict("writeq_", 3), p_writeq3, B_SAFE);
-    (void) exported_built_in(in_dict("write_canonical_", 3), p_write_canonical3, B_SAFE);
-    (void) exported_built_in(in_dict("write_term", 7), p_write_term, B_SAFE);
-    (void) built_in(in_dict("display", 2), p_display, B_SAFE);
-    (void) local_built_in(in_dict("output_mode", 1), p_output_mode, B_UNSAFE|U_SIMPLE);
-    (void) local_built_in(in_dict("output_mode_mask", 1), p_output_mode_mask, B_UNSAFE|U_SIMPLE);
-}
-
 
 /*
  * visible_d_procedure() is the same as visible_procedure() except that
@@ -236,19 +170,11 @@ write_init(int flags)
 static pri *
 visible_d_procedure(dident functor, dident module, type module_tag)
 {
-    pri *pd = visible_procedure(functor, module, module_tag, 0);
-    if (!pd)
-    {
-	Set_Bip_Error(0);
-	return 0;
-    }
-    return PriFlags(pd) & CODE_DEFINED ? pd : 0;
+    int err;
+    pri *pd = visible_procedure(functor, module, module_tag, 0, &err);
+    return pd && (PriFlags(pd) & CODE_DEFINED) ? pd : 0;
 }
 
-
-#define Check_Stream(out, res)				\
-   if (out == NO_STREAM) { Bip_Error(res) }		\
-   if (!(IsWriteStream(out))) { Bip_Error(STREAM_MODE) }
 
 #define	Write_Infix(ww, s, d, flags, mod, mt, sd, arg, narg)		\
 	status = _write_infix(ww, s, d, flags, mod, mt, sd, narg, depth);\
@@ -269,7 +195,7 @@ visible_d_procedure(dident functor, dident module, type module_tag)
 	return(status);
 
 #define Pwrite(ww, s, v, t, mp, d, mod, mt, sd, flags) 			\
-    if((status = _pwrite1(ww, s, v, t, mp, d, mod, mt, sd, flags)) < 0)	\
+    if((status = _pwrite1(ww, s, v, t, mp, d, mod, mt, sd, flags, ec_eng)) < 0)	\
 	return(status);
 	
 #define Write_Char(s,c) if ((status = ec_outfc(s,c)) < 0) return(status);
@@ -320,12 +246,12 @@ visible_d_procedure(dident functor, dident module, type module_tag)
 	Functors, atoms and strings are not quoted.
 */
 static int
-p_write(value val, type tag, value vm, type tm)
+p_write(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		res;
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(0, WRITE_OPTIONS_WRITE, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -337,7 +263,7 @@ p_write(value val, type tag, value vm, type tm)
 	Functors, atoms and strings are quoted.
 */
 static int
-p_writeq(value val, type tag, value vm, type tm)
+p_writeq(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		res;
     Check_Module(tm, vm);
@@ -345,7 +271,7 @@ p_writeq(value val, type tag, value vm, type tm)
     if (IsAtom(tag) && val.did == d_.eocl)
 	res = ec_outf(current_output_, "'.'", 3);
     else
-	res = ec_pwrite(0, WRITE_OPTIONS_WRITEQ,
+	res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ,
 		    current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
@@ -355,21 +281,19 @@ p_writeq(value val, type tag, value vm, type tm)
 /*
 	writeq_(Stream, Term, Module)
 */
-int
-p_writeq3(value vals, type tags, value val, type tag, value vm, type tm)
+static int
+p_writeq3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id	out = get_stream_id(vals, tags, SWRITE, &res);
+    stream_id	out;
 
-    Check_Stream(out, res);
+    Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    Lock_Stream(out);
     if (IsAtom(tag) && val.did == d_.eocl)
      	res = ec_outf(out, "'.'", 3);
     else
-	res = ec_pwrite(0, WRITE_OPTIONS_WRITEQ,
+	res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ,
 		    out, val, tag, 1200, 0, vm.did, tm);
-    Unlock_Stream(out);
     return res;
 }
 
@@ -377,7 +301,7 @@ p_writeq3(value vals, type tags, value val, type tag, value vm, type tm)
 	write_canonical_(Term, Module)
 */
 static int
-p_write_canonical(value val, type tag, value vm, type tm)
+p_write_canonical(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		res;
     Check_Module(tm, vm);
@@ -385,7 +309,7 @@ p_write_canonical(value val, type tag, value vm, type tm)
     if (IsAtom(tag) && val.did == d_.eocl)
 	res = ec_outf(current_output_, "'.'", 3);
     else
-	res = ec_pwrite(0, WRITE_OPTIONS_CANON,
+	res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON,
 		    current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
@@ -395,22 +319,17 @@ p_write_canonical(value val, type tag, value vm, type tm)
 	write_canonical_(Stream, Term, Module)
 */
 static int
-p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm)
+p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id	out = get_stream_id(vals, tags, SWRITE, &res);
+    stream_id	out;
 
-    if (IsAtom(tag) && val.did == d_.eocl)
-    {
-     	return(ec_outf(out, "'.'", 3));
-    }
-    Check_Stream(out, res);
+    Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    Lock_Stream(out);
-    res = ec_pwrite(0, WRITE_OPTIONS_CANON,
+    if (IsAtom(tag) && val.did == d_.eocl)
+        return ec_outf(out, "'.'", 3);
+    else
+	return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON,
 		    out, val, tag, 1200, 0, vm.did, tm);
-    Unlock_Stream(out);
-    return res;
 }
 
 /*
@@ -420,18 +339,15 @@ p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm
  	declarations and spaces are inserted to separate operators
  	where necessary.
 */
-int
-p_write3(value vals, type tags, value val, type tag, value vm, type tm)
+static int
+p_write3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id out = get_stream_id(vals, tags, SWRITE, &res);
+    stream_id out;
 
-    Check_Stream(out, res);
+    Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    Lock_Stream(out);
-    res = ec_pwrite(0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
-    Unlock_Stream(out);
-    return res;
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
 }
 
 
@@ -440,18 +356,16 @@ p_write3(value vals, type tags, value val, type tag, value vm, type tm)
  * behaviour (like nl)
  */
 static int
-p_writeln(value vals, type tags, value val, type tag, value vm, type tm)
+p_writeln(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		res;
-    stream_id out = get_stream_id(vals, tags, SWRITE, &res);
+    stream_id	out;
 
-    Check_Stream(out, res);
+    Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    Lock_Stream(out);
-    res = ec_pwrite(0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
     if (res == PSUCCEED)
 	res = ec_newline(out);
-    Unlock_Stream(out);
     return res;
 }
 
@@ -463,13 +377,13 @@ p_writeln(value vals, type tags, value val, type tag, value vm, type tm)
  	where necessary.
 */
 static int
-p_print(value val, type tag, value vm, type tm)
+p_print(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
     int		res;
 
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(0, WRITE_OPTIONS_PRINT, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -483,17 +397,13 @@ p_print(value val, type tag, value vm, type tm)
  	where necessary.
 */
 static int
-p_print3(value vals, type tags, value val, type tag, value vm, type tm)
+p_print3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id out = get_stream_id(vals, tags, SWRITE, &res);
+    stream_id	out;
 
-    Check_Stream(out, res);
+    Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    Lock_Stream(out);
-    res = ec_pwrite(0, WRITE_OPTIONS_PRINT, out, val, tag, 1200, 0, vm.did, tm);
-    Unlock_Stream(out);
-    return res;
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, out, val, tag, 1200, 0, vm.did, tm);
 }
 
 
@@ -503,18 +413,14 @@ p_print3(value vals, type tags, value val, type tag, value vm, type tm)
  *	Functors, atoms and strings are not quoted.
 */
 static int
-p_display(value vs, type ts, value val, type tag)
+p_display(value vs, type ts, value val, type tag, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id out = get_stream_id(vs, ts, SWRITE, &res);
+    stream_id	out;
 
-    Check_Stream(out, res);
+    Get_Locked_Stream(vs, ts, SWRITE, out);
     /* the module tag is not meaningful here				*/
-    Lock_Stream(out);
-    res = ec_pwrite(0, WRITE_OPTIONS_DISPLAY,
-		    out, val, tag, 1200, 0, d_.default_module, tdict);
-    Unlock_Stream(out);
-    return res;
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_DISPLAY,
+		    out, val, tag, 1200, 0, d_.dummy_module, tdict);
 }
 
 
@@ -553,7 +459,7 @@ _terminate_term(stream_id nst, int options, syntax_desc *sd)
  * does initialisation and finalisation, while pwrite() is recursive.
  */
 int
-ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag)
+ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag)
 {
     pword			**old_tt = TT, *old_tg = TG, *old_ld = LD;
     syntax_desc *		sd = ModuleSyntax(module);
@@ -618,7 +524,7 @@ ec_pwrite(int mode_clr, int mode_set, stream_id out, value val, type tag, int ma
     }
 
     result = _pwrite1(idwrite, out, val, tag, maxprec, depth,
-			module, mod_tag, sd, ARGLAST);
+			module, mod_tag, sd, ARGLAST, ec_eng);
     
     /* terminate the term, if requested */
     if (result == PSUCCEED)
@@ -638,7 +544,7 @@ static int
 _is_signed_number(value v, type t)
 {
     pword sign;
-    int res = tag_desc[TagType(t)].arith_op[ARITH_SGN](v, &sign);
+    int res = tag_desc[TagType(t)].arith_op[ARITH_SGN](NULL, v, &sign);
     /* res can be ARITH_EXCEPTION for zero-spanning breals! */
     if (res != PSUCCEED) return 1;
     if (sign.val.nint < 0) return 1;
@@ -692,12 +598,12 @@ _is_signed_number(value v, type t)
     ((idwrite & QUOTED) && (flags & ARGSIGN))
 
 static int
-_pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, register int flags)
+_pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng)
 {
-    register pword	*arg;
-    register int	status, arity;
-    register dident	d;
-    opi			*d_opi_desc;
+    pword	*arg;
+    int	status, arity;
+    dident	d;
+    opi			d_opi_desc;
     int			res;
 
 _pwrite_:
@@ -707,15 +613,15 @@ _pwrite_:
     if (IsRef(tag))
 	if ((idwrite & (PORTRAY2|PORTRAY1))
 		&& (idwrite & PORTRAY_VAR || IsMeta(tag))
-		&& _portray_term(idwrite, out, val, tag, module, mod_tag))
+		&& _portray_term(idwrite, out, val, tag, module, mod_tag, ec_eng))
 	    return PSUCCEED;
 	else
 	{
 	    return _print_var(idwrite, val.ptr->val, val.ptr->tag, out, depth,
-					module, mod_tag, sd);
+					module, mod_tag, sd, ec_eng);
 	}
     else if ((idwrite & (PORTRAY2|PORTRAY1))
-    		&& _portray_term(idwrite, out, val, tag, module, mod_tag))
+    		&& _portray_term(idwrite, out, val, tag, module, mod_tag, ec_eng))
 	return PSUCCEED;
 
     switch (TagType(tag))
@@ -726,7 +632,7 @@ _pwrite_:
 	{
 	    pword *narg;
 	    if ((narg = _write_trafo(val.did, GoalMacro(idwrite),
-				&idwrite, val, tag, module, mod_tag)))
+				&idwrite, val, tag, module, mod_tag, ec_eng)))
 	    {
 		val.all = narg->val.all;
 		tag.all = narg->tag.all;
@@ -803,10 +709,10 @@ _pwrite_:
 	if (ExternalClass(val.ptr)->to_string && ExternalData(val.ptr))
 	{
 	    int bufsize = 1 + (ExternalClass(val.ptr)->string_size)(ExternalData(val.ptr), idwrite&QUOTED?1:0);
-	    char *buf = (char *) hp_alloc_size(bufsize);
+	    New_Array(char, buf, bufsize);
 	    int len = (ExternalClass(val.ptr)->to_string)(ExternalData(val.ptr), buf, idwrite&QUOTED?1:0);
 	    status = ec_outf(out, buf, len);
-	    hp_free_size((generic_ptr) buf, bufsize);
+	    Delete_Array(char, buf, bufsize);
 	    return status;
 	}
 	else
@@ -873,7 +779,7 @@ _write_structure_:			/* (d, arg) */
 	    {
 		pword *narg;
 		if ((narg = _write_trafo(hd, GoalMacro(idwrite),
-				    &idwrite, val, tag, module, mod_tag)))
+				    &idwrite, val, tag, module, mod_tag, ec_eng)))
 		{
 		    val.all = narg->val.all;
 		    tag.all = narg->tag.all;
@@ -892,7 +798,7 @@ _write_structure_:			/* (d, arg) */
 		    return (status);
 		Dereference_(arg);
 		status = _pwrite1(idwrite, out, arg->val, arg->tag, MAXPREC, 
-				 depth-1, module, mod_tag, sd, 0);
+				 depth-1, module, mod_tag, sd, 0, ec_eng);
 		if (status < 0 || (status = ec_outfc(out, '}')) < 0)
 		    return (status);
 		return (PSUCCEED);
@@ -925,7 +831,7 @@ _write_structure_:			/* (d, arg) */
 		    Pwrite(idwrite, out, arg1->val, arg1->tag, MAXPREC, 
 			     depth, module, mod_tag, sd, ARGTERM | ARGLAST);
 		    Write_Char(out, '{');
-		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags);
+		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, '}');
 		    return (PSUCCEED);
@@ -942,7 +848,7 @@ _write_structure_:			/* (d, arg) */
 		    Pwrite(idwrite, out, arg1->val, arg1->tag, MAXPREC, 
 			     depth, module, mod_tag, sd, ARGTERM | ARGLAST);
 		    Write_Char(out, '(');
-		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags);
+		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, ')');
 		    return (PSUCCEED);
@@ -958,7 +864,7 @@ _write_structure_:			/* (d, arg) */
 		{
 		    Write_Atom(idwrite, out, arg1->val.did, ATOM, flags & ARGLIST, module, mod_tag, sd);
 		    Write_Char(out, '{');
-		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags);
+		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, '}');
 		    return (PSUCCEED);
@@ -968,27 +874,30 @@ _write_structure_:			/* (d, arg) */
 	    /*
 	     * Check whether the functor is an operator
 	     */
-	    if ((d_opi_desc = visible_op(d, module, mod_tag, &res)))
+	    if (OpiPreced(d_opi_desc = visible_op(d, module, mod_tag, &res)))
 	    {			/* val is an operator */
 		int		prec;
 		int		openpar = 0;
 		word		assoc;
-		opi		*post_infix = 0;
+		opi		post_infix;
 		pword		*narg;
 
-		prec = GetOpiPreced(d_opi_desc);
-		assoc = GetOpiAssoc(d_opi_desc);
+		prec = OpiPreced(d_opi_desc);
+		assoc = OpiAssoc(d_opi_desc);
 	    	narg = arg + 1;
 		if (IsPostfixAss(assoc))
 		{
 		    dident		atom = add_dict(d, 0);
 		    post_infix = visible_infix_op(atom, module, mod_tag, &res);
 		}
+		else {
+		    Set_Opi_Invalid(post_infix);
+		}
 		if (  prec > maxprec 
 		    || d == d_.comma && (flags & ARGTERM)
 		    || flags & ARGYF && prec == maxprec &&
 			(assoc == FY || assoc == XFY || assoc == FXY)
-		    || post_infix && !(flags & ARGLAST)
+		    || OpiPreced(post_infix) && !(flags & ARGLAST)
 		   )
 		{
 		    flags = flags  & ~(ARGTERM | ARGLIST | ARGSIGN) | ARGLAST;
@@ -1148,7 +1057,7 @@ _write_args_:				/* (arg,arity) */
 	    {
 		pword *narg;
 		if ((narg = _write_trafo(d_.list, GoalMacro(idwrite),
-				    &idwrite, val, tag, module, mod_tag)))
+				    &idwrite, val, tag, module, mod_tag, ec_eng)))
 		{
 		    val.all = narg->val.all;
 		    tag.all = narg->tag.all;
@@ -1164,7 +1073,7 @@ _write_args_:				/* (arg,arity) */
 	    tail = arg + 1;
 	    Dereference_(arg)
 	    status = _pwrite1(idwrite, out, arg->val, arg->tag, MAXPREC, 
-		     --depth, module, mod_tag, sd, ARGTERM | ARGLIST | ARGLAST);
+		     --depth, module, mod_tag, sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
 	    if (status < 0)
 		return (status);
 	    while (!(UseDepth(idwrite) && depth <= 0))
@@ -1181,7 +1090,7 @@ _write_args_:				/* (arg,arity) */
 		    Dereference_(arg);
 		    status = _pwrite1(idwrite, out, arg->val, arg->tag, MAXPREC, 
 				    --depth, module, mod_tag, sd,
-				    ARGTERM | ARGLIST | ARGLAST);
+				    ARGTERM | ARGLIST | ARGLAST, ec_eng);
 		    if (status < 0)
 			return (status);
 		    continue;
@@ -1190,7 +1099,7 @@ _write_args_:				/* (arg,arity) */
 			return (status);
 		    status = _pwrite1(idwrite, out, tail->val, tail->tag, 
 				    MAXPREC, --depth, module, mod_tag,
-				    sd, ARGTERM | ARGLIST | ARGLAST);
+				    sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
 		    if (status < 0)
 			return (status);
 		    break;
@@ -1246,7 +1155,7 @@ _is_proper_list(pword *list)
 
 /* CAUTION: this function assumes that list is a proper list! */
 static int
-_write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags)
+_write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng)
 {
     pword *arg;
     int status;
@@ -1276,12 +1185,10 @@ _write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident
 
 
 static pword *
-_write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident module, type mod_tag)
+_write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng)
 {
-    extern pword *trafo_term(dident tr_did, int flags, dident mv, type mt, int *tr_flags);
-    extern int do_trafo(pword *term);
     int macroflags;
-    register pword *result, *tr_goal;
+    pword *result, *tr_goal;
     pword	*pw;
 
     if (d == D_UNKNOWN) {	/* meta attribute */
@@ -1298,7 +1205,7 @@ _write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident modu
 	macroflags = 0;
 	result = pw + 2;
     } else {
-	tr_goal = trafo_term(d, TR_WRITE|TR_TOP|flags, module, mod_tag, &macroflags);
+	tr_goal = trafo_term(ec_eng, d, TR_WRITE|TR_TOP|flags, module, mod_tag, &macroflags);
 	if (tr_goal)
 	{
 	    TransfTermIn(tr_goal)->val.all = val.all;
@@ -1308,7 +1215,7 @@ _write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident modu
 	    return (pword *) 0;
     }
 
-    if (do_trafo(tr_goal) == PSUCCEED)
+    if (do_trafo(ec_eng, tr_goal) == PSUCCEED)
     {
 	Dereference_(result);
 	/* to avoid looping, check if something was actually transformed */
@@ -1326,7 +1233,7 @@ _write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident modu
  * Call portray/1,2 on a specified term. Returns 1 iff the call succeeded.
  */
 static int
-_portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag)
+_portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng)
 {
     value		v1, v2;
     int			status = PFAIL;
@@ -1340,24 +1247,20 @@ _portray_term(int idwrite, stream_id out, value val, type tag, dident module, ty
 	goal[1] = StreamHandle(out);
 	goal[2].tag = tag;
 	goal[2].val = val;
-	Unlock_Stream(out);	/* release the stream lock while executing Prolog */
-	status = query_emulc(v1, tcomp, v2, mod_tag);
-	Lock_Stream(out);
+	status = sub_emulc_opt(ec_eng, v1, tcomp, v2, mod_tag, GOAL_NOTNOT);
 	if (status == PSUCCEED) return 1;
 	/* else try portray/1 */
     }
     if (idwrite & PORTRAY1)
     {
 	/* compatibility hack for portray/1: temporarily redirect output */
-	stream_id saved_output = current_output_;
-	if (set_stream(d_.output, out) != PSUCCEED)
+	stream_id saved_output = stream_tid.copy(current_output_);
+	if (set_stream(d_.output, stream_tid.copy(out)) != PSUCCEED)
 	    return 0;
 	Make_Atom(&goal[0], d_portray1);
 	goal[1].tag = tag;
 	goal[1].val = val;
-	Unlock_Stream(out);	/* release the stream lock while executing Prolog */
-	status = query_emulc(v1, tcomp, v2, mod_tag);
-	Lock_Stream(out);
+	status = sub_emulc_opt(ec_eng, v1, tcomp, v2, mod_tag, GOAL_NOTNOT);
 	(void) set_stream(d_.output, saved_output);
     }
     return (status == PSUCCEED) ? 1 : 0;
@@ -1373,7 +1276,7 @@ _portray_term(int idwrite, stream_id out, value val, type tag, dident module, ty
  * when we are about to print the first character of the next item.
  */
 static int
-_write_infix(int idwrite, stream_id out, dident d, register int flags, dident module, type mod_tag, syntax_desc *sd, pword *right, int depth)
+_write_infix(int idwrite, stream_id out, dident d, int flags, dident module, type mod_tag, syntax_desc *sd, pword *right, int depth)
 {
     int		status;
     int		spaces = 0;
@@ -1481,7 +1384,6 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
 		}
 		else
 		{
-		    Set_Bip_Error(0); /* access checking already done	*/
 		    return _write_quoted(idwrite, out, name, length,
 					(char) sd->current_aq_char, sd, depth);
 		}
@@ -1503,7 +1405,6 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
 	}
 	else
 	{
-	    Set_Bip_Error(0); /* access checking already done		*/
 	    return(ec_outf(out, name, (int) length));
 	}
    }
@@ -1536,11 +1437,11 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
  */
 /*ARGSUSED*/
 static int
-_write_quoted(int idwrite, stream_id out, char *name, register word len, char quotechar, syntax_desc *sd, int depth)
+_write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth)
 {
     int			status;
     int			cut;
-    register char	c;
+    char		c;
 
 /* It is not obvious what is the best way to avoid long strings
     if (UseDepth(idwrite) && depth > 0 && len > PrintDepth - depth + STRING_PLUS) {
@@ -1640,7 +1541,7 @@ _write_quoted(int idwrite, stream_id out, char *name, register word len, char qu
  * The stack is pword-aligned.
  */
 static int
-_print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd)
+_print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *ec_eng)
 {
     int name_printed = 0;
     int slot;
@@ -1652,7 +1553,7 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
     {
 	(void) ec_outfc(str, (char) sd->current_ul_char);
     }
-    else if (GlobalFlags & STRIP_VARIABLES) /* in the tests, all vars are the same */
+    else if (EclGblFlags & STRIP_VARIABLES) /* in the tests, all vars are the same */
     {
 	if (IsMeta(t))
 	    (void) ec_outf(str, "_m", 2);
@@ -1753,18 +1654,18 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
 	    r = TG;
 	    TG += ATTR_IO_TERM_SIZE;
 	    Check_Gc;
-	    TG = transf_meta_out(pw->val, pw->tag, r,
+	    TG = transf_meta_out(ec_eng, pw->val, pw->tag, r,
 	    	(idwrite & CANONICAL ? D_UNKNOWN : module), &pw_out);
 	    (void) _pwrite1(idwrite, str, pw_out.val, pw_out.tag, 1200, depth,
-						module, mod_tag, sd, ARGLAST);
+						module, mod_tag, sd, ARGLAST, ec_eng);
 	    (void) ec_outfc(str,'}');
 	} else {
 	    pword *r = _write_trafo(D_UNKNOWN /*META*/, 0,
-				&idwrite, v, t, module, mod_tag);
+				&idwrite, v, t, module, mod_tag, ec_eng);
 	    (v.ptr)->tag.kernel  |= HIDE_ATTR;
 	    if (r) {
 		(void) _pwrite1(idwrite, str, r->val, r->tag, 1200, depth,
-			    module, mod_tag, sd, ARGLAST);
+			    module, mod_tag, sd, ARGLAST, ec_eng);
 	    }
 	}
     }
@@ -1806,7 +1707,7 @@ _float_to_string_opt(value v, type t, char *buf, int precise, int syntax_options
 	ieee_double nan;
 	is_nan = 1;
 	nan.as_dbl = f;
-	/* change the exponent to 1 and print as a number */
+	/* change exponent to 0 (+3ff bias), to enable printing as number */
 	nan.as_struct.mant1 = (nan.as_struct.mant1 & 0x800FFFFF)|0x3FF00000;
 	f = nan.as_dbl;
     }
@@ -1982,7 +1883,7 @@ _printf_integer(stream_id nst, int flags, int radix, word width, word precision,
     int res, sign;
     int i, print_len, pad, zero_fill;
     int bufsize = 1 + tag_desc[TagType(t)].string_size(v, t, radix);
-    char *buf = (char *) hp_alloc_size(bufsize);
+    New_Array(char, buf, bufsize);
     char *digits = buf;
     int len = tag_desc[TagType(t)].to_string(v, t, buf, radix);
 
@@ -2031,7 +1932,7 @@ _printf_integer(stream_id nst, int flags, int radix, word width, word precision,
 	while (pad-- > 0)
 	    if ((res = ec_outfc(nst, ' ')) < 0) return res;
     }
-    hp_free_size((generic_ptr) buf, bufsize);
+    Delete_Array(char, buf, bufsize);
     return PSUCCEED;
 }
 
@@ -2106,13 +2007,13 @@ _printf_string(stream_id nst, int flags, word width, word precision, value v, ty
 #define Printf_Error(N) { res = N; goto _return_res_; }
 
 static int
-p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, value vm, type tm, value vfc, type tfc, value vse, type tse, value vle, type tle, value verr, type terr)
+p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, value vm, type tm, value vfc, type tfc, value vse, type tse, value vle, type tle, value verr, type terr, ec_eng_t *ec_eng)
 {
     char 	formstrt = vfc.nint;
     char 	*format, *par;
     int 	success_code = PSUCCEED;
     int 	res;
-    stream_id 	nst = get_stream_id(vs, ts, SWRITE, &res);
+    stream_id 	nst;
     word 	format_len;
     pword	my_list[2];
     pword	*old_tg = TG;
@@ -2121,6 +2022,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
     char	*last_format = NULL;
     pword	*last_list;
 
+    Get_Locked_Stream(vs, ts, SWRITE, nst);
     if (IsString(strtag)) {
 	format = StringStart(strval);
 	format_len = StringLength(strval);
@@ -2135,10 +2037,6 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
     } else {
 	Bip_Error(TYPE_ERROR)
     }
-    if (nst == NO_STREAM) {
-	Bip_Error(res)
-    }
-    Check_Stream(nst, res);
     Check_Module(tm, vm);
     Check_Integer(tfc);
 
@@ -2164,8 +2062,6 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 
     last_list = list;
     last_format = format;
-
-    Lock_Stream(nst);	/* Be sure to unlock before returning !!! */
 
     for (; *format; last_format = ++format, last_list = list)
     {
@@ -2426,7 +2322,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 		    	mask_clr = StreamOutputMode(nst);
 
 		    Next_Element(elem, list, Printf_Error)
-		    res = ec_pwrite(mask_clr, mask_set, nst, elem->val, elem->tag,
+		    res = ec_pwrite(ec_eng, mask_clr, mask_set, nst, elem->val, elem->tag,
 			1200, width, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
@@ -2438,7 +2334,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 			 Printf_Error(BAD_FORMAT_STRING)
                     }
 		    Next_Element(elem, list, Printf_Error)
-		    res = ec_pwrite(0, WRITE_OPTIONS_PRINT, nst,
+		    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, nst,
 			    elem->val, elem->tag, 1200, 0, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
@@ -2449,7 +2345,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 			 Printf_Error(BAD_FORMAT_STRING)
                     }
 		    Next_Element(elem, list, Printf_Error)
-		    res = ec_pwrite(0, WRITE_OPTIONS_WRITEQ, nst,
+		    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, nst,
 			    elem->val, elem->tag, 1200, 0, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
@@ -2460,7 +2356,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 			 Printf_Error(BAD_FORMAT_STRING)
                     }
 		    Next_Element(elem, list, Printf_Error)
-		    res = ec_pwrite(0, WRITE_OPTIONS_DISPLAY, nst,
+		    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_DISPLAY, nst,
 			    elem->val, elem->tag, 1200, 0, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
@@ -2498,7 +2394,6 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
     if (list) {
 	Printf_Error(BAD_ARGUMENT_LIST)
     }
-    Unlock_Stream(nst);
     TG = old_tg;	/* pop buffer */
 _return_succ_:
     Return_Unify_Integer(verr, terr, success_code)
@@ -2511,9 +2406,6 @@ _return_res_:
 	TG = old_tg;	/* pop buffer */
 	if (last_format)
 	{
-	    /* stream was already locked, unlock it */
-	    Unlock_Stream(nst);
-
 	    /* compute the "remaining" format string and list */
 	    Cstring_To_Prolog(last_format, fv);
 	    Request_Unify_String(vse, tse, fv.ptr);
@@ -2546,7 +2438,7 @@ _return_res_:
  * get/set output_mode_mask (as integer)
  */
 static int
-p_output_mode_mask(value v, type t)
+p_output_mode_mask(value v, type t, ec_eng_t *ec_eng)
 {
     if (IsRef(t)) {
 	Return_Unify_Integer(v, t, output_mode_mask);
@@ -2564,7 +2456,7 @@ p_output_mode_mask(value v, type t)
  * get/set output_mode_mask (as string)
  */
 static int
-p_output_mode(value val, type tag)
+p_output_mode(value val, type tag, ec_eng_t *ec_eng)
 {
     if (IsRef(tag))
     {
@@ -2684,9 +2576,9 @@ writeq_term(uword val, uword tag)
 
     v.all = val;
     t.kernel = tag;
-    vm.did = d_.default_module;
+    vm.did = d_.dummy_module;
 
-    (void) p_writeq(v, t, vm, tdict);
+    (void) p_writeq(v, t, vm, tdict, default_eng);
     ec_flush(current_output_);
     (void) ec_newline(current_output_);
 }
@@ -2700,24 +2592,60 @@ writeq_term(uword val, uword tag)
 static int
 p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm,
 	value vsm, type tsm, value vdepth, type tdepth,
-	value vprec, type tprec, value vm, type tm)
+	value vprec, type tprec, value vm, type tm, ec_eng_t *ec_eng)
 {
-    int		res;
-    stream_id out = get_stream_id(vs, ts, SWRITE, &res);
+    stream_id	out;
 
-    Check_Stream(out, res);
+    Get_Locked_Stream(vs, ts, SWRITE, out);
     Check_Integer(tcm);
     Check_Integer(tsm);
     Check_Integer(tdepth);
     Check_Integer(tprec);
     if (vprec.nint < 0 || 1200 < vprec.nint) { Bip_Error(RANGE_ERROR); }
     Check_Module(tm, vm);
-    Lock_Stream(out);
-    res = ec_pwrite(vcm.nint, vsm.nint, out, val, tag, vprec.nint, vdepth.nint, vm.did, tm);
-    Unlock_Stream(out);
-    return res;
+    return ec_pwrite(ec_eng, vcm.nint, vsm.nint, out, val, tag, vprec.nint, vdepth.nint, vm.did, tm);
 }
-
 
 /* CAUTION: Bip_Error() is redefined to Bip_Error_Fail() ! */
 
+
+
+void
+write_init(int flags)
+{
+    d_portray1 = in_dict("portray", 1);
+    d_portray2 = in_dict("portray", 2);
+    d_dollar_var = in_dict("$VAR", 1);
+    d_print_attributes = in_dict("print_attributes", 2);
+    d_var_name = in_dict("var_name", 0);
+    d_vname2 = in_dict("vname", 2);
+
+    tag_desc[TINT].string_size = _num_string_size;
+    tag_desc[TINT].to_string = _int_to_string;
+    tag_desc[TDBL].string_size = _num_string_size;
+    tag_desc[TDBL].to_string = _float_to_string;
+    tag_desc[THANDLE].string_size = _handle_string_size;
+    tag_desc[THANDLE].to_string = _handle_to_string;
+
+    if (!(flags & INIT_SHARED))
+	return;
+    
+    PrintDepth = 20;
+
+    (void) exported_built_in(in_dict("write_", 2), p_write, B_SAFE);
+    (void) exported_built_in(in_dict("writeq_", 2), p_writeq, B_SAFE);
+    (void) exported_built_in(in_dict("print_", 2), p_print, B_SAFE);
+    (void) exported_built_in(in_dict("write_canonical_", 2), p_write_canonical, B_SAFE);
+    (void) exported_built_in(in_dict("print_", 3), p_print3, B_SAFE);
+    (void) exported_built_in(in_dict("printf_", 8), p_printf5, B_SAFE);
+    (void) exported_built_in(in_dict("write_", 3), p_write3, B_SAFE);
+    (void) local_built_in(in_dict("writeln_body", 3), p_writeln, B_SAFE);
+    (void) exported_built_in(in_dict("writeq_", 3), p_writeq3, B_SAFE);
+    (void) exported_built_in(in_dict("write_canonical_", 3), p_write_canonical3, B_SAFE);
+    (void) exported_built_in(in_dict("write_term", 7), p_write_term, B_SAFE);
+    (void) built_in(in_dict("display", 2), p_display, B_SAFE);
+    (void) local_built_in(in_dict("output_mode", 1), p_output_mode, B_UNSAFE|U_SIMPLE);
+    (void) local_built_in(in_dict("output_mode_mask", 1), p_output_mode_mask, B_UNSAFE|U_SIMPLE);
+}
+
+/* Add all new code in front of the initialization function! */

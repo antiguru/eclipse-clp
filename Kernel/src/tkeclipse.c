@@ -23,10 +23,15 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkeclipse.c,v 1.4 2013/04/17 01:34:20 jschimpf Exp $
+ *	$Id: tkeclipse.c,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
  *
  *	Code for embedding eclipse into a tcl program
  */
+
+#define USES_NO_ENGINE_HANDLE
+#include "eclipse.h"
+#include <tcl.h>
+#include "tkcommon.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,10 +39,6 @@
 #include <signal.h>
 #include <string.h>
 
-#include <tcl.h>
-#include "eclipse.h"
-
-#include "tkcommon.h"
 
 #ifdef __STDC__
 int EcInit(ClientData, Tcl_Interp *, int, Tcl_Obj *CONST []);

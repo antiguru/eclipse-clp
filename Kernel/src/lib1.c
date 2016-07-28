@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lib1.c,v 1.1 2008/06/30 17:43:56 jschimpf Exp $
+ * VERSION	$Id: lib1.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -36,9 +36,3 @@
  * Micha Meier	3.0	7.6.90	created the file
  */
 
-/*ARGSUSED*/
-void
-kegi_init(flags)
-int flags;
-{
-}

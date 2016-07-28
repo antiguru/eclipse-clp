@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.9 2012/12/09 22:53:12 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.10 2016/07/28 03:34:36 jschimpf Exp $
  */
 
 /*
@@ -45,15 +45,18 @@
 #include "module.h"
 #include "debug.h"
 #include "opcode.h"
+#include "os_support.h"
+
+#include <setjmp.h>
+
 
 extern int		*interrupt_handler_flags_;
 extern pri		**interrupt_handler_;
 extern dident		*interrupt_name_;
-extern jmp_buf reset;
-extern pword		*p_meta_arity_;
 extern void		msg_nopoll();
-extern void		ec_init_globvars(void);
-extern int		ec_init_postponed(void);
+extern void		ec_init_globvars(ec_eng_t*);
+extern int		ec_init_postponed(ec_eng_t*);
+
 
 #define Bind_Named(pwn, pw)\
                          Trail_Tag_If_Needed_Gb(pwn); \
@@ -86,13 +89,14 @@ extern vmcode	eval_code_[],
 		recurs_code_[],
 		slave_code_[],
 		boot_code_[],
+		query_code_[],
 		it_code_[],
 		it_block_code_[],
 		*do_exit_block_code_;
 
 extern vmcode	stop_fail_code_[],
-		slave_fail_code_[],
-		it_fail_code_[];
+		recurs_fail_code_[],
+		slave_fail_code_[];
 
 extern vmcode	*fail_code_,
 		*bip_error_code_;
@@ -105,7 +109,7 @@ extern st_handle_t eng_root_branch;
  * in the corresponding state.
  */
 void
-re_fake_overflow(void)
+re_fake_overflow(ec_eng_t *ec_eng)
 {
     Disable_Int();
     if (MU ||
@@ -129,8 +133,9 @@ re_fake_overflow(void)
 #define EMU_INIT_WL	2
 #define EMU_INIT_GV	4
 
+
 static void
-save_vm_status(vmcode *fail_code, int options)
+save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
 {
     register pword *pw1;
     register control_ptr b_aux;
@@ -155,7 +160,8 @@ save_vm_status(vmcode *fail_code, int options)
 
     i = VM_FLAGS;
     Disable_Int()			/* will be reset in ..._emulc() */
-    B.args += SAFE_B_AREA;		/* leave some free space */
+    if (fail_code != &recurs_fail_code_[0])
+	B.args += SAFE_B_AREA;		/* leave some free space */
     b_aux.args = B.args;
 
     b_aux.invoc->tg_before = TG;	/* for restoring TG after exiting */
@@ -167,7 +173,7 @@ save_vm_status(vmcode *fail_code, int options)
     {
 	/* wl_init() must be done between saving tg_before and tg */
 	/* it saves WL, LD, WP */
-	Make_Struct(&TAGGED_WL, wl_init());
+	Make_Struct(&TAGGED_WL, wl_init(ec_eng));
 	/* don't update timestamp, WP must look "old" */
 	WP = PRIORITY_MAIN;
     }
@@ -185,13 +191,12 @@ save_vm_status(vmcode *fail_code, int options)
     }
 #endif
 
-    b_aux.invoc->global_variable = g_emu_.global_variable;
     b_aux.invoc->postponed_list = PostponedList;
     if (options & EMU_INIT_GV)
     {
-	ec_init_globvars();
+	ec_init_globvars(ec_eng);
 
-	ec_init_postponed();
+	ec_init_postponed(ec_eng);
 
 	/* no need to save/restore POSTED: ignored in nested engines */
 
@@ -209,7 +214,6 @@ save_vm_status(vmcode *fail_code, int options)
     b_aux.invoc->tt = TT;
     b_aux.invoc->e = E;
     b_aux.invoc->flags = i;
-    b_aux.invoc->it_buf = g_emu_.it_buf;
     b_aux.invoc->nesting_level = g_emu_.nesting_level;
     b_aux.invoc->pp = PP;
     b_aux.invoc->mu = MU;
@@ -261,12 +265,208 @@ save_vm_status(vmcode *fail_code, int options)
     OCB = (pword *) 0;
 #endif
 
-    re_fake_overflow();
+    re_fake_overflow(ec_eng);
 
     Restore_Tg_Soft_Lim(TG + TG_SEG)
 
     Set_Bip_Error(0);
 }
+
+#if 0	/*TODO*/
+
+#define Clone_Pw(s, d) {\
+    (d)->tag = (s)->tag;\
+    if (!ISPointer((s)->tag.kernel))      (d)->val = (s)->val;\
+    else if ((s)->val.ptr >= TG_ORIG) {\
+	if ((s)->val.ptr < TG)            (d)->val.ptr = (s)->val.ptr + tg_off;\
+	else if ((s)->val.ptr >= SP_ORIG) (d)->val.ptr = (s)->val.ptr;\
+	else if ((s)->val.ptr >= SP)      (d)->val.ptr = (s)->val.ptr + sp_off;\
+	else assert(0);\
+    } else                                (d)->val.ptr = (s)->val.ptr;\
+}
+
+#define Clone_Global_Pw(s, d) {\
+    (d)->tag = (s)->tag;\
+    if (!ISPointer((s)->tag.kernel))      (d)->val = (s)->val;\
+    else if ((s)->val.ptr >= TG_ORIG) {\
+	if ((s)->val.ptr < TG)            (d)->val.ptr = (s)->val.ptr + tg_off;\
+	else if ((s)->val.ptr >= SP_ORIG) (d)->val.ptr = (s)->val.ptr;\
+	else assert(0);\
+    } else                                (d)->val.ptr = (s)->val.ptr;\
+}
+
+
+static void
+_clone_global(ec_eng_t* from_eng, ec_eng_t* to_eng)
+{
+    pword *src = (pword*) from_eng->global_trail[0].start;
+    pword *dest = (pword*) to_eng->global_trail[0].start;
+    word tg_off = dest - src;
+
+    while(src < from_eng->tg)
+    {
+	switch(TagType(src->tag))
+	{
+	case TDE:	/* treat suspension header (rest is pwords) */
+	    dest[SUSP_LD].val.ptr = src[SUSP_LD].val.ptr ?
+	    	src[SUSP_LD].val.ptr + tg_off : NULL;
+	    dest[SUSP_FLAGS].tag = src[SUSP_FLAGS].tag;
+	    dest[SUSP_PRI] = src[SUSP_PRI];
+	    dest[SUSP_INVOC] = src[SUSP_INVOC];
+	    src += SUSP_HEADER_SIZE;
+	    dest += SUSP_HEADER_SIZE;
+	    break;
+
+	case TEXTERN:
+	    handle_copy_anchor(src, dest, to_eng);
+	    src += HANDLE_ANCHOR_SIZE;
+	    dest += HANDLE_ANCHOR_SIZE;
+	    break;
+
+	case TBUFFER:
+	{
+	    int i = BufferPwords(src);
+	    do
+		*dest++ = *src++;
+	    while (--i > 0);
+	    break;
+	}
+
+	default:
+#define ec_eng from_eng
+	    Clone_Global_Pw(src, dest);
+	    ++src; ++dest;
+#undef ec_eng
+	    break;
+	}
+    }
+}
+
+
+int
+ecl_engine_clone(ec_eng_t* from_eng, ec_eng_t* to_eng)
+{
+    /*
+     * TODO:
+     * - pending events?
+     */
+    assert(NoCleanup(from_eng));
+
+    /* Compute relocation offsets for the different stacks.
+     * All the .start fields are uword*, but we assume that
+     * the differences are multiples of pwords (memory blocks)
+     */
+    word b_off  = (pword*)to_eng->control_local[0].start - (pword*)from_eng->control_local[0].start;
+    word sp_off = (pword*)to_eng->control_local[1].start - (pword*)from_eng->control_local[1].start;
+    word tg_off = (pword*)to_eng->global_trail[0].start  - (pword*)from_eng->global_trail[0].start;
+    word tt_off = (pword*)to_eng->global_trail[1].start  - (pword*)from_eng->global_trail[1].start;
+
+    /* copy and relocate registers */
+    to_eng->sp_limit = from_eng->sp_limit + sp_off;
+    to_eng->sp = from_eng->sp + sp_off;
+    to_eng->e  = from_eng->e  + sp_off;
+    to_eng->eb = from_eng->eb + sp_off;
+
+    to_eng->b_limit = from_eng->b_limit + b_off;
+    to_eng->b.args = from_eng->b.args + b_off;
+    to_eng->pb = from_eng->pb + b_off;
+    to_eng->ppb = from_eng->ppb + b_off;
+
+    to_eng->tt_limit = from_eng->tt_limit + tt_off;
+    to_eng->tt = from_eng->tt + tt_off;
+
+    to_eng->tg_limit = from_eng->tg_limit + tg_off;
+    to_eng->tg = from_eng->tg + tg_off;
+    to_eng->gb = from_eng->gb + tg_off;
+    to_eng->lca = from_eng->lca + tg_off;
+    to_eng->de = from_eng->de + tg_off;
+    to_eng->ld = from_eng->ld + tg_off;
+    to_eng->mu = from_eng->mu + tg_off;
+    to_eng->sv = from_eng->sv + tg_off;
+    to_eng->wl = from_eng->wl;
+    to_eng->wl.val.ptr += tg_off;
+    to_eng->wp_stamp = from_eng->wp_stamp;
+    to_eng->wp_stamp.val.ptr += tg_off;		/* always on global stack */
+    to_eng->postponed_list = from_eng->postponed_list;
+    to_eng->postponed_list.val.ptr += tg_off;	/* always on global stack */
+    to_eng->occur_check_boundary = from_eng->occur_check_boundary + tg_off;
+    to_eng->top_constructed_structure = from_eng->top_constructed_structure + tg_off;
+    to_eng->gctg = from_eng->gctg + tg_off;
+    to_eng->posted = from_eng->posted;
+#define ec_eng from_eng
+    Clone_Global_Pw(&from_eng->posted, &to_eng->posted);
+#undef ec_eng
+
+
+    /* rebuild the global references */
+    {
+	globalref **tail = &to_eng->references;
+	globalref *from = from_eng->references;
+	for (; from; from=from->next) {
+	    globalref *to = (globalref*) hp_alloc_size(sizeof(globalref));
+	    to->ptr = from->ptr + tg_off;
+	    to->name = from->name;
+	    to->module = from->module;
+	    *tail = to;
+	    tail = &to->next;
+	}
+	*tail = NULL;
+    }
+
+    to_eng->irq_faked_overflow = 0;
+    to_eng->tg_soft_lim =
+    to_eng->tg_soft_lim_shadow = from_eng->tg_soft_lim_shadow + tg_off;
+
+    to_eng->wp = from_eng->wp;
+
+    /* check these */
+    to_eng->vm_flags = from_eng->vm_flags;
+    to_eng->event_flags = from_eng->event_flags;
+
+    to_eng->segment_size = from_eng->segment_size;
+    to_eng->frand_state = from_eng->frand_state;	/* important */
+
+    to_eng->global_bip_error = 0;
+
+    /* currently untouched:
+    to_eng->trace_data
+    to_eng->allrefs should be initialized from emu_init()
+    to_eng->pp = ...;
+    to_eng->options	?
+    to_eng->dyn_event_q	?
+    */
+
+    /* Ok from emu_init():
+    to_eng->nesting_level
+    to_eng->parse_env
+    to_eng->it_buf
+    to_eng->own_thread
+    to_eng->next,prev
+    to_eng->lock,ref_ctr
+    to_eng->cleanup{_bot}	must be empty
+    to_eng->oracle = NULL;
+    to_eng->followed_oracle = NULL;
+    to_eng->pending_oracle = NULL;
+    to_eng->load = 0;
+    to_eng->ntry = 0;
+    to_eng->leaf = NULL;
+    */
+
+    /* adjust the stack sizes */
+#define ec_eng to_eng
+    if (!trim_global_trail(to_eng, TG_SEG))	/* sets TG_LIM and TT_LIM */
+	ec_panic(MEMORY_P, __func__);
+    if (!trim_control_local(to_eng))		/* sets b_limit and sp_limit */
+	ec_panic(MEMORY_P, __func__);
+#undef ec_eng
+
+    /* copy/relocate the emu_args and stacks */
+    _clone_global(from_eng, to_eng);
+
+    return 0;
+}
+
+#endif
 
 
 /*
@@ -276,19 +476,19 @@ save_vm_status(vmcode *fail_code, int options)
  * This returns PSUCCESS or PFAIL or PTHROW (throw argument is in A1)
  */
 static int
-_emul_trampoline(void)
+_emul_trampoline(ec_eng_t *ec_eng)
 {
-    extern func_ptr ec_emulate(void);
+    extern func_ptr ec_emulate(ec_eng_t*);
     continuation_t continuation = ec_emulate;
     do
     {
-	continuation = (continuation_t) (*continuation)();
+	continuation = (continuation_t) (*continuation)(ec_eng);
     } while (continuation);
     return A[0].val.nint;
 }
 
 static void
-_start_goal(value v_goal, type t_goal, value v_mod, type t_mod)
+_start_goal(ec_eng_t *ec_eng, value v_goal, type t_goal, value v_mod, type t_mod)
 {
     A[1].val.all = v_goal.all;
     A[1].tag.all = t_goal.all;
@@ -303,169 +503,269 @@ _start_goal(value v_goal, type t_goal, value v_mod, type t_mod)
  * This procedure must be called with interrupts disabled (Disable_Int)!!!
  */
 static int
-emulc(void)
+emulc(ec_eng_t *ec_eng)
 {
-    jmp_buf	interrupt_buf;
-    int jump;
+    action_list_t *saved_cleanup_bot;
+    sigjmp_buf longjmp_dest;
+    void *saved_longjmp_dest;
+    void *saved_thread;
+    int jump, res;
 
     /*
-     * (re)initialise the machine
+     * Arrange for catching longjmps during emulation.
+     * Handle cleanup of held locks and objects.
      */
+    saved_cleanup_bot = ec_eng->cleanup_bot;
+    ec_eng->cleanup_bot = ec_eng->cleanup;
 
-    jump = setjmp(interrupt_buf);
-    
-    switch(jump)
-    {
-    case PFAIL:
-	/* We get here when a C++ external want to fail */
-    	PP = fail_code_;
-	break;
-    case PTHROW: 
-	/* we get here when a recursive emulator throws or
-	 * an external called Exit_Block() (eg. on stack overflow)
-	 */
-	PP = do_exit_block_code_;
-	/* In case we're within Disable_Exit() section,
-	 * we must clear the NO_EXIT flag on reentry to *this*
-	 * emulator!
-	 */
-	VM_FLAGS &= ~NO_EXIT;
-	/* in case we aborted in polling mode */
-	msg_nopoll();
-	break;
-    case 0:
+    jump = sigsetjmp(longjmp_dest, 1);
+    if (jump == 0) {
 	/* We are in the first call */
-	g_emu_.it_buf = (jmp_buf *) interrupt_buf; /* clean: &interrupt_buf */
+	saved_longjmp_dest = ec_eng->it_buf;
+	ec_eng->it_buf = (sigjmp_buf *) longjmp_dest;
+	/* run_thread used to longjmp from signal handlers */
+	saved_thread = ec_eng->run_thread;
+	ec_eng->run_thread = ec_thread_self();
 	Enable_Int();		/* not earlier, since it may call a
 				 * recursive emulator that throws */
-	break;
-    default:
-    	/* We get here when a C++ external wants to raise an error */
-    	PP = bip_error_code_;
-	break;
+    } else {
 
+	/* Do the cleanup we missed by not returning from the external */
+	Do_Cleanup()
+
+	switch(jump)
+	{
+	case PFAIL:
+	    /* We get here when a C++ external wants to fail */
+	    PP = fail_code_;
+	    break;
+	case PTHROW: 
+	    /* we get here when a recursive emulator throws or
+	     * an external called Exit_Block() (eg. on stack overflow)
+	     */
+	    PP = do_exit_block_code_;
+	    /* in case we aborted in polling mode */
+	    msg_nopoll();
+	    break;
+	default:
+	    /* We get here when a C++ external wants to raise an error */
+	    PP = bip_error_code_;
+	    break;
+
+	}
     }
-    return _emul_trampoline();
+    res = _emul_trampoline(ec_eng);
+    ec_eng->cleanup_bot = saved_cleanup_bot;
+    ec_eng->it_buf = saved_longjmp_dest;
+    ec_eng->run_thread = saved_thread;
+    return res;
 }
 
-/*
- * This emulator untrails and pops all stacks before returning.
- * It should be used when it is known that no variable that is
- * older than this emulator can be bound (like for file queries).
+
+/**
+ * Run a main loop (sepia_kernel:main/1) in a completely empty engine.
+ * This should return PYIELD(PFAIL), indicating the engine is ready
+ * to be resumed with a goal.
  */
-
-main_emulc_noexit(value v_goal, type t_goal, value v_mod, type t_mod)
+int
+eclipse_main(ec_eng_t *ec_eng, int startup)
 {
-    save_vm_status(&stop_fail_code_[0], EMU_INIT_LD|EMU_INIT_WL);
+    assert(EngIsOurs(ec_eng));
+    save_vm_status(ec_eng, &stop_fail_code_[0], EMU_INIT_LD|EMU_INIT_WL);
+    A[1] = ecl_term(ec_eng, ec_did("main",1), ec_long(startup));
+    A[2].val.did = ec_.d.kernel_sepia;
+    A[2].tag.kernel = ModuleTag(ec_.d.kernel_sepia);
     PP = &eval_code_[0];
-    _start_goal(v_goal, t_goal, v_mod, t_mod);
-    return emulc();
+    return emulc(ec_eng);
 }
 
-query_emulc_noexit(value v_goal, type t_goal, value v_mod, type t_mod)
+
+/**
+ * Call a subgoal (the engine must be in a call-state, e.g inside an external)
+ *
+ * The goal is made deterministic (either GOAL_CUT or GOAL_NOTNOT).
+ * When also setting GOAL_CATCH, exceptions are returned as PTHROW
+ * instead of leading to a longjmp() by default.  CAUTION: in this case,
+ * A[1] holds the Ball, and A[1]'s previous content is lost.
+ *
+ * During these subgoal executions, dictionary GCs may occur, which may
+ * miss didents that are stored in local C variables.
+ * However, stack GCs will only collect stack produced during the call,
+ * so TG pointers in the C environment are safe.
+ */
+int
+sub_emulc_opt(ec_eng_t *ec_eng, value vgoal, type tgoal, value vmod, type tmod, int options)
 {
-    int		result;
-    save_vm_status(&stop_fail_code_[0], EMU_INIT_LD|EMU_INIT_WL);
-    PP = &eval_code_[0];
-    _start_goal(v_goal, t_goal, v_mod, t_mod);
-    result = emulc();
+    int		result, init_options;
+    vmcode	*pp;
+
+    switch(options & ~GOAL_CATCH) {
+	case GOAL_CUT:
+	    pp = &recurs_code_[0];
+	    init_options = 0;
+	    break;
+	case GOAL_NOTNOT:
+	    pp = &eval_code_[0];
+	    init_options = EMU_INIT_LD|EMU_INIT_WL;
+	    break;
+	default:
+	    return RANGE_ERROR;
+    }
+    assert(EngIsOurs(ec_eng));
+    save_vm_status(ec_eng, &recurs_fail_code_[0], init_options);
+    PP = pp;
+    A[1].val.all = vgoal.all;
+    A[1].tag.all = tgoal.all;
+    A[2].val.all = vmod.all;
+    A[2].tag.all = tmod.all;
+    result = emulc(ec_eng);
     while (result == PYIELD)
     {
 	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
 	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc();
+    	result = restart_emulc(ec_eng);
     }
+    if (result == PTHROW  &&  !(options & GOAL_CATCH))
+	siglongjmp(*(sigjmp_buf*)g_emu_.it_buf, PTHROW);
     return result;
 }
 
-query_emulc(value v_goal, type t_goal, value v_mod, type t_mod)
+int
+ecl_subgoal(ec_eng_t *ec_eng, pword goal, pword mod, int options)
 {
-    int		result;
-
-    result = query_emulc_noexit(v_goal, t_goal, v_mod, t_mod);
-
-    if (result == PTHROW)
-	longjmp(*g_emu_.it_buf, PTHROW);
-    return result;
+    return sub_emulc_opt(ec_eng, goal.val, goal.tag, mod.val, mod.tag, options);
 }
 
-slave_emulc(void)
+
+slave_emulc(ec_eng_t *ec_eng)
 {
     int		result;
 
-    save_vm_status(&slave_fail_code_[0], EMU_INIT_LD|EMU_INIT_WL);
+    save_vm_status(ec_eng, &slave_fail_code_[0], EMU_INIT_LD|EMU_INIT_WL);
     PP = &slave_code_[0];
 
-    result = emulc();
+    result = emulc(ec_eng);
     while (result == PYIELD)
     {
 	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
 	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc();
+    	result = restart_emulc(ec_eng);
     }
 
     if (result == PTHROW)
-	longjmp(*g_emu_.it_buf, PTHROW);
+	siglongjmp(*(sigjmp_buf*)g_emu_.it_buf, PTHROW);
     return result;
 
 }
 
-restart_emulc(void)
+restart_emulc(ec_eng_t *ec_eng)
 {
     Disable_Int();
-    return emulc();
+    return emulc(ec_eng);
+}
+
+/*
+ * Resume an engine that runs the main/0 loop.  Returns with (see yield/4):
+ *	A[0]	PYIELD
+ *	A[1]	Status PSUCCEED,...,PFLUSHIO [also this function's return code]
+ *	A[2]	ToParent (for PTHROW,PEXITED,PYIELD,PWAITIO,PFLUSHIO)
+ *	A[3]	-FromParent (for next resume)
+ *	A[4]	-ResumeType (for next resume)
+ * On return, A[1] is a dereferenced integer, identical to return value.
+ * No error code returned here.
+ */
+
+int
+resume_emulc(ec_eng_t *ec_eng)
+{
+    int res, status;
+    Disable_Int();
+    res = emulc(ec_eng);
+    assert(IsInteger(A[1].tag));	/* expect status or exit code */
+    if (res == PYIELD) {
+	res = A[1].val.nint;
+	assert(PSUCCEED <= res  && res <= PFLUSHIO);
+	return res;
+    }
+
+    assert(res == PEXITED);
+    /* simulate yield(PEXITED,ExitCode,_,_) calling convention */
+    A[2] = A[1];
+    Make_Integer(&A[1], PEXITED);
+    A[0].val.nint = PYIELD;
+    ec_emu_fini(ec_eng);
+    return PEXITED;
 }
 
 
 /*
- * This emulator is to be used if the recursive emulator may bind
- * outside variables or leave something useful on the global stack
+ * Get an engine to the PEXITED state (from any other state),
+ * which essentially means cutting and untrailing everything.
+ * The previous engine state becomes the (numeric) exit code.
+ * The engine is finalized (stacks deallocated).
  */
 
-sub_emulc_noexit(value v_goal, type t_goal, value v_mod, type t_mod)
+void
+ecl_engine_exit(ec_eng_t *ec_eng, int exit_code)
 {
-    int result;
-    save_vm_status(&stop_fail_code_[0], 0);
-    PP = &recurs_code_[0];
+    int res;
+    assert(EngIsOurs(ec_eng));
+    assert(!EngIsDead(ec_eng));
+    PP = &engine_exit_code_[0];
+    Make_Integer(&A[1], exit_code);
+    res = emulc(ec_eng);
+    assert(res == PEXITED);
 
-    _start_goal(v_goal, t_goal, v_mod, t_mod);
-    result = emulc();
-    while (result == PYIELD)
-    {
-	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
-	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc();
+    /* exit as if with yield(PEXITED,ExitCode,_,_) */
+    A[2] = A[1];
+    Make_Integer(&A[1], PEXITED);
+    A[0].val.nint = PYIELD;
+    ec_emu_fini(ec_eng);
+}
+
+
+/*
+ * Check, and perform if necessary, any asynchronously requested
+ * "housekeeping" operations on the given engine, such as dictionary marking.
+ * These should leave the engine in the same state as before, with
+ * the exception of the exit-request.
+ * The caller must own the engine (and have a ref-count on it).
+ * A[1..2] are valid.
+ * Returns PEXITED if engine was exited.
+ */
+
+int
+ecl_housekeeping(ec_eng_t *ec_eng, word valid_args, int allow_exit)
+{
+    if (allow_exit  &&  (EVENT_FLAGS & EXIT_REQUEST)) {
+	ecl_engine_exit(ec_eng, ec_eng->requested_exit_code);
+	return PEXITED;
     }
-    return result;
+
+    if (EVENT_FLAGS & DICT_GC_REQUEST) {
+	ecl_mark_engine(ec_eng, valid_args);
+    }
+    return PSUCCEED;
 }
 
-sub_emulc(value v_goal, type t_goal, value v_mod, type t_mod)
-{
-    int		result;
 
-    result = sub_emulc_noexit(v_goal, t_goal, v_mod, t_mod);
-
-    if (result == PTHROW)
-	longjmp(*g_emu_.it_buf, PTHROW);
-    return result;
-}
 
 /*
  * For booting: the 1st argument is the bootfile name
  */ 
 
-boot_emulc(value v_file, type t_file, value v_mod, type t_mod)
+boot_emulc(ec_eng_t *ec_eng, value v_file, type t_file, value v_mod, type t_mod)
 {
     int		result;
-    save_vm_status(&stop_fail_code_[0], EMU_INIT_LD);
+    save_vm_status(ec_eng, &stop_fail_code_[0], EMU_INIT_LD);
     PP = &boot_code_[0];
-    _start_goal(v_file, t_file, v_mod, t_mod);
-    result = emulc();
+    _start_goal(ec_eng, v_file, t_file, v_mod, t_mod);
+    result = emulc(ec_eng);
     while (result == PYIELD)
     {
 	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
 	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc();
+    	result = restart_emulc(ec_eng);
     }
     return result;
 }
@@ -476,71 +776,45 @@ boot_emulc(value v_file, type t_file, value v_mod, type t_mod)
  */
 
 int
-return_throw(value v_tag, type t_tag)
+return_throw(ec_eng_t *ec_eng, value v_tag, type t_tag)
 {
     A[1].val.all = v_tag.all;
     A[1].tag.all = t_tag.all;
     return PTHROW;
 }
 
-longjmp_throw(value v_tag, type t_tag)
+void
+longjmp_throw(ec_eng_t *ec_eng, value v_tag, type t_tag)
 {
     A[1].val.all = v_tag.all;
     A[1].tag.all = t_tag.all;
-    longjmp(*g_emu_.it_buf, PTHROW);
+    siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, PTHROW);
 }
-
-
-delayed_exit(void)
-{
-    pword goal, mod;
-    goal.val.did = d_.exit_postponed;
-    goal.tag.kernel = TDICT;
-    mod.val.did = d_.kernel_sepia;
-    mod.tag.kernel = ModuleTag(d_.kernel_sepia);
-    (void) query_emulc(goal.val, goal.tag, mod.val, mod.tag); /* will do a longjmp */
-}
-
-
-/* 
- * Interrupt emulator:
- *	the 1st argument is the signal number
- * When the exit_block protection is active,
- * the handler is called inside a block/3
- */
 
 int
-it_emulc(value v_sig, type t_sig)
+ecl_do_requested_throw(ec_eng_t *ec_eng, int jump)
 {
-    int		result;
-
-    /* no handler set, don't bother starting an emulator */
-    if (interrupt_handler_flags_[v_sig.nint] != IH_HANDLE_ASYNC)
-    	return PSUCCEED;
-
-    save_vm_status(&it_fail_code_[0], EMU_INIT_LD|EMU_INIT_GV);
-
-    PARSENV = (void_ptr) 0;
-
-    if (VM_FLAGS & NO_EXIT) {
-	PP = &it_block_code_[0];
-    } else {
-	PP = &it_code_[0];
-    }
-
-    /* in case we interrupted in polling mode */
-    msg_nopoll();
-    A[1].val.all = v_sig.all;
-    A[1].tag.all = t_sig.all;
-    result = emulc();
-    while (result == PYIELD)
-    {
-	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
-	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc();
-    }
-    return result;
+    assert(EVENT_FLAGS & THROW_REQUEST);
+    EVENT_FLAGS &= ~THROW_REQUEST;
+    A[1] = ec_eng->requested_throw_ball;
+    if (jump)
+	siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, PTHROW);
+    else
+	return PTHROW;
 }
+
+
+
+/*------------------------------------------
+ * Shared resource management
+ *------------------------------------------*/
+
+void
+ec_cleanup_unlock(void *plock)
+{
+    mt_mutex_unlock((ec_mutex_t*)plock);
+}
+
 
 
 /*------------------------------------------
@@ -560,37 +834,14 @@ it_emulc(value v_sig, type t_sig)
 #define event_q_assert(ex)
 #endif
 
-static pword volatile posted_events_[MAX_STATIC_EVENT_SLOTS];
-static int volatile first_posted_ = 0;
-static int volatile next_posted_ = 0;
-
 #define IsEmptyDynamicEventQueue()			\
 	(g_emu_.dyn_event_q.free_event_slots == 	\
 	 g_emu_.dyn_event_q.total_event_slots)
 
-#define IsEmptyStaticEventQueue()			\
-	(first_posted_ == next_posted_)
 
 #ifdef PRINTAM
 void
-print_static_queued_events(void)
-{
-    int i;
-
-    Disable_Int();
-    i = first_posted_;
-    p_fprintf(current_err_, "Static event queue:");
-    while (i != next_posted_)
-    {
-	p_fprintf(current_err_, " %d:%x", posted_events_[i].tag.kernel, posted_events_[i].val.ptr);
-	i = (i + 1) % MAX_STATIC_EVENT_SLOTS;
-    }
-    ec_newline(current_err_);
-    Enable_Int();
-}
-
-void
-print_dynamic_queued_events(void)
+print_dynamic_queued_events(ec_eng_t *ec_eng)
 {
     dyn_event_q_slot_t *slot;
     uword cnt = 0, total;
@@ -609,64 +860,35 @@ print_dynamic_queued_events(void)
 }
 #endif
 
-static int
-_post_event_static(pword event, int no_duplicates)
-{
-    int i;
 
-    Check_Integer(event.tag);
+static int
+_post_event_dynamic(ec_eng_t *ec_eng, pword event, int no_duplicates)
+{
+    int res = PSUCCEED;
 
     Disable_Int();
+    mt_mutex_lock(&ec_eng->lock);
 
-    if (no_duplicates)
-    {
-	/* if this event is already posted, don't do it again */
-	for (i = first_posted_; i != next_posted_; i = (i + 1) % MAX_STATIC_EVENT_SLOTS)
-	{
-	    if (posted_events_[i].tag.all == event.tag.all
-		&& posted_events_[i].val.all == event.val.all)
-	    {
-		Enable_Int();
-		Succeed_;
-	    }
-	}
+    if (EngIsDead(ec_eng)) {
+	res = PEXITED;
+	goto _unlock_return_;
     }
-
-    i = (next_posted_ + 1) % MAX_STATIC_EVENT_SLOTS;
-
-    if (i == first_posted_)
-    {
-	Enable_Int();
-	Bip_Error(RANGE_ERROR);	/* queue full */
-    }
-
-    posted_events_[next_posted_] = event;
-    next_posted_ = i;		/* enter in queue */
-    EVENT_FLAGS |= EVENT_POSTED|DEL_IRQ_POSTED;
-    Interrupt_Fake_Overflow; 	/* Served in signal handler */
-    Enable_Int();
-
-    Succeed_;
-}
-
-static int
-_post_event_dynamic(pword event, int no_duplicates)
-{
-    extern t_ext_type heap_event_tid;
 
     if (IsHandle(event.tag))
     {
 	Check_Type(event.val.ptr->tag, TEXTERN);
 	if (ExternalClass(event.val.ptr) != &heap_event_tid) {
-		Bip_Error(TYPE_ERROR);
+	    res = TYPE_ERROR;
+	    goto _unlock_return_;
 	}
         if (!(ExternalData(event.val.ptr))) {
-	    Bip_Error(STALE_HANDLE);
+	    res = STALE_HANDLE;
+	    goto _unlock_return_;
 	}
 
 	/* If the event is disabled, don't post it to the queue */
 	if (!((t_heap_event *)ExternalData(event.val.ptr))->enabled) {
-	    Succeed_;
+	    goto _unlock_return_;
 	}
 	
 	/* Don't put the handle in the queue! */
@@ -680,21 +902,19 @@ _post_event_dynamic(pword event, int no_duplicates)
 	 * As above, if the event is disabled, don't post it to the queue.
 	 */
 	if (!((t_heap_event *)event.val.ptr)->enabled) {
-	    Succeed_;
+	    goto _unlock_return_;
 	}
 	event.val.wptr = heap_event_tid.copy(event.val.wptr);
     }
     else if (!IsAtom(event.tag))
     {
-	Error_If_Ref(event.tag);
-	Bip_Error(TYPE_ERROR);
+	res = IsRef(event.tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
+	goto _unlock_return_;
     }
 
     /* Events are either atoms or handles (anonymous).
      * Such events go to the dynamic event queue
      */
-
-    Disable_Int();
 
     if (no_duplicates)
     {
@@ -715,8 +935,7 @@ _post_event_dynamic(pword event, int no_duplicates)
 		{
 		    heap_event_tid.free(event.val.wptr);
 		}
-		Enable_Int();
-		Succeed_;
+		goto _unlock_return_;
 	    }
 	}
     }
@@ -737,8 +956,8 @@ _post_event_dynamic(pword event, int no_duplicates)
 
 	if ((slot = (dyn_event_q_slot_t *)hp_alloc_size(sizeof(dyn_event_q_slot_t))) == NULL) 
 	{
-	    Enable_Int();
-	    Bip_Error(RANGE_ERROR); /* not enough memory - queue full */
+	    res = RANGE_ERROR;	/* not enough memory - queue full */
+	    goto _unlock_return_;
 	}
 	slot->next = g_emu_.dyn_event_q.tail->next;
 	g_emu_.dyn_event_q.tail->next = slot;
@@ -750,41 +969,36 @@ _post_event_dynamic(pword event, int no_duplicates)
     g_emu_.dyn_event_q.tail->event_data = event; /* delayed set of old put */
     EVENT_FLAGS |= EVENT_POSTED;
     Fake_Overflow; /* Not served in signal handler */
-    Enable_Int();
 
-    Succeed_;
+_unlock_return_:
+    mt_mutex_unlock(&ec_eng->lock);
+    Enable_Int();
+    return res;
 }
 
 int
-ec_post_event_unique(pword event)
+ecl_post_event_unique(ec_eng_t *ec_eng, pword event)
 {
-    return _post_event_dynamic(event, 1);
+    return _post_event_dynamic(ec_eng, event, 1);
 }
 
 int Winapi
-ec_post_event(pword event)
+ecl_post_event(ec_eng_t *ec_eng, pword event)
 {
-    return _post_event_dynamic(event, 0);
+    return _post_event_dynamic(ec_eng, event, 0);
 }
 
 int Winapi
-ec_post_event_string(const char *event)
+ecl_post_event_string(ec_eng_t *ec_eng, const char *event)
 {
     pword pw;
     Make_Atom(&pw, in_dict((char *) event,0));
-    return _post_event_dynamic(pw, 0);
+    return _post_event_dynamic(ec_eng, pw, 0);
 }
 
-int Winapi
-ec_post_event_int(int event)
-{
-    pword pw;
-    Make_Integer(&pw, event);
-    return _post_event_static(pw, 0);
-}
 
 void
-next_posted_event(pword *out)
+next_posted_event(ec_eng_t *ec_eng, pword *out)
 {
     int n;
 
@@ -799,36 +1013,29 @@ next_posted_event(pword *out)
      */
 
     Disable_Int();
+    mt_mutex_lock(&ec_eng->lock);
 
-    if ((n = next_urgent_event()) != -1)
+    /* Service the dynamic event queue */
+    if (!IsEmptyDynamicEventQueue())
     {
-	Make_Integer(out, n);
+	g_emu_.dyn_event_q.prehead = 
+	    g_emu_.dyn_event_q.prehead->next; /* get = get->next */
+	*out = g_emu_.dyn_event_q.prehead->event_data; /* Delayed update of get */
+	g_emu_.dyn_event_q.free_event_slots++;
     }
     else
     {
-	/* Service the dynamic event queue */
-	if (!IsEmptyDynamicEventQueue())
-	{
-	    g_emu_.dyn_event_q.prehead = 
-		g_emu_.dyn_event_q.prehead->next; /* get = get->next */
-	    *out = g_emu_.dyn_event_q.prehead->event_data; /* Delayed update of get */
-	    g_emu_.dyn_event_q.free_event_slots++;
-	}
-	else
-	{
-	    /* The queues were empty although flag was set: shouldn't happen */
-	    ec_panic("Bogus event queue notification", "next_posted_event()");
-	}
+	/* The queues were empty although flag was set: shouldn't happen */
+	mt_mutex_unlock(&ec_eng->lock);
+	ec_panic("Bogus event queue notification", "next_posted_event()");
     }
 
     /* If either queue contain events fake the over flow to handle next */
-    if (IsEmptyStaticEventQueue() && 
-	IsEmptyDynamicEventQueue()) 
+    if (IsEmptyDynamicEventQueue()) 
     {
 	event_q_assert(g_emu_.dyn_event_q.prehead == 
 		       g_emu_.dyn_event_q.tail); /* put == get */
 	EVENT_FLAGS &= ~EVENT_POSTED;
-	event_q_assert(!(EVENT_FLAGS & DEL_IRQ_POSTED));
     }
     else
     {
@@ -836,64 +1043,8 @@ next_posted_event(pword *out)
 	Fake_Overflow;
     }
 
+    mt_mutex_unlock(&ec_eng->lock);
     Enable_Int();
-}
-
-/*
- * The following is a hack to allow aborting looping unifications:
- * It is invoked within a possibly infinite emulator loop iff the
- * DEL_IRQ_POSTED flags is set (Poll_Interrupts macro).
- * We pick out the delayed async irqs from the event queue and
- * return them. 
- * If the event is an asynchrously-posted-synchronously-executed
- * event, then we move the event to the dynamic event queue and 
- * seek the next urgent event. EVENT_FLAGS are adjusted and 
- * if no urgent events left, -1 is returned.
- */
-
-int
-next_urgent_event(void)
-{
-    Disable_Int();
-
-    while (!IsEmptyStaticEventQueue())
-    {
-	int n = posted_events_[first_posted_].val.nint;
-	event_q_assert(!IsTag(posted_events_[first_posted_].tag.kernel, TEND));
-	event_q_assert(IsInteger(posted_events_[first_posted_].tag));
-	/* Remove element from queue */
-	first_posted_ = (first_posted_ + 1) % MAX_STATIC_EVENT_SLOTS;
-	if (interrupt_handler_flags_[n] == IH_POST_EVENT)
-	{
-	    /* Post the atom to the dynamic event queue for synchronous
-	     * execution.
-	     */
-	    pword event;
-	    Make_Atom(&event, interrupt_name_[n]);
-	    if (_post_event_dynamic(event, 0) != PSUCCEED)
-		(void) write(2,"\nEvent queue overflow - signal lost\n",36);
-	}
-	else
-	{
-	    event_q_assert(interrupt_handler_flags_[n] == IH_HANDLE_ASYNC
-	    		|| interrupt_handler_flags_[n] == IH_THROW
-	    		|| interrupt_handler_flags_[n] == IH_ABORT);
-	    if (IsEmptyStaticEventQueue()) 
-	    {
-    		EVENT_FLAGS &= ~DEL_IRQ_POSTED;
-		if (IsEmptyDynamicEventQueue()) 
-		{
-		    EVENT_FLAGS &= ~EVENT_POSTED;
-		}
-	    }
-	    Enable_Int();
-	    return n;
-	}
-    }
-    EVENT_FLAGS &= ~DEL_IRQ_POSTED; /* In case it got set in the meantime */
-
-    Enable_Int();
-    return -1;
 }
 
 
@@ -902,67 +1053,64 @@ next_urgent_event(void)
  */
 
 void 
-purge_disabled_dynamic_events(t_heap_event *event)
+purge_disabled_dynamic_events(ec_eng_t *ec_eng, t_heap_event *event)
 {
     dyn_event_q_slot_t *slot, *prev;
     uword cnt = 0, total;
     pword *pevent;
 
     Disable_Int();
+    mt_mutex_lock(&ec_eng->lock);
 
     total = g_emu_.dyn_event_q.total_event_slots - g_emu_.dyn_event_q.free_event_slots;
 
-    if ( total == 0 ) {
-	Enable_Int();
-	return;
-    }
-
-    prev = g_emu_.dyn_event_q.prehead;
-    slot = prev->next; /* get */
-
-    /* Process all slots but the tail */
-    for( cnt = 1; cnt < total; cnt++ )
+    if (total > 0 )
     {
-	pevent = &slot->event_data;
+	prev = g_emu_.dyn_event_q.prehead;
+	slot = prev->next; /* get */
 
+	/* Process all slots but the tail */
+	for( cnt = 1; cnt < total; cnt++ )
+	{
+	    pevent = &slot->event_data;
+
+	    if (IsTag(pevent->tag.kernel, TPTR) && pevent->val.wptr == (uword*)event)
+	    {
+		g_emu_.dyn_event_q.free_event_slots++;
+		prev->next = slot->next;
+		slot->next = g_emu_.dyn_event_q.tail->next; /* insert before put */
+		g_emu_.dyn_event_q.tail->next = slot; /* update put */
+		ExternalClass(pevent->val.ptr)->free(ExternalData(pevent->val.ptr));
+		slot = prev->next;
+		continue;
+	    }
+
+	    prev = slot;
+	    slot = slot->next;
+	}
+
+	/* Special case tail element removal. This also handles the case 
+	 * where the circular list is full - in either case simply rewind 
+	 * the tail pointer.
+	 */
+	event_q_assert(slot == g_emu_.dyn_event_q.tail);
+	pevent = &slot->event_data;
 	if (IsTag(pevent->tag.kernel, TPTR) && pevent->val.wptr == (uword*)event)
 	{
 	    g_emu_.dyn_event_q.free_event_slots++;
-	    prev->next = slot->next;
-	    slot->next = g_emu_.dyn_event_q.tail->next; /* insert before put */
-	    g_emu_.dyn_event_q.tail->next = slot; /* update put */
+	    g_emu_.dyn_event_q.tail = prev;
 	    ExternalClass(pevent->val.ptr)->free(ExternalData(pevent->val.ptr));
-	    slot = prev->next;
-	    continue;
 	}
 
-	prev = slot;
-	slot = slot->next;
+	/* If both static and dynamic event queues are 
+	 * now empty clear the flags 
+	 */
+	if (IsEmptyDynamicEventQueue())
+	{
+	    EVENT_FLAGS &= ~EVENT_POSTED;
+	}
     }
-
-    /* Special case tail element removal. This also handles the case 
-     * where the circular list is full - in either case simply rewind 
-     * the tail pointer.
-     */
-    event_q_assert(slot == g_emu_.dyn_event_q.tail);
-    pevent = &slot->event_data;
-    if (IsTag(pevent->tag.kernel, TPTR) && pevent->val.wptr == (uword*)event)
-    {
-	g_emu_.dyn_event_q.free_event_slots++;
-	g_emu_.dyn_event_q.tail = prev;
-	ExternalClass(pevent->val.ptr)->free(ExternalData(pevent->val.ptr));
-    }
-
-    /* If both static and dynamic event queues are 
-     * now empty clear the flags 
-     */
-    if (IsEmptyDynamicEventQueue() &&
-	IsEmptyStaticEventQueue()) 
-    {
-	EVENT_FLAGS &= ~EVENT_POSTED;
-	event_q_assert(!(EVENT_FLAGS & DEL_IRQ_POSTED));
-    }
-
+    mt_mutex_unlock(&ec_eng->lock);
     Enable_Int();
 }
 
@@ -972,7 +1120,7 @@ purge_disabled_dynamic_events(t_heap_event *event)
  */
 
 void
-ec_init_dynamic_event_queue(void)
+ec_init_dynamic_event_queue(ec_eng_t *ec_eng)
 {
     int cnt;
 
@@ -1020,7 +1168,7 @@ ec_init_dynamic_event_queue(void)
  */
 
 void
-trim_dynamic_event_queue(void)
+trim_dynamic_event_queue(ec_eng_t *ec_eng)
 {
     Disable_Int();
 
@@ -1033,7 +1181,7 @@ trim_dynamic_event_queue(void)
 	    new_free_slots = MIN_DYNAMIC_EVENT_SLOTS;
 	}
 
-	if (GlobalFlags & GC_VERBOSE) {
+	if (EclGblFlags & GC_VERBOSE) {
 	    p_fprintf(log_output_,	
 		      "shrink dynamic event queue from Total: %" W_MOD "u"
 		      " Free: %" W_MOD "u to Total: %" W_MOD "u Free: %" W_MOD "u (elements)\n", 
@@ -1055,6 +1203,20 @@ trim_dynamic_event_queue(void)
     }
 
     Enable_Int();
+}
+
+
+void
+ec_fini_dynamic_event_queue(ec_eng_t *ec_eng)
+{
+    dyn_event_q_slot_t *slot = g_emu_.dyn_event_q.prehead;
+    do {
+	dyn_event_q_slot_t *next = slot->next;
+	hp_free_size((generic_ptr)slot, sizeof(dyn_event_q_slot_t));
+	slot = next;
+    } while (slot != g_emu_.dyn_event_q.prehead);
+    g_emu_.dyn_event_q.prehead = g_emu_.dyn_event_q.tail = NULL;
+    g_emu_.dyn_event_q.free_event_slots = g_emu_.dyn_event_q.total_event_slots = 0;
 }
 
 
@@ -1080,7 +1242,8 @@ trim_dynamic_event_queue(void)
  */
 
 int
-ec_unify_(value v1, type t1,
+ec_unify_(ec_eng_t *ec_eng,
+	value v1, type t1,
 	value v2, type t2,
 	pword **list)		/* list of unified metaterms */
 {
@@ -1164,7 +1327,7 @@ ec_unify_(value v1, type t1,
 	    Occur_Check_Read(v1.ptr, v2, t2, return PFAIL)
 	    aux_pw.val.all = v2.all;
 	    aux_pw.tag.all = t2.all;
-	    return bind_c(v1.ptr, &aux_pw, list);
+	    return bind_c(ec_eng, v1.ptr, &aux_pw, list);
 	}
 	else if (IsRef(t2))		/* t2 is a nonstandard variable */
 	{
@@ -1172,7 +1335,7 @@ ec_unify_(value v1, type t1,
 	    Occur_Check_Read(v2.ptr, v1, t1, return PFAIL)
 	    aux_pw.val.all = v1.all;
 	    aux_pw.tag.all = t1.all;
-	    return bind_c(v2.ptr, &aux_pw, list);
+	    return bind_c(ec_eng, v2.ptr, &aux_pw, list);
 	}
 	/* two non-variables */
 	else if (TagType(t1) != TagType(t2))
@@ -1220,7 +1383,7 @@ ec_unify_(value v1, type t1,
 	    return tag_desc[TagType(t1)].equal(v1.ptr, v2.ptr) ? PSUCCEED : PFAIL;
 	}
 
-	Poll_Interrupts();	/* because we might be looping */
+	Poll_Interrupts(1);	/* because we might be looping */
 	
 	/* arity > 0 */
 	for (;;)
@@ -1231,7 +1394,7 @@ ec_unify_(value v1, type t1,
 	    Dereference_(pw2);
 	    if (--arity == 0)
 		break;
-	    if (ec_unify_(pw1->val, pw1->tag, pw2->val, pw2->tag, list) == PFAIL)
+	    if (ec_unify_(ec_eng, pw1->val, pw1->tag, pw2->val, pw2->tag, list) == PFAIL)
 		return PFAIL;
 	}
 	v1.all = pw1->val.all;
@@ -1242,7 +1405,8 @@ ec_unify_(value v1, type t1,
 }
 
 
-deep_suspend(value val, type tag,
+deep_suspend(ec_eng_t *ec_eng,
+	value val, type tag,
 	int position,		/* must be > 0 */
 	pword *susp,		/* must be dereferenced */
 	int slot)
@@ -1255,7 +1419,7 @@ deep_suspend(value val, type tag,
     {
 	if (IsRef(tag))
 	{
-	    return insert_suspension(val.ptr, position, susp, slot);
+	    return insert_suspension(ec_eng, val.ptr, position, susp, slot);
 	}
 	else if (IsList(tag))
 	    arity = 2;
@@ -1272,9 +1436,9 @@ deep_suspend(value val, type tag,
 	    arg_i = val.ptr++;
 	    Dereference_(arg_i);
 	    if (IsRef(arg_i->tag))
-		res = insert_suspension(arg_i, position, susp, slot);
+		res = insert_suspension(ec_eng, arg_i, position, susp, slot);
 	    else
-		res = deep_suspend(arg_i->val, arg_i->tag, position, 
+		res = deep_suspend(ec_eng, arg_i->val, arg_i->tag, position, 
 				susp, slot);
 	    if (res != PSUCCEED)
 		return res;
@@ -1288,17 +1452,17 @@ deep_suspend(value val, type tag,
 
 
 pword *
-add_attribute(word tv, pword *va, word ta, int slot)
+add_attribute(ec_eng_t *ec_eng, word tv, pword *va, word ta, int slot)
 {
     register pword *s, *t;
 
     s = TG;
-    TG += 2 + p_meta_arity_->val.nint + 1;
+    TG += 2 + MetaArity + 1;
     s[0].val.ptr = s;		/* metaterm */
     s[0].tag.kernel = TagNameField(tv) | RefTag(TMETA);
     s[1].val.ptr = s + 2;
     s[1].tag.kernel = TCOMP;
-    s[2].val.did = in_dict("meta", (int) p_meta_arity_->val.nint);
+    s[2].val.did = in_dict("meta", MetaArity);
     s[2].tag.kernel = TDICT;
     for (t = &s[3]; t < TG; t++)
     {
@@ -1316,7 +1480,7 @@ add_attribute(word tv, pword *va, word ta, int slot)
  * The first a difference list, the others are normal lists.
  */
 static pword *
-_suspension_attribute(pword *susp, int position)
+_suspension_attribute(ec_eng_t *ec_eng, pword *susp, int position)
 {
     register pword	*t, *d, *s;
     register int	i;
@@ -1366,7 +1530,8 @@ _suspension_attribute(pword *susp, int position)
 }
 
 int
-insert_suspension(pword *var,
+insert_suspension(ec_eng_t *ec_eng,
+	pword *var,
 	int position,		/* must be > 0 */
 	pword *susp,		/* must be dereferenced */
 	int slot)
@@ -1381,7 +1546,7 @@ insert_suspension(pword *var,
 	if (IsRef(t->tag)) {
 	    if (slot != DELAY_SLOT)
 		return ATTR_FORMAT;
-	    s = _suspension_attribute(susp, position);
+	    s = _suspension_attribute(ec_eng, susp, position);
 	    if (!s)
 		return RANGE_ERROR;
 	    Bind_Var(t->val, t->tag, s, TCOMP);
@@ -1395,15 +1560,15 @@ insert_suspension(pword *var,
 	    position = 1;		/* force to the 1st list */
 	}
 	
-	return ec_enter_suspension(t+position, susp);
+	return ecl_enter_suspension(ec_eng, t+position, susp);
     }
     else if (IsRef(var->tag)) {
 	if (slot != DELAY_SLOT)
 	    return ATTR_FORMAT;
-	t = _suspension_attribute(susp, position);
+	t = _suspension_attribute(ec_eng, susp, position);
 	if (!t)
 	    return RANGE_ERROR;
-	s = add_attribute(var->tag.kernel, t, (word) TCOMP, slot);
+	s = add_attribute(ec_eng, var->tag.kernel, t, (word) TCOMP, slot);
 	Bind_Var(var->val, var->tag, s, TREF);
     }
     Check_Gc;
@@ -1411,7 +1576,7 @@ insert_suspension(pword *var,
 }
 
 int
-ec_enter_suspension(pword *t, pword *susp)
+ecl_enter_suspension(ec_eng_t *ec_eng, pword *t, pword *susp)
 {
     register pword *s, *head;
     pword	   *dlp;
@@ -1486,7 +1651,7 @@ ec_enter_suspension(pword *t, pword *susp)
 	    s[4].val.ptr = &s[1];
 	    s[4].tag.kernel = TREF;
 	    v.ptr = &s[2];
-	    (void) ec_assign(dlp, v, tcomp);
+	    (void) ecl_assign(ec_eng, dlp, v, tcomp);
 	}
     }
     Check_Gc;
@@ -1494,7 +1659,7 @@ ec_enter_suspension(pword *t, pword *susp)
 }
 
 int
-notify_constrained(pword *pvar)
+ecl_notify_constrained(ec_eng_t *ec_eng, pword *pvar)
 {
     pword	*p;
 
@@ -1507,7 +1672,7 @@ notify_constrained(pword *pvar)
     if (!IsStructure(p->tag)) {
 	Succeed_
     }
-    return ec_schedule_susps(p->val.ptr + CONSTRAINED_OFF);
+    return ecl_schedule_susps(ec_eng, p->val.ptr + CONSTRAINED_OFF);
 }
 
 /*
@@ -1515,7 +1680,7 @@ notify_constrained(pword *pvar)
  * remove it from its list and set WP to the priority
  */
 pword *
-first_woken(register int prio)
+first_woken(ec_eng_t *ec_eng, int prio)
 {
     register int	i;
     register pword	*p = WL;
@@ -1572,7 +1737,7 @@ first_woken(register int prio)
  * Initialize the WL structure
  */
 pword *
-wl_init()
+wl_init(ec_eng_t *ec_eng)
 {
     pword	*p = TG;
     int	i;
@@ -1598,7 +1763,7 @@ wl_init()
  * binds the non-standard variable pw1 to the term referenced by pw2
  */
 
-bind_c(register pword *pw1, register pword *pw2, register pword **list)
+bind_c(ec_eng_t *ec_eng, register pword *pw1, register pword *pw2, register pword **list)
 {
     switch(TagType(pw1 -> tag))
     {
@@ -1734,7 +1899,7 @@ bind_c(register pword *pw1, register pword *pw2, register pword **list)
  */
 
 int
-meta_bind(pword *pvar, value v, type t)
+meta_bind(ec_eng_t *ec_eng, pword *pvar, value v, type t)
 {
     if (IsVar(t) && v.ptr >= TG)	/* local -> meta */
     {
@@ -1752,7 +1917,7 @@ meta_bind(pword *pvar, value v, type t)
 
 
 /*
- * ec_assign() - destructive assignment to a pword in the global stack
+ * ecl_assign() - destructive assignment to a pword in the global stack
  *
  * Used to implement setarg/3 and the like.
  * It is not allowed to assign to a variable, in order to reduce the
@@ -1776,21 +1941,24 @@ meta_bind(pword *pvar, value v, type t)
  */
 
 int				/* returns PSUCCEED */
-ec_assign(
-    	register pword *argpw,	/* location to be modified */
+ecl_assign(
+	ec_eng_t *ec_eng,
+    	pword *argpw,	/* location to be modified */
 	value v, type t)	/* the new value and tag */
 {
+#if 0
 #ifdef PRINTAM
     if (!(TG_ORIG <= argpw && argpw < TG) &&
-    	!((void_ptr)&ec_.m <= (void_ptr)argpw &&
-	  (void_ptr)argpw < (void_ptr)&ec_.m + sizeof(struct machine)))
+    	!((void_ptr)ec_eng <= (void_ptr)argpw &&
+			   (void_ptr)argpw < (void_ptr)(ec_eng+1)))
     {
 	pword *argpw1 = argpw;
-	p_fprintf(current_output_,"INTERNAL ERROR: ec_assign of heap term: ");
+	p_fprintf(current_output_,"INTERNAL ERROR: ecl_assign of heap term: ");
 	Dereference_(argpw1)
 	writeq_term(argpw1->val.all, argpw1->tag.all);
 	ec_newline(current_output_);
     }
+#endif
 #endif
     if (IsVar(t) && v.ptr > TG)	/* globalize local variables */
     {
@@ -1874,7 +2042,7 @@ ec_nonground(value val, type tag)	/* expects a dereferenced argument */
 #ifdef PB_MAINTAINED
 
 int
-cut_across_pb(old_b)
+cut_across_pb(ec_eng_t *ec_eng, old_b)
 pword *old_b;		/* old_b < PB */
 {
     do
@@ -1909,18 +2077,19 @@ pword *old_b;		/* old_b < PB */
  */
 
 void
-untrail_ext(pword **trail_ptr, int undo_context)
+untrail_ext(ec_eng_t *ec_eng, pword **trail_ptr, int undo_context)
 {
     switch(TrailedEtype(*trail_ptr))
     {
 
     case TRAIL_UNDO:
 	/* call undo function */
-	(* (void(*)(pword*,word*,int,int)) (trail_ptr[TRAIL_UNDO_FUNCT])) (
+	(* (void(*)(pword*,word*,int,int,ec_eng_t*)) (trail_ptr[TRAIL_UNDO_FUNCT])) (
 		trail_ptr[TRAIL_UNDO_ADDRESS],
 		(word*) (trail_ptr + TRAIL_UNDO_SIMPLE_HEADER_SIZE),
 		TrailedEsize(trail_ptr[TRAIL_UNDO_FLAGS]) - TRAIL_UNDO_SIMPLE_HEADER_SIZE,
-		undo_context
+		undo_context,
+		ec_eng
 	    );
 	break;
 
@@ -1940,11 +2109,12 @@ untrail_ext(pword **trail_ptr, int undo_context)
 		return;
 	}
 	/* then call undo function */
-	(* (void(*)(pword*,word*,int,int)) (trail_ptr[TRAIL_UNDO_FUNCT])) (
+	(* (void(*)(pword*,word*,int,int,ec_eng_t*)) (trail_ptr[TRAIL_UNDO_FUNCT])) (
 		trail_ptr[TRAIL_UNDO_ADDRESS],
 		(word*) (trail_ptr + TRAIL_UNDO_STAMPED_HEADER_SIZE),
 		TrailedEsize(trail_ptr[TRAIL_UNDO_FLAGS]) - TRAIL_UNDO_STAMPED_HEADER_SIZE,
-		undo_context
+		undo_context,
+		ec_eng
 	    );
 	break;
 
@@ -1959,11 +2129,11 @@ untrail_ext(pword **trail_ptr, int undo_context)
  * called only by untrail_ext() during untrailing
  */
 static void
-_untrail_cut_action(pword *action_frame)
+_untrail_cut_action(pword *action_frame, word *pdata, int data_size, int undo_context, ec_eng_t *ec_eng)
 {
     if (action_frame == LCA)
     {
-	do_cut_action();
+	do_cut_action(ec_eng);
     }
     /* else the action has already been executed by a cut */
 }
@@ -1979,10 +2149,10 @@ _untrail_cut_action(pword *action_frame)
  *	TAG	VAL				argument for the action
  */
 void
-do_cut_action(void)
+do_cut_action(ec_eng_t *ec_eng)
 {
     /* call the action function */
-    (* (void(*)(value,type)) (LCA[2].val.ptr)) (LCA[3].val, LCA[3].tag);
+    (* (void(*)(value,type,ec_eng_t*)) (LCA[2].val.ptr)) (LCA[3].val, LCA[3].tag, ec_eng);
 
     /* advance the LCA register */
     if (IsStructure(LCA[1].tag))
@@ -1993,7 +2163,7 @@ do_cut_action(void)
 
 
 /*
- * schedule_cut_fail_action(function, v, t)
+ * ecl_schedule_cut_fail_action(ec_eng, function, v, t)
  *
  * create a cut-action frame on the global stack and a corresponding
  * undo-frame on the trail.
@@ -2001,8 +2171,9 @@ do_cut_action(void)
  * starting with the LCA register.
  */
 void
-schedule_cut_fail_action(
-	void	(*function)(value, type),
+ecl_schedule_cut_fail_action(
+	ec_eng_t *ec_eng,
+	void	(*function)(value, type, ec_eng_t*),
 	value	v,
 	type	t)
 {
@@ -2026,20 +2197,16 @@ schedule_cut_fail_action(
     LCA = action_frame;
 }
 
+
 /*
  * C function interfaces for use in extensions
  */
-
-void trail_undo(pword *pw, void (*function) (pword *))
-{
-    Trail_Undo(pw, function);
-}
-
 
 /*
  * The function to create an (optionally time-stamped) undo trail:
  * 
  * void ec_trail_undo(
+ *	ec_eng,		engine
  *	function,	address of untrail function
  *	pitem,		address of related item, or NULL
  *			(pointer to pword on heap, or anything elsewhere)
@@ -2056,13 +2223,15 @@ void trail_undo(pword *pw, void (*function) (pword *))
  *	pitem,		address of related item
  *	pdata,		pointer to untrail data
  *	data_size,	size of untrail data in words
- *	undo_context	UNDO_FAIL or UNDO_GC
+ *	undo_context,	UNDO_FAIL or UNDO_GC
+ *	ec_eng_t*
  * )
  */
 
 void
-ec_trail_undo(
-	void	(*function)(pword*,word*,int,int),
+ecl_trail_undo(
+	ec_eng_t *ec_eng,
+	void	(*function)(pword*,word*,int,int,ec_eng_t*),
 	pword	*pitem,
 	pword	*pstamp,
 	word	*pdata,
@@ -2072,17 +2241,10 @@ ec_trail_undo(
     int i;
     uword *traildata = (uword *)TT - data_size;
 
-    /* Disable_Exit macro guards against interruption by an 
-     * asynchronous abort leaving a partially complete trail 
-     * entry on the top of the stack
-     */
-
     if (pstamp)
     {
 	if (!OldStamp(pstamp))	/* trail redundant? */
 	    return;
-
-	Disable_Exit();
 
 	TT = (pword **) (traildata - TRAIL_UNDO_STAMPED_HEADER_SIZE);
 	Check_Trail_Ov
@@ -2096,8 +2258,6 @@ ec_trail_undo(
     }
     else
     {
-	Disable_Exit();
-
 	TT = (pword **) (traildata - TRAIL_UNDO_SIMPLE_HEADER_SIZE);
 	Check_Trail_Ov
 	TT[TRAIL_UNDO_FLAGS] = (pword *)
@@ -2107,35 +2267,15 @@ ec_trail_undo(
     }
 
     TT[TRAIL_UNDO_ADDRESS] = pitem;
-    *((void (**)(pword*,word*,int,int)) (TT+TRAIL_UNDO_FUNCT)) = function;
+    *((void (**)(pword*,word*,int,int,ec_eng_t*)) (TT+TRAIL_UNDO_FUNCT)) = function;
 
     for(i=0; i<data_size; ++i)
     {
 	traildata[i] = ((uword *) pdata)[i];
     }
-
-    Enable_Exit();
 }
 
 
-/*
- * trail the n_pwords pwords starting at pw + offset_pwords
- */
-void ec_trail_pwords(pword *pw, int offset_pwords, int n_pwords)
-{
-    Trail_Pwords(pw, offset_pwords, n_pwords);
-}
-
-
-void disable_exit(void)
-{
-    Disable_Exit();
-}
-
-void enable_exit(void)
-{
-    Enable_Exit();
-}
 
 #define GlobalRef(ref)		((ref) < TG && (ref) >= TG_ORIG)
 #define LocalRef(ref)		((ref) < SP_ORIG && (ref) >= SP)
@@ -2146,7 +2286,7 @@ void enable_exit(void)
  * This function checks very thoroughly that the pointer is a valid local
  * or global reference.
  */
-check_pword(pword *ref)
+check_pword(ec_eng_t *ec_eng, pword *ref)
 {
     int		arity;
 
@@ -2160,17 +2300,19 @@ check_pword(pword *ref)
     case TLIST:
 	if (!(GlobalRef(ref->val.ptr) || address_in_heap(&global_heap, ref->val.ptr)))
 	    return 0;
-	return check_pword(ref->val.ptr) && check_pword(ref->val.ptr+1);
+	return check_pword(ec_eng, ref->val.ptr) && check_pword(ec_eng, ref->val.ptr+1);
 
     case TCOMP:
 	ref = ref->val.ptr;
+	if (!ref)
+	    return 1;	/* this is for the TCOMP|0 in woken/15 */
 	if (!(GlobalRef(ref) || address_in_heap(&global_heap, ref->val.ptr)))
 	    return 0;
 	if (bitfield_did((word) DidBitField(ref->val.did)) != ref->val.did)
 	    return 0;
 	arity = DidArity(ref->val.did);
 	for (ref++; arity; arity--, ref++)
-	    if (!check_pword(ref))
+	    if (!check_pword(ec_eng, ref))
 		return 0;
 	return 1;
 
@@ -2208,19 +2350,19 @@ check_pword(pword *ref)
 
     case TVAR_TAG:
 	if (ref->val.ptr != ref)
-	    return check_pword(ref->val.ptr);
+	    return check_pword(ec_eng, ref->val.ptr);
 	return 1;
 
     case TNAME:
 	if (ref->val.ptr != ref)
-	    return check_pword(ref->val.ptr);
+	    return check_pword(ec_eng, ref->val.ptr);
 	return (IsNamed(ref->tag.kernel) &&
 	    address_in_heap(&global_heap, (pword *) TagDid(ref->tag.kernel)));
 
     case TMETA:
 	if (ref->val.ptr != ref)
-	    return check_pword(ref->val.ptr);
-	return check_pword(ref->val.ptr + 1);
+	    return check_pword(ec_eng, ref->val.ptr);
+	return check_pword(ec_eng, ref->val.ptr + 1);
 
     default:
 	return 0;
@@ -2232,7 +2374,7 @@ check_pword(pword *ref)
  * Debugging support
  *---------------------------------------*/
 
-check_arg(pword *pw)
+check_arg(ec_eng_t *ec_eng, pword *pw)
 {
     switch (TagType(pw->tag))
     {
@@ -2292,17 +2434,17 @@ check_arg(pword *pw)
 #define InGlobal(p)  ((p) >= min && (p) < max)
 #define InHeap(p)  (address_in_heap(&global_heap, (generic_ptr) p))
 
-check_global(void)
+check_global(ec_eng_t *ec_eng)
 {
-    check_global1(TG_ORIG, TG);
+    check_global1(ec_eng, TG_ORIG, TG);
 }
 
-check_global2(pword *max)
+check_global2(ec_eng_t *ec_eng, pword *max)
 {
-    check_global1(TG_ORIG, max);
+    check_global1(ec_eng, TG_ORIG, max);
 }
 
-check_global1(register pword *min, register pword *max)
+check_global1(ec_eng_t *ec_eng, register pword *min, register pword *max)
 {
     register pword *pw = min;
     extern pword    woken_susp_;
@@ -2357,8 +2499,10 @@ check_global1(register pword *min, register pword *max)
 	    break;
 
 	case TSUSP:
-	    if (!InGlobal(pw->val.ptr) && pw->val.ptr != &woken_susp_) goto _problem_;
-	    if (DifferTypeC(pw->val.ptr->tag,TDE)) goto _problem_;
+	    if (pw->val.ptr) {
+		if (!InGlobal(pw->val.ptr) && pw->val.ptr != &woken_susp_) goto _problem_;
+		if (DifferTypeC(pw->val.ptr->tag,TDE)) goto _problem_;
+	    }
 	    pw++;
 	    break;
 
@@ -2402,13 +2546,13 @@ check_global1(register pword *min, register pword *max)
     return;
 _problem_:
     p_fprintf(current_err_,
-	"INTERNAL ERROR: illegal pword encountered at 0x%x: val=0x%x tag=0x%x\n",
-	pw, pw->val.all, pw->tag.all);
+	"INTERNAL ERROR: illegal pword encountered at 0x%x: val=0x%x tag=0x%x\nwhile scanning 0x%x .. 0x%x\n",
+	pw, pw->val.all, pw->tag.all, min, max);
     ec_flush(current_err_);
     return;
 }
 
-find_in_trail(pword *addr)
+find_in_trail(ec_eng_t *ec_eng, pword *addr)
 {
     pword **tr = TT;
     pword *trailed_item;
@@ -2442,7 +2586,7 @@ find_in_trail(pword *addr)
 }
 
 
-check_trail(void)
+check_trail(ec_eng_t *ec_eng)
 {
     extern vmcode par_fail_code_[];
     control_ptr fp;
@@ -2464,21 +2608,21 @@ check_trail(void)
 	    break;
 	}
 
-	if (IsInterruptFrame(BTop(fp.args)) || IsRecursionFrame(BTop(fp.args)))
+	if (IsRecursionFrame(BTop(fp.args)))
 	    break;
     }
     if (print) p_fprintf(current_err_, "BOTTOM\n");
     if (print) ec_flush(current_err_);
 }
 
-check_trail1(int print)
+check_trail1(int print, ec_eng_t *ec_eng)
 {
-    check_trail2(print, TT, TT_ORIG, TG);
+    check_trail2(print, ec_eng, TT, TT_ORIG, TG);
 }
 
-check_trail2(int print, pword **ttptr, pword **ttend, pword *min_tg_when_failing)
+check_trail2(int print, ec_eng_t *ec_eng, pword **ttptr, pword **ttend, pword *min_tg_when_failing)
 {
-    word ctr;
+    word ctr, trtype;
     pword *pw;
     while(ttptr < ttend) {
 	if (print) p_fprintf(current_err_, "TT=0x%08x: ", ttptr);
@@ -2487,29 +2631,48 @@ check_trail2(int print, pword **ttptr, pword **ttend, pword *min_tg_when_failing
 	    pw = *ttptr++;
 	    if (print) p_fprintf(current_err_, "ADDRESS 0x%08x\n", pw);
 	    if (min_tg_when_failing <= pw && pw < (pword*)TT)
+	    {
+		p_fprintf(current_err_, "Trailed address = 0x%08x\n", pw);
 		emu_break();
+	    }
 	    break;
 	case TRAIL_TAG:
 	    pw = *(ttptr+1);
 	    if (print) p_fprintf(current_err_, "TAG     0x%08x 0x%08x\n", pw, TrailedTag(*ttptr));
 	    if (min_tg_when_failing <= pw && pw < (pword*)TT)
+	    {
+		p_fprintf(current_err_, "Trailed address = 0x%08x\n", pw);
 		emu_break();
+	    }
 	    ttptr += 2;
 	    break;
 	case TRAIL_MULT:
 	    ctr = (word) *ttptr++;
 	    pw = *ttptr++;
+	    trtype = TrailedType(ctr);
 	    ctr = TrailedNumber(ctr);
-	    if (print) p_fprintf(current_err_, "MULT    0x%08x %d\n", pw, ctr);
+	    if (print) {
+		p_fprintf(current_err_, "MULT    0x%08x n=%d (%s)\n", pw, ctr+1,
+	    	trtype==TRAILED_PWORD ? "pword" :
+	    	trtype==TRAILED_REF ? "ref" :
+	    	trtype==TRAILED_WORD32 ? "word" :
+	    	trtype==TRAILED_COMP ? "comp" : "?");
+		ec_flush(current_err_);
+	    }
 	    if (min_tg_when_failing <= pw && pw < (pword*)TT)
+	    {
+		p_fprintf(current_err_, "Trailed address = 0x%08x\n", pw);
 		emu_break();
-#if 0
-	    if (!check_pword(pw) && !(
-		    pw == &POSTED_LAST
+	    }
+#if 1
+	    if (!check_pword(ec_eng, pw) && !(
+		    pw == &POSTED
 		||
 		    IsTag(pw->tag.kernel, TDE)
 	    	))
+	    {
 		emu_break();
+	    }
 #endif
 	    do {
 		ttptr++;
