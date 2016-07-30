@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.10 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.11 2016/07/30 15:46:59 jschimpf Exp $
  */
 
 /** @file
@@ -91,13 +91,18 @@ extern char	*strcpy();
 
 #ifdef HAVE_SIGACTION
 typedef struct sigaction sig_action_t;
-#else
-#  ifdef HAVE_SIGVEC	/* first try VEC because ACTION does not match STACK */
+
+#elif defined(HAVE_SIGVEC)
 typedef struct sigvec sig_action_t;
 #define sa_handler sv_handler
 #define sa_mask sv_mask
 #define sa_flags sv_flags
-#  else
+
+int sigaction(int sig, sig_action_t *action, sig_action_t *oldact)
+{
+    return sigvec(sig, action, oldact);
+}
+#else
 typedef struct {
 	RETSIGTYPE (*sa_handler)(int);
 	int sa_mask;
@@ -108,7 +113,6 @@ int sigaction(int sig, sig_action_t *action, sig_action_t *oldact)
 {
     return signal(sig, action->sa_handler) == SIG_ERR ? -1 : 0;
 }
-#  endif
 #endif
 
 
@@ -716,9 +720,6 @@ _install_int_handler(int sig, int how, pri *proc, ec_eng_t *ec_eng)
 	case IH_ECLIPSE_DFL:
 	    if (ThreadFatalSignal(sig))
 	    {
-#if !defined(HAVE_SIGACTION)
-		return UNIMPLEMENTED;	/* e.g. Windows... */
-#else
 		/* These signals are handled by the culprit thread */
 		if (sig == SIGSEGV)
 		{
@@ -739,7 +740,6 @@ _install_int_handler(int sig, int how, pri *proc, ec_eng_t *ec_eng)
 		action.sa_sigaction = _catch_fatal;
 #else
 		action.sa_handler = _catch_fatal;
-#endif
 #endif
 		if (sigaction(sig, &action, NULL)) {
 		    Set_Errno;
