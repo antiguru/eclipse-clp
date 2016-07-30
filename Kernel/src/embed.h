@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.12 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: embed.h,v 1.13 2016/07/30 10:30:31 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -377,7 +377,7 @@ Extern char			*ec_eclipse_home;
 #define ec_assign(p,v,t) ecl_assign(ec_eng,p,v,t)
 Extern	DLLEXP	int 	ecl_assign ARGS((ec_eng_t*, pword*, value, type));
 
-Extern DLLEXP int	Winapi	ecl_request(ec_eng_t*,int);
+Extern DLLEXP int		ecl_request(ec_eng_t*,int);
 
 #if 0
 Extern DLLEXP void		ec_trail_pwords ARGS((pword*, int, int));

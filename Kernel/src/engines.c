@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.1 2016/07/28 03:34:36 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.2 2016/07/30 10:30:31 jschimpf Exp $
  *
  */
 
@@ -77,7 +77,7 @@ static void *resume_thread = NULL;
  * Assume ec_eng is uninitialised or exited.
  */
 
-int Winapi
+int
 ecl_init_aux(t_eclipse_options *opts, ec_eng_t *ec_eng, int extra_flags)
 {
     int res;
@@ -101,7 +101,7 @@ ecl_init_aux(t_eclipse_options *opts, ec_eng_t *ec_eng, int extra_flags)
  * Initialize the static Prolog engines, and perform Prolog-level boot.
  */
 
-int Winapi
+int
 ecl_engines_init(t_eclipse_options *opts, ec_eng_t **eng)
 {
     char *	initfile = (char *) 0;
@@ -383,7 +383,7 @@ ecl_engine_create(t_eclipse_options *opts, ec_eng_t *parent_eng, ec_eng_t **eng)
  * 
  * A newly acquired engine is no longer 'paused'.
  */
-int
+int Winapi
 ecl_acquire_engine(ec_eng_t *ec_eng)
 {
     int res;
@@ -412,7 +412,7 @@ ecl_acquire_engine(ec_eng_t *ec_eng)
  * and then leave the engine in a free and 'paused' (or dead) state.
  */
 
-void
+void Winapi
 ecl_relinquish_engine(ec_eng_t *ec_eng)
 {
     assert(EngIsOurs(ec_eng));
@@ -899,7 +899,7 @@ ecl_copy_resume_async(ec_eng_t *from_eng, ec_eng_t *ec_eng, const pword term, co
 }
 
 
-int Winapi
+int
 ecl_exit_async(ec_eng_t *ec_eng, int exit_code)
 {
     pword goal;
@@ -926,7 +926,7 @@ ecl_exit_async(ec_eng_t *ec_eng, int exit_code)
  *	- PRUNNING	timeout, engine still running
  *	- SYS_ERROR	error from ec_cond_wait()
  */
-int
+int Winapi
 ecl_join_acquire(ec_eng_t *ec_eng, int timeout)
 {
     int res = PSUCCEED;
@@ -1140,7 +1140,7 @@ ecl_request(ec_eng_t *ec_eng, int request)
  *	PRUNNING	if an EXIT_REQUEST has been submitted
  */
 
-int
+int Winapi
 ecl_request_exit(ec_eng_t *ec_eng, int exit_code)
 {
     int res;
@@ -1197,7 +1197,7 @@ ecl_request_exit(ec_eng_t *ec_eng, int exit_code)
  * TODO: could do longjmp_throw when paused.
  */
 
-int
+int Winapi
 ecl_request_throw(ec_eng_t *ec_eng, pword ball)
 {
     int res = PSUCCEED;

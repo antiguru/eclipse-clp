@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: os_support.h,v 1.6 2016/07/30 10:30:31 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -230,7 +230,7 @@ int	ec_putch_raw ARGS((int));
 #if defined(HAVE_DECL_SIGSETJMP) && !HAVE_DECL_SIGSETJMP
 #define siglongjmp(jb,r) longjmp(jb,r)
 #define sigsetjmp(jb,s) setjmp(jb)
-typedef jmp_buf sigjmp_buf;
+#define sigjmp_buf jmp_buf
 #endif
 
 

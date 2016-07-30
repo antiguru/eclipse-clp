@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.10 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.11 2016/07/30 10:30:31 jschimpf Exp $
  */
 
 /*
@@ -976,7 +976,7 @@ _unlock_return_:
     return res;
 }
 
-int
+int Winapi
 ecl_post_event_unique(ec_eng_t *ec_eng, pword event)
 {
     return _post_event_dynamic(ec_eng, event, 1);

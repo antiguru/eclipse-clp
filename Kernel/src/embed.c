@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.8 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: embed.c,v 1.9 2016/07/30 10:30:31 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -253,7 +253,7 @@ ec_ref_set(ec_ref variable, const pword w)
     ec_refs_set((ec_refs) variable, 0, w);
 }
 
-void Winapi
+void
 ec_ref_set_safe(ec_ref variable, const pword w)
 {
     if (!EngIsDead(variable->eng)) {
