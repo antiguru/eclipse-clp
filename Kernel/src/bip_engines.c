@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.1 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.2 2016/07/30 16:25:11 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -252,11 +252,11 @@ _options_from_list(value v, type t, t_eclipse_options *eng_opts)
 
 
 /*
- * engine_create(+Options, -Engine)
+ * engine_create(-Engine, +Options)
  */
 
 static int
-p_engine_create(value vopt, type topt, value v, type t, ec_eng_t *ec_eng)
+p_engine_create(value v, type t, value vopt, type topt, ec_eng_t *ec_eng)
 {
     int res;
     t_eclipse_options opts = ec_eng->options;	/* inherit */

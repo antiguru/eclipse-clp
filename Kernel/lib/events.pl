@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.32 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.33 2016/07/30 16:26:56 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1683,7 +1683,7 @@ post_events_from_stream(Stream) :-
 % This is now done in C, so that the engine is hidden:
 %:- local initialization(after_init).
 %after_init :-
-%	engine_create([async,detached], E),
+%	engine_create(E, [async,detached]),
 %	engine_resume_async(E, after_loop).
 
 after_loop :-

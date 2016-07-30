@@ -63,7 +63,7 @@ several reasons, and is encoded in the engine status).
 </P><P>
 Example:
 <PRE>
-    ?-  engine_create([], E),
+    ?-  engine_create(E, []),
         engine_resume(E, writeln(hello), Status).
     hello
 
@@ -78,7 +78,7 @@ with a status code.  Since the goal succeeded, the status is 'true'.
 A more interesting case is where the engine executes a nondeterministic
 goal:
 <PRE>
-    ?-  engine_create([], E),
+    ?-  engine_create(E, []),
         engine_resume(E, (member(X,[one,two]), writeln(X)), S1),
             writeln(first_resume:S1),
         engine_resume(E, fail, S2),
@@ -110,7 +110,7 @@ to run concurrently with others, in a separate thread.
 </P><P>
 Example:
 <PRE>
-    ?-  engine_create([thread], E),
+    ?-  engine_create(E, [thread]),
         engine_resume_thread(E, writeln(hello)),
             % possibly do other stuff here
         engine_join(E, block, Status).
@@ -191,7 +191,7 @@ The status can also be obtained by engine_properties/2.
 The yield/2 built-in is used in combination with resume to synchronize
 execution and exchange data between two engines:
 <PRE>
-    ?-  engine_create([], E),
+    ?-  engine_create(E, []),
         engine_resume(E, (yield(hello,In),writeln(received(In))), S1),
         writeln(S1),
         engine_resume(E, dear, S2),
@@ -204,7 +204,7 @@ execution and exchange data between two engines:
 The next example does the same as findall/3, using an auxiliary engine:
 <PRE>
     engine_findall(X, Goal, Xs) :-
-        engine_create([], E),
+        engine_create(E, []),
         engine_resume(E, (Goal,yield(X,Cont),Cont), Status),
         (
             fromto(Status,yielded(Sol),Status1,false),
@@ -218,7 +218,7 @@ The next example does the same as findall/3, using an auxiliary engine:
 The next example adds solutions lazily to a list:
 <PRE>
     lazy_findall(X, Goal, Xs) :-
-        engine_create([thread], E),
+        engine_create(E, [thread]),
         engine_resume_thread(E, (Goal,yield(X,_),fail)),
         solutions(E, Xs).
 
@@ -261,7 +261,7 @@ as an argument to the goal during resume.
 Example for returning data from an engine via a queue:
 <PRE>
     ?-  open(queue(\"\"), update, Q, [yield(on)]),
-        engine_create([], E),
+        engine_create(E, []),
         engine_resume(E, (write(Q,hello),flush(Q)), Status),
         ( Status = flushio(Stream) ->
             read(Stream, Result)
@@ -278,7 +278,7 @@ Example for returning data from an engine via a queue:
 Example for passing data to engine via a queue:
 <PRE>
     ?-  open(queue(\"\"), update, Q, [yield(on)]),
-        engine_create([], E),
+        engine_create(E, []),
         engine_resume(E, (read(Q,Term),writeln(received(Term))), Status),
         ( Status = waitio(Stream) ->
             write(Stream, hello),
@@ -302,7 +302,7 @@ Data can be transferred via non-backtrackable storage, i.e. bags,
 stores, shelves, or records:
 <PRE>
     ?-  bag_create(B),
-        engine_create([thread], E),
+        engine_create(E, [thread]),
         engine_resume_thread(E, (between(1,20,1,X),bag_enter(B,X),fail)),
         engine_join(E, block, Status),
         bag_retrieve(B, Xs).
@@ -391,7 +391,7 @@ used for timer-controlled after-events and for signal-triggered events.
 Use engine_post_event/2 to post an event (an atom, or an event created
 using event_create/3) to a particular engine:
 <PRE>
-?- engine_create([thread],E),
+?- engine_create(E, [thread]),
    engine_resume_thread(E, (repeat,fail)),   % run forever
    sleep(3),
    engine_post_event(E, abort),
@@ -407,10 +407,10 @@ Yes (3.00s cpu)
 %------------------------------------------------------------------------
 
 :- comment( engine_create/2, [
-    amode:(engine_create(++,-) is det),
+    amode:(engine_create(-,++) is det),
     args:[
-        "Options":"A list of option terms",
-        "Engine":"Output: an engine handle"
+        "Engine":"Output: an engine handle",
+        "Options":"A list of option terms"
     ],
     summary:"Create a new ECLiPSe engine",
     desc:html("<P>\
@@ -483,15 +483,15 @@ Yes (3.00s cpu)
         6 : "An option is not recognized."
     ],
     eg:"
-    ?- engine_create([], E).
+    ?- engine_create(E, []).
     E = 'HANDLE'(16'17610000)
     Yes (0.00s cpu)
 
-    ?- engine_create([thread], E).
+    ?- engine_create(E, [thread]).
     E = 'HANDLE'(16'17610000)
     Yes (0.00s cpu)
 
-    ?- engine_create([local(1000),global(10000)], E).
+    ?- engine_create(E, [local(1000),global(10000)]).
     E = 'HANDLE'(16'17610000)
     Yes (0.00s cpu)
 ",
@@ -548,34 +548,34 @@ Yes (3.00s cpu)
         180 : "Engine is busy (running)"],
         182 : "Engine dead/exited"],
     eg:"
-    ?- engine_create([], E), engine_resume(E, writeln(hello), S).
+    ?- engine_create(E, []), engine_resume(E, writeln(hello), S).
     hello
     E = 'HANDLE'(16'17610000)
     S = true
     Yes (0.00s cpu)
 
-    ?- engine_create([thread], E), engine_resume(E, writeln(hello), S).
+    ?- engine_create(E, [thread]), engine_resume(E, writeln(hello), S).
     hello
     E = 'HANDLE'(16'17610000)
     S = true
     Yes (0.00s cpu)
 
-    ?- engine_create([], E), engine_resume(E, 3=4, S).
+    ?- engine_create(E, []), engine_resume(E, 3=4, S).
     E = 'HANDLE'(16'17610000)
     S = false
     Yes (0.00s cpu)
 
-    ?- engine_create([], E), engine_resume(E, throw(ball), S).
+    ?- engine_create(E, []), engine_resume(E, throw(ball), S).
     E = 'HANDLE'(16'16e06000)
     S = exception(ball)
     Yes (0.00s cpu)
 
-    ?- engine_create([], E), engine_resume(E, throw(ball), S).
+    ?- engine_create(E, []), engine_resume(E, throw(ball), S).
     E = 'HANDLE'(16'16e06000)
     S = exception(ball)
     Yes (0.00s cpu)
 
-    ?- engine_create([], E),
+    ?- engine_create(E, []),
        engine_resume(E, (member(X,[a,b]),writeln(X)), S1),
        writeln(first_resume->S1),
        engine_resume(E, fail, S2),
@@ -638,7 +638,7 @@ Yes (3.00s cpu)
         180 : "Engine is busy (running)",
         181 : "Engine is not an asynchronous engine"],
     eg:"
-    ?- engine_create([thread], E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, writeln(hello)),
        engine_join(E, block Status).
     hello
@@ -646,7 +646,7 @@ Yes (3.00s cpu)
     Status = true
     Yes (0.00s cpu)
 
-    ?- engine_create([thread], E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, (writeln(hello),sleep(1),writeln(done))),
        engine_status(E, Status1),
        writeln(Status1),
@@ -749,12 +749,12 @@ Yes (3.00s cpu)
         4 : "Engine is not instantiated",
         5 : "Engine is not an engine handle"],
     eg:"
-    ?- engine_create([], E), engine_status(E, Status).
+    ?- engine_create(E, []), engine_status(E, Status).
     E = 'HANDLE'(16'17610000)
     Status = false
     Yes (0.00s cpu)
 
-    ?- engine_create([], E),
+    ?- engine_create(E, []),
        engine_resume(E, writeln(hello), Status1),
        engine_status(E, Status2).
     hello
@@ -763,7 +763,7 @@ Yes (3.00s cpu)
     Status2 = true
     Yes (0.00s cpu)
 
-    ?- engine_create([], E),
+    ?- engine_create(E, []),
        engine_resume(E, yield(hello,_), Status1),
        engine_status(E, Status2).
     E = 'ENGINE'(16'6bbe06c0)
@@ -771,7 +771,7 @@ Yes (3.00s cpu)
     Status2 = yielded(hello)
     Yes (0.00s cpu)
 
-    ?- engine_create([], E),
+    ?- engine_create(E, []),
        ( engine_resume(E, throw(foo(bar)), true)
        ; engine_status(E, Status)
        ).
@@ -779,7 +779,7 @@ Yes (3.00s cpu)
     Status = exception(foo(bar))
     Yes (0.00s cpu)
 
-    ?- engine_create([thread], E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, (writeln(hello),sleep(1),writeln(done))),
        engine_status(E, Status1),
        writeln(Status1),
@@ -826,7 +826,7 @@ Yes (3.00s cpu)
         180 : "Engine is the same as the engine executing the call",
         181 : "Engine is not an asynchronous engine"],
     eg:"
-    ?- engine_create([thread], E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, writeln(hello)),
        engine_join(E, Status).
     hello
@@ -834,14 +834,14 @@ Yes (3.00s cpu)
     Status = true
     Yes (0.00s cpu)
 
-    ?- engine_create([thread], E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, 1=2),
        engine_join(E, Status).
     E = 'HANDLE'(16'17610000)
     Status = false
     Yes (0.00s cpu)
 
-    ?- engine_create([thread], E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, yield(hello,_)),
        engine_status(E, Status1),
        engine_resume_thread(E, true),
@@ -888,7 +888,7 @@ Yes (3.00s cpu)
         180 : "Engine running, but cannot be joined",
         181 : "Engine is not an asynchronous engine"],
     eg:"
-    ?- engine_create([thread], E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, (repeat,fail)),
        ( engine_join(E, 5, S) -> writeln(status=S) ; writeln(timeout) ).
    timeout
@@ -931,7 +931,7 @@ Yes (3.00s cpu)
 </P>
     "),
     eg:"
-    ?- engine_create([thread],E),
+    ?- engine_create(E, [thread]),
        engine_resume_thread(E, (repeat,fail)),   % run forever
        sleep(3),
        engine_post_event(E, abort),
@@ -968,7 +968,7 @@ Yes (3.00s cpu)
 </P>
     "),
     eg:"
-    ?- engine_create([],E), engine_properties(E,Ps).
+    ?- engine_create(E, []), engine_properties(E,Ps).
     E = 'ENGINE'(16'3157da58)
     Ps = [status(false), references(1), thread(false),
             detached(false), local 131072, global 524288]
@@ -1032,7 +1032,7 @@ Yes (3.00s cpu)
     eg:"
 % Communication between engines
 
-    ?- engine_create([], E),
+    ?- engine_create(E, []),
        engine_resume(E, (yield(to_parent,From),writeln(received(From))), S1),
        engine_resume(E, from_parent, S2).
 
