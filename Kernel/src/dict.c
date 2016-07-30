@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.13 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.14 2016/07/30 15:45:15 jschimpf Exp $
  */
 
 /*
@@ -293,7 +293,7 @@ dict_init(int flags)
 	    dict->hash_table[i] = D_UNKNOWN;
 	for (i=0; i< DICT_DIRECTORY_SIZE; i++)
 	    dict->directory[i] = D_UNKNOWN;
-	for (i=0; i <= NANONYMOUS; i++)
+	for (i=0; i < NANONYMOUS; i++)
 	{
 	    dict->anonymous_did[i].string = 0;
 	    dict->anonymous_did[i].properties = 0;
@@ -1134,7 +1134,7 @@ _finish_gc(int not_locked)
 	    mark_dids_from_properties(DidProperties(d));
     }
 
-    for (i=0; i <= NANONYMOUS; i++)	/* mark from the anonymous DIDs */
+    for (i=0; i < NANONYMOUS; i++)	/* mark from the anonymous DIDs */
     {
 	d = &dict->anonymous_did[i];
 	if (DidProperties(d))
