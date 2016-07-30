@@ -545,7 +545,7 @@ Yes (3.00s cpu)
     exceptions:[
         4 : "Engine is not instantiated",
         5 : "Engine is not an engine handle",
-        180 : "Engine is busy (running)"],
+        180 : "Engine is busy (running)",
         182 : "Engine dead/exited"],
     eg:"
     ?- engine_create(E, []), engine_resume(E, writeln(hello), S).
