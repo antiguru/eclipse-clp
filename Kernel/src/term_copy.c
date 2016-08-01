@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: term_copy.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: term_copy.c,v 1.3 2016/08/01 13:00:30 jschimpf Exp $
  *
  * IDENTIFICATION:	term_copy.c (was part of property.c)
  *
@@ -1292,6 +1292,11 @@ ec_copy_term_across(ec_eng_t *from_eng, ec_eng_t *ec_eng, value v, type t, pword
     {
         TG = old_tg;
 	*dest = old_dest;	/* restore, as something went wrong */
+    }
+    /* Allow self references in dest only if it is a global stack location */
+    if (IsRef(dest->tag) && IsSelfRef(dest) && !(TG_ORIG<=dest && dest<TG)) {
+	dest->val.ptr = TG;
+	Push_Var()
     }
     return res;
 }
