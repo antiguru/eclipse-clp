@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.2 2016/07/30 10:30:31 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.3 2016/08/04 09:09:38 jschimpf Exp $
  *
  */
 
@@ -243,6 +243,7 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	DbgPrintf("Async go to sleep 0x%x\n", ec_eng);
 	ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
     }
+    EngLogMsg(ec_eng, "thread terminated", 0);
     return NULL;
 }
 
@@ -261,6 +262,7 @@ _engine_thread_create(ec_eng_t *ec_eng)
 	Set_Sys_Errno(err, ERRNO_OS);
 	return SYS_ERROR;
     }
+    EngLogMsg(ec_eng, "thread created", 0);
     return PSUCCEED;
 }
 
