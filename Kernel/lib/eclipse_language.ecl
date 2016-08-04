@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.16 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.17 2016/08/04 09:41:15 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -159,6 +159,8 @@
 :- reexport concat_atoms / 3 from sepia_kernel.
 :- reexport concat_string / 2 from sepia_kernel.
 :- reexport concat_strings / 3 from sepia_kernel.
+:- reexport condition_signal / 2 from sepia_kernel.
+:- reexport condition_wait / 2 from sepia_kernel.
 :- reexport connect / 2 from sepia_kernel.
 :- reexport copy_term / 2 from sepia_kernel.
 :- reexport copy_term / 3 from sepia_kernel.
@@ -318,8 +320,6 @@
 :- reexport ground / 1 from sepia_kernel.
 :- reexport halt / 0 from sepia_kernel.
 :- reexport handle_abolish / 1 from sepia_kernel.
-:- reexport handle_proceed / 2 from sepia_kernel.
-:- reexport handle_wait / 2 from sepia_kernel.
 :- reexport (help) / 0 from sepia_kernel.
 :- reexport (help) / 1 from sepia_kernel.
 :- reexport (import) / 1 from sepia_kernel.
@@ -391,6 +391,7 @@
 :- reexport mutex / 2 from sepia_kernel.
 :- reexport mutex_init / 1 from sepia_kernel.
 :- reexport name / 2 from sepia_kernel.
+:- reexport name_to_handle / 3 from sepia_kernel.
 :- reexport new_socket_server / 3 from sepia_kernel.
 :- reexport nl / 0 from sepia_kernel.
 :- reexport nl / 1 from sepia_kernel.

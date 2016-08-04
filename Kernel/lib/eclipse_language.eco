@@ -129,6 +129,8 @@
 :-(reexport(from(/(concat_atoms,3),sepia_kernel))).
 :-(reexport(from(/(concat_string,2),sepia_kernel))).
 :-(reexport(from(/(concat_strings,3),sepia_kernel))).
+:-(reexport(from(/(condition_signal,2),sepia_kernel))).
+:-(reexport(from(/(condition_wait,2),sepia_kernel))).
 :-(reexport(from(/(connect,2),sepia_kernel))).
 :-(reexport(from(/(copy_term,2),sepia_kernel))).
 :-(reexport(from(/(copy_term,3),sepia_kernel))).
@@ -288,8 +290,6 @@
 :-(reexport(from(/(ground,1),sepia_kernel))).
 :-(reexport(from(/(halt,0),sepia_kernel))).
 :-(reexport(from(/(handle_abolish,1),sepia_kernel))).
-:-(reexport(from(/(handle_proceed,2),sepia_kernel))).
-:-(reexport(from(/(handle_wait,2),sepia_kernel))).
 :-(reexport(from(/(help,0),sepia_kernel))).
 :-(reexport(from(/(help,1),sepia_kernel))).
 :-(reexport(from(/(import,1),sepia_kernel))).
@@ -361,6 +361,7 @@
 :-(reexport(from(/(mutex,2),sepia_kernel))).
 :-(reexport(from(/(mutex_init,1),sepia_kernel))).
 :-(reexport(from(/(name,2),sepia_kernel))).
+:-(reexport(from(/(name_to_handle,3),sepia_kernel))).
 :-(reexport(from(/(new_socket_server,3),sepia_kernel))).
 :-(reexport(from(/(nl,0),sepia_kernel))).
 :-(reexport(from(/(nl,1),sepia_kernel))).

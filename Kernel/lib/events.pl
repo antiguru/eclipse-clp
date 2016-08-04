@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.33 2016/07/30 16:26:56 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.34 2016/08/04 09:41:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1772,7 +1772,7 @@ after_loop :-
 	    )
 	),
 	shelf_set(AnswerShelf, 1, Cancelled),
-	handle_proceed(AnswerShelf, all).
+	condition_signal(AnswerShelf, all).
 
     serve_request(Request, TEQ0, TEQ) :- Request = current(Engine,AnswerShelf), !,
 	TEQ = TEQ0,
@@ -1795,13 +1795,13 @@ after_loop :-
 	    
 	),
 	shelf_set(AnswerShelf, 1, Currents),
-	handle_proceed(AnswerShelf, all).
+	condition_signal(AnswerShelf, all).
 
     serve_request(finalize(AnswerShelf), _TEQ0, _TEQ) :- !,
 	engine_self(Engine),
 	with_mutex(AnswerShelf, (
 	    shelf_set(AnswerShelf, 1, Engine),
-	    handle_proceed(AnswerShelf, all)
+	    condition_signal(AnswerShelf, all)
 	)),
 	exit(0).	% exit the engine/thread
 
@@ -1882,7 +1882,7 @@ current_after_events(Currents) :-
     await_answer(Shelf, Answer) :-
 	shelf_get(Shelf, 1, Term),
 	( Term==none ->
-	    handle_wait(Shelf, block),
+	    condition_wait(Shelf, block),
 	    await_answer(Shelf, Answer)
 	;
 	    Answer = Term

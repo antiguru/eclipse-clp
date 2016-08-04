@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Kernel Module
  *
- * $Id: handle.c,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: handle.c,v 1.4 2016/08/04 09:41:41 jschimpf Exp $
  *
  * Author:	Stefano Novello, IC-Parc
  *		Joachim Schimpf, IC-Parc
@@ -87,6 +87,15 @@
 #include "dict.h"
 #include "database.h"
 #include "emu_export.h"
+#include "property.h"
+#include "os_support.h"
+
+#if 0
+#define DbgPrintf(s,...) p_fprintf(current_err_,s, __VA_ARGS__);ec_flush(current_err_);
+#else
+#define DbgPrintf(s,...)
+#endif
+
 
 
 /*
@@ -224,3 +233,234 @@ handle_copy_anchor(
 	    ecl_trail_undo(ec_eng, _handle_cleanup, to, NULL, NULL, 0, 0);
 }
 
+
+/*----------------------------------------------------------------------
+ * Prolog-level locking
+ *----------------------------------------------------------------------*/
+
+/*
+ * ecl_trail_undo(ec_eng, _handle_unlock, v.ptr, NULL, NULL, 0, 0);
+ * The trailed item is the duplicated stack anchor of the locked object.
+ * If it has already been untrailed, it is stale, and we do nothing here.
+ */
+
+static void
+_handle_unlock(pword *panchor, word *pdata, int size, int undo_context, ec_eng_t *ec_eng)
+{
+    assert(panchor != NULL);
+    assert(IsTag(panchor[0].tag.kernel, TEXTERN));
+    assert(IsTag(panchor[1].tag.kernel, TPTR));
+    if (ExternalData(panchor)) {
+	DbgPrintf("Untrail, unlocking\n", ExternalData(panchor));
+	if (!ExternalClass(panchor)->unlock(ExternalData(panchor))) {
+	    assert(0);
+	}
+    } else {
+	DbgPrintf("Untrail, stale, no unlocking\n", 0);
+    }
+}
+
+
+static int
+p_handle_lock_trailed(value v, type t, value vflag, type tflag, ec_eng_t *ec_eng)
+{
+    pword result;
+
+    Check_Type(t, THANDLE);
+    if (!ExternalClass(v.ptr)->lock) {
+	Bip_Error(UNIMPLEMENTED);
+    }
+    DbgPrintf("Locking 0x%x\n", ExternalData(v.ptr));
+    if (!ExternalClass(v.ptr)->lock(ExternalData(v.ptr))) {
+	Bip_Error(SYS_ERROR);
+    }
+    result = ecl_handle(ec_eng, ExternalClass(v.ptr),
+		    ExternalClass(v.ptr)->copy(ExternalData(v.ptr)));
+    ecl_trail_undo(ec_eng, _handle_unlock, result.val.ptr, NULL, NULL, 0, 0);
+    Return_Unify_Pw(vflag, tflag, result.val, result.tag);
+}
+
+
+static int
+p_handle_unlock_free(value v, type t, ec_eng_t *ec_eng)
+{
+    int res;
+
+    Check_Type(t, THANDLE);
+    if (!ExternalClass(v.ptr)->unlock) {
+	Bip_Error(UNIMPLEMENTED);
+    }
+    if (ExternalData((v).ptr)) {
+	/* handle still valid: unlock */
+	DbgPrintf("Unlocking 0x%x\n", ExternalData(v.ptr));
+	if (!ExternalClass(v.ptr)->unlock(ExternalData(v.ptr))) {
+	    Bip_Error(SYS_ERROR);
+	}
+	/* free the handle, indicating that we must not unlock again */
+	return p_handle_free(v, t, ec_eng);
+    } else {
+	DbgPrintf("Not unlocking, stale\n", 0);
+	Succeed_;
+    }
+}
+
+
+#if 0
+static int
+p_handle_lock(value v, type t, ec_eng_t *ec_eng)
+{
+    Check_Type(t, THANDLE);
+    if (!ExternalClass(v.ptr)->lock) {
+	Bip_Error(UNIMPLEMENTED);
+    }
+    if (!ExternalClass(v.ptr)->lock(ExternalData(v.ptr))) {
+	Bip_Error(SYS_ERROR);
+    }
+    Succeed_;
+}
+
+static int
+p_handle_trylock(value v, type t, ec_eng_t *ec_eng)
+{
+    int res;
+    Check_Type(t, THANDLE);
+    if (!ExternalClass(v.ptr)->trylock) {
+	Bip_Error(UNIMPLEMENTED);
+    }
+    res = ExternalClass(v.ptr)->trylock(ExternalData(v.ptr));
+    if (!res) {
+	Bip_Error(SYS_ERROR);
+    }
+    Succeed_If(res>0);
+}
+
+static int
+p_handle_unlock(value v, type t, ec_eng_t *ec_eng)
+{
+    Check_Type(t, THANDLE);
+    if (!ExternalClass(v.ptr)->unlock) {
+	Bip_Error(UNIMPLEMENTED);
+    }
+    if (!ExternalClass(v.ptr)->unlock(ExternalData(v.ptr))) {
+	Bip_Error(SYS_ERROR);
+    }
+    Succeed_;
+}
+#endif
+
+
+static int
+p_condition_signal(value v, type t, value vall, type tall, ec_eng_t *ec_eng)
+{
+    int err, all;
+
+    Check_Type(t, THANDLE);
+    if (!ExternalClass(v.ptr)->signal) { Bip_Error(UNIMPLEMENTED); }
+    Check_Atom(tall);
+    if (vall.did==d_.all) all=1;
+    else if (vall.did==d_.one) all=0;
+    else { Bip_Error(RANGE_ERROR); }
+
+    err = ExternalClass(v.ptr)->signal(ExternalData(v.ptr), all);
+    if (err) {
+	Set_Sys_Errno(err,ERRNO_OS);
+	Bip_Error(SYS_ERROR);
+    }
+    Succeed_;
+}
+
+static int
+p_condition_wait(value v, type t, value vtimeout, type ttimeout, ec_eng_t *ec_eng)
+{
+    int err, timeout_ms;
+
+    Check_Type(t, THANDLE);
+    if (!ExternalClass(v.ptr)->wait) { Bip_Error(UNIMPLEMENTED); }
+    if (IsAtom(ttimeout) && vtimeout.did == d_.block) {
+    	timeout_ms = -1;
+    } else {
+	Get_Milliseconds(vtimeout, ttimeout, timeout_ms);
+	if (timeout_ms < 0) { Bip_Error(RANGE_ERROR); }
+    }
+
+    ecl_pause_engine(ec_eng, 2L, PAUSE_NOT_EXITABLE);	/* TODO: preliminary */
+    err = ExternalClass(v.ptr)->wait(ExternalData(v.ptr), timeout_ms);
+    ecl_unpause_engine(ec_eng);
+    if (err > 0) {
+	Set_Sys_Errno(err,ERRNO_OS);
+	Bip_Error(SYS_ERROR);
+    }
+    Succeed_If(err==0);		/* fail if timeout */
+}
+
+
+
+static int
+p_is_handle(value v, type t, value vk, type tk, ec_eng_t *ec_eng)
+{
+    dident kind;
+    if (!IsTag(t.kernel, THANDLE)) {
+	Fail_;	/* like is_handle/1 type test, fail even for variables */
+    }
+    if (!ExternalClass(v.ptr)->kind)
+    	kind = d_.question;
+    else
+    	kind = ExternalClass(v.ptr)->kind();
+    Return_Unify_Atom(vk, tk, kind);
+}
+
+
+static int
+p_name_to_handle(value vt, type tt, value vn, type tn, value vh, type th, value vm, type tm, ec_eng_t *ec_eng)
+{
+    t_ext_type *what;
+    int property;
+
+    Check_Atom(tt);
+    if (vt.did == d_.record)	    { property = IDB_PROP;	what = &heap_rec_header_tid; }
+    else if (vt.did == d_.shelf)    { property = SHELF_PROP;	what = &heap_array_tid; }
+    else if (vt.did == d_.store)    { property = HTABLE_PROP;	what = &heap_htable_tid; }
+    else if (vt.did == d_.stream)   { property = STREAM_PROP;	what = &stream_tid; }
+    else { Bip_Error(RANGE_ERROR); }
+
+    if (IsHandle(tn)) {
+	Check_Typed_Object_Handle(vn, tn, what);
+	Return_Unify_Pw(vh, th, vn, tn);
+
+    } else {
+	dident key_did;
+	t_ext_ptr obj;
+	pword result;
+	int err;
+
+	Get_Key_Did(key_did, vn, tn);
+	err = get_visible_property_handle(key_did, property, vm.did, tm, what, &obj);
+	if (err < 0) {
+	    if (err==PERROR) { Fail_; }
+	    Bip_Error(err);
+	}
+	result = ecl_handle(ec_eng, what, obj);
+	Return_Unify_Pw(vh, th, result.val, result.tag);
+    }
+}
+
+
+void
+bip_handles_init(int flags)
+{
+    if (flags & INIT_SHARED)
+    {
+	(void) built_in(in_dict("is_handle", 2), p_is_handle, B_SAFE);
+	(void) built_in(in_dict("name_to_handle_", 4), p_name_to_handle, B_SAFE);
+#if 0
+	(void) built_in(in_dict("handle_lock", 1), p_handle_lock, B_SAFE);
+	(void) built_in(in_dict("handle_trylock", 1), p_handle_trylock, B_SAFE);
+	(void) built_in(in_dict("handle_unlock", 1), p_handle_unlock, B_SAFE);
+#endif
+	(void) built_in(in_dict("handle_lock_trailed", 2), p_handle_lock_trailed, B_SAFE);
+	(void) built_in(in_dict("handle_unlock_free", 1), p_handle_unlock_free, B_SAFE);
+	(void) built_in(in_dict("handle_abolish", 1), p_handle_free, B_SAFE);
+	(void) built_in(in_dict("condition_signal", 2), p_condition_signal, B_SAFE);
+	(void) built_in(in_dict("condition_wait", 2), p_condition_wait, B_SAFE);
+    }
+}

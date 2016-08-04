@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.58 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.59 2016/08/04 09:41:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -208,6 +208,7 @@
    tool(mutex_init/1, mutex_init_body/2),
    tool(mutex/2, mutex_body/3),
    tool(with_mutex/2, with_mutex_/3),
+   tool(name_to_handle/3, name_to_handle_/4),
    tool(nested_compile_term/1, nested_compile_term_/2),
    tool(nested_compile_term_annotated/2, nested_compile_term_annotated_/3),
    tool(number_string/2, number_string_/3),
@@ -1154,9 +1155,9 @@ record_add_(Queue, Msg, Timeout, Max, Module) :-
 	( C < Max ->
 	    recordz(Handle, Msg)@Module,
 	    % always signal, because someone may be waiting for matching entry
-	    handle_proceed(Handle, all)
+	    condition_signal(Handle, all)
 	;
-	    handle_wait(Handle, Timeout),	% fail on timeout
+	    condition_wait(Handle, Timeout),	% fail on timeout
 	    q_snd_(Handle, Msg, Timeout, Max, Module)
 	).
 
@@ -1170,12 +1171,12 @@ record_remove_(Queue, Msg, Timeout, Module) :-
 	    % Need to signal only when queue goes from full to non-full
 	    %% TODO: should be Max-1 instead of 0 here:
 	    ( recorded_count(Handle, 0)@Module ->
-		handle_proceed(Handle, all)
+		condition_signal(Handle, all)
 	    ;
 		true
 	    )
 	;
-	    handle_wait(Handle, Timeout),	% fail on timeout
+	    condition_wait(Handle, Timeout),	% fail on timeout
 	    q_rcv_(Handle, Msg, Timeout, Module)
 	).
 
@@ -4100,6 +4101,7 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	mutex/2,
 	with_mutex/2,
 	mutex_init/1,
+	name_to_handle/3,
 	nl/0,
 	new_socket_server/3,
 	(not)/1,
