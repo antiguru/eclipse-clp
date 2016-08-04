@@ -31,6 +31,7 @@
 :- tool(getref / 2).
 :- tool(getval / 2).
 :- tool(incval / 1).
+:- tool(name_to_handle / 3).
 :- tool(setref / 2).
 :- tool(setval / 2).
 :- tool(shelf_dec / 2).
@@ -644,6 +645,164 @@
     Yes (0.00s cpu)
     ",
     see_also:[shelf_create/2, shelf_create/3, shelf_inc/2, shelf_set/3, shelf_abolish/1, struct/1]
+    ]).
+
+:- comment(shelf_abolish/1, [
+    summary:"Destroy a shelf explicitly",
+    desc:html("\
+	This explicitly destroys a previously created shelf object and
+	frees all its memory.  Invoking shelf_abolish/1 is optional,
+	the shelf will be automatically destroyed when the system
+	backtracks across the call to shelf_create/2,3, or when the
+	ShelfHandle is no longer needed and gets garbage collected.
+<P>
+	Using the ShelfHandle after it has been destroyed will lead
+	to an error message. Destroying an already destroyed shelf
+	does nothing and is silently accepted.
+    "),
+    amode:(shelf_abolish(+) is det),
+    args:["ShelfHandle":"A shelf handle"],
+    exceptions:[4: "ShelfHandle is not instantiated",
+    	5 : "ShelfHandle is not a shelf",
+    	40 : "ShelfHandle refers to an already destroyed shelf"],
+    eg:"For examples see shelf_create/2,3.",
+    see_also:[shelf_create/2, shelf_create/3, shelf_get/3, shelf_set/3]
+    ]).
+
+:- comment(shelf_inc_and_get/3, [
+    summary:"Increment an integer slot within a shelf object and get the new value",
+    desc:html("\
+	This looks up the entry in the Index'th slot of the shelf object
+	denoted by ShelfHandle, and if such an entry exists, and is of integer
+	type, it is incremented by one.  The new value is returned as NewValue.
+	This predicate is a shorthand for:
+<PRE>
+	shelf_inc_and_get(ShelfHandle, Index, C1) :-
+	    with_mutex(ShelfHandle, (
+		shelf_get(ShelfHandle, Index, C0),
+		C1 is C0 + 1,
+		shelf_set(ShelfHandle, Index, C1))
+	    ).
+</PRE>
+	The slots are numbered from 1 to the maximum which was determined
+	during shelf creation (but note that ECLiPSe's struct-syntax can
+	be used to give the slots symbolic names, see struct/1).
+<P>
+	Note: If ShelfHandle is not a handle, then it must be an atom or a
+	compound term, and the shelf is identified by this term's toplevel
+	functor together with the context module.
+    "),
+    amode:(shelf_inc_and_get(+,+,-) is det),
+    args:["ShelfHandle":"A shelf handle or shelf name",
+	    "Index":"An integer",
+	    "NewValue":"A variable or integer"],
+    exceptions:[4: "ShelfHandle is not instantiated",
+    	5 : "Index is not instantiated",
+    	5 : "ShelfHandle is not a shelf",
+    	5 : "Index is not an integer",
+    	6 : "Index is less than 1 or greater than the number of slots on the shelf",
+    	6 : "The counter value exceeds an implementation-defined limit (at least 2^31)",
+    	40 : "ShelfHandle refers to an already destroyed shelf"],
+    eg:"
+    	?- shelf_create(s(5),S), shelf_inc_and_get(S,1,New).
+
+	S = 'SHELF'(16'c921aa30)
+	New = 6
+	Yes (0.00s cpu)
+    ",
+    see_also:[shelf_create/2, shelf_create/3, shelf_inc/2, shelf_set/3, shelf_get_and_dec/3, struct/1]
+    ]).
+
+:- comment(shelf_get_and_dec/3, [
+    summary:"Decrement an integer slot within a shelf object and return the old value, but fail if is zero",
+    desc:html("\
+	This looks up the entry in the Index'th slot of the shelf object
+	denoted by ShelfHandle, and if such an entry exists, and is of integer
+	type, it is decremented by one.  If the old value is already zero
+	(or less), the predicate fails and the shelf remains unchanged.
+	Otherwise the predicate succeeds and returns the old value as OldValue.
+	This predicate is a shorthand for:
+<PRE>
+	shelf_get_and_dec(ShelfHandle, Index, C0) :-
+	    with_mutex(ShelfHandle, (
+		shelf_get(ShelfHandle, Index, C0),
+		C0 > 0,
+		C1 is C0 - 1,
+		shelf_set(ShelfHandle, Index, C1)
+	    ).
+</PRE>
+	The slots are numbered from 1 to the maximum which was determined
+	during shelf creation (but note that ECLiPSe's struct-syntax can
+	be used to give the slots symbolic names, see struct/1).
+<P>
+	Note: If ShelfHandle is not a handle, then it must be an atom or a
+	compound term, and the shelf is identified by this term's toplevel
+	functor together with the context module.
+    "),
+    amode:(shelf_get_and_dec(+,+,-) is semidet),
+    args:["ShelfHandle":"A shelf handle or shelf name",
+	    "Index":"An integer",
+	    "OldValue":"A variable or integer"],
+    fail_if:"Fails if decrementing the value would result in a negative number",
+    exceptions:[4: "ShelfHandle is not instantiated",
+    	5 : "Index is not instantiated",
+    	5 : "ShelfHandle is not a shelf",
+    	5 : "Index is not an integer",
+    	6 : "Index is less than 1 or greater than the number of slots on the shelf",
+    	6 : "The old counter value exceeds an implementation-defined limit (at least 2^31)",
+    	40 : "ShelfHandle refers to an already destroyed shelf"],
+    eg:"
+    ?- shelf_create(s(5),S), shelf_get_and_dec(S,1,Old).
+
+    S = 'SHELF'(16'c921aa30)
+    Old = 5
+    Yes (0.00s cpu)
+    ",
+    see_also:[shelf_create/2, shelf_create/3, shelf_dec/2, shelf_get/3, shelf_inc_and_get/3, struct/1]
+    ]).
+
+:- comment(shelf_test_and_set/4, [
+    summary:"Replace a given term in a shelf object",
+    desc:html("\
+	This is an atomic operation for replacing a given old shelf
+	value with a new one.  If the shelf slot does not contain the
+	expected old value, the predicate fails without changing anything.
+	It is a shorthand for:
+<PRE>
+	shelf_test_and_set(ShelfHandle, Index, Expected, New) :-
+	    with_mutex(ShelfHandle, (
+		shelf_get(ShelfHandle, Index, Old),
+		Old == Expected,
+		shelf_set(ShelfHandle, Index, New)
+	    ).
+</PRE>
+	For details on shelf_get/3 and shelf_set/3, see there.
+<P>
+	Note that this can never succeed if Expected is not ground.
+    "),
+    amode:(shelf_test_and_set(+,+,+,?) is semidet),
+    args:["ShelfHandle":"A shelf handle or shelf name",
+	    "Index":"An integer",
+	    "Expected":"An arbitrary term",
+	    "NewValue":"An arbitrary term"],
+    exceptions:[4: "ShelfHandle is not instantiated",
+    	5 : "Index is not instantiated",
+    	5 : "ShelfHandle is not a shelf",
+    	5 : "Index is not an integer",
+    	6 : "Index is negative or greater than the number of slots on the shelf",
+    	40 : "ShelfHandle refers to an already destroyed shelf"],
+    eg:"
+    	?- shelf_create(s(old),S), shelf_test_and_set(S,1,old,new), shelf_get(S,1,New).
+
+	S = 'SHELF'(16'c921aa30)
+	New = new
+	Yes (0.00s cpu)
+
+	?- shelf_create(s(old),S), shelf_test_and_set(S,1,foo,new), shelf_get(S,1,New).
+
+	No (0.00s cpu)
+    ",
+    see_also:[shelf_create/2, shelf_create/3, shelf_get/3, shelf_set/3, struct/1]
     ]).
 
 :- comment(shelf_abolish/1, [
@@ -1984,6 +2143,77 @@ Fail:
     More (0.00s cpu) ? ;
 
     No (0.00s cpu)
+    ",
+    see_also:[store/1, (local)/1]
+    ]).
+
+
+:- comment(name_to_handle/3, [
+    summary:"Obtain a handle for a named object",
+    amode:(name_to_handle(+,+,-) is semidet),
+    args:[
+    	"Type" : "One of the atoms 'record', 'shelf', 'store' or 'stream'",
+    	"Name" : "The name of a objects (atom or compound)",
+    	"Handle" : "A variable tha will be unified with a handle"],
+    fail_if:"Fails if there is no visible object of type Type with name Name",
+    desc:html("<P>\
+    Some types of ECLiPSe objects can alternatively be referred
+    to by a name (alias) or by anonymous handle.  These include
+    <DL>
+    <DT>record</DT>
+	<DD>see record_create/1 and local record/1 declaration</DD>
+    <DT>shelf</DT>
+	<DD>see shelf_create/2,3 and local shelf/1 declaration</DD>
+    <DT>store</DT>
+	<DD>see store_create/1 and local store/1 declaration</DD>
+    <DT>stream</DT>
+	<DD>see open/3,4</DD>
+    </DL>
+</P><P>
+    This predicate maps a name to a handle, i.e. it obtains an anonymous
+    handle for an existing named object.  This is needed when one wants
+    to use generic operations (such as mutual exclusion or conditions
+    for thread synchronisation) to the object, because the corresponding
+    primitives accept only handles.
+</P><P>
+    Note that some types of objects can have compound names.  In these cases,
+    only the functor (name/arity) of Name are important for the lookup.
+</P><P>
+    Generally, alias names should be used sparingly, because they prevent
+    automatic garbage collection of objects.
+<P>"),
+    exceptions:[
+	4 : "Type or Name are uninstantiated",
+	5 : "Type is not an atom",
+	5 : "Name is not an atom or compound term"],
+    eg:"
+
+    % Get a handle for the current 'output' stream
+    ?- name_to_handle(stream, output, H).
+    H = $&(stream(1))
+    Yes (0.00s cpu)
+
+
+    % Declare a store and a record, then get handles:
+    ?- local store(shed).
+    Yes (0.00s cpu)
+
+    ?- local record(foo/1).
+    Yes (0.00s cpu)
+
+    ?- name_to_handle(store, shed, H).
+    H = 'STORE'(16'ccb67f50)
+    Yes (0.00s cpu)
+
+    ?- name_to_handle(shelf, shed, H).
+    No (0.00s cpu)
+
+    ?- name_to_handle(record, foo, H).
+    No (0.00s cpu)
+
+    ?- name_to_handle(record, foo(_), H).
+    H = 'REC'(16'faa0efa0)
+    Yes (0.00s cpu)
     ",
     see_also:[store/1, (local)/1]
     ]).

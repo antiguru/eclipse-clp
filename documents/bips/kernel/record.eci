@@ -39,13 +39,15 @@
 :- tool(recordz / 3).
 :- tool(rerecord / 2).
 :- tool(current_record / 1).
+:- tool(record_wait_append / 4).
+:- tool(record_wait_remove / 3).
 
-:- comment(desc, html("\
-	ECLiPSe provides several facilities to store information across
-	backtracking. The following table gives an overview. If at all
-	possible, the handle-based facilities (bags, records, shelves,
-	stores) should be preferred because they lead to cleaner, reentrant
-	code (without global state) and reduce the risk of memory leaks.
+:- comment(desc, html("<P>\
+    ECLiPSe provides several facilities to store information across
+    backtracking. The following table gives an overview. If at all
+    possible, the handle-based facilities (bags, records, shelves,
+    stores) should be preferred because they lead to cleaner, reentrant
+    code (without global state) and reduce the risk of memory leaks.
 <PRE>
     Facility        Type            Reference       See
     ================================================================
@@ -73,7 +75,15 @@
     predicates
     ----------------------------------------------------------------
 </PRE>
-    ")).
+</P><P>
+    The record-facilities described in this section provide a non-logical
+    form of storage (not subject to backtracking), organized conceptually
+    as a list.  Elements can be added at either ends of the list, while
+    elements can be removed from any position in the list.  The basic
+    concept of this facility goes back to C-Prolog.  ECLiPSe provides
+    additional functionality in the form of anonymous record handles,
+    and facilities for communicating between concurrent threads.
+</P>")).
 
 :- comment(current_record / 1, [
 	summary:"Succeeds if Key is the key of a recorded item.
@@ -81,16 +91,16 @@
 ",
 	amode:(current_record(+) is semidet),
 	amode:(current_record(-) is nondet),
-	desc:html("   Used to backtrack over the keys currently recorded in the indexed
-   database.  Key must be either a variable, an atom or a compound term.
+	desc:html("<P>
+   Used to backtrack over the named record keys that currently have
+   recorded terms.  Key must be either a variable, an atom or a compound term.
    In the case of compound terms, all keys of the same name and arity are
    treated as equal.
-
 <P>
 "),
 	args:["Key" : "Variable, atom, compound term, or handle."],
 	fail_if:"Fails if Key is not a current key",
-	exceptions:[5 : "Key is neither a variable, an atom nor a compound term."],
+	exceptions:[5 : "Key is neither a variable, atom, compound term, or record handle."],
 	eg:"
    Success:
    [eclipse]: record(whiskey,jameson),
@@ -108,11 +118,9 @@
    Error:
    current_record(1).                     (Error 5)
    current_record(\"whiskey\").             (Error 5)
-
-
-
 ",
 	see_also:[is_record / 1]]).
+
 
 :- comment(record_create / 1, [
 	summary:"Create an anonymous record handle",
@@ -145,7 +153,7 @@
 	   ).
 	L = [a,b,c]
 ",
-	see_also:[is_record / 1, record/1, record/2, recorded/2]]).
+	see_also:[is_record / 1, record/1, record/2, recorded/2, is_handle/2]]).
 
 :- comment(erase / 2, [
 	summary:"Succeeds if the term Value associated with key Key is removed as an entry
@@ -165,7 +173,8 @@ in the indexed database.
 "),
 	args:["Key" : "Atom, compound term, or handle.", "Value" : "Any Prolog term."],
 	fail_if:"Fails if Value does not unify with any term recorded under the key Key",
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is not instantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
    [eclipse]: record(whiskey,jameson),
@@ -189,7 +198,7 @@ in the indexed database.
 
 
 ",
-	see_also:[erase_all / 1]]).
+	see_also:[erase_all / 1, record_wait_remove/3]]).
 
 :- comment(erase_all / 1, [
 	summary:"All the the values associated with key Key are removed from the indexed
@@ -204,7 +213,8 @@ database.
 <P>
 "),
 	args:["Key" : "An atom, compound term or handle."],
-	exceptions:[4 : "Key is uninstantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is uninstantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
    [eclipse]: record(whiskey,jameson),
@@ -239,7 +249,8 @@ database.
 "),
 	args:["Key" : "An atom, compound term or handle."],
 	fail_if:"Fails if Key is not a key for a recorded item",
-	exceptions:[4 : "Key is uninstantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is uninstantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
    [eclipse]: record(whiskey,jameson),
@@ -281,7 +292,51 @@ database.
 <P>
 "),
 	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term."],
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is not instantiated.",
+	     5 : "Key is neither an atom nor a compound term."],
+	eg:"
+   Success:
+   [eclipse]: record(whiskey,jameson),
+   >        record(whiskey,bushmills),
+   >        record(beer,lowenbrau).
+   yes.
+   [eclipse]: is_record(whiskey).
+   yes.
+   [eclipse]: is_record(beer).
+   yes.
+   Fail:
+   [eclipse]: is_record(wine).
+   no.
+   Error:
+   is_record(Key).                   (Error 4)
+   is_record(\"whiskey\").             (Error 5)
+
+
+
+",
+	see_also:[current_record / 1, record / 1]]).
+
+:- comment(record / 2, [
+	summary:"Records the term Value at the end of key Key in the indexed database.
+
+",
+	amode:(record(+,?) is det),
+	desc:html("   Used to record any prolog term Value at the end of the indexed database
+   entry associated with the key Key.  A synonym for recordz/2.  In the
+   case of compound terms, all keys of the same name and arity are treated
+   as equal.
+
+<P>
+   If backtracking occurs through the call of record/2 the associated Value
+   is not removed from the indexed database.  Recording the same Value
+   twice results in two identical entries in the indexed database.  All
+   variables are recorded according to their internal representations.
+
+<P>
+"),
+	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term."],
+	exceptions:[4 : "Key is not instantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
     record(a(compound,term),value1).
@@ -303,7 +358,7 @@ Error:
 
 
 ",
-	see_also:[recorda / 2, recordz / 2]]).
+	see_also:[recorda / 2, recordz / 2, record_wait_append/4]]).
 
 :- comment(recorda / 2, [
 	summary:"Records the term Value at the beginning of key Key in the indexed database.
@@ -321,7 +376,8 @@ Error:
 <P>
 "),
 	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term."],
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is not instantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
     recorda(a(compound,term),value1).
@@ -367,7 +423,8 @@ the key Key.
 "),
 	args:["Key" : "An atom or a compound term.", "Value" : "Any Prolog term."],
 	fail_if:"Fails if nothing is recorded under the key Key",
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is not instantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
    [eclipse]: record(beer,paulaner),
@@ -407,7 +464,8 @@ the key Key.
 <P>
 "),
 	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term."],
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is not instantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
     [eclipse]: recordz(whiskey,jameson),
@@ -430,7 +488,7 @@ Error:
 
 
 ",
-	see_also:[record / 2, recorda / 2]]).
+	see_also:[record / 2, recorda / 2, record_wait_append/4]]).
 
 :- comment(rerecord / 2, [
 	summary:"Erases all entries recorded under the key Key and replaces them with the
@@ -450,7 +508,8 @@ given value Value.
 <P>
 "),
 	args:["Key" : "An atom or a compound term.", "Value" : "Any prolog term."],
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term."],
+	exceptions:[4 : "Key is not instantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle."],
 	eg:"
    Success:
    [eclipse]: record(beer,lowenbrau),
@@ -541,8 +600,12 @@ in the indexed database under the key Key.
 
 <P>
 "),
-	args:["Key" : "An atom or a compound term.", "List" : "A (possibly empty) list of Prolog terms."],
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term.", 5 : "List is neither an variable nor a list."],
+	args:[
+	    "Key" : "A record name (atom/compound) or handle.",
+	    "List" : "A (possibly empty) list of Prolog terms."],
+	exceptions:[4 : "Key is not instantiated.",
+	5 : "Key is neither atom, compound term, nor record handle.",
+	5 : "List is neither an variable nor a list."],
 	eg:"
    Success:
    [eclipse]: erase_all(beer), recorded_list(beer,List).
@@ -583,7 +646,9 @@ in the indexed database under the key Key.
 <P>
 "),
 	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term.", "DBRef" : "A variable."],
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term.", 5 : "DBRef neither a variable nor a database reference."],
+	exceptions:[4 : "Key is not instantiated.",
+	    5 : "Key is neither atom, compound term, nor record handle.",
+	    5 : "DBRef neither a variable nor a database reference."],
 	eg:"
    Success:
     [eclipse]: recorda(whiskey,jameson,Ref1),
@@ -626,7 +691,9 @@ the key Key and DBRef is its unique reference.
 "),
 	args:["Key" : "An atom or a compound term.", "Value" : "Any Prolog term.", "DBRef" : "A variable."],
 	fail_if:"Fails if nothing is recorded under the key Key",
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term.", 5 : "DBRef is neither a variable nor a database reference."],
+	exceptions:[4 : "Key is not instantiated.",
+	5 : "Key is neither atom, compound term, nor record handle.",
+	5 : "DBRef is neither a variable nor a database reference."],
 	eg:"
    Success:
    [eclipse]: recordz(beer, paulaner, _),
@@ -666,7 +733,9 @@ the key Key and DBRef is its unique reference.
 <P>
 "),
 	args:["Key" : "An atom, compound term, or handle.", "Value" : "Any prolog term.", "DBRef" : "A variable."],
-	exceptions:[4 : "Key is not instantiated.", 5 : "Key is neither an atom nor a compound term.", 5 : "DBRef neither a variable nor a database reference."],
+	exceptions:[4 : "Key is not instantiated.",
+	5 : "Key is neither atom, compound term, nor record handle.",
+	5 : "DBRef neither a variable nor a database reference."],
 	eg:"
    Success:
     [eclipse]: recordz(whiskey,jameson,Ref1),
@@ -716,8 +785,132 @@ Error:
 Error:
    referenced_record(_, Value).         (Error 4)
    referenced_record(123, Value).       (Error 5)
-
-
-
 ",
 	see_also:[recorda / 3, recordz / 3, recorded / 3, erase / 1, referenced_record / 2]]).
+
+
+:- comment(recorded_count / 2, [
+    summary:"Returns the number of entries under the record key",
+    amode:(recorded_count(+,-) is det),
+    args:[
+	"Key" : "A record name (atom/compound) or handle.",
+	"Count" : "A variable or integer."],
+	desc:html("<P>
+   Unifies Count with the number of terms that are currently recorded
+   under the key Key.
+</P>"),
+    exceptions:[
+	4 : "Key is not instantiated.",
+	5 : "Key is neither atom, compound term, nor record handle."],
+    eg:"
+   ?-  record_create(R),
+       recorded_count(R,C0),
+       recordz(R,hello),
+       recorded_count(R,C1).
+
+   R = 'REC'(16'39cbee90)
+   C0 = 0
+   C1 = 1
+   Yes (0.00s cpu)
+",
+	see_also:[recorded_list/2, record / 2, recorded / 2]]).
+
+
+:- comment(record_wait_append / 4, [
+	summary:"Variant of recordz/2, suitable for thread communication",
+	amode:(record_wait_append(+,?,+,+) is semidet),
+	args:[
+	    "Key" : "A record name (atom/compound) or handle.",
+	    "Value" : "Any prolog term.",
+	    "Timeout":"Timeout in seconds (integer or float), or the atom 'block'",
+	    "Max" : "A positive integer, maximum number of recorded terms"],
+    fail_if:"Fails if there are never less than Max records until Timeout expires",
+    index:["message queue"],
+    desc:html("<P>
+   Like recordz/2, this predicate records the term Value at the end of the
+   list of terms recorded under Key.
+</P><P>
+   In addition, this predicate, together with record_wait_remove/3,
+   implements a bounded queue with synchronisation between concurrent
+   threads.
+</P><P>
+   If there are already Max (or more) recorded terms in the queue,
+   the predicate blocks until an invocation of record_wait_remove/3
+   (in another thread) reduces the queue length to below Max.  If
+   this does not happen within Timeout seconds, the predicate fails.
+</P><P>
+   Conversely, when the queue is empty, adding a new entry with
+   this predicate unblocks all currently blocking invocations of
+   record_wait_remove/3 on the same Key.
+<P>
+"),
+	exceptions:[
+	4 : "Key, Timeout, or Max is not instantiated.",
+	5 : "Key is neither atom, compound term, nor record handle.",
+        5 : "Timeout is neither integer, float, nor the atom 'block'",
+        5 : "Max is not integer",
+        6 : "Timeout is a negative number",
+        6 : "Max is not positive",
+	45: "Key does is not a declared record name"],
+	eg:"
+% Produce data in the main engine, and send it via a record-queue
+% to a concurrently running engine thread for consumption
+
+    produce_consume(N) :-
+	record_create(Q),
+	engine_create(E, []),
+	engine_resume_thread(E, consume(Q)),
+	produce(Q, N).
+
+    produce(Q, N) :-
+	( for(I,1,N), param(Q) do
+	    writeln(producing(I)),
+	    record_wait_append(Q, I, block, 20)
+	).
+
+    consume(Q) :-
+	record_wait_remove(Q, Msg, block),
+	writeln(consuming(Msg)),
+	consume(Q).
+
+",
+	see_also:[record_create/1, recordz/2, record_wait_remove/3]]).
+
+
+:- comment(record_wait_remove / 3, [
+	summary:"Variant of erase/2, suitable for thread communication",
+	amode:(record_wait_remove(+,?,+) is semidet),
+	args:[
+	    "Key" : "A record name (atom/compound) or handle.",
+	    "Value" : "Any prolog term.",
+	    "Timeout":"Timeout in seconds (integer or float), or the atom 'block'"],
+    fail_if:"Fails if there are no records until Timeout expires",
+    index:["message queue"],
+    desc:html("<P>
+   Like erase/2, this predicate finds the first term (recorded under Key)
+   that unifies with Value, and removes it from the record.  If Value is
+   a variable, it simply removes (and retrieves) the first recorded term.
+</P><P>
+   In addition, this predicate, together with record_wait_append/4,
+   implements a bounded queue with synchronisation between concurrent
+   threads.
+</P><P>
+   If there are no recorded terms for Key, the predicate blocks until
+   an invocation of record_wait_append/4 (in another thread) creates
+   such a recorded term.  If this does not happen within Timeout seconds,
+   the predicate fails.
+</P><P>
+   Conversely, when the removal of an element sufficiently reduces the
+   queue length, this predicate unblocks all currently blocking
+   invocations of record_wait_append/4 on the same Key.
+<P>
+"),
+	exceptions:[
+	4 : "Key or Timeout is not instantiated.",
+	5 : "Key is neither atom, compound term, nor record handle.",
+        5 : "Timeout is neither integer, float, nor the atom 'block'",
+        6 : "Timeout is a negative number",
+	45: "Key does is not a declared record name"],
+    eg:"see record_wait_remove/3",
+	see_also:[record_create/1, recordz/2, record_wait_append/4]]).
+
