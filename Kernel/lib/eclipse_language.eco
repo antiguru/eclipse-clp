@@ -439,9 +439,8 @@
 :-(reexport(from(/(real,1),sepia_kernel))).
 :-(reexport(from(/(record,2),sepia_kernel))).
 :-(reexport(from(/(record_create,1),sepia_kernel))).
-:-(reexport(from(/(record_handle,2),sepia_kernel))).
-:-(reexport(from(/(record_add,4),sepia_kernel))).
-:-(reexport(from(/(record_remove,3),sepia_kernel))).
+:-(reexport(from(/(record_wait_append,4),sepia_kernel))).
+:-(reexport(from(/(record_wait_remove,3),sepia_kernel))).
 :-(reexport(from(/(recorda,2),sepia_kernel))).
 :-(reexport(from(/(recorda,3),sepia_kernel))).
 :-(reexport(from(/(recorded,2),sepia_kernel))).

@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.17 2016/08/04 09:41:15 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.18 2016/08/04 10:50:11 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -469,9 +469,8 @@
 :- reexport real / 1 from sepia_kernel.
 :- reexport record / 2 from sepia_kernel.
 :- reexport record_create / 1 from sepia_kernel.
-:- reexport record_handle / 2 from sepia_kernel.
-:- reexport record_add / 4 from sepia_kernel.
-:- reexport record_remove / 3 from sepia_kernel.
+:- reexport record_wait_append / 4 from sepia_kernel.
+:- reexport record_wait_remove / 3 from sepia_kernel.
 :- reexport recorda / 2 from sepia_kernel.
 :- reexport recorda / 3 from sepia_kernel.
 :- reexport recorded / 2 from sepia_kernel.

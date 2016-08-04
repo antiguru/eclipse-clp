@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.59 2016/08/04 09:41:15 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.60 2016/08/04 10:50:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1141,14 +1141,20 @@ recordedchk_body(Key, Value, DbRef, Module) :-
 	).
 
 
-:- tool(record_handle/2, record_handle_/3).
-:- tool(record_add/4, record_add_/5).
-record_add_(Queue, Msg, Timeout, Max, Module) :-
-	check_integer_ge(Max, 1), !,
-	record_handle(Queue, Handle)@Module,
+check_record(NameOrHandle, Handle, Module) :-
+	name_to_handle(record, NameOrHandle, H)@Module, !, Handle=H.
+check_record(_, _, _) :-
+	set_bip_error(45).
+
+
+:- tool(record_wait_append/4, record_wait_append_/5).
+record_wait_append_(Queue, Msg, Timeout, Max, Module) :-
+	check_integer_ge(Max, 1),
+	check_record(Queue, Handle, Module),
+	!,
 	with_mutex(Handle, q_snd_(Handle, Msg, Timeout, Max, Module)).
-record_add_(Queue, Msg, Timeout, Max, Module) :-
-	bip_error(record_add(Queue, Msg, Timeout, Max), Module).
+record_wait_append_(Queue, Msg, Timeout, Max, Module) :-
+	bip_error(record_wait_append(Queue, Msg, Timeout, Max), Module).
 
     q_snd_(Handle, Msg, Timeout, Max, Module) :-
 	recorded_count(Handle, C),
@@ -1157,20 +1163,22 @@ record_add_(Queue, Msg, Timeout, Max, Module) :-
 	    % always signal, because someone may be waiting for matching entry
 	    condition_signal(Handle, all)
 	;
+	    record_set_max(Handle, Max),
 	    condition_wait(Handle, Timeout),	% fail on timeout
 	    q_snd_(Handle, Msg, Timeout, Max, Module)
 	).
 
-:- tool(record_remove/3, record_remove_/4).
-record_remove_(Queue, Msg, Timeout, Module) :-
-	record_handle(Queue, Handle)@Module,
+:- tool(record_wait_remove/3, record_wait_remove_/4).
+record_wait_remove_(Queue, Msg, Timeout, Module) :-
+	check_record(Queue, Handle, Module),
+	!,
 	with_mutex(Handle, q_rcv_(Handle, Msg, Timeout, Module)).
+record_wait_remove_(Queue, Msg, Timeout, Module) :-
+	bip_error(record_wait_remove(Queue, Msg, Timeout), Module).
 
     q_rcv_(Handle, Msg, Timeout, Module) :-
 	( erase(Handle, Msg)@Module ->
-	    % Need to signal only when queue goes from full to non-full
-	    %% TODO: should be Max-1 instead of 0 here:
-	    ( recorded_count(Handle, 0)@Module ->
+	    ( record_below_max(Handle) ->
 		condition_signal(Handle, all)
 	    ;
 		true

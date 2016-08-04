@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.34 2016/08/04 09:41:15 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.35 2016/08/04 10:50:11 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -373,7 +373,6 @@ undef_record_handler(N, Culprit) :-
     extract_record_key(recordz_body(Key,_,M), Key, M).
     extract_record_key(recorda_body(Key,_,_,M), Key, M).
     extract_record_key(recordz_body(Key,_,_,M), Key, M).
-    extract_record_key(record_handle_(Key,_,M), Key, M).
 
 
 %-------------------------------------
@@ -1723,7 +1722,7 @@ after_loop :-
 	    SleepTime = block	% block indefinitely
 	),
 	% Wait for new requests or for next event's due time
-	( record_remove(after_requests, Request, SleepTime) ->
+	( record_wait_remove(after_requests, Request, SleepTime) ->
 	    % incorporate new requests into queue
 	    %writeln(serve_request(Request, TEQ2, TEQ3)),
 	    serve_request(Request, TEQ2, TEQ3),
@@ -1818,7 +1817,7 @@ event_after(Event, Delay, DueTime) :-
 	!,
 	DueTime is statistics(event_time)+Delay,
 	engine_self(Engine),
-	record_add(after_requests, after(DueTime,0,Event,Engine), block, 20).
+	record_wait_append(after_requests, after(DueTime,0,Event,Engine), block, 20).
 event_after(Event, Delay, DueTime) :-
 	bip_error(event_after(Event, Delay, DueTime)).
 	
@@ -1829,7 +1828,7 @@ event_after_every(Event, Interval) :-
 	!,
 	FirstDue is statistics(event_time)+Interval,
 	engine_self(Engine),
-	record_add(after_requests, after(FirstDue,Interval,Event,Engine), block, 20).
+	record_wait_append(after_requests, after(FirstDue,Interval,Event,Engine), block, 20).
 event_after_every(Event, Interval) :-
 	bip_error(event_after_every(Event, Interval)).
 
@@ -1857,7 +1856,7 @@ events_after(Specs) :-
 	    )
 	),
 	!,
-	record_add(after_requests, Requests, block, 20).
+	record_wait_append(after_requests, Requests, block, 20).
 events_after(Specs) :-
 	bip_error(events_after(Specs)).
 
@@ -1867,7 +1866,7 @@ cancel_after_event(Event, Cancelled) :-
 	!,
 	engine_self(Engine),
 	shelf_create(answer(none), Shelf),
-	record_add(after_requests, cancel(Event,Engine,Shelf), block, 20),
+	record_wait_append(after_requests, cancel(Event,Engine,Shelf), block, 20),
 	with_mutex(Shelf, await_answer(Shelf, Cancelled)).
 cancel_after_event(Event, Cancelled) :-
 	bip_error(cancel_after_event(Event, Cancelled)).
@@ -1876,7 +1875,7 @@ cancel_after_event(Event, Cancelled) :-
 current_after_events(Currents) :-
 	engine_self(Engine),
 	shelf_create(answer(none), Shelf),
-	record_add(after_requests, current(Engine,Shelf), block, 20),
+	record_wait_append(after_requests, current(Engine,Shelf), block, 20),
 	with_mutex(Shelf, await_answer(Shelf, Currents)).
 
     await_answer(Shelf, Answer) :-
@@ -1891,10 +1890,10 @@ current_after_events(Currents) :-
 
 timer_engine_cleanup :-
 	shelf_create(answer(none), Shelf),
-	record_add(after_requests, finalize(Shelf), 10, 20),
+	record_wait_append(after_requests, finalize(Shelf), 10, 20),
 	with_mutex(Shelf, await_answer(Shelf, TimerEngine)),
 	( engine_join(TimerEngine, 3, exited(0)) -> true ;
-	    writeln(warning_output, "Warning: Timer engine did no exit normally!")
+	    writeln(warning_output, "Warning: Timer engine did not exit normally!")
 	).
 
 

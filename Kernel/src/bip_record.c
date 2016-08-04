@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.5 2016/08/04 09:09:04 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.6 2016/08/04 10:49:26 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -82,10 +82,10 @@ typedef struct record_header {
     uword		ref_ctr;	/* one count for list membership */
     struct record_elem	*next, *prev;	/* never NULL (self ref if empty) */
 
-    word		max;		/* number of list elements */
+    word		max;		/* signal when count below max */
     word		count;		/* number of list elements */
     ec_mutex_t		lock;		/* protect next/prev list access */
-    ec_cond_t		cond;
+    ec_cond_t		*cond;
 } t_heap_rec_hdr;
 
 
@@ -114,10 +114,10 @@ _rec_create(void)
     t_heap_rec_hdr *obj = (t_heap_rec_hdr *) hg_alloc_size(sizeof(t_heap_rec_hdr));
     obj->ref_ctr = 1;
     obj->next = obj->prev = (t_heap_rec*) obj;
-    obj->max = MAX_S_WORD;
+    obj->max = 0;
     obj->count = 0;
+    obj->cond = NULL;
     mt_mutex_init_recursive(&obj->lock);
-    ec_cond_init(&obj->cond);
     return obj;
 }
 
@@ -180,6 +180,11 @@ _rec_free_all(t_heap_rec_hdr *header)
 	ec_flush(current_err_);
 #endif
 	_rec_free_elems(header); /* last ref, no lock needed */
+	mt_mutex_destroy(&header->lock);
+	if (header->cond) {
+	    ec_cond_destroy(header->cond);
+	    hg_free_size(header->cond, sizeof(ec_cond_t));
+	}
 	hg_free_size((generic_ptr) header, sizeof(t_heap_rec_hdr));
     }
 }
@@ -273,13 +278,22 @@ _rec_unlock(t_heap_rec_hdr *obj)
 static int
 _rec_signal(t_heap_rec_hdr *obj, int all)
 {
-    return ec_cond_signal(&obj->cond, all);
+    ec_cond_t *cv = obj->cond;
+    /* no need to signal when no waiters */
+    return cv? ec_cond_signal(cv, all) : 0;
 }
 
 static int
 _rec_wait(t_heap_rec_hdr *obj, int timeout_ms)
 {
-    return ec_cond_wait(&obj->cond, &obj->lock, timeout_ms);
+    ec_cond_t *cv = obj->cond;
+    /* create condition variable lazily (we expect obj to be locked here) */
+    if (!cv) {
+	cv = (ec_cond_t*) hg_alloc_size(sizeof(ec_cond_t));
+	ec_cond_init(cv);
+	obj->cond = cv;
+    }
+    return ec_cond_wait(cv, &obj->lock, timeout_ms);
 }
 
 
@@ -351,32 +365,6 @@ _get_rec_list(value vrec, type trec, value vmod, type tmod, t_heap_rec_hdr **phe
 }
 
 
-static int
-p_record_handle(value vrec, type trec, value vh, type th, value vmod, type tmod, ec_eng_t *ec_eng)
-{
-    if (SameTypeC(trec, THANDLE))
-    {
-	if (ExternalClass(vrec.ptr) != &heap_rec_header_tid)
-	    { Bip_Error(TYPE_ERROR); }
-	Return_Unify_Pw(vh, th, vrec, trec);
-    }
-    else
-    {
-	t_ext_ptr header;
-	dident key_did;
-	pword rec;
-	int err;
-	Get_Key_Did(key_did,vrec,trec)
-	err = get_visible_property_handle(key_did, IDB_PROP, vmod.did, tmod, &heap_rec_header_tid, &header);
-	if (err < 0) {
-	    Bip_Error(err == PERROR ? NO_LOCAL_REC : err);
-	}
-	rec = ecl_handle(ec_eng, &heap_rec_header_tid, header);
-	Return_Unify_Pw(vh, th, rec.val, rec.tag);
-    }
-}
-
-
 /*
  * is_record(Key)@Module checks whether Key is a record key (or handle)
  * on which recorded terms have been (and still are) stored.
@@ -397,6 +385,10 @@ p_is_record_body(value vrec, type trec, value vmod, type tmod, ec_eng_t *ec_eng)
 }
 
   
+/**
+ * recorded_count(+Key, -Count) is det
+ * Return 0 if a named key does not exist.
+ */
 static int
 p_recorded_count(value vrec, type trec, value vc, type tc, value vmod, type tmod, ec_eng_t *ec_eng)
 {
@@ -412,6 +404,50 @@ p_recorded_count(value vrec, type trec, value vc, type tc, value vmod, type tmod
     else
 	{ Bip_Error(err); }
     Return_Unify_Integer(vc, tc, count);
+}
+
+
+/**
+ * record_set_max(+RecordHandle, +Max) is det
+ * Set Key's maximum queue size to Max (unless the old max is greater).
+ * This setting applies only to record_wait_append/4.
+ * Helper predicate, only to be used while handle is locked.
+ */
+static int
+p_record_set_max(value vrec, type trec, value vc, type tc, ec_eng_t *ec_eng)
+{
+    t_heap_rec_hdr *header;
+
+    Check_Integer(tc);
+    if (vc.nint < 0) {
+	Bip_Error(RANGE_ERROR)
+    }
+    Get_Typed_Object(vrec, trec, &heap_rec_header_tid, header);
+    if (header->max < vc.nint)
+	header->max = vc.nint;
+    Succeed_;
+}
+
+
+/**
+ * record_below_max(+RecordHandle) is semidet
+ * Fail if there are max or more record entries, otherwise reset max
+ * to zero, assuming that all waiters are going to be signaled.
+ * Helper predicate, only to be used while handle is locked!
+ */
+static int
+p_record_below_max(value vrec, type trec, ec_eng_t *ec_eng)
+{
+    t_heap_rec_hdr *header;
+
+    Get_Typed_Object(vrec, trec, &heap_rec_header_tid, header);
+    if (header->count >= header->max) {
+	Fail_;
+    }
+    /* don't signal until new waiters appear - this assumes they
+     * all get signaled! */
+    header->max = 0;
+    Succeed_;
 }
 
 
@@ -987,8 +1023,6 @@ bip_record_init(int flags)
 	    -> mode = BoundArg(2, NONVAR);
 	(void) exported_built_in(in_dict("recorded_count_", 3),
 				 p_recorded_count, B_UNSAFE);
-	(void) exported_built_in(in_dict("record_handle_", 3),
-				 p_record_handle, B_UNSAFE);
 	(void) exported_built_in(in_dict("erase", 1), p_erase, B_UNSAFE);
 	(void) exported_built_in(in_dict("record_create", 1),
 				 p_record_create, B_UNSAFE);
@@ -1002,6 +1036,10 @@ bip_record_init(int flags)
 				 p_first_recorded, B_UNSAFE);
 	(void) local_built_in(in_dict("next_recorded", 3),
 				 p_next_recorded, B_UNSAFE);
+	(void) local_built_in(in_dict("record_set_max", 2),
+				 p_record_set_max, B_SAFE);
+	(void) local_built_in(in_dict("record_below_max", 1),
+				 p_record_below_max, B_SAFE);
     }
 }
 
