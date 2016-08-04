@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_bag.c,v 1.2 2016/07/28 03:34:35 jschimpf Exp $
+ * Version:	$Id: bip_bag.c,v 1.3 2016/08/04 09:09:04 jschimpf Exp $
  *
  * Contents:	Built-ins for the bag-primitives
  *
@@ -59,7 +59,6 @@
  *
  *----------------------------------------------------------------------*/
 
-static dident d_bag_;
 
 /* INSTANCE TYPE DECLARATION */
 
@@ -149,7 +148,7 @@ _strsz_heap_bag(t_heap_bag *obj, int quoted)	/* obj != NULL */
 static dident
 _kind_bag()
 {
-    return d_bag_;
+    return d_.bag;
 }
 
 static int
@@ -308,8 +307,6 @@ p_bag_dissolve(value vbag, type tbag, value vl, type tl, ec_eng_t *ec_eng)
 void
 bip_bag_init(int flags)
 {
-    d_bag_ = in_dict("bag", 0);
-
     if (flags & INIT_SHARED)
     {
 	(void) built_in(in_dict("bag_create", 1), p_bag_create, B_SAFE|U_SIMPLE);

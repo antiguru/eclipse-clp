@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.10 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.11 2016/08/04 09:09:04 jschimpf Exp $
  *
  * IDENTIFICATION:	property.c
  *
@@ -61,7 +61,8 @@
 #include "dict.h"
 #include "module.h"
 #include "property.h"
-#include	"os_support.h"
+#include "emu_export.h"
+#include "os_support.h"
 
 
 static void	free_prop_value(int, pword*);
@@ -565,21 +566,18 @@ free_prop_value(int prop_name, pword *prop_value)
 
     case IDB_PROP:
     {
-	extern t_ext_type heap_rec_header_tid;
 	heap_rec_header_tid.free((t_ext_ptr)prop_value->val.wptr);
 	break;
     }
 
     case HTABLE_PROP:
     {
-	extern t_ext_type heap_htable_tid;
 	heap_htable_tid.free((t_ext_ptr)prop_value->val.wptr);
 	break;
     }
 
     case SHELF_PROP:
     {
-	extern t_ext_type heap_array_tid;
 	heap_array_tid.free((t_ext_ptr)prop_value->val.wptr);
 	break;
     }
@@ -642,21 +640,18 @@ mark_dids_from_properties(property *prop_list)
 
 		case HTABLE_PROP:
 		    {
-			extern t_ext_type heap_htable_tid;
 			heap_htable_tid.mark_dids((t_ext_ptr)p->property_value.val.wptr);
 		    }
 		    break;
 
 		case SHELF_PROP:
 		    {
-			extern t_ext_type heap_array_tid;
 			heap_array_tid.mark_dids((t_ext_ptr)p->property_value.val.wptr);
 		    }
 		    break;
 
 		case IDB_PROP:
 		    {
-			extern t_ext_type heap_rec_header_tid;
 			heap_rec_header_tid.mark_dids((t_ext_ptr)p->property_value.val.wptr);
 		    }
 		    break;

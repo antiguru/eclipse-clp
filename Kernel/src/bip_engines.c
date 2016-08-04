@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.2 2016/07/30 16:25:11 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.3 2016/08/04 09:09:04 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -69,15 +69,12 @@ static dident
 	d_thread1_,
 	d_clone_,
 	d_clone1_,
-	d_block_,
 	d_detached_,
 	d_detached1_,
 	d_engine_,
 	d_exception1_,
-	d_exit_,
 	d_exited1_,
 	d_flushio1_,
-	d_one_,
 	d_references1_,
 	d_running_,
 	d_paused_,
@@ -481,7 +478,7 @@ p_engine_join(value v, type t, value vto, type tto, value vs, type ts, ec_eng_t 
 	timeout_ms = 1000 * vto.nint;
     else if (IsDouble(tto))
 	timeout_ms = (word) (1000.0 * Dbl(vto));
-    else if (IsAtom(tto) && vto.did == d_block_)
+    else if (IsAtom(tto) && vto.did == d_.block)
 	timeout_ms = -1;
     else {
 	Error_If_Ref(tto);
@@ -809,7 +806,7 @@ p_handle_proceed(value v, type t, value vall, type tall, ec_eng_t *ec_eng)
     if (!ExternalClass(v.ptr)->signal) { Bip_Error(UNIMPLEMENTED); }
     Check_Atom(tall);
     if (vall.did==d_.all) all=1;
-    else if (vall.did==d_one_) all=0;
+    else if (vall.did==d_.one) all=0;
     else { Bip_Error(RANGE_ERROR); }
 
     err = ExternalClass(v.ptr)->signal(ExternalData(v.ptr), all);
@@ -827,7 +824,7 @@ p_handle_wait(value v, type t, value vtimeout, type ttimeout, ec_eng_t *ec_eng)
 
     Check_Type(t, THANDLE);
     if (!ExternalClass(v.ptr)->wait) { Bip_Error(UNIMPLEMENTED); }
-    if (IsAtom(ttimeout) && vtimeout.did == d_block_) {
+    if (IsAtom(ttimeout) && vtimeout.did == d_.block) {
     	timeout_ms = -1;
     } else {
 	Get_Milliseconds(vtimeout, ttimeout, timeout_ms);
@@ -872,15 +869,12 @@ bip_engines_init(int flags)
     d_thread1_ = in_dict("thread",1);
     d_clone_ = in_dict("clone",0);
     d_clone1_ = in_dict("clone",1);
-    d_block_ = in_dict("block", 0);
     d_detached_ = in_dict("detached",0);
     d_detached1_ = in_dict("detached",1);
     d_engine_ = in_dict("engine",0);
     d_exception1_ = in_dict("exception",1);
     d_exited1_ = in_dict("exited",1);
-    d_exit_ = in_dict("exit",1);
     d_flushio1_ = in_dict("flushio",1);
-    d_one_ = in_dict("one",0);
     d_references1_ = in_dict("references",1);
     d_paused_ = in_dict("paused",0);
     d_running_ = in_dict("running",0);

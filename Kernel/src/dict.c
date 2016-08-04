@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.14 2016/07/30 15:45:15 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.15 2016/08/04 09:09:04 jschimpf Exp $
  */
 
 /*
@@ -1335,7 +1335,6 @@ _std_did_init(void)
 	d_.not_identical = 	in_dict("\\==", 2);
 	d_.not_equal =	in_dict("=\\=", 2);
 
-	d_.comment = 	in_dict("/*", 0);
 	d_.eocl = 	in_dict( ".", 0);
 	d_.eof = 	in_dict( "end_of_file", 0);
 	d_.list = 	in_dict( ".", 2);
@@ -1349,9 +1348,7 @@ _std_did_init(void)
 	d_.false0 = 	in_dict("false",0);
 	d_.nilcurbr = 	in_dict( "{}", 0);
 	d_.nilcurbr1 = 	in_dict( "{}", 1);
-	d_.eoi = 	in_dict( "\004", 0);
 	d_.cond = 	in_dict( "->", 2);
-	d_.ampersand = 	in_dict( "&", 2);
 	d_.cut = 	in_dict( "!", 0);
 	d_.syscut = 	in_dict( "syscut", 0);
 	d_.cut_to = 	in_dict( "cut_to", 1);
@@ -1426,16 +1423,11 @@ _std_did_init(void)
 	d_.greaterq = 	in_dict("@>=", 2);
 
 	d_.reset = 	in_dict("reset",0);
-	d_.block =	in_dict("block", 3);
+	d_.block =	in_dict("block", 0);
 	d_.exit_block = in_dict("exit_block",1);
 	d_.call = 	in_dict("call", 1);
 	d_.call_body = 	in_dict("call_", 2);
-	d_.metacall = 	in_dict("call", 3);
-	d_.go = 	in_dict("go", 0);
 	d_.break0 =	in_dict("break", 0);
-	d_.local_break = in_dict("local_break", 0);
-	d_.compile = 	in_dict("compile",1);
-	d_.pcompile = 	in_dict("pcompile", 3);
 	d_.error = 	in_dict("error",2);
 	d_.syserror = 	in_dict("syserror", 4);
 	d_.user = 	in_dict("user", 0);
@@ -1446,33 +1438,31 @@ _std_did_init(void)
 	d_.update =	in_dict("update",0);
 	d_.append =	in_dict("append", 0);
 	d_.string =	in_dict("string", 1);
-	d_.input = 	in_dict("input",0);
-	d_.output = 	in_dict("output",0);
-	d_.err = 	in_dict("error",0);
-	d_.answer = 	in_dict("answer",0);
 	d_.dummy_call =	in_dict("dummy_call",0);
 	d_.no_err_handler =	in_dict("no_err_handler",2);
 	d_.error_handler =	in_dict("error_handler",2);
-	d_.call_explicit =	in_dict("call_explicit",2);
-	d_.garbage_collect_dictionary = in_dict("garbage_collect_dictionary",0);
 	d_.throw1	= in_dict("throw",1);
 
 	d_.hang =	in_dict("hang",0);
 	d_.nohang =	in_dict("nohang",0);
 
+	/* stream names */
+	d_.stdin0 =		in_dict("stdin", 0);
+	d_.stdout0 =		in_dict("stdout", 0);
+	d_.stderr0 =		in_dict("stderr", 0);
+	d_.input = 		in_dict("input",0);
+	d_.output = 		in_dict("output",0);
+	d_.err = 		in_dict("error",0);
 	d_.warning_output = 	in_dict("warning_output",0);
 	d_.log_output = 	in_dict("log_output",0);
 	d_.user_input = 	in_dict("user_input",0);
 	d_.user_output = 	in_dict("user_output",0);
 	d_.user_error = 	in_dict("user_error",0);
 	d_.null = 		in_dict("null", 0);
+
 	d_.flush = 		in_dict("flush",0);
 	d_.emulate = 		in_dict("Emulate",0);
 	d_.abort = 		in_dict("abort",0);
-	d_.cprolog = 		in_dict("cprolog", 0);
-	d_.bsi = 		in_dict("bsi", 0);
-	d_.quintus = 		in_dict("quintus", 0);
-	d_.sicstus = 		in_dict("sicstus", 0);
 	d_.var = 		in_dict("var", 1);
 	d_.nonground = 		in_dict("nonground", 1);
 	d_.ground = 		in_dict("ground", 1);
@@ -1486,15 +1476,11 @@ _std_did_init(void)
 	d_.clause =	in_dict("clause", 3);
 
 	d_.halt = 	in_dict("halt",0);
-	d_.halt0 = 	in_dict("halt0",0);
-	d_.debugger =	in_dict("debugger", 0);
 
 		/* declarations */
 	d_.dynamic = 	in_dict("dynamic",1);
 	d_.abolish = 	in_dict("abolish",1);
 	d_.mode = 	in_dict("mode",1);
-	d_.delay =	in_dict("delay", 1);
-	d_.if2 =		in_dict("if", 2);
 	d_.local = 	in_dict("local",1);
 	d_.global = 	in_dict("global",1);
 	d_.export1 = 	in_dict("export",1);
@@ -1507,20 +1493,16 @@ _std_did_init(void)
 	d_.dummy_module =	&dict->anonymous_did[ANONYMOUS_MODULE];
 	d_.default_module =	in_dict(ec_options.default_module, 0);
 	d_.eclipse_home =	in_dict(ec_eclipse_home, 0);
-	d_.kernel_sepia = in_dict("sepia_kernel", 0);
-	d_.cn =		in_dict("cn", 0);
+	d_.kernel_sepia =	in_dict("sepia_kernel", 0);
 
 	       /* operators */
 	d_.local0	= in_dict("local", 0);
 	d_.global0	= in_dict("global", 0);
 
 		/* debugger */
-	d_.sepia =		in_dict("sepia", 0);
-	d_.macro = 		in_dict("macro", 0);
 	d_.skip = 		in_dict("skip", 0);
 	d_.spy = 		in_dict("spy", 0);
 	d_.leash = 		in_dict("leash", 0);
-	d_.command = 		in_dict("command", 0); 
 	d_.ellipsis =		in_dict("...",0);
 
 		/* modes */
@@ -1547,12 +1529,6 @@ _std_did_init(void)
 	d_.exportb = in_dict("export_", 2);
 	d_.import_fromb = in_dict("import_from_", 3);
 	d_.woken = in_dict("woken", WL_ARITY);
-	d_.write1 = in_dict("write", 1);
-	d_.write2 = in_dict("write", 2);
-	d_.writeq1 = in_dict("writeq", 1);
-	d_.writeq2 = in_dict("writeq", 2);
-	d_.read1 = in_dict("read", 1);
-	d_.read2 = in_dict("read", 2);
 	d_.define_global_macro3 = in_dict("define_global_macro",3);
 	d_.define_local_macro3 = in_dict("define_local_macro",3);
 	d_.erase_macro1 = in_dict("erase_macro",1);
@@ -1569,21 +1545,26 @@ _std_did_init(void)
 	d_.byte = in_dict("byte", 0);
         d_.compound0 = in_dict("compound", 0);
 	d_.universally_quantified = in_dict("universally_quantified", 0);
-	d_.suspending = in_dict("suspending", 0);
 	d_.suspend_attr = in_dict("suspend", 3);
 	d_.constrained = in_dict("constrained", 0);
 	d_.meta0 = in_dict("meta", 0);
 	d_.free = in_dict("free",0);
 
-	d_.stdin0 = in_dict("stdin", 0);
-	d_.stdout0 = in_dict("stdout", 0);
-	d_.stderr0 = in_dict("stderr", 0);
+	/* properties and handle types */
+	d_.bag = in_dict("bag", 0);
+	d_.event = in_dict("event", 0);
+	d_.record = in_dict("record", 0);
+	d_.dbref = in_dict("dbref", 0);
+	d_.shelf = in_dict("shelf", 0);
+	d_.store = in_dict("store", 0);
+	d_.stream = in_dict("stream", 0);
 
 	/* macros */
 	d_.top_only = in_dict("top_only", 0);
 	d_.protect_arg = in_dict("protect_arg", 0);
 	d_.clause0 = in_dict("clause", 0);
 	d_.goal = in_dict("goal", 0);
+	d_.term = in_dict("term", 0);
 
 	d_.with2 =		in_dict("with", 2);
 	d_.with_attributes2 =	in_dict("with attributes", 2);
@@ -1591,14 +1572,11 @@ _std_did_init(void)
 
 	d_.some = in_dict("some", 0);
 	d_.all = in_dict("all", 0);
+	d_.one = in_dict("one", 0);
 
-	/* compiler */
-	d_.compile_stream = in_dict("compile_stream", 1);
+	/* built-ins */
 	d_.system_debug = in_dict("system_debug", 0);
-	d_.file_query = in_dict("file_query_body", 3);
 	d_.external = in_dict("external", 0);
-	d_.term = in_dict("term", 0);
-	d_.not_not = in_dict("not not", 1);
 	d_.softcut = in_dict("*->", 2);
 	d_.functor = in_dict("functor", 3);
 	d_.integer = in_dict("integer", 1);
@@ -1620,6 +1598,8 @@ _std_did_init(void)
 	d_.pragma = in_dict("pragma", 1);
 	d_.make_suspension = in_dict("make_suspension", 3);
 	d_.wake = in_dict("wake", 0);
+
+	/* suspension attributes */
 	d_.state = in_dict("state", 0);
 	d_.priority = in_dict("priority", 0);
 	d_.invoc = in_dict("invoc", 0);

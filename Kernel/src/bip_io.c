@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.24 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.25 2016/08/04 09:09:04 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -221,15 +221,13 @@ static dident		d_pipe,
 			d_queue1,
 			d_unix,
 			d_internet,
-			d_stream,
 			d_datagram,
 			d_end_of_line,
 			d_lf,
 			d_crlf,
 			d_when_lost,
 			d_when_closed,
-			d_reprompt1,
-			d_block;
+			d_reprompt1;
 
 static dident		modes[SMODEBITS + 1];
 static dident		stream_types[STYPE_NUM];
@@ -334,7 +332,7 @@ _strsz_stream(stream_id nst, int quoted)	/* nst != NULL */
 static dident
 _kind_stream()
 {
-    return d_stream;
+    return d_.stream;
 }
 
 static int
@@ -2770,7 +2768,7 @@ p_socket(value vdom, type tdom, value vtp, type ttp, value vs, type ts, ec_eng_t
     else {
 	Bip_Error(RANGE_ERROR);
     }
-    if (vtp.did == d_stream)
+    if (vtp.did == d_.stream)
 	stype = SOCK_STREAM;
     else if (vtp.did == d_datagram)
 	stype = SOCK_DGRAM;
@@ -3470,7 +3468,7 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout, ec
     {
 	if (!IsAtom(ttime))
 	    { Bip_Error(TYPE_ERROR); }
-	else if (vtime.did != d_block)
+	else if (vtime.did != d_.block)
 	    { Bip_Error(RANGE_ERROR); }
 	pto = (struct timeval *) 0;
     }
@@ -4615,10 +4613,8 @@ bip_io_init(int flags)
     d_queue1 = in_dict("queue", 1);
     d_unix = in_dict("unix", 0);
     d_internet = in_dict("internet", 0);
-    d_stream = in_dict("stream", 0);
     d_datagram = in_dict("datagram", 0);
     d_reprompt1 = in_dict("reprompt", 1);
-    d_block = in_dict("block", 0);
     d_end_of_line = in_dict("end_of_line", 0);
     d_lf = in_dict("lf", 0);
     d_crlf = in_dict("crlf", 0);

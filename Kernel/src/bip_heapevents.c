@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_heapevents.c,v 1.2 2016/07/28 03:34:35 jschimpf Exp $
+ * Version:	$Id: bip_heapevents.c,v 1.3 2016/08/04 09:09:04 jschimpf Exp $
  *
  * Contents:	Built-ins for the heap-event-primitives
  *
@@ -40,7 +40,7 @@
 
 #include        <stdio.h>	/* for sprintf() */
 
-static dident	d_defers0_, d_event0_;
+static dident	d_defers0_;
 static pword	true_pw_;
 
 /*----------------------------------------------------------------------
@@ -56,7 +56,7 @@ static pword	true_pw_;
 static dident
 _kind_event(void)
 {
-    return d_event0_;
+    return d_.event;
 }
 
 static void
@@ -297,7 +297,6 @@ void
 bip_heapevent_init(int flags)
 {
     d_defers0_ = in_dict("defers", 0);
-    d_event0_ = in_dict("event", 0);
     Make_Atom(&true_pw_, d_.true0);
 
     if (flags & INIT_SHARED)

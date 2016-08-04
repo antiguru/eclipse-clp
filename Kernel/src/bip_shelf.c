@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_shelf.c,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
+ * Version:	$Id: bip_shelf.c,v 1.5 2016/08/04 09:09:04 jschimpf Exp $
  *
  * Contents:	Built-ins for the shelf-primitives
  *
@@ -55,7 +55,6 @@ typedef struct {
     pword		array[ 1 /* + arity */ ];
 } t_heap_array;
 
-dident d_shelf_;
 
 /* METHODS */
 
@@ -112,7 +111,7 @@ _mark_heap_array(t_heap_array *obj)	/* obj != NULL */
 static dident
 _kind_heap_array()
 {
-    return d_shelf_;
+    return d_.shelf;
 }
 
 static int
@@ -607,8 +606,6 @@ _strsz_heap_arr(t_heap_array *obj, int quoted)	/* obj != NULL */
 void
 bip_shelf_init(int flags)
 {
-    d_shelf_ = in_dict("shelf", 0);
-
     if (flags & INIT_SHARED)
     {
 	(void) built_in(in_dict("shelf_create", 3), p_shelf_create3, B_SAFE|U_SIMPLE);

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.5 2016/08/04 09:09:04 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -44,9 +44,6 @@
 
 
 #include <stdio.h>	/* for sprintf() */
-
-
-static dident	d_record_, d_dbref_;
 
 
 /*----------------------------------------------------------------------
@@ -246,13 +243,13 @@ _rec_strsz_all(t_heap_rec_hdr *obj, int quoted) /* obj != NULL */
 static dident
 _kind_record()
 {
-    return d_record_;
+    return d_.record;
 }
 
 static dident
 _kind_dbref()
 {
-    return d_dbref_;
+    return d_.dbref;
 }
 
 static int
@@ -962,9 +959,6 @@ bip_record_init(int flags)
     type	t;
     value	v1, v2;
     int		res;
-
-    d_record_ = in_dict("record", 0);
-    d_dbref_ = in_dict("dbref", 0);
 
     if (flags & INIT_SHARED)
     {

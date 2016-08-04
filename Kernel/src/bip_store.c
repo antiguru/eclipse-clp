@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_store.c,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
+ * Version:	$Id: bip_store.c,v 1.4 2016/08/04 09:09:04 jschimpf Exp $
  *
  * Contents:	Built-ins for the store-primitives
  *
@@ -122,8 +122,6 @@ static void _mark_heap_htable(t_heap_htable *obj);
 static int _tostr_heap_htable(t_heap_htable *obj, char *buf, int quoted);
 static int _strsz_heap_htable(t_heap_htable *obj, int quoted);
 
-static dident d_store_;
-
 static int
 _lock_store(t_heap_htable *obj)
 {
@@ -146,7 +144,7 @@ _unlock_store(t_heap_htable *obj)
 static dident
 _kind_store()
 {
-    return d_store_;
+    return d_.store;
 }
 
 /* CLASS DESCRIPTOR (method table) */
@@ -918,8 +916,6 @@ store_get_else_set(t_heap_htable *obj, value vkey, type tkey, pword *valpw)
 void
 bip_store_init(int flags)
 {
-    d_store_ = in_dict("store", 0);
-
     if (flags & INIT_SHARED)
     {
 	(void) built_in(in_dict("store_create", 1), p_store_create, B_SAFE|U_SIMPLE);

@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.14 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.15 2016/08/04 09:09:04 jschimpf Exp $
  */
 
 /*
@@ -1761,6 +1761,7 @@ Extern	int	ecl_prune_suspensions(ec_eng_t *, pword *);
 Extern	void	handle_copy_anchor(pword*,pword*,ec_eng_t*);
 
 /* from bip_engines.c */
+Extern	t_ext_type engine_tid;
 Extern	int	ecl_free_engine(ec_eng_t *ec_eng, int locked);
 Extern	ec_eng_t * ecl_copy_engine(ec_eng_t *ec_eng);
 Extern	ec_eng_t * ecl_resurrect_engine(ec_eng_t *ec_eng);
@@ -1776,9 +1777,6 @@ Extern	void	ec_frand_init(int32 *pstate);
 Extern	vmcode * print_am(vmcode *, vmcode **, int *, int);
 Extern	void	print_instr(vmcode *, int);
 
-/* from bip_engines.c */
-Extern	t_ext_type engine_tid;
-
 /* from bip_heapevents.c */
 Extern	t_ext_type heap_event_tid;
 Extern	t_ext_ptr ec_new_heap_event(value vgoal, type tgoal, value vm, type tm, int defers);
@@ -1788,7 +1786,11 @@ Extern t_ext_type heap_rec_header_tid;
 Extern t_ext_ptr ec_record_create(void);
 
 /* from bip_shelf.c */
+Extern t_ext_type heap_array_tid;
 Extern	int ecl_shelf_create(value v, type t, pword *pshelf, ec_eng_t *ec_eng);
+
+/* from bip_store.c */
+Extern t_ext_type heap_htable_tid;
 
 /* from bip_strings.c */
 Extern	pword	*empty_string;
