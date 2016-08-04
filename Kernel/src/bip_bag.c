@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_bag.c,v 1.3 2016/08/04 09:09:04 jschimpf Exp $
+ * Version:	$Id: bip_bag.c,v 1.4 2016/08/04 09:46:07 jschimpf Exp $
  *
  * Contents:	Built-ins for the bag-primitives
  *
@@ -59,7 +59,6 @@
  *
  *----------------------------------------------------------------------*/
 
-
 /* INSTANCE TYPE DECLARATION */
 
 typedef struct {
@@ -67,7 +66,7 @@ typedef struct {
     uword		size;
     uword		ref_ctr;
     ec_mutex_t		lock;
-    ec_cond_t		cond;
+    ec_cond_t		*cond;
 } t_heap_bag;
 
 
@@ -103,6 +102,11 @@ _free_heap_bag(t_heap_bag *obj)		/* obj != NULL */
     {
 	assert(rem==0);
 	_erase_heap_bag(obj);
+	mt_mutex_destroy(&obj->lock);
+	if (obj->cond) {
+	    ec_cond_destroy(obj->cond);
+	    hg_free_size(obj->cond, sizeof(ec_cond_t));
+	}
 	hg_free_size(obj, sizeof(t_heap_bag));
 #ifdef DEBUG_RECORD
 	p_fprintf(current_err_, "\n_free_heap_bag(0x%x)", obj);
@@ -172,13 +176,22 @@ _unlock_bag(t_heap_bag *obj)
 static int
 _signal_bag(t_heap_bag *obj, int all)
 {
-    return ec_cond_signal(&obj->cond, all);
+    ec_cond_t *cv = obj->cond;
+    /* no need to signal when no waiters */
+    return cv? ec_cond_signal(cv, all) : 0;
 }
 
 static int
 _wait_bag(t_heap_bag *obj, int timeout_ms)
 {
-    return ec_cond_wait(&obj->cond, &obj->lock, timeout_ms);
+    ec_cond_t *cv = obj->cond;
+    /* create condition variable lazily (we expect obj to be locked here) */
+    if (!cv) {
+	cv = (ec_cond_t*) hg_alloc_size(sizeof(ec_cond_t));
+	ec_cond_init(cv);
+	obj->cond = cv;
+    }
+    return ec_cond_wait(cv, &obj->lock, timeout_ms);
 }
 
 
@@ -220,7 +233,7 @@ p_bag_create(value vbag, type tbag, ec_eng_t *ec_eng)
     Make_List(obj->list, obj->list);	/* pointer to last element (self) */
     Make_Nil(&obj->list[1]);
     mt_mutex_init_recursive(&obj->lock);
-    ec_cond_init(&obj->cond);
+    obj->cond = NULL;
     bag = ecl_handle(ec_eng, &heap_bag_tid, (t_ext_ptr) obj);
     Return_Unify_Pw(vbag, tbag, bag.val, bag.tag);
 }

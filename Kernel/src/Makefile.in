@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.20 2016/07/28 03:34:35 jschimpf Exp $
+# $Id: Makefile.in,v 1.21 2016/08/04 09:46:07 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -1065,7 +1065,8 @@ external.o: dict.h error.h emu_export.h
 gc_stacks.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
 gc_stacks.o: error.h mem.h dict.h ec_io.h opcode.h emu_export.h os_support.h
 handle.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
-handle.o: error.h ec_io.h dict.h database.h emu_export.h
+handle.o: error.h ec_io.h dict.h database.h emu_export.h property.h
+handle.o: os_support.h
 handlers.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h mem.h
 handlers.o: error.h dict.h emu_export.h ec_io.h module.h property.h
 handlers.o: os_support.h
@@ -1098,7 +1099,7 @@ procedure.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h
 procedure.o: error.h mem.h dict.h emu_export.h property.h ec_io.h read.h
 procedure.o: module.h
 property.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
-property.o: mem.h dict.h module.h property.h os_support.h
+property.o: mem.h dict.h module.h property.h emu_export.h os_support.h
 read.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
 read.o: mem.h dict.h lex.h emu_export.h ec_io.h read.h module.h property.h
 read.o: os_support.h

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_shelf.c,v 1.5 2016/08/04 09:09:04 jschimpf Exp $
+ * Version:	$Id: bip_shelf.c,v 1.6 2016/08/04 09:46:07 jschimpf Exp $
  *
  * Contents:	Built-ins for the shelf-primitives
  *
@@ -76,11 +76,14 @@ _free_heap_array(t_heap_array *obj)	/* obj != NULL */
 	int i;
 	assert(rem==0);
 	mt_mutex_destroy(&obj->lock);
+	if (obj->cond) {
+	    ec_cond_destroy(obj->cond);
+	    hg_free_size(obj->cond, sizeof(ec_cond_t));
+	}
 	for (i = arity; i > 0; --i)
 	{
 	    free_heapterm(&p[i]);
 	}
-	if (obj->cond) hg_free_size(obj->cond, sizeof(ec_cond_t));
 	hg_free_size(obj, sizeof(t_heap_array) + arity*sizeof(pword));
 #ifdef DEBUG_RECORD
 	p_fprintf(current_err_, "\n_free_heap_array(0x%x)", obj);

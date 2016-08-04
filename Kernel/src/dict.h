@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.6 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.7 2016/08/04 09:46:07 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -634,6 +634,7 @@ typedef struct {
     uword		internal;
     t_htable_elem	**htable;
     ec_mutex_t		lock;
+    ec_cond_t		*cond;
 } t_heap_htable;
 
 #define HTABLE_INTERNAL 1

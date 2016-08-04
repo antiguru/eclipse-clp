@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_store.c,v 1.4 2016/08/04 09:09:04 jschimpf Exp $
+ * Version:	$Id: bip_store.c,v 1.5 2016/08/04 09:46:07 jschimpf Exp $
  *
  * Contents:	Built-ins for the store-primitives
  *
@@ -122,6 +122,7 @@ static void _mark_heap_htable(t_heap_htable *obj);
 static int _tostr_heap_htable(t_heap_htable *obj, char *buf, int quoted);
 static int _strsz_heap_htable(t_heap_htable *obj, int quoted);
 
+
 static int
 _lock_store(t_heap_htable *obj)
 {
@@ -140,6 +141,26 @@ _unlock_store(t_heap_htable *obj)
     return mt_mutex_unlock(&obj->lock);
 }
 
+static int
+_signal_store(t_heap_htable *obj, int all)
+{
+    ec_cond_t *cv = obj->cond;
+    /* no need to signal when no waiters */
+    return cv? ec_cond_signal(cv, all) : 0;
+}
+
+static int
+_wait_store(t_heap_htable *obj, int timeout_ms)
+{
+    ec_cond_t *cv = obj->cond;
+    /* create condition variable lazily (we expect obj to be locked here) */
+    if (!cv) {
+	cv = (ec_cond_t*) hg_alloc_size(sizeof(ec_cond_t));
+	ec_cond_init(cv);
+	obj->cond = cv;
+    }
+    return ec_cond_wait(cv, &obj->lock, timeout_ms);
+}
 
 static dident
 _kind_store()
@@ -159,10 +180,12 @@ t_ext_type heap_htable_tid = {
     (t_ext_ptr (*)(t_ext_ptr)) _copy_heap_htable,
     0,	/* get */
     0,	/* set */
-    _kind_store,	/* kind */
-    (int (*)(t_ext_ptr)) _lock_store,	/* lock */
-    (int (*)(t_ext_ptr)) _trylock_store,	/* trylock */
-    (int (*)(t_ext_ptr)) _unlock_store	/* unlock */
+    _kind_store,
+    (int (*)(t_ext_ptr)) _lock_store,
+    (int (*)(t_ext_ptr)) _trylock_store,
+    (int (*)(t_ext_ptr)) _unlock_store,
+    (int (*)(t_ext_ptr,int)) _signal_store,
+    (int (*)(t_ext_ptr,int)) _wait_store
 };
 
 
@@ -216,6 +239,7 @@ htable_new(int internal)
 	obj->htable[i] = NULL;
     }
     mt_mutex_init_recursive(&obj->lock);
+    obj->cond = NULL;
     return obj;
 }
 
@@ -725,6 +749,10 @@ htable_free(t_heap_htable *obj)	/* obj != NULL */
 	    hg_free_size(obj, sizeof(t_heap_htable));
 	}
 	mt_mutex_destroy(&obj->lock);
+	if (obj->cond) {
+	    ec_cond_destroy(obj->cond);
+	    hg_free_size(obj->cond, sizeof(ec_cond_t));
+	}
 #ifdef DEBUG_RECORD
 	p_fprintf(current_err_, "\nhtable_free(0x%x)", obj);
 	ec_flush(current_err_);
