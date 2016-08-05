@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.19 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.20 2016/08/05 23:26:36 jschimpf Exp $
  */
 
 /*
@@ -160,7 +160,7 @@ static syntax_desc	default_syntax_desc = {
     LC, LC, LC, LC, LC, LC, LC, SY, LC, LC, LC, LC, LC, LC, LC, LC,
 /*  EOI symbol */
     RE},
-    NEWLINE_IN_QUOTES|NO_BLANKS,	/* options */
+    BASED_BIGNUMS|NEWLINE_IN_QUOTES|NO_BLANKS,	/* default options */
     '"',				/* sq	   */
     '\'',				/* aq	   */
     '_',				/* ul	   */
