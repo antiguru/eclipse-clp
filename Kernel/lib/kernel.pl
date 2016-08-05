@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.60 2016/08/04 10:50:11 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.61 2016/08/05 15:25:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -242,6 +242,7 @@
    tool(set_default_error_handler/2, set_default_error_handler_/3),
    tool(set_flag/3, set_flag_body/4),
    tool(setof/3, setof_body/4),
+
    tool(shelf_dec/2, shelf_dec_/3),
    tool(shelf_get/3, shelf_get_/4),
    tool(shelf_inc/2, shelf_inc_/3),
@@ -249,17 +250,23 @@
    tool(shelf_inc_and_get/3, shelf_inc_and_get_/4),
    tool(shelf_get_and_dec/3, shelf_get_and_dec_/4),
    tool(shelf_test_and_set/4, shelf_test_and_set_/5),
-   tool(store_create_named/1, store_create_named_/2),
+
+   tool(store_contains/2, store_contains_/3),
    tool(store_count/2, store_count_/3),
+   tool(store_create_named/1, store_create_named_/2),
+   tool(store_delete/2, store_delete_/3),
    tool(store_erase/1, store_erase_/2),
    tool(store_get/3, store_get_/4),
    tool(store_inc/2, store_inc_/3),
-   tool(store_set/3, store_set_/4),
-   tool(store_contains/2, store_contains_/3),
-   tool(store_delete/2, store_delete_/3),
    tool(store_info/1, store_info_/2),
+   tool(store_insert/3, store_insert_/4),
    tool(stored_keys/2, stored_keys_/3),
    tool(stored_keys_and_values/2, stored_keys_and_values_/3),
+   tool(store_remove/3, store_remove_/4),
+   tool(store_set/3, store_set_/4),
+   tool(store_test_and_set/4, store_test_and_set_/5),
+   tool(store_update/4, store_update_/5),
+
    tool(bytes_to_term/2, bytes_to_term_/3),
    tool(term_to_bytes/2, term_to_bytes_/3),
    tool(term_string/2, term_string_body/3),

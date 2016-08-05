@@ -44,7 +44,11 @@
 :- tool(store_erase / 1).
 :- tool(store_get / 3).
 :- tool(store_inc / 2).
+:- tool(store_insert / 3).
+:- tool(store_remove / 3).
 :- tool(store_set / 3).
+:- tool(store_test_and_set / 4).
+:- tool(store_update / 4).
 :- tool(stored_keys / 2).
 :- tool(stored_keys_and_values / 2).
 :- tool(test_and_setval / 3).
@@ -1597,9 +1601,20 @@ Fail:
 	stored_keys_and_values(foo(_,_,_), Contents),
 	writeln(Contents).
     ",
-    see_also:[current_store/1, store_create/1, (local)/1, store_set/3, store_get/3, store_delete/2,
-    	store_contains/2, stored_keys/2, stored_keys_and_values/2,
-	store_erase/1, store_count/2]
+    see_also:[(local)/1, current_store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_delete/2,
+	store_erase/1,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_remove/3,
+	store_set/3,
+	store_test_and_set/4,
+	store_update/4,
+    	stored_keys/2,
+	stored_keys_and_values/2]
     ]).
 
 
@@ -1649,9 +1664,21 @@ Fail:
 	stored_keys_and_values(phone_numbers, Contents),
 	writeln(Contents).
     ",
-    see_also:[store/1, (local)/1, store_set/3, store_get/3, store_delete/2,
-    	store_contains/2, stored_keys/2, stored_keys_and_values/2,
-	store_erase/1, store_count/2]
+    see_also:[store/1,
+    	store_contains/2,
+	store_count/2,
+	store_delete/2,
+	store_erase/1,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_remove/3,
+	store_set/3,
+	store_test_and_set/4,
+	store_update/4,
+    	stored_keys/2,
+	stored_keys_and_values/2,
+	library(hash)]
     ]).
 
 
@@ -1700,9 +1727,10 @@ Fail:
     N2 = 0
     Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_set/3, store_get/3, store_delete/2,
-    	store_contains/2, stored_keys/2, stored_keys_and_values/2,
-	store_create/1, store_count/2]
+    see_also:[store/1, store_create/1,
+	store_count/2,
+	store_delete/2,
+	store_remove/3]
     ]).
 
 :- comment(store_count/2, [
@@ -1746,10 +1774,18 @@ Fail:
     N6 = 0
     Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_set/3, store_get/3, store_delete/2,
-    	store_contains/2, stored_keys/2, stored_keys_and_values/2,
-	store_create/1, store_count/2]
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_delete/2,
+	store_erase/1,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_remove/3,
+	store_test_and_set/4,
+	store_update/4]
     ]).
+
 
 :- comment(store_set/3, [
     summary:"Make an entry into a store object",
@@ -1797,10 +1833,233 @@ Fail:
             tom - 12345,
 	    name(dick, tracy) - phone(42376, home)]
     Yes (0.00s cpu)
+
+
+    ?- store_create(Handle),
+       store_set(Handle, tom, first),
+       store_set(Handle, tom, second),	% overwrite old entry
+       store_get(Handle, tom, X).
+
+    Handle = 'STORE'(16'e70aefa0)
+    X = second
+    Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_erase/1, store_get/3, store_delete/2,
-    	store_contains/2, stored_keys/2, stored_keys_and_values/2,
-	store_create/1, store_count/2, store_inc/2]
+    see_also:[store/1, store_create/1,
+	store_inc/2,
+	store_insert/3,
+	store_test_and_set/4,
+	store_update/4]
+    ]).
+
+
+:- comment(store_insert/3, [
+    summary:"Make an entry into a store object, provided none exists yet",
+    desc:html("\
+	This stores an arbitrary ECLiPSe term under a given key into
+	the given store object. If an entry for this key already exists,
+	the predicate fails (to overwrite an existing entry, use store_set/3).
+<P>
+	The key can be arbitrarily complex, but must be a ground term.
+	The value can be an arbitrary term, and may contain uninstantiated
+	variables. Note that values are copied when being stored or
+	retrieved, therefore a retrieved nonground value will contain
+	fresh variables rather than the original ones (this is similar
+	to the behaviour of bags, shelves and global variables).
+<P>
+	The complexity of the store operation is linear in both the size
+	of the key and the value, since both are being copied. For indexing
+	purposes, a hash value is computed from the key, and the full depth
+	of the key is taken into account.
+<P>
+	Note: If StoreHandle is not a handle, then it must be an atom or a
+	compound term, and the store is identified by this term's toplevel
+	functor together with the context module.
+<P>
+    "),
+    amode:(store_insert(+,++,?) is semidet),
+    args:["StoreHandle":"A store handle or store name",
+    	"Key":"A ground term",
+    	"Value":"An arbitrary term"],
+    exceptions:[
+	4 : "StoreHandle is uninstantiated",
+	4 : "Key is not ground",
+	5 : "StoreHandle is neither atom nor compound term nor store handle",
+	45 : "StoreHandle is not the name of a store"],
+    eg:"
+    ?- store_create(Handle),
+       store_insert(Handle, tom, first).
+
+    Handle = 'STORE'(16'e70aefa0)
+    Yes (0.00s cpu)
+
+
+    ?- store_create(Handle),
+       store_insert(Handle, tom, first),
+       store_insert(Handle, tom, second).	% fails, no overwriting
+
+    No (0.00s cpu)
+    ",
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_get/3,
+	store_inc/2,
+	store_set/3,
+	store_test_and_set/4,
+	store_update/4]
+    ]).
+
+
+:- comment(store_update/4, [
+    summary:"Update an existing entry in a store object",
+    desc:html("\
+	Looks up a store entry under the given key.  If one exists,
+	the old value is unified with OldValue, and the store entry
+	is overwritten with NewValue.  Otherwise the predicate fails.
+	It could be defined as:
+<PRE>
+        store_update(Store, Key, OldValue, NewValue) :-
+            with_mutex(Store, (
+                    store_get(Store, Key, Entry),
+                    store_set(Store, Key, NewValue),
+                    OldValue = Entry    % after update!
+            )).
+</PRE>
+<P>
+	The key can be arbitrarily complex, but must be a ground term.
+	The value can be an arbitrary term, and may contain uninstantiated
+	variables. Note that values are copied when being stored or
+	retrieved, therefore a retrieved nonground value will contain
+	fresh variables rather than the original ones (this is similar
+	to the behaviour of bags, shelves and global variables).
+<P>
+	The complexity of the update operation is linear in the size
+	of the key and both values, which are copied.  For indexing
+	purposes, a hash value is computed from the key, and the full depth
+	of the key is taken into account.
+<P>
+	Note: If StoreHandle is not a handle, then it must be an atom or a
+	compound term, and the store is identified by this term's toplevel
+	functor together with the context module.
+<P>
+    "),
+    amode:(store_update(+,++,-,?) is semidet),
+    args:["StoreHandle":"A store handle or store name",
+    	"Key":"A ground term",
+    	"OldValue":"A variable or arbitrary term (output)",
+    	"NewValue":"An arbitrary term"],
+    exceptions:[
+	4 : "StoreHandle is uninstantiated",
+	4 : "Key is not ground",
+	5 : "StoreHandle is neither atom nor compound term nor store handle",
+	45 : "StoreHandle is not the name of a store"],
+    eg:"
+    ?- store_create(Handle),
+       store_update(Handle, tom, Old, first).	% no entry yet
+
+    No (0.00s cpu)
+
+
+    ?- store_create(Handle),
+       store_set(Handle, tom, first),
+       store_update(Handle, tom, Old, second),
+       store_get(Handle, tom, New).
+    
+    Handle = 'STORE'(16'e70aefa0)
+    Old = first
+    New = second
+    Yes (0.00s cpu)
+    No (0.00s cpu)
+    ",
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_set/3,
+	store_test_and_set/4]
+    ]).
+
+
+:- comment(store_test_and_set/4, [
+    summary:"Update an existing entry in a store object",
+    desc:html("\
+	Looks up a store entry under the given key.  If one exists and
+	its value is identical to OldValue, it is replaced with New Value.
+	Otherwise the predicate fails.  It could be defined as:
+<PRE>
+        store_test_and_set(Store, Key, OldValue, NewValue) :-
+            with_mutex(Store, (
+                    store_get(Store, Key, Entry),
+                    OldValue == Entry,
+                    store_set(Store, Key, NewValue)
+            )).
+</PRE>
+	Note that the old value is compared for identity, which implies
+	that only ground terms can possibly be identical to the stored value
+	(because the stored term has different variables).
+<P>
+	The key can be arbitrarily complex, but must be a ground term.
+	The value can be an arbitrary term, and may contain uninstantiated
+	variables. Note that values are copied when being stored or
+	retrieved, therefore a retrieved nonground value will contain
+	fresh variables rather than the original ones (this is similar
+	to the behaviour of bags, shelves and global variables).
+<P>
+	The complexity of the update operation is linear in the size
+	of the key and both values.  NewValue is copied.  For indexing
+	purposes, a hash value is computed from the key, and the full depth
+	of the key is taken into account.
+<P>
+	Note: If StoreHandle is not a handle, then it must be an atom or a
+	compound term, and the store is identified by this term's toplevel
+	functor together with the context module.
+<P>
+    "),
+    amode:(store_test_and_set(+,++,++,?) is semidet),
+    args:["StoreHandle":"A store handle or store name",
+    	"Key":"A ground term",
+    	"OldValue":"An arbitrary term (should be ground)",
+    	"NewValue":"An arbitrary term"],
+    fail_if:"Fails is there is no previous entry, or it is not identical to OldValue",
+    exceptions:[
+	4 : "StoreHandle is uninstantiated",
+	4 : "Key is not ground",
+	5 : "StoreHandle is neither atom nor compound term nor store handle",
+	45 : "StoreHandle is not the name of a store"],
+    eg:"
+    ?- store_create(Handle),
+       store_test_and_set(Handle, tom, Old, first).	% no entry yet
+
+    No (0.00s cpu)
+
+
+    ?- store_create(Handle),
+       store_set(Handle, tom, first),
+       store_test_and_set(Handle, tom, first, second),
+       store_get(Handle, tom, New).
+    
+    Handle = 'STORE'(16'e70aefa0)
+    Old = first
+    New = second
+    Yes (0.00s cpu)
+
+
+    ?- store_create(Handle),
+       store_set(Handle, tom, first),
+       store_test_and_set(Handle, tom, premier, second).
+    
+    No (0.00s cpu)
+    ",
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_set/3,
+	store_update/4]
     ]).
 
 
@@ -1861,9 +2120,78 @@ Fail:
 
     No (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_erase/1, store_set/3, store_delete/2,
-    	store_contains/2, stored_keys/2, stored_keys_and_values/2,
-	store_create/1, store_count/2, store_inc/2]
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_inc/2,
+	store_insert/3,
+	store_remove/3,
+	store_test_and_set/4,
+	store_update/4]
+    ]).
+
+
+:- comment(store_remove/3, [
+    summary:"Get and delete an entry from a store object",
+    desc:html("\
+	This looks up an entry under a given key in a given store object.
+	If no entry for this key exists, the predicate fails.  Otherwise,
+	the old value is unified with Value, and the store entry deleted.
+<P>
+	The key can be arbitrarily complex, but must be a ground term.
+	The value can be an arbitrary term, and may contain uninstantiated
+	variables. Note that values are copied when being stored or
+	retrieved, therefore a retrieved nonground value will contain
+	fresh variables rather than the original ones (this is similar
+	to the behaviour of bags, shelves and global variables).
+<P>
+	The complexity of the retrieval operation is linear in both the size
+	of the key and the value, since the value is being copied and the key
+	needs to be compared. For indexing purposes, a hash value is computed
+	from the key, and the full depth of the key is taken into account.
+<P>
+	Note: If StoreHandle is not a handle, then it must be an atom or a
+	compound term, and the store is identified by this term's toplevel
+	functor together with the context module.
+<P>
+    "),
+    amode:(store_remove(+,++,-) is semidet),
+    args:["StoreHandle":"A store handle or store name",
+    	"Key":"A ground term",
+    	"Value":"A variable or arbitrary term"],
+    fail_if:"The store does not contain an entry for Key",
+    exceptions:[
+	4 : "StoreHandle is uninstantiated",
+	4 : "Key is not ground",
+	5 : "StoreHandle is neither atom nor compound term nor store handle",
+	45 : "StoreHandle is not the name of a store"],
+    eg:"
+
+    ?- store_create(Handle),
+       store_set(Handle, tom, hello(world)),
+       store_count(Handle, Count1),
+       store_remove(Handle, tom, Value),
+       store_count(Handle, Count2).
+
+    Handle = 'STORE'(16'e70aefa0)
+    Count1 = 1
+    Value = hello(world)
+    Count2 = 0
+    Yes (0.00s cpu)
+
+
+    ?- store_create(Handle),
+       store_set(Handle, tom, hello(world)),
+       store_remove(Handle, harry, Value).
+
+    No (0.00s cpu)
+    ",
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_delete/2,
+	store_erase/1,
+	store_get/3]
     ]).
 
 :- comment(store_contains/2, [
@@ -1908,9 +2236,14 @@ Fail:
 
     No (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_erase/1, store_set/3, store_delete/2,
-    	store_get/3, stored_keys/2, stored_keys_and_values/2,
-	store_create/1, store_count/2]
+    see_also:[store/1, store_create/1,
+	store_count/2,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_remove/3,
+	store_test_and_set/4,
+	store_update/4]
     ]).
 
 :- comment(store_delete/2, [
@@ -1960,9 +2293,11 @@ Fail:
 
     Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_erase/1, store_set/3, store_contains/2,
-    	store_get/3, stored_keys/2, stored_keys_and_values/2,
-	store_create/1, store_count/2]
+    see_also:[store/1, store_create/1,
+	store_erase/1,
+	store_remove/3,
+	store_set/3,
+	stored_keys_and_values/2]
     ]).
 
 :- comment(stored_keys/2, [
@@ -2000,9 +2335,19 @@ Fail:
     Keys = [numbers:prime, tom, name(dick, tracy)]
     Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_erase/1, store_set/3, store_contains/2,
-    	store_get/3, store_delete/2, stored_keys_and_values/2,
-	store_create/1, store_count/2]
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_delete/2,
+	store_erase/1,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_remove/3,
+	store_set/3,
+	store_test_and_set/4,
+	store_update/4,
+    	stored_keys_and_values/2]
     ]).
 
 :- comment(stored_keys_and_values/2, [
@@ -2050,9 +2395,19 @@ Fail:
     Data = []
     Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_erase/1, store_set/3, store_contains/2,
-    	store_get/3, store_delete/2, stored_keys/2,
-	store_create/1, store_count/2]
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_delete/2,
+	store_erase/1,
+	store_get/3,
+	store_inc/2,
+	store_insert/3,
+	store_remove/3,
+	store_set/3,
+	store_test_and_set/4,
+	store_update/4,
+    	stored_keys/2]
     ]).
 
 :- comment(store_inc/2, [
@@ -2100,9 +2455,14 @@ Fail:
     N = 1
     Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1, store_set/3, store_get/3, store_delete/2,
-    	store_contains/2, stored_keys/2, stored_keys_and_values/2,
-	store_create/1, store_count/2]
+    see_also:[store/1, store_create/1,
+    	store_contains/2,
+	store_count/2,
+	store_get/3,
+	store_insert/3,
+	store_set/3,
+	store_test_and_set/4,
+	store_update/4]
     ]).
 
 :- comment(current_store/1, [
@@ -2115,16 +2475,16 @@ Fail:
 	that have been created with local/1, store/1, not anonymous
 	store handles created via store_create/1.
 </PRE>
-	Note: StoreHandle gets unified with an atom or a compound term,
+	Note: StoreName gets unified with an atom or a compound term,
 	and the store is identified by this term's toplevel functor
 	together with the context module.
     "),
     amode:(current_store(+) is semidet),
     amode:(current_store(-) is nondet),
-    args:["StoreHandle":"A variable or a store name (atom or compound)"],
+    args:["StoreName":"A variable or a store name (atom or compound)"],
     fail_if:"StoreName is not a visible store name",
     exceptions:[
-	5 : "StoreHandle is neither atom nor compound term nor variable"],
+	5 : "StoreName is neither atom nor compound term nor variable"],
     eg:"
     :- local store(shed).
     :- local store(warehouse/3).
@@ -2215,5 +2575,5 @@ Fail:
     H = 'REC'(16'faa0efa0)
     Yes (0.00s cpu)
     ",
-    see_also:[store/1, (local)/1]
+    see_also:[store/1, (local)/1, is_handle/1, is_handle/2]
     ]).

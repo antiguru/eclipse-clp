@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_store.c,v 1.5 2016/08/04 09:46:07 jschimpf Exp $
+ * Version:	$Id: bip_store.c,v 1.6 2016/08/05 15:25:03 jschimpf Exp $
  *
  * Contents:	Built-ins for the store-primitives
  *
@@ -90,21 +90,27 @@
  * current_store(-Store) is nondet
  *	get/check named stores
  *
+ * store_insert(+Store, ++Key, +Value) is semidet
+ *	fail if already in store
+ *
+ * store_remove(+Store, ++Key, -Value) is semidet
+ *	get+delete, fail if not in store
+ *
+ * store_update(+Store, ++Key, +Value) is semidet
+ *	fail if not already in store
+ *
+ * store_test_and_set(+Store, ++Key, +Old, +Value) is semidet
+ *	fail if not already in store
+ *
  *
  * Following the naming scheme of lib(m_map) we could redundantly have:
  *
- * store_insert(+Store, ++Key, +Value) is semidet
- *	fail if already in store
  * store_det_insert(+Store, ++Key, +Value) is det
  *	abort if already in store
- * store_update(+Store, ++Key, +Value) is semidet
- *	fail if not already in store
  * store_det_update(+Store, ++Key, +Value) is det
  *	abort if not already in store
  * store_lookup(+Store, ++Key, -Value) is det
  *	abort if not in store
- * store_remove(+Store, ++Key, -Value) is semidet
- *	get+delete, fail if not in store
  * store_det_remove(+Store, ++Key, -Value) is det
  *	get+delete, abort if not in store
  *----------------------------------------------------------------------*/
@@ -380,14 +386,20 @@ _htable_find(t_heap_htable *obj, uword hash, value vkey, type tkey, t_htable_ele
 /*
  * store_set(+Handle, +Key, +Value)
  *	add or replace an entry for Key
- *
- * we could have variants of this which
- *	- fail if key already exists
- *	- add another entry for key (saves the lookup)
  */
 
+/**
+ * This can be called in different modes:
+ * pold		overwrite
+ * NULL		TRUE		enter new value (possibly overwrite)
+ * &output	TRUE		return old value, enter new
+ * NULL		FALSE		fail if entry exists, otherwise enter new
+ * &required	FALSE		fail if entry not equals old, otherwise enter new
+ */
 static int
-p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
+_store_update(value vhandle, type thandle, value vkey, type tkey,
+	value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng,
+	pword *pold, int overwrite)
 {
     t_heap_htable *obj;
     uword hash;
@@ -398,37 +410,43 @@ p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type
 
     Get_Heap_Htable(vhandle, thandle, vmod, tmod, obj);
     hash = ec_term_hash(vkey, tkey, MAX_U_WORD, &res);
-    if (res != PSUCCEED)
-    {
-	Bip_Error(res);
-    }
+    if (res != PSUCCEED) return res;
 
     Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
     pelem = _htable_find(obj, hash, vkey, tkey, &pslot);
     if (pelem)		/* an entry for key exists already */
     {
 	pword copy_value;
-	if ((res = create_heapterm(ec_eng, &copy_value, vval, tval)) != PSUCCEED)
-	{
-	    Bip_Error(res);
+	if (overwrite) {
+	    if (pold)
+		get_heapterm(ec_eng, &pelem->value, pold);
+	} else if (!pold) {
+	    return PFAIL;	/* do not overwrite */
+	} else if (ec_compare_terms(pold->val, pold->tag, pelem->value.val, pelem->value.tag) != 0) {
+	    return PFAIL;	/* old does not match, do not overwrite */
 	}
+	/* replace existing heap term */
+	if ((res = create_heapterm(ec_eng, &copy_value, vval, tval)) != PSUCCEED)
+	    return res;
 	free_heapterm(&pelem->value);
 	move_heapterm(&copy_value, &pelem->value);
     }
     else		/* make a new entry for key */
     {
+	if (pold) return PFAIL;
+
 	pelem = (t_htable_elem *) hg_alloc_size(sizeof(t_htable_elem));
 	pelem->hash = hash;
 	if ((res = create_heapterm(ec_eng, &pelem->key, vkey, tkey)) != PSUCCEED)
 	{
 	    hg_free_size(pelem, sizeof(t_htable_elem));
-	    Bip_Error(res);
+	    return res;
 	}
 	if ((res = create_heapterm(ec_eng, &pelem->value, vval, tval)) != PSUCCEED)
 	{
 	    free_heapterm(&pelem->key);
 	    hg_free_size(pelem, sizeof(t_htable_elem));
-	    Bip_Error(res);
+	    return res;
 	}
 	pelem->next = *pslot;
 	*pslot = pelem;
@@ -440,7 +458,41 @@ p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type
 	    _htable_expand(obj);
 	}
     }
-    Succeed_;
+    return PSUCCEED;
+}
+
+static int
+p_store_set(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    return _store_update(vhandle, thandle, vkey, tkey, vval, tval, vmod, tmod, ec_eng, NULL, 1);
+}
+
+static int
+p_store_insert(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    return _store_update(vhandle, thandle, vkey, tkey, vval, tval, vmod, tmod, ec_eng, NULL, 0);
+}
+
+static int
+p_store_update(value vhandle, type thandle, value vkey, type tkey, value vold, type told, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    pword old_value;
+    int res = _store_update(vhandle, thandle, vkey, tkey, vval, tval, vmod, tmod, ec_eng, &old_value, 1);
+    if (res != PSUCCEED) { Bip_Error(res); }
+    if (IsRef(old_value.tag) && old_value.val.ptr == &old_value)
+    {
+	Succeed_;
+    }
+    Return_Unify_Pw(vold, told, old_value.val, old_value.tag);
+}
+
+static int
+p_store_test_and_set(value vhandle, type thandle, value vkey, type tkey, value vold, type told, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    pword required;
+    required.val = vold;
+    required.tag = told;
+    return _store_update(vhandle, thandle, vkey, tkey, vval, tval, vmod, tmod, ec_eng, &required, 0);
 }
 
 
@@ -574,6 +626,44 @@ p_store_delete(value vhandle, type thandle, value vkey, type tkey, value vmod, t
 	--obj->nentries;
     }
     Succeed_;
+}
+
+
+static int
+p_store_remove(value vhandle, type thandle, value vkey, type tkey, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    t_heap_htable *obj;
+    t_htable_elem *pelem;
+    t_htable_elem **pslot;
+    pword elem_value;
+    uword hash;
+    int res = PSUCCEED;
+
+    Get_Heap_Htable(vhandle, thandle, vmod, tmod, obj);
+    hash = ec_term_hash(vkey, tkey, MAX_U_WORD, &res);
+    if (res != PSUCCEED)
+    {
+	Bip_Error(res);
+    }
+    Acquire_Lock_Until_Done(ec_eng, &obj->lock);	/* unlocked after return */
+    pelem = _htable_find(obj, hash, vkey, tkey, &pslot);
+    if (!pelem)
+    {
+	Fail_;
+    }
+    get_heapterm(ec_eng, &pelem->value, &elem_value);
+
+    *pslot = pelem->next;	/* unlink element */
+    free_heapterm(&pelem->key);
+    free_heapterm(&pelem->value);
+    hg_free_size(pelem, sizeof(t_htable_elem));
+    --obj->nentries;
+
+    if (IsRef(elem_value.tag) && elem_value.val.ptr == &elem_value)
+    {
+	Succeed_;
+    }
+    Return_Unify_Pw(vval, tval, elem_value.val, elem_value.tag);
 }
 
 
@@ -950,13 +1040,19 @@ bip_store_init(int flags)
 	(void) built_in(in_dict("store_create_named_", 2), p_store_create_named, B_SAFE|U_SIMPLE);
 	(void) built_in(in_dict("store_count_", 3), p_store_count, B_SAFE);
 	(void) built_in(in_dict("store_erase_", 2), p_store_erase, B_SAFE);
-	(void) built_in(in_dict("store_set_",4), p_store_set, B_SAFE);
 	(void) built_in(in_dict("store_delete_",3), p_store_delete, B_SAFE);
+
+	(void) built_in(in_dict("store_set_",4), p_store_set, B_SAFE);
+	(void) built_in(in_dict("store_insert_",4), p_store_insert, B_SAFE);
+	(void) built_in(in_dict("store_update_",5), p_store_update, B_SAFE);
+	(void) built_in(in_dict("store_test_and_set_",5), p_store_test_and_set, B_SAFE);
+
 	(void) built_in(in_dict("store_contains_",3), p_store_contains, B_SAFE);
 	(void) local_built_in(in_dict("is_store_",2), p_is_store, B_SAFE);
 	(void) built_in(in_dict("store_inc_",3), p_store_inc, B_SAFE);
 	(void) built_in(in_dict("store_info_",2), p_store_info, B_SAFE);
 	(void) built_in(in_dict("store_get_",4), p_store_get, B_UNSAFE|U_FRESH);
+	(void) built_in(in_dict("store_remove_",4), p_store_remove, B_UNSAFE|U_FRESH);
 	built_in(in_dict("stored_keys_",3), p_stored_keys, B_UNSAFE|U_FRESH)
 	    ->mode = BoundArg(2,GROUND);
 	(void) built_in(in_dict("stored_keys_and_values_",3), p_stored_keys_and_values, B_UNSAFE|U_FRESH);
