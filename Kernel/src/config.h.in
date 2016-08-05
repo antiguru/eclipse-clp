@@ -180,9 +180,6 @@
 /* Look for the PATH_MAX definition in <limits.h> */
 #undef PATH_IN_LIMITS
 
-/* Are the tests running on a remote machine? */
-#undef REMOTE_TESTS
-
 /* Define if sigio is available */
 #undef SIGIO_FASYNC
 #undef SIGIO_SETSIG

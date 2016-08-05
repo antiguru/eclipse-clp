@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.68 2016/07/28 03:34:35 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.69 2016/08/05 18:43:28 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -585,7 +585,6 @@ case "$ARCH" in
     ac_cv_func_getpagesize=yes
 
     OPTIMIZE="sh ../src/opt_i386_linux.sh"
-    LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
@@ -599,7 +598,6 @@ case "$ARCH" in
     ;;
  x86_64_nt)
     CFLAGS="$CFLAGS"
-    LOCAL_FLAGS="-DREMOTE_TESTS"
     OBJECT_SUFFIX=dll
     OBJECTS_SUFFIX=dll
     LIB_PREFIX=
@@ -618,7 +616,6 @@ case "$ARCH" in
     ;;
  dec5000)
     LOCAL_FLAGS="-DD_LOAD"
-    AC_DEFINE(REMOTE_TESTS)
     ;;
  alpha_osf32)
     CFLAGS="-taso -Olimit 4500 -ieee_with_inexact $CFLAGS"
@@ -645,7 +642,6 @@ case "$ARCH" in
     AC_DEFINE(AIX)
     AC_DEFINE(_BSD,44)
     AC_DEFINE(_ALL_SOURCE)
-    AC_DEFINE(REMOTE_TESTS)
     AC_DEFINE(SMALL_SPACE)
     AC_DEFINE(STACK_BASE,0x30000000)
     ;;
@@ -659,7 +655,6 @@ case "$ARCH" in
     AC_DEFINE(AIX)
     AC_DEFINE(_BSD,44)
     AC_DEFINE(_ALL_SOURCE)
-    AC_DEFINE(REMOTE_TESTS)
     AC_DEFINE(SMALL_SPACE)
     AC_DEFINE(STACK_BASE,0x30000000)
     ;;
@@ -672,7 +667,6 @@ case "$ARCH" in
     AC_DEFINE(AIX)
     AC_DEFINE(_BSD,44)
     AC_DEFINE(_ALL_SOURCE)
-    AC_DEFINE(REMOTE_TESTS)
     AC_DEFINE(SMALL_SPACE)
     ;;
  hp700_ux90)
@@ -680,14 +674,12 @@ case "$ARCH" in
     LIBS="-L/lib/pa1.1 $LIBS"
     LDFLAGS="-Xlinker -a -Xlinker archive"
     AC_DEFINE(SVR4)
-    AC_DEFINE(REMOTE_TESTS)
     ;;
  spp_ux90)
     LOCAL_FLAGS="-DD_LOAD"
     LIBS="-L/lib/pa1.1 $LIBS"
     LDFLAGS="-Xlinker -a -Xlinker archive"
     AC_DEFINE(SVR4)
-    AC_DEFINE(REMOTE_TESTS)
     ;;
  sgi_irix52)
     CFLAGS="-signed -Olimit 4300 -mips2 $CFLAGS"
@@ -706,13 +698,11 @@ case "$ARCH" in
     ;;
  next_mach)
     LOCAL_FLAGS="-DNO_SAVE"
-    AC_DEFINE(REMOTE_TESTS)
     ;;
  m88k_svr4)
     OPT_FLAGS_EMU=-O
     LOCAL_FLAGS="-DD_LOAD -DGETTIME1"
     SYSLIBS="-ltermcap $SYSLIBS"
-    AC_DEFINE(REMOTE_TESTS)
     AC_DEFINE(SVR4)
 #    BUILDO=so		# problems with the dynamic linker
     OBJECT_SUFFIX=so
