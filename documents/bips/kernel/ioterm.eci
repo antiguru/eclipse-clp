@@ -1607,6 +1607,14 @@ Error:
         don't print blank space unless necessary.
         </P></DD>
 
+    <DT><STRONG>flush(false)</STRONG> -- default</DT><DD><P>
+	do not flush.
+        </P></DD>
+
+    <DT><STRONG>flush(true)</STRONG></DT><DD><P>
+	flush the stream after printing the term.
+        </P></DD>
+
     <DT><STRONG>depth(0)</STRONG> -- default</DT><DD><P>
         print the term only up to a maximum nesting depth determined
         by the (stream-specific or global) flag 'print_depth'. See

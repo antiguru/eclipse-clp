@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.21 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.22 2016/08/05 10:15:08 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -519,6 +519,8 @@ option_format(fullstop(true),          16'00000,16'20000, _).	% TERM_FULLSTOP
 option_format(fullstop(false),         16'20000,16'00000, _).
 option_format(nl(true),                16'00000,16'40000, _).	% TERM_NEWLINE
 option_format(nl(false),               16'40000,16'00000, _).
+option_format(flush(true),             16'00000,16'80000, _).	% TERM_FLUSH
+option_format(flush(false),            16'80000,16'00000, _).
 
 option_format_compat(ignore_ops(true),	16'0000, 16'0805, _).	% ISO compat
 option_format_compat(ignore_ops(false),	16'0805, 16'0000, _).

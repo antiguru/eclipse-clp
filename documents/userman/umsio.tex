@@ -931,14 +931,8 @@ The following figure gives an overview.
 %\begin{tabular}{|p{3.5cm}|p{1.5cm}|p{10cm}|}
 \begin{tabular}{|p{\WidthOne}|p{\WidthTwo}|p{\WidthThree}|}
 \hline
-\parbox{\WidthOne}{
-  Output option for\\
-  \predspec{write_term/2,3}
-}
-                        & \parbox{\WidthTwo}{Format\\
-                                                char for\\
-                                                printf\\
-                                                \%..w}
+\parbox{\WidthOne}{Output option for \predspec{write_term/2,3}}
+                        & \parbox{\WidthTwo}{Format char for printf \%..w}
                             & \parbox{\WidthThree}{Meaning} \\
 \hline
 \hline
@@ -1024,6 +1018,13 @@ The following figure gives an overview.
 			    extra space will be inserted before the
 			    fullstop, in order to separate it from the
 			    end of the term \\
+\hline
+\notation{flush(false)}
+                        &   & do not force a flush after printing the term \\
+\hline
+\notation{flush(true)}
+                        & \notation{b}
+                            & flush after printing the term \\
 \hline
 \notation{numbervars(false)}
                         &   & do not treat \predspec{'\$VAR'/1} terms

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.19 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.20 2016/08/05 10:15:09 jschimpf Exp $
  */
 
 /*
@@ -429,7 +429,7 @@ p_display(value vs, type ts, value val, type tag, ec_eng_t *ec_eng)
 static int
 _terminate_term(stream_id nst, int options, syntax_desc *sd)
 {
-    int status;
+    int status = PSUCCEED;
     if (options & TERM_FULLSTOP)
     {
 	/* write a space if last character was a symbol */
@@ -439,15 +439,19 @@ _terminate_term(stream_id nst, int options, syntax_desc *sd)
 	}
 	Write_Char(nst, '.');
 	if (options & TERM_NEWLINE)
-	    return ec_newline(nst);	/* maybe YIELD_ON_FLUSH_REQ */
+	    status = ec_newline(nst);	/* maybe YIELD_ON_FLUSH_REQ */
 	else
-	    return ec_outfc(nst, ' ');
+	    status = ec_outfc(nst, ' ');
     }
     else if (options & TERM_NEWLINE)
     {
-	return ec_newline(nst);		/* maybe YIELD_ON_FLUSH_REQ */
+	status = ec_newline(nst);	/* maybe YIELD_ON_FLUSH_REQ */
     }
-    return PSUCCEED;
+    if ((status == PSUCCEED) && (options & TERM_FLUSH))
+    {
+	status = ec_flush(nst);		/* maybe YIELD_ON_FLUSH_REQ */
+    }
+    return status;
 }
 
 
