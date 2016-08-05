@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.19 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.20 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -873,7 +873,7 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
 	break;
 
     case 6:		/* mode			*/
-	s = Gbl_Tg;
+	s = TG;
 	if ((err = get_mode(ec_eng, PriMode(proc), wd)) < 0) {
 	    Bip_Error(err);
 	}
@@ -1667,8 +1667,8 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
     md = *(macro_desc*)pwd->val.ptr;
     mt_mutex_unlock(&PropertyLock);
 
-    pwd = Gbl_Tg;
-    Gbl_Tg += 3;
+    pwd = TG;
+    TG += 3;
     Check_Gc;
     pwd[0].val.did = d_.quotient;
     pwd[0].tag.kernel = TDICT;
@@ -1691,53 +1691,53 @@ _is_macro(dident wdid, value v2, type t2, value v3, type t3, value v4, type t4, 
     }
 
     /* build an option list from the flags */
-    pwd = Gbl_Tg;
+    pwd = TG;
 
-    p = Gbl_Tg;
-    Gbl_Tg += 2;
+    p = TG;
+    TG += 2;
     p[0].val.did = md.flags & TR_GLOBAL ? d_.global0 : d_.local0;
     p[0].tag.kernel = TDICT;
-    p[1].val.ptr = Gbl_Tg;
+    p[1].val.ptr = TG;
     p[1].tag.kernel = TLIST;
 
     if (md.flags & TR_PROTECT) {
-	p = Gbl_Tg;
-	Gbl_Tg += 2;
+	p = TG;
+	TG += 2;
 	p[0].val.did = d_.protect_arg;
 	p[0].tag.kernel = TDICT;
-	p[1].val.ptr = Gbl_Tg;
+	p[1].val.ptr = TG;
 	p[1].tag.kernel = TLIST;
     }
     if (md.flags & TR_TOP) {
-	p = Gbl_Tg;
-	Gbl_Tg += 2;
+	p = TG;
+	TG += 2;
 	p[0].val.did = d_.top_only;
 	p[0].tag.kernel = TDICT;
-	p[1].val.ptr = Gbl_Tg;
+	p[1].val.ptr = TG;
 	p[1].tag.kernel = TLIST;
     }
     if (md.flags & TR_WRITE) {
-	p = Gbl_Tg;
-	Gbl_Tg += 2;
+	p = TG;
+	TG += 2;
 	p[0].val.did = d_.write;
 	p[0].tag.kernel = TDICT;
-	p[1].val.ptr = Gbl_Tg;
+	p[1].val.ptr = TG;
 	p[1].tag.kernel = TLIST;
     }
     if (md.flags & TR_CLAUSE) {
-	p = Gbl_Tg;
-	Gbl_Tg += 2;
+	p = TG;
+	TG += 2;
 	p[0].val.did = d_.clause0;
 	p[0].tag.kernel = TDICT;
-	p[1].val.ptr = Gbl_Tg;
+	p[1].val.ptr = TG;
 	p[1].tag.kernel = TLIST;
     }
     if (md.flags & TR_GOAL) {
-	p = Gbl_Tg;
-	Gbl_Tg += 2;
+	p = TG;
+	TG += 2;
 	p[0].val.did = d_.goal;
 	p[0].tag.kernel = TDICT;
-	p[1].val.ptr = Gbl_Tg;
+	p[1].val.ptr = TG;
 	p[1].tag.kernel = TLIST;
     }
     p[1].tag.kernel = TNIL;

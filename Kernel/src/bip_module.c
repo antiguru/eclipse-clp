@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.13 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.14 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /*
@@ -106,7 +106,7 @@ p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm,
 	int	flags, arity;
 	dident	module;
 	dident	pdid;
-	pword	*ptr = Gbl_Tg;
+	pword	*ptr = TG;
 	vmcode	*code;
 	int	err;
 	Prepare_Requests;
@@ -131,7 +131,7 @@ p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm,
 	    Bip_Error(err);
 	}
 
-	Gbl_Tg += 3;
+	TG += 3;
 	Check_Gc;
 	ptr[0].tag.kernel = TDICT;
 	ptr[0].val.did = d_.quotient;

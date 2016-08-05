@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.9 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.10 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1015,7 +1015,7 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
     if (number_sort)
     	number_sort = keep_duplicates ? BILeGe : BINe;
 
-    old_tg = Gbl_Tg;		/* to reset TG on errors	*/
+    old_tg = TG;		/* to reset TG on errors	*/
 
     /*
      * We first split the list (v1, t1) into two lists list1 and list2.
@@ -1026,8 +1026,8 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
     h1 = v1.ptr;
     append = &list1;
     next_append = &list2;
-    h2 = Gbl_Tg;
-    Gbl_Tg +=2;
+    h2 = TG;
+    TG +=2;
     Check_Gc;
     comp_ptr = h1;
     Dereference_(comp_ptr);
@@ -1069,7 +1069,7 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 				 key_ptr2->val, key_ptr2->tag, &comp);
 	    if (res != PSUCCEED)
 	    {
-		Gbl_Tg = old_tg;
+		TG = old_tg;
 		*err = ARITH_EXCEPTION;
 		return 0;
 	    }
@@ -1086,9 +1086,9 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 	 */
 	if(comp || keep_duplicates)
 	{
-	    Gbl_Tg += 2;
+	    TG += 2;
 	    Check_Gc;
-	    *(Gbl_Tg - 2) = *comp_ptr;
+	    *(TG - 2) = *comp_ptr;
 	    if(! sequence)
 		if(comp <= 0)
 		    sequence = ASCENDING;
@@ -1099,7 +1099,7 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 		/* end of ascending sequence */
 		append->tag.kernel = TLIST | MARK;
 		append->val.ptr = h2;
-		while(h2 < (Gbl_Tg - 4))
+		while(h2 < (TG - 4))
 		{
 		    h2 += 2;
 		    (h2-1)->tag.kernel = TLIST;
@@ -1107,15 +1107,15 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 		}
 		append = next_append;
 		next_append = h2 + 1;
-		h2 = Gbl_Tg - 2;
+		h2 = TG - 2;
 		sequence = 0;
 	    }
 	    else if ((comp <= 0) && (sequence == DESCENDING))
 	    {
 		/* end of descending sequence */
 		append->tag.kernel = TLIST | MARK;
-		append->val.ptr = (Gbl_Tg - 4);
-		comp_ptr = Gbl_Tg - 3;
+		append->val.ptr = (TG - 4);
+		comp_ptr = TG - 3;
 		while(comp_ptr > h2 + 2)
 		{
 		    comp_ptr->tag.kernel = TLIST;
@@ -1124,7 +1124,7 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 		}
 		append = next_append;
 		next_append = comp_ptr;
-		h2 = Gbl_Tg - 2;
+		h2 = TG - 2;
 		sequence = 0;
 	    }
 	}
@@ -1134,13 +1134,13 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 
     if(IsRef(h1->tag))
     {
-	Gbl_Tg = old_tg;
+	TG = old_tg;
 	*err = INSTANTIATION_FAULT;
 	return 0;
     }
     else if(! IsNil(h1->tag))
     {
-	Gbl_Tg = old_tg;
+	TG = old_tg;
 	*err = TYPE_ERROR;
 	return 0;
     }
@@ -1148,21 +1148,21 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
     {
 	append->tag.kernel = TLIST | MARK;
 	append->val.ptr = h2;
-	while(h2 < (Gbl_Tg - 2))
+	while(h2 < (TG - 2))
 	{
 	    h2 += 2;
 	    (h2-1)->tag.kernel = TLIST;
 	    (h2-1)->val.ptr = h2;
 	}
-	(Gbl_Tg - 1)->tag.kernel = TNIL;
-	append = (Gbl_Tg - 1);
+	(TG - 1)->tag.kernel = TNIL;
+	append = (TG - 1);
 	next_append->tag.kernel = TNIL;
     }
     else 
     {
 	append->tag.kernel = TLIST | MARK;
-	append->val.ptr = (Gbl_Tg - 2);
-	comp_ptr = Gbl_Tg - 1;
+	append->val.ptr = (TG - 2);
+	comp_ptr = TG - 1;
 	while(comp_ptr > h2 + 2)
 	{
 		comp_ptr->tag.kernel = TLIST;
@@ -1206,7 +1206,7 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 					 key_ptr2->val, key_ptr2->tag, &comp);
 		    if (res != PSUCCEED)
 		    {
-			Gbl_Tg = old_tg;
+			TG = old_tg;
 			*err = ARITH_EXCEPTION;
 			return 0;
 		    }
@@ -1330,7 +1330,7 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
 
     /* check if there are no mark bits left */
 
-    for(h1 = old_tg; h1 < Gbl_Tg; h1++)
+    for(h1 = old_tg; h1 < TG; h1++)
 	if (Marked(h1->tag))
 	{
 	    p_fprintf(current_err_,"INTERNAL ERROR 4 in sort/4\n");

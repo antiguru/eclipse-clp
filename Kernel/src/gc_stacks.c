@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.8 2016/08/05 19:59:02 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -228,7 +228,7 @@ static pword
 #define YES	1
 
 #define Check_Pointer(ptr) \
-    if ((ptr) > TG && (ptr) < g_emu_.tg_limit)\
+    if ((ptr) > TG && (ptr) < TG_LIM)\
 	_gc_error("invalid pointer encountered\n");
 
 #define Check_Tag_Range(target_tag) \
@@ -312,8 +312,8 @@ p_gc_interval(value val, type tag, ec_eng_t *ec_eng)
 	if (val.nint < sizeof(pword))
 		{ Bip_Error(RANGE_ERROR); }
 	TG_SEG = val.nint / sizeof(pword);
-	if (TG_SEG > (pword *) g_emu_.global_trail[1].start - (pword *) g_emu_.global_trail[0].start)
-	    TG_SEG = (pword *) g_emu_.global_trail[1].start - (pword *) g_emu_.global_trail[0].start;
+	if (TG_SEG > (pword *) ec_eng->global_trail[1].start - (pword *) ec_eng->global_trail[0].start)
+	    TG_SEG = (pword *) ec_eng->global_trail[1].start - (pword *) ec_eng->global_trail[0].start;
 	Succeed_;
     }
 }
@@ -347,68 +347,68 @@ p_gc_stat(value vwhat, type twhat, value vval, type tval, ec_eng_t *ec_eng)
 
     case 8:	/* global stack used */
 	result.val.nint = (char *) TG -
-		(char *) g_emu_.global_trail[0].start;
+		(char *) ec_eng->global_trail[0].start;
 	break;
     case 9:	/* global stack allocated */
-	result.val.nint = (char *) g_emu_.global_trail[0].end -
-		 (char *) g_emu_.global_trail[0].start;
+	result.val.nint = (char *) ec_eng->global_trail[0].end -
+		 (char *) ec_eng->global_trail[0].start;
 	break;
     case 10:	/* global stack peak */
-	result.val.nint = (char *) g_emu_.global_trail[0].peak -
-		 (char *) g_emu_.global_trail[0].start;
+	result.val.nint = (char *) ec_eng->global_trail[0].peak -
+		 (char *) ec_eng->global_trail[0].start;
 	break;
     case 11:	/* trail/global stack size */
-	result.val.nint = (char *) g_emu_.global_trail[1].start -
-		 (char *) g_emu_.global_trail[0].start;
+	result.val.nint = (char *) ec_eng->global_trail[1].start -
+		 (char *) ec_eng->global_trail[0].start;
 	break;
     case 12:	/* trail stack used */
-	result.val.nint = (char *) g_emu_.global_trail[1].start -
+	result.val.nint = (char *) ec_eng->global_trail[1].start -
 		(char *) TT;
 	break;
     case 13:	/* trail stack allocated */
-	result.val.nint = (char *) g_emu_.global_trail[1].start -
-		 (char *) g_emu_.global_trail[1].end;
+	result.val.nint = (char *) ec_eng->global_trail[1].start -
+		 (char *) ec_eng->global_trail[1].end;
 	break;
     case 14:	/* trail stack peak */
-	result.val.nint = (char *) g_emu_.global_trail[1].start -
-		 (char *) g_emu_.global_trail[1].peak;
+	result.val.nint = (char *) ec_eng->global_trail[1].start -
+		 (char *) ec_eng->global_trail[1].peak;
 	break;
     case 15:	/* trail/global stack size */
-	result.val.nint = (char *) g_emu_.global_trail[1].start -
-		 (char *) g_emu_.global_trail[0].start;
+	result.val.nint = (char *) ec_eng->global_trail[1].start -
+		 (char *) ec_eng->global_trail[0].start;
 	break;
 
     case 16:	/* control stack used */
 	result.val.nint = (char *) B.args -
-		(char *) g_emu_.control_local[0].start;
+		(char *) ec_eng->control_local[0].start;
 	break;
     case 17:	/* control stack allocated */
-	result.val.nint = (char *) g_emu_.control_local[0].end -
-		 (char *) g_emu_.control_local[0].start;
+	result.val.nint = (char *) ec_eng->control_local[0].end -
+		 (char *) ec_eng->control_local[0].start;
 	break;
     case 18:	/* control stack peak */
-	result.val.nint = (char *) g_emu_.control_local[0].peak -
-		 (char *) g_emu_.control_local[0].start;
+	result.val.nint = (char *) ec_eng->control_local[0].peak -
+		 (char *) ec_eng->control_local[0].start;
 	break;
     case 19:	/* local/control stack size */
-	result.val.nint = (char *) g_emu_.control_local[1].start -
-		 (char *) g_emu_.control_local[0].start;
+	result.val.nint = (char *) ec_eng->control_local[1].start -
+		 (char *) ec_eng->control_local[0].start;
 	break;
     case 20:	/* local stack used */
-	result.val.nint = (char *) g_emu_.control_local[1].start -
+	result.val.nint = (char *) ec_eng->control_local[1].start -
 		(char *) SP;
 	break;
     case 21:	/* local stack allocated */
-	result.val.nint = (char *) g_emu_.control_local[1].start -
-		 (char *) g_emu_.control_local[1].end;
+	result.val.nint = (char *) ec_eng->control_local[1].start -
+		 (char *) ec_eng->control_local[1].end;
 	break;
     case 22:	/* local stack peak */
-	result.val.nint = (char *) g_emu_.control_local[1].start -
-		 (char *) g_emu_.control_local[1].peak;
+	result.val.nint = (char *) ec_eng->control_local[1].start -
+		 (char *) ec_eng->control_local[1].peak;
 	break;
     case 23:	/* local/control stack size */
-	result.val.nint = (char *) g_emu_.control_local[1].start -
-		 (char *) g_emu_.control_local[0].start;
+	result.val.nint = (char *) ec_eng->control_local[1].start -
+		 (char *) ec_eng->control_local[0].start;
 	break;
 
     default:
@@ -426,10 +426,10 @@ p_stat_reset(ec_eng_t *ec_eng)
     average_area_ = 0;
     collection_time_ = 0;
     average_ratio_ = 1.0;
-    g_emu_.global_trail[0].peak = g_emu_.global_trail[0].end;
-    g_emu_.global_trail[1].peak = g_emu_.global_trail[1].end;
-    g_emu_.control_local[0].peak = g_emu_.control_local[0].end;
-    g_emu_.control_local[1].peak = g_emu_.control_local[1].end;
+    ec_eng->global_trail[0].peak = ec_eng->global_trail[0].end;
+    ec_eng->global_trail[1].peak = ec_eng->global_trail[1].end;
+    ec_eng->control_local[0].peak = ec_eng->control_local[0].end;
+    ec_eng->control_local[1].peak = ec_eng->control_local[1].end;
     Succeed_
 }
 
@@ -708,7 +708,7 @@ make_choicepoint(ec_eng_t *ec_eng, word ar)
     chp->tt = TT;
     chp->e = E;
     chp->ld = LD;
-    pw = &g_emu_.emu_args[1];
+    pw = &ec_eng->emu_args[1];
     for(; ar > 0; ar--) {
 	*((B.args)++) = *(pw++);
     }
@@ -740,7 +740,7 @@ pop_choicepoint(ec_eng_t *ec_eng)
     TG = chp.chp->tg;
     LD = chp.chp->ld;
     chp.chp++;
-    pw = &g_emu_.emu_args[1];			/* reload arguments	*/
+    pw = &ec_eng->emu_args[1];			/* reload arguments	*/
     while(chp.top < top)
 	*pw++ = *(chp.args)++;
     B.any_frame = top->frame;	/* pop the choicepoint	*/
@@ -750,7 +750,7 @@ pop_choicepoint(ec_eng_t *ec_eng)
     /* Now mark the other arguments invalid (for recursive emulators).
      * Caution: There may be a module argument which must be skipped first.
      */
-    while(++pw < &g_emu_.emu_args[NARGREGS] && pw->tag.kernel != TEND)
+    while(++pw < &ec_eng->emu_args[NARGREGS] && pw->tag.kernel != TEND)
     {
 	pw->tag.kernel = TEND;
 	pw->val.nint = 0x11111111;
@@ -1755,8 +1755,8 @@ static void
 mark_from_references(ec_eng_t *ec_eng)
 {
     {
-	ec_ref ref = g_emu_.allrefs.next;
-	while(ref != &g_emu_.allrefs)
+	ec_ref ref = ec_eng->allrefs.next;
+	while(ref != &ec_eng->allrefs)
 	{
 	    Mark_from(ref->var.tag.kernel, &ref->var, NO)
 	    ref = ref->next;
@@ -1794,7 +1794,7 @@ mark_from_references(ec_eng_t *ec_eng)
 #define Pdl_Target()	SP->val.ptr
 #define Pdl_Pop()	++SP
 #define Pdl_Push(i,t) { \
-	if (--SP <= g_emu_.sp_limit && local_ov(ec_eng)) \
+	if (--SP <= ec_eng->sp_limit && local_ov(ec_eng)) \
 	    ec_panic("Out of local stack space","garbage collection"); \
 	SP->tag.kernel = (i); \
 	SP->val.ptr = (t); \
@@ -2199,7 +2199,7 @@ void
 trail_ov(ec_eng_t *ec_eng)
 {
     TT_LIM = (pword **)
-	    ((pword *) g_emu_.global_trail[1].end + GLOBAL_TRAIL_GAP);
+	    ((pword *) ec_eng->global_trail[1].end + GLOBAL_TRAIL_GAP);
     if (TT > TT_LIM)
     {
 	/* There is still some space, schedule a global stack collection only
@@ -2212,21 +2212,21 @@ trail_ov(ec_eng_t *ec_eng)
     }
 
     /* grow the trail */
-    if (!adjust_stacks(g_emu_.global_trail,
-	    g_emu_.global_trail[0].end,
+    if (!adjust_stacks(ec_eng->global_trail,
+	    ec_eng->global_trail[0].end,
 	    (uword *) ((pword *) TT - TRAIL_GAP), 0))
     {
 	/* stacks collide, make a last try with shrinking the global */
-	if (!adjust_stacks(g_emu_.global_trail,
+	if (!adjust_stacks(ec_eng->global_trail,
 		(uword *) (TG + GLOBAL_TRAIL_GAP),
 		(uword *) ((pword *) TT - TRAIL_GAP), 0))
 	{
 	    ov_reset(ec_eng);		/* give up */
 	}
-	Set_Tg_Lim((pword *) g_emu_.global_trail[0].end - GLOBAL_TRAIL_GAP)
+	Set_Tg_Lim((pword *) ec_eng->global_trail[0].end - GLOBAL_TRAIL_GAP)
     }
     TT_LIM = (pword **)
-	    ((pword *) g_emu_.global_trail[1].end + TRAIL_GAP);
+	    ((pword *) ec_eng->global_trail[1].end + TRAIL_GAP);
     return;
 }
 
@@ -2252,21 +2252,21 @@ global_ov(ec_eng_t *ec_eng)
 int
 final_overflow(ec_eng_t *ec_eng)
 {
-    if (!adjust_stacks(g_emu_.global_trail,
+    if (!adjust_stacks(ec_eng->global_trail,
 	    (uword *) (TG + GLOBAL_TRAIL_GAP + 1), /* +1 to avoid looping */
-	    g_emu_.global_trail[1].end, 0))
+	    ec_eng->global_trail[1].end, 0))
     {
 	/* stacks collide, make a last try with shrinking the trail */
-	if (!adjust_stacks(g_emu_.global_trail,
+	if (!adjust_stacks(ec_eng->global_trail,
 		(uword *) (TG + GLOBAL_TRAIL_GAP + 1),
 		(uword *) ((pword *) TT - TRAIL_GAP), 0))
 	{
 	    return 1;
 	}
 	TT_LIM = (pword **)
-	    ((pword *) g_emu_.global_trail[1].end + TRAIL_GAP);
+	    ((pword *) ec_eng->global_trail[1].end + TRAIL_GAP);
     }
-    Set_Tg_Lim((pword *) g_emu_.global_trail[0].end - GLOBAL_TRAIL_GAP)
+    Set_Tg_Lim((pword *) ec_eng->global_trail[0].end - GLOBAL_TRAIL_GAP)
     return 0;
 }
 
@@ -2278,40 +2278,40 @@ final_overflow(ec_eng_t *ec_eng)
 int
 local_ov(ec_eng_t *ec_eng)
 {
-    if (!adjust_stacks(g_emu_.control_local,
-	    g_emu_.control_local[0].end,
+    if (!adjust_stacks(ec_eng->control_local,
+	    ec_eng->control_local[0].end,
 	    (uword *) (SP - LOCAL_CONTROL_GAP), 0))
     {
-	if (!adjust_stacks(g_emu_.control_local,
+	if (!adjust_stacks(ec_eng->control_local,
 		(uword *) (B.args + LOCAL_CONTROL_GAP),
 		(uword *) (SP - LOCAL_CONTROL_GAP), 0))
 	{
 	    return 1;
 	}
-	g_emu_.b_limit =
-	    (pword *) g_emu_.control_local[0].end - LOCAL_CONTROL_GAP;
+	ec_eng->b_limit =
+	    (pword *) ec_eng->control_local[0].end - LOCAL_CONTROL_GAP;
     }
-    g_emu_.sp_limit = (pword *) g_emu_.control_local[1].end + LOCAL_CONTROL_GAP;
+    ec_eng->sp_limit = (pword *) ec_eng->control_local[1].end + LOCAL_CONTROL_GAP;
     return 0;
 }
 
 int
 control_ov(ec_eng_t *ec_eng)
 {
-    if (!adjust_stacks(g_emu_.control_local,
+    if (!adjust_stacks(ec_eng->control_local,
 	    (uword *) (B.args + LOCAL_CONTROL_GAP),
-	    g_emu_.control_local[1].end, 0))
+	    ec_eng->control_local[1].end, 0))
     {
-	if (!adjust_stacks(g_emu_.control_local,
+	if (!adjust_stacks(ec_eng->control_local,
 		(uword *) (B.args + LOCAL_CONTROL_GAP),
 		(uword *) (SP - LOCAL_CONTROL_GAP), 0))
 	{
 	    return 1;
 	}
-	g_emu_.sp_limit =
-	    (pword *) g_emu_.control_local[1].end + LOCAL_CONTROL_GAP;
+	ec_eng->sp_limit =
+	    (pword *) ec_eng->control_local[1].end + LOCAL_CONTROL_GAP;
     }
-    g_emu_.b_limit = (pword *) g_emu_.control_local[0].end - LOCAL_CONTROL_GAP;
+    ec_eng->b_limit = (pword *) ec_eng->control_local[0].end - LOCAL_CONTROL_GAP;
     return 0;
 }
 
@@ -2337,7 +2337,7 @@ trim_global_trail(ec_eng_t *ec_eng, uword margin)
     Safe_Add_To_Pointer(TG, margin + GLOBAL_TRAIL_GAP, (pword *) TT, tg_new);
     Safe_Sub_From_Pointer((pword *) TT, margin/ratio + TRAIL_GAP, (pword *) TG, tt_new);
     /* first try to grow global and trail proportionally */
-    if (!adjust_stacks(g_emu_.global_trail, (uword*) tg_new, (uword *) tt_new, 0))
+    if (!adjust_stacks(ec_eng->global_trail, (uword*) tg_new, (uword *) tt_new, 0))
     {
 	/* try without accommodating margin, just partition the remaining
 	 * space, roughly preserving the current trail/global ratio
@@ -2347,14 +2347,14 @@ trim_global_trail(ec_eng_t *ec_eng, uword margin)
 	tg_new = TG + GLOBAL_TRAIL_GAP;
 	tt_new = (pword *) TT - TRAIL_GAP;
 
-	if (!adjust_stacks(g_emu_.global_trail, (uword*) tg_new, (uword*) tt_new, (uword *) split_at))
+	if (!adjust_stacks(ec_eng->global_trail, (uword*) tg_new, (uword*) tt_new, (uword *) split_at))
 	{
 	    return res;
 	}
     }
     /* the following will also adjust TG_SL if necessary */
-    Set_Tg_Lim((pword *) g_emu_.global_trail[0].end - GLOBAL_TRAIL_GAP)
-    TT_LIM = (pword **) ((pword *) g_emu_.global_trail[1].end + TRAIL_GAP);
+    Set_Tg_Lim((pword *) ec_eng->global_trail[0].end - GLOBAL_TRAIL_GAP)
+    TT_LIM = (pword **) ((pword *) ec_eng->global_trail[1].end + TRAIL_GAP);
     return res;
 }
 
@@ -2366,14 +2366,14 @@ trim_global_trail(ec_eng_t *ec_eng, uword margin)
 int
 trim_control_local(ec_eng_t *ec_eng)
 {
-    if (!adjust_stacks(g_emu_.control_local,
+    if (!adjust_stacks(ec_eng->control_local,
 	    (uword *) (B.args + LOCAL_CONTROL_DEFAULT),
 	    (uword *) (SP - LOCAL_CONTROL_DEFAULT), 0))
     {
 	return 0;
     }
-    g_emu_.b_limit = (pword *) g_emu_.control_local[0].end - LOCAL_CONTROL_GAP;
-    g_emu_.sp_limit = (pword *) g_emu_.control_local[1].end + LOCAL_CONTROL_GAP;
+    ec_eng->b_limit = (pword *) ec_eng->control_local[0].end - LOCAL_CONTROL_GAP;
+    ec_eng->sp_limit = (pword *) ec_eng->control_local[1].end + LOCAL_CONTROL_GAP;
     return 1;
 }
 

@@ -107,7 +107,7 @@ int
 p_transform(value val1, type tag1,
 	value val2, type tag2)
 {
-        pword     *p = Gbl_Tg;
+        pword     *p = TG;
         dident    did1;    /* the DID of the structure */
         int       arity;      /* its arity */
         int       i;
@@ -120,7 +120,7 @@ p_transform(value val1, type tag1,
         did1 = val1.ptr->val.did;
         arity = DidArity(did1);
         /* reserve space for the functor and (arity + 1) args */
-        Gbl_Tg += arity + 2;
+        TG += arity + 2;
         /* insert the functor - the same name and higher arity */
         p[0].tag.kernel = TDICT;
         p[0].val.did = Did(DidName(did1), arity + 1);

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.11 2016/07/30 10:30:31 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.12 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /*
@@ -113,10 +113,10 @@ re_fake_overflow(ec_eng_t *ec_eng)
 {
     Disable_Int();
     if (MU ||
-    	(EVENT_FLAGS && g_emu_.nesting_level == 1 && !PO) ||
+    	(EVENT_FLAGS && ec_eng->nesting_level == 1 && !PO) ||
 	InterruptsPending)
     {
-	if (g_emu_.nesting_level > 1) {
+	if (ec_eng->nesting_level > 1) {
 	    Interrupt_Fake_Overflow;	/* maybe we are in an interrupt */
 	} else {
 	    Fake_Overflow;
@@ -185,7 +185,7 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
     FO = PO = (char *) 0;
     TO = (pword *) 0;
     /* no oracles in recursive emulators! */
-    if (g_emu_.nesting_level == 0  &&  VM_FLAGS & ORACLES_ENABLED)
+    if (ec_eng->nesting_level == 0  &&  VM_FLAGS & ORACLES_ENABLED)
     {
 	O_Push(1, O_PAR_ORACLE);	/* also inits TO */
     }
@@ -200,7 +200,7 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
 
 	/* no need to save/restore POSTED: ignored in nested engines */
 
-    	b_aux.invoc->trace_data = g_emu_.trace_data;
+    	b_aux.invoc->trace_data = ec_eng->trace_data;
 	Make_Integer(&TAGGED_TD, 0);
 	FCULPRIT = -1;
 	/* FTRACE = NULL; */
@@ -214,7 +214,7 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
     b_aux.invoc->tt = TT;
     b_aux.invoc->e = E;
     b_aux.invoc->flags = i;
-    b_aux.invoc->nesting_level = g_emu_.nesting_level;
+    b_aux.invoc->nesting_level = ec_eng->nesting_level;
     b_aux.invoc->pp = PP;
     b_aux.invoc->mu = MU;
     b_aux.invoc->sv = SV;
@@ -236,7 +236,7 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
     b_aux.invoc += 1;
     /* don't save any arguments for the initial frame to make invocation
      * frames identical size for all parallel engines */
-    if (g_emu_.nesting_level > 0)
+    if (ec_eng->nesting_level > 0)
     {
 	for(i = 1; i < NARGREGS; i++) {
 	    if(pw1->tag.kernel != TEND) {
@@ -257,7 +257,7 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
      * Do some initialisation common to all recursive emulator invocations
      */
 
-    g_emu_.nesting_level++;
+    ec_eng->nesting_level++;
 
     DE = MU = SV = (pword *) 0;
 
@@ -626,7 +626,7 @@ sub_emulc_opt(ec_eng_t *ec_eng, value vgoal, type tgoal, value vmod, type tmod, 
     	result = restart_emulc(ec_eng);
     }
     if (result == PTHROW  &&  !(options & GOAL_CATCH))
-	siglongjmp(*(sigjmp_buf*)g_emu_.it_buf, PTHROW);
+	siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, PTHROW);
     return result;
 }
 
@@ -653,7 +653,7 @@ slave_emulc(ec_eng_t *ec_eng)
     }
 
     if (result == PTHROW)
-	siglongjmp(*(sigjmp_buf*)g_emu_.it_buf, PTHROW);
+	siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, PTHROW);
     return result;
 
 }
@@ -835,8 +835,8 @@ ec_cleanup_unlock(void *plock)
 #endif
 
 #define IsEmptyDynamicEventQueue()			\
-	(g_emu_.dyn_event_q.free_event_slots == 	\
-	 g_emu_.dyn_event_q.total_event_slots)
+	(ec_eng->dyn_event_q.free_event_slots == 	\
+	 ec_eng->dyn_event_q.total_event_slots)
 
 
 #ifdef PRINTAM
@@ -847,10 +847,10 @@ print_dynamic_queued_events(ec_eng_t *ec_eng)
     uword cnt = 0, total;
 
     Disable_Int();
-    slot = g_emu_.dyn_event_q.prehead->next; /* get */
-    total = g_emu_.dyn_event_q.total_event_slots - g_emu_.dyn_event_q.free_event_slots;
+    slot = ec_eng->dyn_event_q.prehead->next; /* get */
+    total = ec_eng->dyn_event_q.total_event_slots - ec_eng->dyn_event_q.free_event_slots;
     p_fprintf(current_err_, "Dynamic event queue: Total: %" W_MOD "d Free: %" W_MOD "d:", 
-	g_emu_.dyn_event_q.total_event_slots, g_emu_.dyn_event_q.free_event_slots);
+	ec_eng->dyn_event_q.total_event_slots, ec_eng->dyn_event_q.free_event_slots);
     for( cnt = 0; cnt < total; cnt++, slot = slot->next )
     {
 	p_fprintf(current_err_, " %d:%x", slot->event_data.tag.kernel, slot->event_data.val.ptr);
@@ -920,9 +920,9 @@ _post_event_dynamic(ec_eng_t *ec_eng, pword event, int no_duplicates)
     {
 	uword cnt, total;
 	/* if this event is already posted, don't do it again */
-	dyn_event_q_slot_t *slot = g_emu_.dyn_event_q.prehead->next; /* get */
+	dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.prehead->next; /* get */
 	
-	total = g_emu_.dyn_event_q.total_event_slots - g_emu_.dyn_event_q.free_event_slots;
+	total = ec_eng->dyn_event_q.total_event_slots - ec_eng->dyn_event_q.free_event_slots;
 	for( cnt = 0; cnt < total; cnt++, slot = slot->next )
 	{
 	    if (slot->event_data.tag.all == event.tag.all
@@ -941,32 +941,32 @@ _post_event_dynamic(ec_eng_t *ec_eng, pword event, int no_duplicates)
     }
 
     /* Is the queue full? */
-    if (g_emu_.dyn_event_q.free_event_slots != 0) 
+    if (ec_eng->dyn_event_q.free_event_slots != 0) 
     {
 	/* No! */
-	g_emu_.dyn_event_q.free_event_slots--;
+	ec_eng->dyn_event_q.free_event_slots--;
     }
     else
     {
 	/* Yes! */
 	dyn_event_q_slot_t *slot;
 
-	event_q_assert(g_emu_.dyn_event_q.prehead == 
-		       g_emu_.dyn_event_q.tail); /* put == get */
+	event_q_assert(ec_eng->dyn_event_q.prehead == 
+		       ec_eng->dyn_event_q.tail); /* put == get */
 
 	if ((slot = (dyn_event_q_slot_t *)hp_alloc_size(sizeof(dyn_event_q_slot_t))) == NULL) 
 	{
 	    res = RANGE_ERROR;	/* not enough memory - queue full */
 	    goto _unlock_return_;
 	}
-	slot->next = g_emu_.dyn_event_q.tail->next;
-	g_emu_.dyn_event_q.tail->next = slot;
-	g_emu_.dyn_event_q.total_event_slots++;
-	g_emu_.dyn_event_q.prehead = g_emu_.dyn_event_q.prehead->next; /* reflect insertion */
+	slot->next = ec_eng->dyn_event_q.tail->next;
+	ec_eng->dyn_event_q.tail->next = slot;
+	ec_eng->dyn_event_q.total_event_slots++;
+	ec_eng->dyn_event_q.prehead = ec_eng->dyn_event_q.prehead->next; /* reflect insertion */
     }
 
-    g_emu_.dyn_event_q.tail = g_emu_.dyn_event_q.tail->next; /* update tail and put */
-    g_emu_.dyn_event_q.tail->event_data = event; /* delayed set of old put */
+    ec_eng->dyn_event_q.tail = ec_eng->dyn_event_q.tail->next; /* update tail and put */
+    ec_eng->dyn_event_q.tail->event_data = event; /* delayed set of old put */
     EVENT_FLAGS |= EVENT_POSTED;
     Fake_Overflow; /* Not served in signal handler */
 
@@ -1018,10 +1018,10 @@ next_posted_event(ec_eng_t *ec_eng, pword *out)
     /* Service the dynamic event queue */
     if (!IsEmptyDynamicEventQueue())
     {
-	g_emu_.dyn_event_q.prehead = 
-	    g_emu_.dyn_event_q.prehead->next; /* get = get->next */
-	*out = g_emu_.dyn_event_q.prehead->event_data; /* Delayed update of get */
-	g_emu_.dyn_event_q.free_event_slots++;
+	ec_eng->dyn_event_q.prehead = 
+	    ec_eng->dyn_event_q.prehead->next; /* get = get->next */
+	*out = ec_eng->dyn_event_q.prehead->event_data; /* Delayed update of get */
+	ec_eng->dyn_event_q.free_event_slots++;
     }
     else
     {
@@ -1033,8 +1033,8 @@ next_posted_event(ec_eng_t *ec_eng, pword *out)
     /* If either queue contain events fake the over flow to handle next */
     if (IsEmptyDynamicEventQueue()) 
     {
-	event_q_assert(g_emu_.dyn_event_q.prehead == 
-		       g_emu_.dyn_event_q.tail); /* put == get */
+	event_q_assert(ec_eng->dyn_event_q.prehead == 
+		       ec_eng->dyn_event_q.tail); /* put == get */
 	EVENT_FLAGS &= ~EVENT_POSTED;
     }
     else
@@ -1062,11 +1062,11 @@ purge_disabled_dynamic_events(ec_eng_t *ec_eng, t_heap_event *event)
     Disable_Int();
     mt_mutex_lock(&ec_eng->lock);
 
-    total = g_emu_.dyn_event_q.total_event_slots - g_emu_.dyn_event_q.free_event_slots;
+    total = ec_eng->dyn_event_q.total_event_slots - ec_eng->dyn_event_q.free_event_slots;
 
     if (total > 0 )
     {
-	prev = g_emu_.dyn_event_q.prehead;
+	prev = ec_eng->dyn_event_q.prehead;
 	slot = prev->next; /* get */
 
 	/* Process all slots but the tail */
@@ -1076,10 +1076,10 @@ purge_disabled_dynamic_events(ec_eng_t *ec_eng, t_heap_event *event)
 
 	    if (IsTag(pevent->tag.kernel, TPTR) && pevent->val.wptr == (uword*)event)
 	    {
-		g_emu_.dyn_event_q.free_event_slots++;
+		ec_eng->dyn_event_q.free_event_slots++;
 		prev->next = slot->next;
-		slot->next = g_emu_.dyn_event_q.tail->next; /* insert before put */
-		g_emu_.dyn_event_q.tail->next = slot; /* update put */
+		slot->next = ec_eng->dyn_event_q.tail->next; /* insert before put */
+		ec_eng->dyn_event_q.tail->next = slot; /* update put */
 		ExternalClass(pevent->val.ptr)->free(ExternalData(pevent->val.ptr));
 		slot = prev->next;
 		continue;
@@ -1093,12 +1093,12 @@ purge_disabled_dynamic_events(ec_eng_t *ec_eng, t_heap_event *event)
 	 * where the circular list is full - in either case simply rewind 
 	 * the tail pointer.
 	 */
-	event_q_assert(slot == g_emu_.dyn_event_q.tail);
+	event_q_assert(slot == ec_eng->dyn_event_q.tail);
 	pevent = &slot->event_data;
 	if (IsTag(pevent->tag.kernel, TPTR) && pevent->val.wptr == (uword*)event)
 	{
-	    g_emu_.dyn_event_q.free_event_slots++;
-	    g_emu_.dyn_event_q.tail = prev;
+	    ec_eng->dyn_event_q.free_event_slots++;
+	    ec_eng->dyn_event_q.tail = prev;
 	    ExternalClass(pevent->val.ptr)->free(ExternalData(pevent->val.ptr));
 	}
 
@@ -1126,37 +1126,37 @@ ec_init_dynamic_event_queue(ec_eng_t *ec_eng)
 
     Disable_Int();
 
-    if ((g_emu_.dyn_event_q.prehead = 
+    if ((ec_eng->dyn_event_q.prehead = 
 	(dyn_event_q_slot_t *)hp_alloc_size(sizeof(dyn_event_q_slot_t))) == NULL) 
     {
 	ec_panic(MEMORY_P, "emu_init()");
     }
 
-    g_emu_.dyn_event_q.tail = g_emu_.dyn_event_q.prehead;
+    ec_eng->dyn_event_q.tail = ec_eng->dyn_event_q.prehead;
 
     for(cnt = 0; cnt < MIN_DYNAMIC_EVENT_SLOTS - 1; cnt++) 
     {
-	if ((g_emu_.dyn_event_q.tail->next = 
+	if ((ec_eng->dyn_event_q.tail->next = 
 	    (dyn_event_q_slot_t *)hp_alloc_size(sizeof(dyn_event_q_slot_t))) == NULL) 
 	{
 	    ec_panic(MEMORY_P, "emu_init()");
 	}
-	g_emu_.dyn_event_q.tail = g_emu_.dyn_event_q.tail->next;
+	ec_eng->dyn_event_q.tail = ec_eng->dyn_event_q.tail->next;
     }
 
     /* Link tail to head to complete circular list creation */
-    g_emu_.dyn_event_q.tail->next = g_emu_.dyn_event_q.prehead;
+    ec_eng->dyn_event_q.tail->next = ec_eng->dyn_event_q.prehead;
 
     /* Set tail insertion point */
     /* Empty queue condition: 
      * IsEmptyDynamicEventQueue(). In addition, when queue is empty
      * or full: tail->next (put) == prehead->next (get)
      */
-    g_emu_.dyn_event_q.tail = g_emu_.dyn_event_q.prehead;
+    ec_eng->dyn_event_q.tail = ec_eng->dyn_event_q.prehead;
 
     /* Dynamic queue is initially empty */
-    g_emu_.dyn_event_q.total_event_slots = 
-		g_emu_.dyn_event_q.free_event_slots = MIN_DYNAMIC_EVENT_SLOTS;
+    ec_eng->dyn_event_q.total_event_slots = 
+		ec_eng->dyn_event_q.free_event_slots = MIN_DYNAMIC_EVENT_SLOTS;
 
     Enable_Int();
 }
@@ -1172,10 +1172,10 @@ trim_dynamic_event_queue(ec_eng_t *ec_eng)
 {
     Disable_Int();
 
-    if (g_emu_.dyn_event_q.free_event_slots > MIN_DYNAMIC_EVENT_SLOTS)
+    if (ec_eng->dyn_event_q.free_event_slots > MIN_DYNAMIC_EVENT_SLOTS)
     {
-	dyn_event_q_slot_t *slot = g_emu_.dyn_event_q.tail->next; /* put */
-	uword new_free_slots =	g_emu_.dyn_event_q.free_event_slots / 
+	dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.tail->next; /* put */
+	uword new_free_slots =	ec_eng->dyn_event_q.free_event_slots / 
 					DYNAMIC_EVENT_Q_SHRINK_FACTOR;
 	if (new_free_slots < MIN_DYNAMIC_EVENT_SLOTS) {
 	    new_free_slots = MIN_DYNAMIC_EVENT_SLOTS;
@@ -1185,20 +1185,20 @@ trim_dynamic_event_queue(ec_eng_t *ec_eng)
 	    p_fprintf(log_output_,	
 		      "shrink dynamic event queue from Total: %" W_MOD "u"
 		      " Free: %" W_MOD "u to Total: %" W_MOD "u Free: %" W_MOD "u (elements)\n", 
-		      g_emu_.dyn_event_q.total_event_slots, 
-		      g_emu_.dyn_event_q.free_event_slots, 
-		      g_emu_.dyn_event_q.total_event_slots - 
-		      (g_emu_.dyn_event_q.free_event_slots - new_free_slots), new_free_slots);
+		      ec_eng->dyn_event_q.total_event_slots, 
+		      ec_eng->dyn_event_q.free_event_slots, 
+		      ec_eng->dyn_event_q.total_event_slots - 
+		      (ec_eng->dyn_event_q.free_event_slots - new_free_slots), new_free_slots);
 		      ec_flush(log_output_);
 	}
 
-	for ( ; g_emu_.dyn_event_q.free_event_slots > new_free_slots 
-	      ; g_emu_.dyn_event_q.free_event_slots--, 
-		g_emu_.dyn_event_q.total_event_slots-- )
+	for ( ; ec_eng->dyn_event_q.free_event_slots > new_free_slots 
+	      ; ec_eng->dyn_event_q.free_event_slots--, 
+		ec_eng->dyn_event_q.total_event_slots-- )
 	{
-	    g_emu_.dyn_event_q.tail->next = slot->next;
+	    ec_eng->dyn_event_q.tail->next = slot->next;
 	    hp_free_size((generic_ptr)slot, sizeof(dyn_event_q_slot_t));
-	    slot = g_emu_.dyn_event_q.tail->next;
+	    slot = ec_eng->dyn_event_q.tail->next;
 	}
     }
 
@@ -1209,14 +1209,14 @@ trim_dynamic_event_queue(ec_eng_t *ec_eng)
 void
 ec_fini_dynamic_event_queue(ec_eng_t *ec_eng)
 {
-    dyn_event_q_slot_t *slot = g_emu_.dyn_event_q.prehead;
+    dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.prehead;
     do {
 	dyn_event_q_slot_t *next = slot->next;
 	hp_free_size((generic_ptr)slot, sizeof(dyn_event_q_slot_t));
 	slot = next;
-    } while (slot != g_emu_.dyn_event_q.prehead);
-    g_emu_.dyn_event_q.prehead = g_emu_.dyn_event_q.tail = NULL;
-    g_emu_.dyn_event_q.free_event_slots = g_emu_.dyn_event_q.total_event_slots = 0;
+    } while (slot != ec_eng->dyn_event_q.prehead);
+    ec_eng->dyn_event_q.prehead = ec_eng->dyn_event_q.tail = NULL;
+    ec_eng->dyn_event_q.free_event_slots = ec_eng->dyn_event_q.total_event_slots = 0;
 }
 
 
@@ -2449,7 +2449,7 @@ check_global1(ec_eng_t *ec_eng, register pword *min, register pword *max)
     register pword *pw = min;
     extern pword    woken_susp_;
 
-    if (g_emu_.nesting_level > 1)
+    if (ec_eng->nesting_level > 1)
 	return;
 
     while (pw < max)

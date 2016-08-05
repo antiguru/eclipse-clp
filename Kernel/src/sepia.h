@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.15 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: sepia.h,v 1.16 2016/08/05 19:59:02 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1257,86 +1257,79 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 /*	Abstract machine registers				*/
 /****************************************************************/
 
-#define	SP		g_emu_.sp
-#define	TT		g_emu_.tt
-#define	TG		g_emu_.tg
-#define	E		g_emu_.e
-#define	EB		g_emu_.eb
-#define	GB		g_emu_.gb
-#define	S		g_emu_.s
-#define	B		g_emu_.b
-#define	PPB		g_emu_.ppb
-#define	PB		g_emu_.pb
-#define	ORA		g_emu_.oracle
-#define	NTRY		g_emu_.ntry
-#define	LEAF		g_emu_.leaf
-#define	LOAD		g_emu_.load
-#define	GCTG		g_emu_.gctg
-#define	ORC		g_emu_.oracle
-#define	PP		g_emu_.pp
-#define	LCA		g_emu_.lca
-#define	VM_FLAGS	g_emu_.vm_flags
-#define	EVENT_FLAGS	g_emu_.event_flags
-#define	DE		g_emu_.de
-#define	LD		g_emu_.ld
-#define	MU		g_emu_.mu
-#define	SV		g_emu_.sv
-#define WP		g_emu_.wp
-#define WP_STAMP	g_emu_.wp_stamp
-#define WL		g_emu_.wl.val.ptr
-#define TAGGED_WL	g_emu_.wl
-#define TO		g_emu_.oracle
-#define FO		g_emu_.followed_oracle
-#define PO		g_emu_.pending_oracle
-#define	OCB		g_emu_.occur_check_boundary
-#define	TCS		g_emu_.top_constructed_structure
-#define	TG_SL		g_emu_.tg_soft_lim
-#define	TG_SLS		g_emu_.tg_soft_lim_shadow
-#define	IFOFLAG		g_emu_.irq_faked_overflow
-#define	TG_SEG		g_emu_.segment_size
-#define	TG_LIM		g_emu_.tg_limit
-#define	TT_LIM		g_emu_.tt_limit
-#define	TG_ORIG		((pword *) g_emu_.global_trail[0].start)
-#define	TT_ORIG		((pword **) g_emu_.global_trail[1].start)
-#define	B_ORIG		((pword *) g_emu_.control_local[0].start)
-#define	SP_ORIG		((pword *) g_emu_.control_local[1].start)
-#define	IT_BUF		g_emu_.it_buf
-#define	PARSENV		g_emu_.parser_env
-#define POSTED  	g_emu_.posted
-#define POSTED_LAST	g_emu_.posted_last
-#define	A		g_emu_.emu_args
-#define PostponedList	g_emu_.postponed_list
+#define	SP		ec_eng->sp
+#define	TT		ec_eng->tt
+#define	TG		ec_eng->tg
+#define	E		ec_eng->e
+#define	EB		ec_eng->eb
+#define	GB		ec_eng->gb
+#define	S		ec_eng->s
+#define	B		ec_eng->b
+#define	PPB		ec_eng->ppb
+#define	PB		ec_eng->pb
+#define	ORA		ec_eng->oracle
+#define	NTRY		ec_eng->ntry
+#define	LEAF		ec_eng->leaf
+#define	LOAD		ec_eng->load
+#define	GCTG		ec_eng->gctg
+#define	ORC		ec_eng->oracle
+#define	PP		ec_eng->pp
+#define	LCA		ec_eng->lca
+#define	VM_FLAGS	ec_eng->vm_flags
+#define	EVENT_FLAGS	ec_eng->event_flags
+#define	DE		ec_eng->de
+#define	LD		ec_eng->ld
+#define	MU		ec_eng->mu
+#define	SV		ec_eng->sv
+#define WP		ec_eng->wp
+#define WP_STAMP	ec_eng->wp_stamp
+#define WL		ec_eng->wl.val.ptr
+#define TAGGED_WL	ec_eng->wl
+#define TO		ec_eng->oracle
+#define FO		ec_eng->followed_oracle
+#define PO		ec_eng->pending_oracle
+#define	OCB		ec_eng->occur_check_boundary
+#define	TCS		ec_eng->top_constructed_structure
+#define	TG_SL		ec_eng->tg_soft_lim
+#define	TG_SLS		ec_eng->tg_soft_lim_shadow
+#define	IFOFLAG		ec_eng->irq_faked_overflow
+#define	TG_SEG		ec_eng->segment_size
+#define	TG_LIM		ec_eng->tg_limit
+#define	TT_LIM		ec_eng->tt_limit
+#define	TG_ORIG		((pword *) ec_eng->global_trail[0].start)
+#define	TT_ORIG		((pword **) ec_eng->global_trail[1].start)
+#define	B_ORIG		((pword *) ec_eng->control_local[0].start)
+#define	SP_ORIG		((pword *) ec_eng->control_local[1].start)
+#define	IT_BUF		ec_eng->it_buf
+#define	PARSENV		ec_eng->parser_env
+#define POSTED  	ec_eng->posted
+#define POSTED_LAST	ec_eng->posted_last
+#define	A		ec_eng->emu_args
+#define PostponedList	ec_eng->postponed_list
 
 
-#define	TD		g_emu_.trace_data.debug_top.val.ptr
-#define	TAGGED_TD	g_emu_.trace_data.debug_top
-#define	NINVOC		g_emu_.trace_data.next_invoc
-#define	RLEVEL		g_emu_.trace_data.redo_level
-#define	FDROP		g_emu_.trace_data.fail_drop
-#define	FCULPRIT	g_emu_.trace_data.fail_culprit
-#define	JMININVOC	g_emu_.trace_data.min_invoc
-#define	JMAXINVOC	g_emu_.trace_data.max_invoc
-#define	JMINLEVEL	g_emu_.trace_data.min_level
-#define	JMAXLEVEL	g_emu_.trace_data.max_level
-#define	PORTFILTER	g_emu_.trace_data.port_filter
-#define	FTRACE		g_emu_.trace_data.fail_trace
-#define	TRACEMODE	g_emu_.trace_data.trace_mode
-#define	DBG_PRI		g_emu_.trace_data.call_proc
-#define	DBG_PORT	g_emu_.trace_data.call_port
-#define	DBG_INVOC	g_emu_.trace_data.call_invoc
-#define	DBG_DELAY_INVOC	g_emu_.trace_data.first_delay_invoc
-#define DBG_SRCPOS	g_emu_.trace_data.source_pos
-#define DBG_PATH        g_emu_.trace_data.source_pos.file
-#define DBG_LINE        g_emu_.trace_data.source_pos.line
-#define DBG_FROM        g_emu_.trace_data.source_pos.from
-#define DBG_TO          g_emu_.trace_data.source_pos.to
-
-
-/*
- * The following are obsolete, to be phased out (use macros above instead)
- */
-
-#define Gbl_Tg	g_emu_.tg
+#define	TD		ec_eng->trace_data.debug_top.val.ptr
+#define	TAGGED_TD	ec_eng->trace_data.debug_top
+#define	NINVOC		ec_eng->trace_data.next_invoc
+#define	RLEVEL		ec_eng->trace_data.redo_level
+#define	FDROP		ec_eng->trace_data.fail_drop
+#define	FCULPRIT	ec_eng->trace_data.fail_culprit
+#define	JMININVOC	ec_eng->trace_data.min_invoc
+#define	JMAXINVOC	ec_eng->trace_data.max_invoc
+#define	JMINLEVEL	ec_eng->trace_data.min_level
+#define	JMAXLEVEL	ec_eng->trace_data.max_level
+#define	PORTFILTER	ec_eng->trace_data.port_filter
+#define	FTRACE		ec_eng->trace_data.fail_trace
+#define	TRACEMODE	ec_eng->trace_data.trace_mode
+#define	DBG_PRI		ec_eng->trace_data.call_proc
+#define	DBG_PORT	ec_eng->trace_data.call_port
+#define	DBG_INVOC	ec_eng->trace_data.call_invoc
+#define	DBG_DELAY_INVOC	ec_eng->trace_data.first_delay_invoc
+#define DBG_SRCPOS	ec_eng->trace_data.source_pos
+#define DBG_PATH        ec_eng->trace_data.source_pos.file
+#define DBG_LINE        ec_eng->trace_data.source_pos.line
+#define DBG_FROM        ec_eng->trace_data.source_pos.from
+#define DBG_TO          ec_eng->trace_data.source_pos.to
 
 
 /****************************************************************/
@@ -1497,22 +1490,17 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define d_			(ec_.d)
 #define shared_data		(ec_.shared)
 
-/* the initial, default engine, which always exists */
+/* engines */
 #define eng_chain_header	(&ec_.m_aux)
 #define aux_eng			(&ec_.m_aux)
 #define default_eng		(&ec_.m)
 
-/* TEMPORARY alias for used engine */
-#define g_emu_			(*ec_eng)
-
-
 
 /****************************************************************/
-/*		Static / Dynamic event queue limits		*/
+/*		Dynamic event queue limits			*/
 /****************************************************************/
 
-#define MAX_STATIC_EVENT_SLOTS 		32
-#define MIN_DYNAMIC_EVENT_SLOTS 	32
+#define MIN_DYNAMIC_EVENT_SLOTS 	8
 #define DYNAMIC_EVENT_Q_SHRINK_FACTOR	2
 
 /****************************************************************/

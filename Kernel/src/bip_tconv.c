@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.11 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.12 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /*
@@ -159,8 +159,8 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta, ec_eng_t *ec_e
 	     * '.', and arity1 is 2. This is a special case; 
 	     * functor1 = '.' and arity1 != 2 is treated normally.
 	     */
-	    p = Gbl_Tg;
-	    Gbl_Tg += 2;
+	    p = TG;
+	    TG += 2;
 	    Check_Gc;
 	    Bind_Var(vt, t, p, TLIST);
 	}
@@ -174,12 +174,12 @@ p_functor(value vt, type t, value vf, type tf, value va, type ta, ec_eng_t *ec_e
 
 	    register dident	d;
 
-	    p = Gbl_Tg;
+	    p = TG;
 	    /* Additional a-priori overflow check because adding arity to TG
 	     * may may wrap around the address space and break Check_Gc below
 	     */
 	    Check_Available_Pwords(arity+1);
-	    Gbl_Tg += arity + 1;
+	    TG += arity + 1;
 	    Check_Gc;
 
 	    /* create the structure functor */ 
@@ -626,14 +626,14 @@ p_univ(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
 
 		    fd = elem->val.did;
 
-		    head = Gbl_Tg++;
+		    head = TG++;
 		    head->val.did = fd;
 		    head->tag.kernel = TDICT;
 
 		    for (i = 0; IsList(tail->tag); i++)
 		    {
 			    elem = tail->val.ptr;
-			    head = Gbl_Tg++;
+			    head = TG++;
 			    Check_Gc;
 			    *head = *elem;
 			    tail = elem + 1;
@@ -643,7 +643,7 @@ p_univ(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
 		    if (IsRef(tail->tag))
 		    {
 					/* partial list -> error 4. */
-			    Gbl_Tg = head - i;
+			    TG = head - i;
 			    Push_var_delay(tv.ptr, tt.all);
 			    Push_var_delay(tail, tail->tag.all);
 			    Bip_Error(PDELAY)
@@ -651,7 +651,7 @@ p_univ(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
 		    else if (!IsNil(tail->tag))
 		    {
 					/* bad list -> error 5. */
-			    Gbl_Tg = head - i;
+			    TG = head - i;
 			    Bip_Error(TYPE_ERROR)
 		    }
 
@@ -709,8 +709,8 @@ p_univ(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
                         Bip_Error(TYPE_ERROR);
                 }
 
-                newel = Gbl_Tg;
-                Gbl_Tg += 2;
+                newel = TG;
+                TG += 2;
 
                 if (IsList(tt))
 		{
@@ -736,7 +736,7 @@ p_univ(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
 		 * may may wrap around the address space and break Check_Gc below
 		 */
 		Check_Available_Pwords(2*arity);
-                Gbl_Tg += 2*arity;
+                TG += 2*arity;
                 Check_Gc
                 for (i = 0; i < arity; i++)
                 {
@@ -760,8 +760,8 @@ p_univ(value tv, type tt, value lv, type lt, ec_eng_t *ec_eng)
                         Bip_Error(TYPE_ERROR);
                 }
 
-                newel = Gbl_Tg;
-                Gbl_Tg += 2;
+                newel = TG;
+                TG += 2;
                 newel->val = tv;
                 (newel++)->tag = tt;
                 (newel--)->tag.kernel = TNIL;

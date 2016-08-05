@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.15 2016/08/04 09:09:04 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.16 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /*
@@ -1110,7 +1110,7 @@ extern pword	*spmax_;
 #define LD_END			WL[WL_PREVIOUS_LD].val.ptr
 
 #define Init_WP(prio) {\
-	Make_Stamp(&g_emu_.wp_stamp);\
+	Make_Stamp(&ec_eng->wp_stamp);\
 	WP = (prio);\
     }
     

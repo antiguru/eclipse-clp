@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.12 2016/07/28 03:34:36 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.13 2016/08/05 19:59:02 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1938,8 +1938,8 @@ trafo_term(
      *	trans_term( <trans>(In,Out{,AnnIn,AnnOut}{,CurModule}), TrModule ) or
      *  AnnIn,AnnOut are always uninstantiated here
      */
-    pw = Gbl_Tg;
-    Gbl_Tg += DidArity(md.trans_function) + 4;
+    pw = TG;
+    TG += DidArity(md.trans_function) + 4;
     Check_Gc;
     pw->tag.all		= TDICT;
     pw->val.did		= d_.trans_term;
@@ -1972,7 +1972,7 @@ trafo_term(
 	break;
     default:
 	/* incorrect arity for <trans> */
-	Gbl_Tg = Gbl_Tg - DidArity(md.trans_function) - 4;
+	TG = pw;
 	return 0;
     }
 

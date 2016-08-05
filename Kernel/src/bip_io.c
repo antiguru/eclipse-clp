@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.25 2016/08/04 09:09:04 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.26 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1645,7 +1645,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *
 	break;
 
     case 23:            /* `usable' */
-	if (g_emu_.nesting_level > 1 && IsQueueStream(nst) && (StreamMode(nst) & SYIELD)) {
+	if (ec_eng->nesting_level > 1 && IsQueueStream(nst) && (StreamMode(nst) & SYIELD)) {
 	    Make_Atom(&result, d_.off);
 	} else {
 	    Make_Atom(&result, d_.on);
@@ -2692,7 +2692,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
 
     while ((dent = readdir(dirp)))		/* loop through the entries */
     {
-	register pword	*elem = Gbl_Tg;
+	register pword	*elem = TG;
 
 	(void) strcpy(name, dent->d_name);	/* get the file's status */
 	if (ec_stat(full_name, &file_stat))
@@ -2718,7 +2718,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
 	    file_last = elem + 1;
 	}
 
-	Gbl_Tg += 2;				/* make a list element */
+	TG += 2;				/* make a list element */
 	elem->tag.kernel = TSTRG;		/* value is the name string */
 	Cstring_To_Prolog(dent->d_name, elem->val);
     }
@@ -2882,9 +2882,9 @@ socket_bind(stream_id nst, value vaddr, type taddr, ec_eng_t *ec_eng)
 	}
 	if (IsRef(taddr))
 	{
-	    pword		*pw = Gbl_Tg;
+	    pword		*pw = TG;
 
-	    Gbl_Tg += 3;
+	    TG += 3;
 	    pw[0].tag.kernel = TDICT;
 	    pw[0].val.did = d_.quotient;
 	    pw[1].val.did = hdid;
@@ -3085,7 +3085,7 @@ socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio, ec_eng
     {
 	struct sockaddr_in	name;
 	struct hostent		*host;
-	pword			*pw = Gbl_Tg;
+	pword			*pw = TG;
 
 	Check_Output_Structure(taddr);				
 
@@ -3098,7 +3098,7 @@ socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio, ec_eng
 	    Bip_Error(SYS_ERROR);
 	}
 	host = gethostbyaddr ((char *) &name.sin_addr, sizeof(name.sin_addr), AF_INET);
-	Gbl_Tg += 3;
+	TG += 3;
 	pw[0].tag.kernel = TDICT;
 	pw[0].val.did = d_.quotient;
 	if (host) {
@@ -3601,14 +3601,14 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout, ec
 #endif
 
     pl = list;
-    list = p = Gbl_Tg;
+    list = p = TG;
     while (pl)
     {
 	pw = pl++;
 	Dereference_(pw);		/* get the list element	*/
 	nst = onst = get_stream_id(pw->val, pw->tag, SRDWR, 1, NULL, &err_or_copied);
 	if (nst == NO_STREAM) {
-	    Gbl_Tg = list;
+	    TG = list;
 	    Bip_Error(err_or_copied);
 	}
 	if (IsSocket(nst))
@@ -3619,7 +3619,7 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout, ec
 		( FD_ISSET((socket_t) StreamUnit(nst), &dread)
 		  || FD_ISSET((socket_t) StreamUnit(nst), &dwrite))))
 	{
-	    Gbl_Tg += 2;
+	    TG += 2;
 	    Check_Gc;
 	    *p++ = *pw;
 	    p->val.ptr = p + 1;

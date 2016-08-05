@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_domain.c,v 1.4 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_domain.c,v 1.5 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1227,12 +1227,12 @@ p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vs
     }
     if (vsize != vsv.nint) {
 	updi = 1;
-	newi = ilist = Gbl_Tg++;
+	newi = ilist = TG++;
     } else
 	updi = 0;
     if (isize != vsi.nint) {
 	updv = 1;
-	newv = vlist = Gbl_Tg++;
+	newv = vlist = TG++;
     } else
 	updv = 0;
     Check_Gc
@@ -1284,10 +1284,10 @@ p_index_values(value vi, type ti, value vt, type tt, value vv, type tv, value vs
 		!ElemEq(argp, lastv2, lastt2)))
 	    {
 		/* add to the value list */
-		newv->val.ptr = Gbl_Tg;
+		newv->val.ptr = TG;
 		newv->tag.kernel = TLIST;
-		newv = Gbl_Tg;
-		Gbl_Tg += 2;
+		newv = TG;
+		TG += 2;
 		Check_Gc;
 		newv->val.nint = argp->val.nint;
 		newv++->tag.kernel = argp->tag.kernel;
@@ -1441,10 +1441,10 @@ dom_check_in(word e, type tag, register pword *p)
 pword *
 insert_interval(ec_eng_t *ec_eng, word first, word last, pword *newi)
 {
-    newi->val.ptr = Gbl_Tg;
+    newi->val.ptr = TG;
     newi->tag.kernel = TLIST;
-    newi = Gbl_Tg;
-    Gbl_Tg += 2;
+    newi = TG;
+    TG += 2;
     Check_Gc
     if (first == last) {
 	newi->val.nint = first;
@@ -1452,17 +1452,17 @@ insert_interval(ec_eng_t *ec_eng, word first, word last, pword *newi)
     } else if (first + 1 == last) {
 	newi->val.nint = first;
 	newi++->tag.kernel = TINT;
-	newi->val.ptr = Gbl_Tg;
+	newi->val.ptr = TG;
 	newi->tag.kernel = TLIST;
-	newi = Gbl_Tg;
-	Gbl_Tg += 2;
+	newi = TG;
+	TG += 2;
 	Check_Gc
 	newi->val.nint = last;
 	newi++->tag.kernel = TINT;
     } else if (first < last) {
-	pword		*p = Gbl_Tg;
+	pword		*p = TG;
 
-	Gbl_Tg += 3;
+	TG += 3;
 	Check_Gc
 	newi->val.ptr = p;
 	newi++->tag.kernel = TCOMP;
@@ -1500,8 +1500,8 @@ p_dom_intersection(value vd1, type td1, value vd2, type td2, value vi, type ti, 
     if (size == 0) {
 	Fail_;
     }
-    p = Gbl_Tg;
-    Gbl_Tg += 3;
+    p = TG;
+    TG += 3;
     Check_Gc;
     p[0].val.did = dd;
     p[0].tag.all = TDICT;
@@ -1533,8 +1533,8 @@ _dom_intersection(
     int			res;
     int			was_int = 0;
 
-    p = ints = Gbl_Tg;
-    Gbl_Tg++;
+    p = ints = TG;
+    TG++;
     Check_Gc;
     d1 = d1->val.ptr;
     s1 = d1++;
@@ -1607,10 +1607,10 @@ _dom_intersection(
 		    size += toj - fromj + 1;
 		    was_int = 0;
 		}
-		p->val.ptr = Gbl_Tg;
+		p->val.ptr = TG;
 		p->tag.kernel = TLIST;
-		p = Gbl_Tg;
-		Gbl_Tg += 2;
+		p = TG;
+		TG += 2;
 		Check_Gc
 		p->val.all = s1->val.all;
 		p++->tag.kernel = s1->tag.kernel;
@@ -1938,8 +1938,8 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 	}
 	next |= DOM_2;
     }
-    p = ints = Gbl_Tg;
-    Gbl_Tg++;
+    p = ints = TG;
+    TG++;
     Check_Gc;
     for (;;)
     {
@@ -1981,10 +1981,10 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 		    size += toi - fromi + 1;
 		    was_int = 0;
 		}
-		p->val.ptr = Gbl_Tg;
+		p->val.ptr = TG;
 		p->tag.kernel = TLIST;
-		p = Gbl_Tg;
-		Gbl_Tg += 2;
+		p = TG;
+		TG += 2;
 		Check_Gc
 		size++;
 		p->val.all = s1->val.all;
@@ -2046,10 +2046,10 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
 		    size += toi - fromi + 1;
 		    was_int = 0;
 		}
-		p->val.ptr = Gbl_Tg;
+		p->val.ptr = TG;
 		p->tag.kernel = TLIST;
-		p = Gbl_Tg;
-		Gbl_Tg += 2;
+		p = TG;
+		TG += 2;
 		Check_Gc
 		size++;
 		p->val.all = s2->val.all;
@@ -2095,8 +2095,8 @@ p_dom_union(value vd1, type td1, value vd2, type td2, value vu, type tu, value v
     if (size == 0) {
 	Fail_;
     }
-    p = Gbl_Tg;
-    Gbl_Tg += 3;
+    p = TG;
+    TG += 3;
     Check_Gc;
     p[0].val.did = dd;
     p[0].tag.all = TDICT;
@@ -2150,8 +2150,8 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
 	Request_Unify_Structure(vi, ti, vd1.ptr);
 	Return_Unify;
     }
-    p = diff = Gbl_Tg;
-    Gbl_Tg++;
+    p = diff = TG;
+    TG++;
     Check_Gc;
     d1 = d1->val.ptr;
     s1 = d1++;
@@ -2216,10 +2216,10 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
 		    size += to1 - from1 + 1;
 		    was_int = 0;
 		} else {
-		    p->val.ptr = Gbl_Tg;
+		    p->val.ptr = TG;
 		    p->tag.kernel = TLIST;
-		    p = Gbl_Tg;
-		    Gbl_Tg += 2;
+		    p = TG;
+		    TG += 2;
 		    Check_Gc
 		    p->val.all = s1->val.all;
 		    p++->tag.kernel = s1->tag.kernel;
@@ -2288,8 +2288,8 @@ p_dom_difference(value vd1, type td1, value vd2, type td2, value vi, type ti, va
     if (size == 0) {
 	Fail_;
     }
-    p = Gbl_Tg;
-    Gbl_Tg += 3;
+    p = TG;
+    TG += 3;
     Check_Gc;
     p[0].val.did = dd;
     p[0].tag.all = TDICT;
@@ -2375,8 +2375,8 @@ dom_remove_greater(ec_eng_t *ec_eng, register pword *p, register word max)
 
     dom = p++;
     Dereference_(p);
-    newd = r = Gbl_Tg;
-    Gbl_Tg++;
+    newd = r = TG;
+    TG++;
     Check_Gc
     while (IsList(p->tag))
     {
@@ -2386,9 +2386,9 @@ dom_remove_greater(ec_eng_t *ec_eng, register pword *p, register word max)
 	if (IsInteger(s->tag)) {
 	    if (s->val.nint  <= max) {
 		r->tag.kernel = TLIST;
-		r->val.ptr = Gbl_Tg;
-		r = Gbl_Tg;
-		Gbl_Tg += 2;
+		r->val.ptr = TG;
+		r = TG;
+		TG += 2;
 		Check_Gc
 		r->val.nint = s->val.nint;
 		r++->tag.kernel = TINT;
@@ -2407,9 +2407,9 @@ dom_remove_greater(ec_eng_t *ec_eng, register pword *p, register word max)
 	    if (t->val.nint <= max) {
 		if (s->val.nint <= max) {
 		    r->tag.kernel = TLIST;
-		    r->val.ptr = Gbl_Tg;
-		    r = Gbl_Tg;
-		    Gbl_Tg += 2;
+		    r->val.ptr = TG;
+		    r = TG;
+		    TG += 2;
 		    Check_Gc
 		    *r++ = *u;
 		    size += s->val.nint - t->val.nint + 1;
@@ -2477,8 +2477,8 @@ dom_remove_smaller(ec_eng_t *ec_eng, register pword *p, register word min)
 		    break;
 		}
 		else {
-		    newd = r = Gbl_Tg;
-		    Gbl_Tg++;
+		    newd = r = TG;
+		    TG++;
 		    Check_Gc
 		    r = insert_interval(ec_eng, min, s->val.nint, r);
 		    size -= min - t->val.nint;
@@ -2602,8 +2602,8 @@ dom_remove_element(ec_eng_t *ec_eng, register pword *p, register word el, word t
     s = dom + 2;
     Dereference_(s);
     size = s->val.nint;
-    newd = r = Gbl_Tg;
-    Gbl_Tg++;
+    newd = r = TG;
+    TG++;
     Check_Gc
     v0.nint = el;
     t0.kernel = tag;
@@ -2639,9 +2639,9 @@ dom_remove_element(ec_eng_t *ec_eng, register pword *p, register word el, word t
 		break;
 	    else {
 		r->tag.kernel = TLIST;
-		r->val.ptr = Gbl_Tg;
-		r = Gbl_Tg;
-		Gbl_Tg += 2;
+		r->val.ptr = TG;
+		r = TG;
+		TG += 2;
 		Check_Gc
 		elem = s;
 		r->val.nint = s->val.nint;
@@ -2664,9 +2664,9 @@ dom_remove_element(ec_eng_t *ec_eng, register pword *p, register word el, word t
 	    if (comp)
 	    {			/* interval is before the element */
 		r->tag.kernel = TLIST;
-		r->val.ptr = Gbl_Tg;
-		r = Gbl_Tg;
-		Gbl_Tg += 2;
+		r->val.ptr = TG;
+		r = TG;
+		TG += 2;
 		Check_Gc
 		*r++ = *u;
 	    }
@@ -2917,8 +2917,8 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td, ec_eng_t *ec_eng)
 	Check_List(tl)
     }
 
-    p = ints = Gbl_Tg;
-    Gbl_Tg++;
+    p = ints = TG;
+    TG++;
     Check_Gc;
 
     if (IsNil(tl)) {
@@ -2986,8 +2986,8 @@ p_integer_list_to_dom(value vl, type tl, value vd, type td, ec_eng_t *ec_eng)
 	size += to - from + 1;
     }
 
-    p = Gbl_Tg;
-    Gbl_Tg += 3;
+    p = TG;
+    TG += 3;
     Check_Gc;
     p[0].tag.kernel = TDICT;
     p[0].val.did = d_dom;

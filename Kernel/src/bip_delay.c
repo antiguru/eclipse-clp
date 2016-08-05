@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.11 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.12 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -240,8 +240,8 @@ _make_goal_list(ec_eng_t *ec_eng, pword *last, register int undelay)
 	    {
 		Set_Susp_Dead(env);
 	    }
-	    pw = Gbl_Tg;
-	    Gbl_Tg += 2;		/* allocate list */
+	    pw = TG;
+	    TG += 2;		/* allocate list */
 	    Check_Gc
 	    *pw = env[SUSP_GOAL];
 	    if (head)
@@ -371,7 +371,7 @@ global_stat(ec_eng_t *ec_eng)
 {
     pword	*tg = TG_ORIG;
     word	arity;
-    word	gsize = 2 * (Gbl_Tg - tg);
+    word	gsize = 2 * (TG - tg);
     word	size_de = 0;	/* delayed goals */
     word	size_mt = 0;	/* metaterms */
     word	size_hb = 0;	/* heap buffers and strings */
@@ -379,7 +379,7 @@ global_stat(ec_eng_t *ec_eng)
     word	size_ls = 0;	/* lists */
     word	size_re = 0;	/* rest */
 
-    while (tg < Gbl_Tg)
+    while (tg < TG)
     {
 	switch (TagType(tg->tag))
 	{
@@ -819,9 +819,9 @@ _setuniv(ec_eng_t *ec_eng, value v, type t)
 	{
 	    register pword *pw = v.ptr;
 	    Trail_If_Needed(pw);
-	    if (pw > Gbl_Tg)		/* if local, globalize first */
+	    if (pw > TG)		/* if local, globalize first */
 	    {
-		pw = Gbl_Tg++;
+		pw = TG++;
 		Check_Gc;
 		v.ptr->val.ptr = pw->val.ptr = pw;
 	    }

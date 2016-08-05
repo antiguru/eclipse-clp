@@ -256,7 +256,7 @@ eng_publish(eng_handle_t m, int max, int *remaining_load)
     int published = 0;
     int choicepoints = 0;
 
-    if (g_emu_.nesting_level > 1)
+    if (ec_eng->nesting_level > 1)
     {
 	p_fprintf(current_err_, "ERROR: eng_publish with level > 1\n");
 	ec_flush(current_err_);
@@ -379,7 +379,7 @@ eng_msg_trigger(eng_handle_t m)
     Disable_Int();
     EVENT_FLAGS |= SCH_MSG_PENDING;
     Enable_Int();
-    if (g_emu_.nesting_level == 1)
+    if (ec_eng->nesting_level == 1)
     {
 	Fake_Overflow;
     }
@@ -537,7 +537,7 @@ cut_public(void)	/* PPB */
 {
     vmcode *cont_pp;
 
-    if (g_emu_.nesting_level > 1)
+    if (ec_eng->nesting_level > 1)
     {
 	p_fprintf(current_err_, "ERROR: cut_public with level > 1\n");
 	ec_flush(current_err_);
@@ -588,7 +588,7 @@ eng_cut_ok(eng_handle_t m, const st_handle_t *cut_parent)
 void
 get_job(void)
 {
-    if (g_emu_.nesting_level > 1)
+    if (ec_eng->nesting_level > 1)
     {
 	p_fprintf(current_err_, "ERROR: get_job with level > 1\n");
 	ec_flush(current_err_);
@@ -1138,7 +1138,7 @@ eng_donate_state(eng_handle_t m, const st_handle_t *dest_node, const st_handle_t
     aport_id_t recv_eng_port;
     pword *bcommon, *bnew, *broot, *bfirst;
 
-    if (g_emu_.nesting_level > 1)
+    if (ec_eng->nesting_level > 1)
     {
 	p_fprintf(current_err_, "ERROR: eng_donate_state with level > 1\n");
 	ec_flush(current_err_);
@@ -1288,18 +1288,18 @@ eng_donate_state(eng_handle_t m, const st_handle_t *dest_node, const st_handle_t
 	cd->bcommon = bcommon;
 	cd->new_anc_branch = BPar(bcommon)->node;
 	cd->new_dest_branch = *dest_node;
-	cd->b_end = g_emu_.control_local[0].end;
-	cd->sp_end = g_emu_.control_local[1].end;
-	cd->tg_end = g_emu_.global_trail[0].end;
-	cd->tt_end = g_emu_.global_trail[1].end;
-	cd->b_limit = g_emu_.b_limit;
-	cd->sp_limit = g_emu_.sp_limit;
+	cd->b_end = ec_eng->control_local[0].end;
+	cd->sp_end = ec_eng->control_local[1].end;
+	cd->tg_end = ec_eng->global_trail[0].end;
+	cd->tt_end = ec_eng->global_trail[1].end;
+	cd->b_limit = ec_eng->b_limit;
+	cd->sp_limit = ec_eng->sp_limit;
 	cd->tg_limit = TG_LIM;
 	cd->tt_limit = TT_LIM;
 	cd->from_worker = ec_options.parallel_worker;
 	cd->copy_id = ++copy_count_;
 	cd->domain_slot = domain_slot;
-	cd->global_variable = g_emu_.global_variable;
+	cd->global_variable = ec_eng->global_variable;
 
 	/* find the engine port on the receiving site */
 	recv_eng_port =
@@ -1543,18 +1543,18 @@ eng_accept_state(amsg_t msg, amsg_data_t *msg_data, amsg_count_t msg_size)
 	ORC = cd->oracle;
 	TG_SEG = cd->segment_size;
 	BPar(cd->bcommon)->node = cd->new_anc_branch; /* if it is not copied */
-	g_emu_.global_variable = cd->global_variable;
+	ec_eng->global_variable = cd->global_variable;
 
 	domain_slot = cd->domain_slot;
 
 	/* map stacks exactly like in the sender */
-	if (!adjust_stacks(g_emu_.control_local, cd->b_end, cd->sp_end, 0) ||
-	    !adjust_stacks(g_emu_.global_trail, cd->tg_end, cd->tt_end, 0))
+	if (!adjust_stacks(ec_eng->control_local, cd->b_end, cd->sp_end, 0) ||
+	    !adjust_stacks(ec_eng->global_trail, cd->tg_end, cd->tt_end, 0))
 	{
 	    ec_panic(MEMORY_P, "accept_state()");
 	}
-	g_emu_.b_limit = cd->b_limit;
-	g_emu_.sp_limit = cd->sp_limit;
+	ec_eng->b_limit = cd->b_limit;
+	ec_eng->sp_limit = cd->sp_limit;
 	TG_LIM = cd->tg_limit;
 	TT_LIM = cd->tt_limit;
 	Restore_Tg_Soft_Lim(cd->tg_soft_lim);
@@ -1608,7 +1608,7 @@ eng_port_upcall(aport_id_t aport)
     Disable_Int();
     EVENT_FLAGS |= ENG_MSG_PENDING;
     Enable_Int();
-    if (g_emu_.nesting_level == 1)
+    if (ec_eng->nesting_level == 1)
     {
 	Fake_Overflow;
     }

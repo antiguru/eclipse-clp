@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.33 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.34 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /*
@@ -150,7 +150,7 @@ typedef code_item	*emu_code;
 #  ifdef i386
 #define Declare_Pp	register emu_code pp asm("%esi");
 #define Restore_Pp
-#define Import_Pp	pp = (emu_code) g_emu_.pp;
+#define Import_Pp	pp = (emu_code) ec_eng->pp;
 #ifdef HAVE_UCONTEXTGREGS
 #define Int_Pp		(((ucontext_t*) context)->uc_mcontext.gregs[REG_ESI])
 #else
@@ -160,7 +160,7 @@ typedef code_item	*emu_code;
 #  ifdef __x86_64
 #define Declare_Pp	register emu_code pp asm("%r13");
 #define Restore_Pp
-#define Import_Pp	pp = (emu_code) g_emu_.pp;
+#define Import_Pp	pp = (emu_code) ec_eng->pp;
 #ifdef HAVE_UCONTEXTGREGS
 #define Int_Pp		(((ucontext_t*) context)->uc_mcontext.gregs[REG_R13])
 #else
@@ -177,20 +177,20 @@ typedef code_item	*emu_code;
  */
 register emu_code	pp	asm("%g4");
 #define Declare_Pp
-#define Restore_Pp	pp = (emu_code) g_emu_.pp;
+#define Restore_Pp	pp = (emu_code) ec_eng->pp;
 #define Import_Pp
 #define Int_Pp		pp
 #  else
 #  ifdef __alpha__
 register emu_code	pp	asm("$12");
 #define Declare_Pp
-#define Restore_Pp	pp = (emu_code) g_emu_.pp;
+#define Restore_Pp	pp = (emu_code) ec_eng->pp;
 #define Import_Pp
 #define Int_Pp		pp
 #  else
 #define Declare_Pp	register emu_code pp;
 #define Restore_Pp
-#define Import_Pp	pp = (emu_code) g_emu_.pp;
+#define Import_Pp	pp = (emu_code) ec_eng->pp;
 #define Int_Pp		0
 #  endif
 #  endif
@@ -199,29 +199,29 @@ register emu_code	pp	asm("$12");
 #else
 #define Declare_Pp	register emu_code pp;
 #define Restore_Pp
-#define Import_Pp	pp = (emu_code) g_emu_.pp;
+#define Import_Pp	pp = (emu_code) ec_eng->pp;
 #define Int_Pp		0
 #endif
 
 #define PP		pp
-#define Export_Pp	g_emu_.pp = (vmcode *) pp;
+#define Export_Pp	ec_eng->pp = (vmcode *) pp;
 
 #ifdef FEW_REGISTERS	/* leave EB,GB,E,TG in the global structure */
 
 #define Declare_Eb
-#define	EB		g_emu_.eb
+#define	EB		ec_eng->eb
 #define Declare_Gb
-#define	GB		g_emu_.gb
+#define	GB		ec_eng->gb
 #define Declare_E
-#define	E		g_emu_.e
+#define	E		ec_eng->e
 #define Declare_Tg
-#define	TG		g_emu_.tg
+#define	TG		ec_eng->tg
 
-#define Export_B_Sp_Tg_Tt	g_emu_.sp = sp; \
-				Export_Pp g_emu_.vm_flags |= EXPORTED;
+#define Export_B_Sp_Tg_Tt	ec_eng->sp = sp; \
+				Export_Pp ec_eng->vm_flags |= EXPORTED;
 #define Export_B_Sp_Tg_Tt_Eb_Gb	Export_B_Sp_Tg_Tt
 #define Import_Tg_Tt		Import_None
-#define Import_B_Sp_Tg_Tt_Eb_Gb	sp = g_emu_.sp; Import_Tg_Tt
+#define Import_B_Sp_Tg_Tt_Eb_Gb	sp = ec_eng->sp; Import_Tg_Tt
 
 #else		/* !FEW_REGISTERS: shadow EB,GB,E,TG in local variables */
 
@@ -234,11 +234,11 @@ register emu_code	pp	asm("$12");
 #define Declare_Tg	register pword *tg;
 #define	TG		tg
 
-#define Export_B_Sp_Tg_Tt	g_emu_.sp=sp; g_emu_.e=e; g_emu_.tg=tg;\
-				Export_Pp g_emu_.vm_flags |= EXPORTED;
-#define Export_B_Sp_Tg_Tt_Eb_Gb	g_emu_.eb=eb; g_emu_.gb=gb; Export_B_Sp_Tg_Tt
-#define Import_Tg_Tt		tg=g_emu_.tg; Import_None
-#define Import_B_Sp_Tg_Tt_Eb_Gb	eb=g_emu_.eb; gb=g_emu_.gb; sp=g_emu_.sp; e=g_emu_.e; Import_Tg_Tt
+#define Export_B_Sp_Tg_Tt	ec_eng->sp=sp; ec_eng->e=e; ec_eng->tg=tg;\
+				Export_Pp ec_eng->vm_flags |= EXPORTED;
+#define Export_B_Sp_Tg_Tt_Eb_Gb	ec_eng->eb=eb; ec_eng->gb=gb; Export_B_Sp_Tg_Tt
+#define Import_Tg_Tt		tg=ec_eng->tg; Import_None
+#define Import_B_Sp_Tg_Tt_Eb_Gb	eb=ec_eng->eb; gb=ec_eng->gb; sp=ec_eng->sp; e=ec_eng->e; Import_Tg_Tt
 
 #endif /* FEW_REGISTERS */
 
@@ -246,11 +246,11 @@ register emu_code	pp	asm("$12");
 #define	SP		sp
 #define Declare_S	register pword *s;
 #define	S		s
-#define TT		g_emu_.tt
-#define B		g_emu_.b
+#define TT		ec_eng->tt
+#define B		ec_eng->b
 
 #define Export_All	Export_B_Sp_Tg_Tt_Eb_Gb
-#define Import_None	Restore_Pp g_emu_.vm_flags &= ~EXPORTED;
+#define Import_None	Restore_Pp ec_eng->vm_flags &= ~EXPORTED;
 #define Import_All	Import_Pp Import_B_Sp_Tg_Tt_Eb_Gb
 
 #if defined(PRINTAM)
@@ -689,14 +689,14 @@ int tg_above_trap = 0;		/* true while TG is above tg_trap */
  */
 
 #define Check_Local_Overflow					\
-	if (SP <= g_emu_.sp_limit) {			\
+	if (SP <= ec_eng->sp_limit) {			\
 	    Export_B_Sp_Tg_Tt					\
 	    if (local_ov(ec_eng)) goto _local_control_overflow_;	\
 	    Import_None						\
 	}
 
 #define Check_Control_Overflow					\
-	if (B.args >= g_emu_.b_limit) {			\
+	if (B.args >= ec_eng->b_limit) {			\
 	    Export_B_Sp_Tg_Tt					\
 	    if (control_ov(ec_eng)) goto _local_control_overflow_;	\
 	    Import_None						\
@@ -1924,7 +1924,7 @@ _do_requested_throw_:
 		{
 		    /* NOTE: Sync events are only handled in nesting level 1! */
 		    next_posted_event(ec_eng, &A[1]);	/* may redo Fake_Overflow */
-		    if (g_emu_.nesting_level > 1)	/* don't handle now */
+		    if (ec_eng->nesting_level > 1)	/* don't handle now */
 		    {
 			ecl_post_event(ec_eng, A[1]); /* re-post */
 			Pop_Ret_Code
@@ -1963,7 +1963,7 @@ _do_requested_throw_:
 			{ Fake_Overflow; }
 		}
 	    }
-	    else if (g_emu_.nesting_level == 1)	/* parallelism-related event */
+	    else if (ec_eng->nesting_level == 1)	/* parallelism-related event */
 	    {
 		Pop_Ret_Code
 
@@ -6785,7 +6785,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    EB = Invoc(pw1)->eb;
 	    GB = Invoc(pw1)->gb;
 	    Debug_Check_Global
-	    g_emu_.nesting_level = Invoc(pw1)->nesting_level;
+	    ec_eng->nesting_level = Invoc(pw1)->nesting_level;
 
 	    WP = Invoc(pw1)->wp;
 	    WP_STAMP = Invoc(pw1)->wp_stamp;
@@ -6937,7 +6937,7 @@ _exit_engine_:				/* (scratch_pw) */
 	    Next_Pp;
 
          Case(BI_SetBipError, I_BI_SetBipError)
-	    if (g_emu_.global_bip_error == 0)
+	    if (ec_eng->global_bip_error == 0)
 	    {
 		Get_Argument(pw1)
 		Dereference_Pw_Tag(pw1, tmp1);
@@ -7992,7 +7992,7 @@ sigprof_handler(void)
     if (VM_FLAGS & PROFILING)
     {
 	if (VM_FLAGS & EXPORTED)
-	    (void) ec_outfw(profile_stream_, (word) g_emu_.pp);
+	    (void) ec_outfw(profile_stream_, (word) ec_eng->pp);
 	else
 	{
 	    (void) ec_outfw(profile_stream_, (word) Int_Pp);

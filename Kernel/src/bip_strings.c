@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_strings.c,v 1.6 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: bip_strings.c,v 1.7 2016/08/05 19:59:02 jschimpf Exp $
  */
 
 /*
@@ -86,7 +86,7 @@ p_string_list(value vs, type ts, value vl, type tl, ec_eng_t *ec_eng)
     register pword	*pw, *list;
     register char	*s;
     register int	len;
-    pword		*old_tg = Gbl_Tg;
+    pword		*old_tg = TG;
 
     if (IsRef(ts))			/* no string given	*/
     {
@@ -105,31 +105,31 @@ p_string_list(value vs, type ts, value vl, type tl, ec_eng_t *ec_eng)
 		Dereference_(pw);		/* get the list element	*/
 		if (IsRef(pw->tag))		/* check it		*/
 		{
-		    Gbl_Tg = old_tg;
+		    TG = old_tg;
 		    Push_var_delay(vs.ptr, ts.all);
 		    Push_var_delay(pw, pw->tag.all);
 		    Bip_Error(PDELAY);
 		}
 		else if (!IsInteger(pw->tag))
 		{
-		    Gbl_Tg = old_tg;
+		    TG = old_tg;
 		    Bip_Error(TYPE_ERROR);
 		}
 		else if (pw->val.nint < 0  ||  pw->val.nint > 255)
 		{
-		    Gbl_Tg = old_tg;
+		    TG = old_tg;
 		    Bip_Error(RANGE_ERROR);
 		}
 		*s++ = pw->val.nint;
-		if (s == (char *) Gbl_Tg)	/* we need another pword */
+		if (s == (char *) TG)	/* we need another pword */
 		{
-		    Gbl_Tg += 1;
+		    TG += 1;
 		    Check_Gc;
 		}
 		Dereference_(list);		/* get the list tail	*/
 		if (IsRef(list->tag))
 		{
-		    Gbl_Tg = old_tg;
+		    TG = old_tg;
 		    Push_var_delay(vs.ptr, ts.all);
 		    Push_var_delay(list, list->tag.all);
 		    Bip_Error(PDELAY);
@@ -140,7 +140,7 @@ p_string_list(value vs, type ts, value vl, type tl, ec_eng_t *ec_eng)
 		    break;			/* end of the list	*/
 		else
 		{
-		    Gbl_Tg = old_tg;
+		    TG = old_tg;
 		    Bip_Error(TYPE_ERROR);
 		}
 	    }
@@ -173,8 +173,8 @@ p_string_list(value vs, type ts, value vl, type tl, ec_eng_t *ec_eng)
 	 * may wrap around the address space and break Check_Gc below
 	 */
 	Check_Available_Pwords(2*len);
-	pw = Gbl_Tg;			/* reserve space for the list	*/
-	Gbl_Tg += 2*len;
+	pw = TG;			/* reserve space for the list	*/
+	TG += 2*len;
 	Check_Gc;
 	pw->val.nint = *s++ & 0xFFL;	/* construct the list	*/
 	pw++->tag.kernel = TINT;
@@ -207,7 +207,7 @@ p_text_to_string(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
     pword	*pw, *list;
     char	*s;
     int		len;
-    pword	*old_tg = Gbl_Tg;
+    pword	*old_tg = TG;
 
     if (IsRef(t))
     {
@@ -245,7 +245,7 @@ p_text_to_string(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
 	    Dereference_(pw);		/* get the list element	*/
 	    if (IsRef(pw->tag))		/* check it		*/
 	    {
-		Gbl_Tg = old_tg;
+		TG = old_tg;
 		Push_var_delay(vs.ptr, ts.all);
 		Push_var_delay(pw, pw->tag.all);
 		Bip_Error(PDELAY);
@@ -256,7 +256,7 @@ p_text_to_string(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
 		c = pw->val.nint;
 		if (c < 0 || 255 < c)
 		{
-		    Gbl_Tg = old_tg;
+		    TG = old_tg;
 		    Bip_Error(RANGE_ERROR);
 		}
 	    }
@@ -265,26 +265,26 @@ p_text_to_string(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
 		element_type |= 2;
 		if (DidLength(pw->val.did) != 1)
 		{
-		    Gbl_Tg = old_tg;
+		    TG = old_tg;
 		    Bip_Error(RANGE_ERROR);
 		}
 		c = DidName(pw->val.did)[0];
 	    }
 	    else
 	    {
-		Gbl_Tg = old_tg;
+		TG = old_tg;
 		Bip_Error(TYPE_ERROR);
 	    }
 	    *s++ = c;
-	    if (s == (char *) Gbl_Tg)	/* we need another pword */
+	    if (s == (char *) TG)	/* we need another pword */
 	    {
-		Gbl_Tg += 1;
+		TG += 1;
 		Check_Gc;
 	    }
 	    Dereference_(list);		/* get the list tail	*/
 	    if (IsRef(list->tag))
 	    {
-		Gbl_Tg = old_tg;
+		TG = old_tg;
 		Push_var_delay(vs.ptr, ts.all);
 		Push_var_delay(list, list->tag.all);
 		Bip_Error(PDELAY);
@@ -295,13 +295,13 @@ p_text_to_string(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
 		break;			/* end of the list	*/
 	    else
 	    {
-		Gbl_Tg = old_tg;
+		TG = old_tg;
 		Bip_Error(TYPE_ERROR);
 	    }
 	}
 	if (element_type != 1 && element_type != 2)	/* mixed type list? */
 	{
-	    Gbl_Tg = old_tg;
+	    TG = old_tg;
 	    Bip_Error(TYPE_ERROR);
 	}
 	*s = '\0';			/* terminate the string		*/
@@ -559,7 +559,7 @@ p_concat_atoms(value v1, type t1, value v2, type t2, value vconc, type tconc, ec
 	register char	*s, *t;
 	value		v;
 	register word	l1, l2;
-	pword		*old_tg = Gbl_Tg;
+	pword		*old_tg = TG;
 
         Check_Output_Atom_Or_Nil(vconc, tconc);	
 	Check_Output_Atom_Or_Nil(v1, t1);
@@ -582,7 +582,7 @@ p_concat_atoms(value v1, type t1, value v2, type t2, value vconc, type tconc, ec
 	*s = '\0';
 
 	cdid = enter_dict_n(StringStart(v), StringLength(v), 0);
-	Gbl_Tg = old_tg;
+	TG = old_tg;
 	Return_Unify_Atom(vconc, tconc, cdid);
 }
 
@@ -786,7 +786,7 @@ p_join_string(value v1, type t1, value vsep, type tsep, value vconc, type tconc,
 static int
 p_concat_atom(value v1, type t1, value vconc, type tconc, ec_eng_t *ec_eng)
 {
-    pword	*old_tg = Gbl_Tg;
+    pword	*old_tg = TG;
     value	v, vsep;
     dident	cdid;
     int		status;
@@ -802,7 +802,7 @@ p_concat_atom(value v1, type t1, value vconc, type tconc, ec_eng_t *ec_eng)
     }
     Kill_DE;
     cdid = enter_dict_n(StringStart(v), StringLength(v), 0);
-    Gbl_Tg = old_tg;	/* the string can be discarded now */
+    TG = old_tg;	/* the string can be discarded now */
     Return_Unify_Atom(vconc, tconc, cdid);
 }
 
