@@ -1198,27 +1198,16 @@ Yes (3.00s cpu)
    maintain consistency of shared data structures.
 </P><P>
    The following object handles can be used as Mutex:
-<DL>
-    <DT>stream</DT><DD>
-        Stream handle (a stream handle can obtained from a stream alias
-        by using get_stream/2)
-    </DD>
-    <DT>shelf</DT><DD>
-        Shelf handle (anonymous shelf).
-    </DD>
-    <DT>store</DT><DD>
-        Store handle (anonymous store).
-    </DD>
-    <DT>bag</DT><DD>
-        Bag handle.
-    </DD>
-    <DT>record</DT><DD>
-        Record handle (a record handle can be obtained from a record
-        name by using record_handle/2).
-    </DD>
-</DL>
+<UL>
+    <LI>stream handle</LI>
+    <LI>shelf handle</LI>
+    <LI>store handle</LI>
+    <LI>bag handle</LI>
+    <LI>record handle</LI>
+</UL>
+   To obtain a handle from an object's alias name, use name_to_handle/3.
    There is currently no special-purpose 'mutex' handle: a dummy 'bag'
-   object can be used for this purpose.
+   object can be used for this purpose.  
 </P><P>
    Mutexes are recursive, i.e. nested calls to with_mutex/2 within a
    thread are allowed.
@@ -1241,7 +1230,8 @@ Yes (3.00s cpu)
     write_list(Stream, []) :- nl(Stream).
     write_list(Stream, [X|Xs]) :- writeln(Stream, X), write_list(Stream, Xs).
 ",
-        see_also:[(once) / 1,condition_signal/2,condition_wait/2,is_handle/2]]).
+        see_also:[(once)/1,condition_signal/2,condition_wait/2,
+		name_to_handle/3,is_handle/2]]).
 
 
 :- comment(condition_signal / 2, [
@@ -1280,26 +1270,15 @@ Yes (3.00s cpu)
                 condition_signal(Handle, all).
 </PRE>
 </P><P>
-    The following object handles can be used for condition signaling:
-<DL>
-    <DT>stream</DT><DD>
-        Stream handle (you can obtain a stream handle from a stream
-        alias by using get_stream/2)
-    </DD>
-    <DT>shelf</DT><DD>
-        Shelf handle (anonymous shelf).
-    </DD>
-    <DT>store</DT><DD>
-        Store handle (anonymous store).
-    </DD>
-    <DT>bag</DT><DD>
-        Bag handle.
-    </DD>
-    <DT>record</DT><DD>
-        Record handle (you can obtain a record handle from a record name
-        by using record_handle/2).
-    </DD>
-</DL>
+    The following object handles can be used for condition signaling (to
+    obtain a handle from an object's alias name, use name_to_handle/3):
+<UL>
+    <LI>stream handle</LI>
+    <LI>shelf handle</LI>
+    <LI>store handle</LI>
+    <LI>bag handle</LI>
+    <LI>record handle</LI>
+</UL>
     Typically, condition_signal/2 is exeuted in a context where the
     Handle has been locked, i.e. inside with_mutex/2.  This is for grouping
     operations on Handle and signaling on Handle into an atomic action
@@ -1367,7 +1346,7 @@ Yes (3.00s cpu)
     thread_received_message(hello from main)     % printed after 3 seconds
 
 ",
-        see_also:[is_handle/2,condition_wait/2,with_mutex/2]]).
+        see_also:[is_handle/2,condition_wait/2,with_mutex/2,name_to_handle/3]]).
 
 
 :- comment(condition_wait / 2, [
@@ -1400,5 +1379,5 @@ Yes (3.00s cpu)
         170: "Operating system error, e.g. Handle was not locked."
         ],
     eg:"See condition_signal/2",
-    see_also:[is_handle/2,condition_signal/2,with_mutex/2]]).
+    see_also:[is_handle/2,condition_signal/2,with_mutex/2,name_to_handle/3]]).
 
