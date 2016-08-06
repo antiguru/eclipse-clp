@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_shelf.c,v 1.6 2016/08/04 09:46:07 jschimpf Exp $
+ * Version:	$Id: bip_shelf.c,v 1.7 2016/08/06 00:11:28 jschimpf Exp $
  *
  * Contents:	Built-ins for the shelf-primitives
  *
@@ -305,6 +305,15 @@ p_shelf_name(value vname, type tname, value vhandle, type thandle, value vmod, t
     prop->val.wptr = (uword *) heap_array_tid.copy(obj);
     mt_mutex_unlock(&PropertyLock);
     Succeed_;
+}
+
+
+static int
+p_shelf_size(value vhandle, type thandle, value vval, type tval, value vmod, type tmod, ec_eng_t *ec_eng)
+{
+    t_heap_array *obj;
+    Get_Shelf(vhandle, thandle, vmod, tmod, obj);
+    Return_Unify_Integer(vval, tval, DidArity(obj->array[0].val.did));
 }
 
 
@@ -617,6 +626,7 @@ bip_shelf_init(int flags)
 	(void) built_in(in_dict("shelf_set_",4), p_shelf_set, B_SAFE);
 	(void) built_in(in_dict("shelf_inc_",3), p_shelf_inc, B_SAFE);
 	(void) built_in(in_dict("shelf_dec_",3), p_shelf_dec, B_SAFE);
+	(void) built_in(in_dict("shelf_size_",3), p_shelf_size, B_SAFE);
 	(void) built_in(in_dict("shelf_inc_and_get_",4), p_shelf_inc_and_get, B_SAFE);
 	(void) built_in(in_dict("shelf_get_and_dec_",4), p_shelf_get_and_dec, B_SAFE);
 	(void) built_in(in_dict("shelf_test_and_set_",5), p_shelf_test_and_set, B_SAFE);

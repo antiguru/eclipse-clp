@@ -505,6 +505,7 @@
 :-(reexport(from(/(shelf_inc,2),sepia_kernel))).
 :-(reexport(from(/(shelf_inc_and_get,3),sepia_kernel))).
 :-(reexport(from(/(shelf_set,3),sepia_kernel))).
+:-(reexport(from(/(shelf_size,2),sepia_kernel))).
 :-(reexport(from(/(shelf_test_and_set,4),sepia_kernel))).
 :-(reexport(from(/(sin,2),sepia_kernel))).
 :-(reexport(from(/(skipped,1),sepia_kernel))).

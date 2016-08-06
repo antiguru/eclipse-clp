@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.19 2016/08/05 15:25:50 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.20 2016/08/06 00:12:08 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -535,6 +535,7 @@
 :- reexport shelf_inc / 2 from sepia_kernel.
 :- reexport shelf_inc_and_get / 3 from sepia_kernel.
 :- reexport shelf_set / 3 from sepia_kernel.
+:- reexport shelf_size / 2 from sepia_kernel.
 :- reexport shelf_test_and_set / 4 from sepia_kernel.
 :- reexport sin / 2 from sepia_kernel.
 :- reexport (skipped) / 1 from sepia_kernel.

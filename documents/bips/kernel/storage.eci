@@ -38,6 +38,7 @@
 :- tool(shelf_get / 3).
 :- tool(shelf_inc / 2).
 :- tool(shelf_set / 3).
+:- tool(shelf_size / 2).
 :- tool(store_contains / 2).
 :- tool(store_count / 2).
 :- tool(store_delete / 2).
@@ -807,6 +808,33 @@
 	No (0.00s cpu)
     ",
     see_also:[shelf_create/2, shelf_create/3, shelf_get/3, shelf_set/3, struct/1]
+    ]).
+
+:- comment(shelf_size/2, [
+    summary:"Get the number of slots of a shelf object",
+    desc:html("<P>\
+	Retrieves the fixed number of slots that the shelf was created with.
+	The slots are numbered from 1 to Size.
+</P><P>
+	Note: If ShelfHandle is not a handle, then it must be an atom or a
+	compound term, and the shelf is identified by this term's toplevel
+	functor together with the context module.
+</P>"),
+    amode:(shelf_size(+,-) is det),
+    args:["ShelfHandle":"A shelf handle or shelf name",
+	    "Size":"A variable or integer (output)"],
+    exceptions:[4: "ShelfHandle is not instantiated",
+    	5 : "ShelfHandle is not a shelf",
+    	40 : "ShelfHandle refers to an already destroyed shelf"],
+    eg:"
+    ?- shelf_create(foo(0,0,0), Shelf),
+       shelf_size(Shelf, Size).
+
+    Shelf = 'SHELF'(16'7e2dcd00)
+    S = 3
+    Yes (0.00s cpu)
+    ",
+    see_also:[shelf_create/2, shelf_create/3]
     ]).
 
 :- comment(shelf_abolish/1, [

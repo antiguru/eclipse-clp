@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.61 2016/08/05 15:25:50 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.62 2016/08/06 00:12:08 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -247,6 +247,7 @@
    tool(shelf_get/3, shelf_get_/4),
    tool(shelf_inc/2, shelf_inc_/3),
    tool(shelf_set/3, shelf_set_/4),
+   tool(shelf_size/2, shelf_size_/3),
    tool(shelf_inc_and_get/3, shelf_inc_and_get_/4),
    tool(shelf_get_and_dec/3, shelf_get_and_dec_/4),
    tool(shelf_test_and_set/4, shelf_test_and_set_/5),
