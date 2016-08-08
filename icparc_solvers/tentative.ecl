@@ -25,7 +25,7 @@
 %
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
-% Version:	$Id: tentative.ecl,v 1.5 2013/01/23 19:43:04 jschimpf Exp $
+% Version:	$Id: tentative.ecl,v 1.6 2016/08/08 14:36:55 jschimpf Exp $
 %
 % ----------------------------------------------------------------------
 
@@ -35,7 +35,7 @@
 :- comment(categories, ["Techniques","Constraints"]).
 :- comment(summary, "A framework for Local Search based on tentative values").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2013/01/23 19:43:04 $").
+:- comment(date, "$Date: 2016/08/08 14:36:55 $").
 :- comment(copyright, "Cisco Systems").
 
 :- comment(see_also, [library(tentative_constraints)]).
@@ -379,11 +379,11 @@ get_attribute(_{Attr0}, Attr) ?-
     Yes (0.00s cpu)
 
     ?- tent_get(X, TV).
-    uncaught exception in exit_block(tentative_value_not_set)
+    uncaught exception in throw(tentative_value_not_set)
     Abort
 
     ?- tent_get(foo(X), TV).
-    uncaught exception in exit_block(tentative_value_not_set)
+    uncaught exception in throw(tentative_value_not_set)
     Abort
     "
 ]).
@@ -392,7 +392,7 @@ tent_get(_X{tentative{tentval:V0}}, TVal) ?- !,
 	TVal = V0.
 tent_get(X, _TVal) :-
 	var(X),
-	exit_block(tentative_value_not_set).
+	throw(tentative_value_not_set).
 tent_get(Term, TValTerm) :-
 	compound(Term),
 	!,
@@ -437,7 +437,7 @@ tent_get(X, TVal) :-
     Yes (0.00s cpu)
 
     ?- var_get_violations(_, V).
-    uncaught exception in exit_block(tentative_value_not_set)
+    uncaught exception in throw(tentative_value_not_set)
     Abort
     "
 ]).
@@ -446,7 +446,7 @@ var_get_violations(_X{tentative{violations:Vio0}}, Vio) ?- !,
 	Vio = Vio0.
 var_get_violations(X, _TVal) :-
 	var(X), !,
-	exit_block(tentative_value_not_set).
+	throw(tentative_value_not_set).
 var_get_violations(_, 0).
 
 
@@ -703,7 +703,7 @@ var_inc_violations(_{Attr}, C) ?-
 	    V1 is V0+C,
 	    setarg(violations of tentative, Attr, V1)
 	;
-	    exit_block(tentative_value_not_set)
+	    throw(tentative_value_not_set)
 	).
 var_inc_violations(Const, _) :-
 	nonvar(Const).
@@ -799,11 +799,11 @@ register_for_sum(_X{Attr}, Coeff, Sum) ?- !,
 	    setarg(sums of tentative, Attr,
 		    [summand{coeff:Coeff,old:Xt,sum:Sum}|Sums])
 	;
-	    exit_block(tentative_value_not_set)
+	    throw(tentative_value_not_set)
 	).
 register_for_sum(X, _Coeff, _Sum) :-
 	var(X),
-	exit_block(tentative_value_not_set).
+	throw(tentative_value_not_set).
 register_for_sum(X, _Coeff, _Sum) :-
 	nonvar(X).
 
@@ -827,11 +827,11 @@ extend_sum(_X{Attr}, Coeff, Sum) ?- !,
 	    SumNew is tent_get(Sum) + Coeff*Xt,
 	    tent_set(Sum, SumNew)
 	;
-	    exit_block(tentative_value_not_set)
+	    throw(tentative_value_not_set)
 	).
 extend_sum(X, _Coeff, _Sum) :-
 	var(X),
-	exit_block(tentative_value_not_set).
+	throw(tentative_value_not_set).
 extend_sum(X, Coeff, Sum) :-
 	number(X),
 	SumNew is tent_get(Sum) + Coeff*X,
@@ -896,11 +896,11 @@ register_for_notification(_X{Attr}, Tag, Receiver) ?- !,
 	    ( var(SendPort) -> open_tagging_sender(SendPort) ; true ),
 	    open_tagged_receiver(Tag, SendPort, Receiver)
 	;
-	    exit_block(tentative_value_not_set)
+	    throw(tentative_value_not_set)
 	).
 register_for_notification(X, _, _) :-
 	var(X),
-	exit_block(tentative_value_not_set).
+	throw(tentative_value_not_set).
 register_for_notification(X, _, _) :-
 	nonvar(X).
 
@@ -955,7 +955,7 @@ change_summand(Summand, New) :-
     X = a
     Yes (0.00s cpu)
 
-    ?- random_element([a, b, c, d], X).
+    ?- random_element([](a, b, c, d), X).
     X = c
     Yes (0.00s cpu)
 
@@ -979,8 +979,7 @@ random_element([X1|Xs], Pick) ?- !,
 	).
 random_element(Xs, Pick) :-
 	compound(Xs),
-	functor(Xs, [], N),
-	I is 1 + random mod N,
+	I is 1 + random mod arity(Xs),
 	arg(I, Xs, Pick).
 
 /*
@@ -1007,8 +1006,7 @@ random_element([X1|Xs], Pick, I) ?- !,
 	).
 random_element(Xs, Pick, I) :-
 	compound(Xs),
-	functor(Xs, [], N),
-	I is 1 + random mod N,
+	I is 1 + random mod arity(Xs),
 	arg(I, Xs, Pick).
 */
 
@@ -1240,6 +1238,9 @@ cs_create(CS, _Options) :-
 	</P>
     "),
     eg:"
+    ?- lib(tentative_constraints).	% for alldifferent/1
+    Yes (0.00s cpu)
+
     ?- length(Xs, 5), tent_set_all(Xs, 99), CS :~ alldifferent(Xs).
     Xs = [Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}]
     CS = constraint_set(TotalVio{10 -> 0}, ...)
@@ -1345,6 +1346,9 @@ cs_clear_satisfied(CS) :-
 	</P>
     "),
     eg:"
+    ?- lib(tentative_constraints).	% for alldifferent/1
+    Yes (0.00s cpu)
+
     ?- length(Xs, 5), tent_set_all(Xs, 99), CS :~ alldifferent(Xs),
        cs_violations(CS, V).
     Xs = [Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}]
@@ -1372,6 +1376,9 @@ cs_violations(constraint_set{violations:Violations}, V) ?-
 	</P>
     "),
     eg:"
+    ?- lib(tentative_constraints).	% for alldifferent/1
+    Yes (0.00s cpu)
+
     ?- length(Xs, 5), tent_set_all(Xs, 99), CS :~ alldifferent(Xs),
        cs_current_violations(CS, V).
     Xs = [Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}, Xi{99 -> 4}]
@@ -1638,7 +1645,8 @@ cs_random_worst(constraint_set{monitored_constraints:MCs}, Worst) ?-
 	Create an abstract 'varset' from the tentative variables in a term.
 	A varset is an ordered set of variables that can be accessed by
 	index, or by their violation properties. Elements are indexed from
-	1 to size of the set.
+	1 to size of the set, where the numbering corresponds to the order of
+	the variables in a depth-first, left-to-right traversal of the term Vars.
     "),
     eg:"
     ?- Vars = [_,_,_], tent_set_all(Vars, 99), vs_create(Vars, VS).
@@ -1653,12 +1661,20 @@ vs_create(Term, VS) :-
 
 
 %:- export vs_create/3.
-vs_create(Term, VS, _Options) :-
-	term_variables(Term, Xs),
-	length(Xs, N),
+vs_create(Term, VSOut, _Options) :-
+	term_variables_array(Term, Xz),
+	arity(Xz, N),
 	functor(VS, [], N),
-	( foreach(X,Xs), foreacharg(Attr,VS) do
-	    get_attribute(X, Attr)
+	(
+	    ( for(I,1,N), param(Xz,VS) do
+		arg(I, Xz, X),
+		arg(I, VS, Attr),
+		get_attribute(X, Attr)
+	    )
+	->
+	    VSOut = VS
+	;
+	    throw(tentative_value_not_set)
 	).
 
 
@@ -1673,14 +1689,15 @@ vs_create(Term, VS, _Options) :-
 	Get the size (number of elements) of a varset.
     "),
     eg:"
-    ?- Vars=[A,B,C], vs_create(Vars, VS), vs_size(VS, N).
+    ?- Vars=[_,_,_], tent_set_all(Vars, 99), vs_create(Vars, VS), vs_size(VS, N).
+    Vars = ...
     VS = ...
     N = 3
     Yes (0.00s cpu)
     "
 ]).
 vs_size(VS, N) :-
-	functor(VS, [], N).
+	arity(VS, N).
 
 
 :- export vs_element/3.
@@ -1696,7 +1713,7 @@ vs_size(VS, N) :-
 	size of the set.
     "),
     eg:"
-    ?- Vars=[A,B,C], vs_create(Vars, VS), vs_element(VS, 1, X).
+    ?- Vars=[A,B,C], tent_set_all(Vars, 99), vs_create(Vars, VS), vs_element(VS, 3, X).
     VS = ...
     X = C
     Yes (0.00s cpu)
@@ -1721,7 +1738,7 @@ vs_element(VS, I, X) :-
 ]).
 
 vs_member(VS, X) :-
-	vs_size(VS, N),
+	arity(VS, N),
 	between(1, N, 1, I),
 	arg(I, VS, Attr),
 	Attr = tentative{value:X}.
@@ -1742,7 +1759,7 @@ vs_member(VS, X) :-
        vs_create(Vars, VS), vs_all(VS, VSVars).
     Vars = [A{1 -> 0}, B{2 -> 0}, C{3 -> 0}]
     VS = ...
-    VSVars = [C{3 -> 0}, B{2 -> 0}, A{1 -> 0}]
+    VSVars = [A{1 -> 0}, B{2 -> 0}, C{3 -> 0}]
     Yes (0.00s cpu)
     "
 ]).
@@ -1804,10 +1821,10 @@ vs_all_violated(VS, AllVio) :-
     "),
     eg:"
     ?- Vars=[A,B,C], tent_set(Vars, [1,2,3]), vs_create(Vars, VS),
-       var_inc_violations(B, 1), vs_all_violated(VS, VSIs).
+       var_inc_violations(B, 1), vs_all_violated_index(VS, VSIs).
     Vars = [A{1 -> 0}, B{2 -> 1}, C{3 -> 0}]
     VS = ...
-    VSVars = [2]
+    VSIs = [2]
     Yes (0.00s cpu)
     "
 ]).
@@ -1854,7 +1871,7 @@ vs_violated(VS, Vio) :-
     ")
 ]).
 vs_violated_index(VS, IVio) :-
-	vs_size(VS, N),
+	arity(VS, N),
 	between(1, N, 1, I),
 	arg(I, VS, Attr),
 	Attr = tentative{violations:VThis},
@@ -1890,17 +1907,18 @@ vs_all_worst(VS, AllWorst) :-
 	(
 	    foreacharg(This,VS),
 	    fromto(0,VOld,VNew,_VWorst),
-	    fromto([],Old,New,AllWorst)
+	    fromto(Ws,Ws1,Ws2,AllWorst),
+	    fromto(Ws,Wt1,Wt2,[])
 	do
 	    This = tentative{value:V, violations:VThis},
 	    ( VThis > VOld ->
-	    	VNew = VThis, New = [V]
+	    	VNew = VThis, Ws2 = [V|Wt2]		% new list
 	    ; VThis < VOld ->
-	    	VNew = VOld, New = Old
+	    	VNew = VOld, Ws2=Ws1, Wt2=Wt1
 	    ; VOld > 0 ->
-	    	VNew = VOld, New = [V|Old]
+	    	VNew = VOld, Ws2=Ws1, Wt1 = [V|Wt2]	% append
 	    ;
-	    	VNew = VOld, New = Old
+	    	VNew = VOld, Ws2=Ws1, Wt2=Wt1
 	    )
 	).
 
@@ -1921,17 +1939,18 @@ vs_all_worst_index(VS, AllWorstI) :-
 	(
 	    foreacharg(This,VS,I),
 	    fromto(0,VOld,VNew,_VWorst),
-	    fromto([],Old,New,AllWorstI)
+	    fromto(Ws,Ws1,Ws2,AllWorstI),
+	    fromto(Ws,Wt1,Wt2,[])
 	do
 	    This = tentative{violations:VThis},
 	    ( VThis > VOld ->
-	    	VNew = VThis, New = [I]
+	    	VNew = VThis, Ws2 = [I|Wt2]		% new list
 	    ; VThis < VOld ->
-	    	VNew = VOld, New = Old
+	    	VNew = VOld, Ws2=Ws1, Wt2=Wt1
 	    ; VOld > 0 ->
-	    	VNew = VOld, New = [I|Old]
+	    	VNew = VOld, Ws2=Ws1, Wt1 = [I|Wt2]	% append
 	    ;
-	    	VNew = VOld, New = Old
+	    	VNew = VOld, Ws2=Ws1, Wt2=Wt1
 	    )
 	).
 
@@ -2019,7 +2038,7 @@ vs_random_worst(VS, Worst) :-
        var_inc_violations(A, 2),
        var_inc_violations(B, 1),
        var_inc_violations(C, 2),
-       vs_random_worst(VS, Worst).
+       vs_random_worst_index(VS, Worst).
     Vars = [A{1 -> 2}, B{2 -> 1}, Worst{3 -> 2}]
     VS = ...
     Worst = 1       % 1 or 3, the result is random!
@@ -2062,7 +2081,11 @@ vs_random_worst_index(VS, IWorst) :-
     desc:html("
 	Retrieve a variable from a varset whose violation count is
 	nonzero. If there are more than one, a random candidate is returned.
-    "),
+     Vars=[A,B,C], tent_set(Vars, [a,b,c]), vs_create(Vars, VS),
+       var_inc_violations(A, 2),
+       var_inc_violations(C, 1),
+       vs_random_violated(VS, Var).
+"),
     eg:"
     ?- Vars=[A,B,C], tent_set(Vars, [a,b,c]), vs_create(Vars, VS),
        var_inc_violations(A, 2),
@@ -2096,7 +2119,7 @@ vs_random_violated(VS, Var) :-
     ?- Vars=[A,B,C], tent_set(Vars, [a,b,c]), vs_create(Vars, VS),
        var_inc_violations(A, 2),
        var_inc_violations(C, 1),
-       vs_random_violated(VS, I).
+       vs_random_violated_index(VS, I).
     Vars = [A{a -> 2}, B{b -> 0}, C{c -> 1}]
     VS = ...
     I = 1		% 1 or 3, the result is random!
@@ -2161,7 +2184,7 @@ vs_random(VS, Var) :-
     "),
     eg:"
     ?- Vars=[A,B,C], tent_set(Vars, [a,b,c]), vs_create(Vars, VS),
-       vs_random(VS, I).
+       vs_random_index(VS, I).
     Vars = [A{a -> 0}, B{b -> 0}, C{c -> 0}]
     VS = ...
     I = 1		% 1, 2 or 3, the result is random!
@@ -2170,8 +2193,7 @@ vs_random(VS, Var) :-
 ]).
 vs_random_index(VS, I) :-
 	compound(VS),
-	functor(VS, [], N),
-	I is 1 + random mod N.
+	I is 1 + random mod arity(VS).
 
 
 %--------------------------------
@@ -2317,7 +2339,7 @@ tent_is_(Val,Expr,_Module) :- var(Expr), !,
 	( has_tent_value(Expr) ->
 	    Val = Expr
 	;
-	    exit_block(tentative_value_not_set)
+	    throw(tentative_value_not_set)
 	).
 tent_is_(Val,Expr,_Module) :- number(Expr), !,
 	Val = Expr.
@@ -2344,7 +2366,7 @@ tent_addto_(Val,Expr,_Module) :- var(Expr), !,
 	( has_tent_value(Expr) ->
 	    Val = Expr
 	;
-	    exit_block(tentative_value_not_set)
+	    throw(tentative_value_not_set)
 	).
 tent_addto_(Sum, Expr, Module) :-
 	tent_is_(Aux, Expr, Module),
