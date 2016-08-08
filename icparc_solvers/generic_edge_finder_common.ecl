@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_edge_finder_common.ecl,v 1.2 2013/02/13 00:58:47 jschimpf Exp $
+% Version:	$Id: generic_edge_finder_common.ecl,v 1.3 2016/08/08 14:35:15 jschimpf Exp $
 %
 % Description:		Generalised Prolog toplevel for Edge-finder in C
 %
@@ -284,7 +284,9 @@ is_ground_demon(Xs, Prio, Flag, X) :-
 :- import setarg/3 from sepia_kernel.
 
 is_ground(Term, Prio, Flag) :-
-	term_variables(Term, Vars),
+	% delay on rightmost variable in the hope that instantiations
+	% are more likely to happen left-to-right...
+	sepia_kernel:term_variables_reverse(Term, Vars),
 	make_suspension(is_ground_demon(v(Vars), Susp, Flag), Prio, Susp),
 	is_ground_demon(v(Vars), Susp, Flag).
 
@@ -296,15 +298,12 @@ is_ground_demon(VTerm, Susp, Flag) :-
     find_var(_VTerm, Susp, 1, []) :-
     	kill_suspension(Susp).
     find_var(VTerm, Susp, Flag, [X|Xs]) :-
-	find_var(VTerm, Susp, Flag, X, Xs).
-
-    find_var(VTerm, Susp, _Flag, X, Xs) :-
-	var(X),
-	setarg(1, VTerm, Xs),
-	insert_suspension(X, Susp, inst of suspend, suspend).
-    find_var(VTerm, Susp, Flag, X, Xs) :-
-	nonvar(X),
-	find_var(VTerm, Susp, Flag, Xs).
+	( var(X) ->
+	    setarg(1, VTerm, Xs),
+	    insert_suspension(X, Susp, inst of suspend, suspend)
+	;
+	    find_var(VTerm, Susp, Flag, Xs)
+	).
 
 
 %----------------------------------------------------------------------

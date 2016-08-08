@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_arith.pl,v 1.3 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: fd_arith.pl,v 1.4 2016/08/08 14:34:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1620,8 +1620,7 @@ qeq(Y, Z, X) :-
 	qeq(Y, Z, X)
     ;
 	Vars = p(X, Y, Z),
-	term_variables(Vars, VL),
-	length(VL, N),
+	term_variables_count(Vars, N),
 	(N = 3 ->
 	    make_suspension(qeq(Y, Z, X), 4, Susp),
 	    insert_suspension(Vars, Susp, bound of suspend, suspend),

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_delay.c,v 1.12 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: bip_delay.c,v 1.13 2016/08/08 14:34:24 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -584,24 +584,11 @@ p_insert_suspension(value vvars, type tvars, value vsusp, type tsusp, value vn, 
 }
 
 
-static int
-p_nonground2(value val, type tag, value vvar, type tvar, ec_eng_t *ec_eng)
-{
-    pword *pw;
-
-    if (pw = ec_nonground(val, tag))
-    {
-	Return_Unify_Pw(vvar, tvar, pw->val, pw->tag);
-    }
-    else
-    {
-	Fail_;
-    }
-}
-
-
-/*
- * Build a list of <vars_needed> distinct variables in the term val/tag.
+/**
+ * _collect_vars() is the underlying working routine for all groundness
+ * checking and variable collection predicates.
+ *
+ * Build a list of <vars_needed> distinct variables from the term val/tag.
  * The return value is <vars_needed> minus the number of variables found.
  * Already encountered variables are marked by a trailed binding to [],
  * Therefore untrailing is needed after a call to _collect_vars().
@@ -618,17 +605,18 @@ p_nonground2(value val, type tag, value vvar, type tvar, ec_eng_t *ec_eng)
 
 #define InGlobalStack(p) (TG_ORIG <= (p) && (p) < TG)
 
-static int
+static word
 _collect_vars(
 	ec_eng_t *ec_eng,
     	value val, type tag,	/* current term */
-	word vars_needed,	/* >0, number of variables to collect */
+	word vars_needed,	/* >=0, number of variables to collect */
 	pword *last_comp,	/* previously encountered compound term (or NULL) */
 	pword *curr_comp,	/* compound term being processed now (or NULL) */
 	pword *from,		/* address of val:tag */
-	int elem_sz)		/* array (1) or list (2) result */
+	int elem_sz,		/* array (1) or list (2) result, or none (0) */
+	int dir)		/* left-to-right (1) or right-to-left (-1) */
 {
-    word arity;
+    word arity, i;
     pword *next_comp;
 
     for (;;)
@@ -675,16 +663,18 @@ _collect_vars(
 	    from->tag.kernel = TNIL;	/* mark to prevent looping */
 	}
 		
-        for(;arity > 1; arity--)
+	/* traverse subterms left-to-right or right-to-left (dir) */
+	if (dir<0) val.ptr += arity-1;
+        for(; arity>1; arity--, val.ptr+=dir)
         {
-            pword *arg_i = val.ptr++;
+            pword *arg_i = val.ptr;
             Dereference_(arg_i);
 	    if (!ISAtomic(arg_i->tag.kernel))
 	    {
 		vars_needed = _collect_vars(ec_eng, arg_i->val, arg_i->tag, vars_needed,
-				curr_comp, next_comp, arg_i, elem_sz);
+				curr_comp, next_comp, arg_i, elem_sz, dir);
 		if (vars_needed == 0)
-		    return vars_needed;
+		    return 0;
 	    }
         }      
         from = val.ptr;                /* tail recursion */
@@ -698,9 +688,9 @@ _collect_vars(
 
 
 static int
-p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
+p_nonground_lr3(value vn, type tn, value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
 {
-    pword list;
+    pword list, *pw;
     pword **old_tt = TT;
 
     Check_Integer(tn)
@@ -709,31 +699,80 @@ p_nonground3(value vn, type tn, value vterm, type tterm, value vlist, type tlst,
 	{ Bip_Error(RANGE_ERROR); }
 
     Make_List(&list, TG);
-    if (_collect_vars(ec_eng, vterm, tterm, vn.nint, 0, 0, 0, 2) != 0) {
+    if (_collect_vars(ec_eng, vterm, tterm, vn.nint, 0, 0, 0, 2, 1) != 0) {
 	Fail_;			/* not enough variables found */
     }
-    {
-	pword *pw;
-#define TERM_VARIABLES_BACKWARD
-#ifdef TERM_VARIABLES_BACKWARD
-	for(pw = TG-1; pw>list.val.ptr+2; pw-=2) {
-	    Make_List(pw, pw-3);
-	}
-	list.val.ptr = TG-2;
-#else
-	for(pw = list.val.ptr+1; pw<TG-2; pw+=2) {
-	    Make_List(pw, pw+1);
-	}
-#endif
-	Make_Nil(pw);
+    for(pw = list.val.ptr+1; pw<TG-2; pw+=2) {
+	Make_List(pw, pw+1);
     }
+    Make_Nil(pw);
     Untrail_Variables(old_tt);
     Return_Unify_List(vlist, tlst, list.val.ptr)
 }
 
 
 static int
-p_term_variables_rl(value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
+p_nonground_rl3(value vn, type tn, value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
+{
+    pword list, *pw;
+    pword **old_tt = TT;
+
+    Check_Integer(tn)
+    Check_Output_List(tlst)
+    if (vn.nint <= 0)
+	{ Bip_Error(RANGE_ERROR); }
+
+    Make_List(&list, TG);
+    if (_collect_vars(ec_eng, vterm, tterm, vn.nint, 0, 0, 0, 2, -1) != 0) {
+	Fail_;			/* not enough variables found */
+    }
+    for(pw = list.val.ptr+1; pw<TG-2; pw+=2) {
+	Make_List(pw, pw+1);
+    }
+    Make_Nil(pw);
+    Untrail_Variables(old_tt);
+    Return_Unify_List(vlist, tlst, list.val.ptr)
+}
+
+
+static int
+p_nonground_lr2(value vterm, type tterm, value vvar, type tvar, ec_eng_t *ec_eng)
+{
+    pword *old_tg = TG;
+    pword **old_tt = TT;
+    pword result;
+
+    if (_collect_vars(ec_eng, vterm, tterm, 1, 0, 0, 0, 1, 1) != 0) {
+	Fail_;			/* not enough variables found */
+    }
+    result = *old_tg;
+    TG = old_tg;
+    Untrail_Variables(old_tt);
+    Return_Unify_Pw(vvar, tvar, result.val, result.tag);
+}
+
+
+static int
+p_nonground_rl2(value vterm, type tterm, value vvar, type tvar, ec_eng_t *ec_eng)
+{
+    pword *old_tg = TG;
+    pword **old_tt = TT;
+    pword result;
+
+    if (_collect_vars(ec_eng, vterm, tterm, 1, 0, 0, 0, 1, -1) != 0) {
+	Fail_;			/* not enough variables found */
+    }
+    result = *old_tg;
+    TG = old_tg;
+    Untrail_Variables(old_tt);
+    Return_Unify_Pw(vvar, tvar, result.val, result.tag);
+}
+
+
+/* This is term_variables/2 with pre-7.0 semantics, i.e. reversed list */
+
+static int
+p_term_variables_reverse(value vterm, type tterm, value vlist, type tlst, ec_eng_t *ec_eng)
 {
     pword list;
     pword **old_tt = TT;
@@ -741,7 +780,7 @@ p_term_variables_rl(value vterm, type tterm, value vlist, type tlst, ec_eng_t *e
     Check_Output_List(tlst)
 
     Make_List(&list, TG);
-    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
+    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 2, 1);
     if (TG == list.val.ptr) {
 	Make_Nil(&list);
     } else {
@@ -766,7 +805,7 @@ p_term_variables_lr(value vterm, type tterm, value vlist, type tlst, ec_eng_t *e
     Check_Output_List(tlst)
 
     Make_List(&list, TG);
-    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 2);
+    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 2, 1);
     if (TG == list.val.ptr) {
 	Make_Nil(&list);
     } else {
@@ -788,7 +827,7 @@ p_term_variables_array(value vterm, type tterm, value varr, type tarr, ec_eng_t 
     pword **old_tt = TT;
     pword result;
 
-    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 1);
+    (void) _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 1, 1);
     if (TG > old_tg+1) {
 	Make_Atom(old_tg, add_dict(d_.nil, TG-old_tg-1));
 	Make_Struct(&result, old_tg);
@@ -798,6 +837,45 @@ p_term_variables_array(value vterm, type tterm, value varr, type tarr, ec_eng_t 
     }
     Untrail_Variables(old_tt);
     Return_Unify_Pw(varr, tarr, result.val, result.tag)
+}
+
+
+static int
+p_term_variables_count(value vterm, type tterm, value vn, type tn, ec_eng_t *ec_eng)
+{
+    pword **old_tt = TT;
+    word n;
+    /* this is a little dirty: _collect_vars() will write one pword above TG,
+     * but due to GLOBAL_TRAIL_GAP, this is safe */
+    n = _collect_vars(ec_eng, vterm, tterm, MAX_S_WORD, 0, 0, 0, 0/*!*/, 1);
+    Untrail_Variables(old_tt);
+    Return_Unify_Integer(vn, tn, MAX_S_WORD-n);
+}
+
+
+static int
+p_nonground(value vterm, type tterm, ec_eng_t *ec_eng)
+{
+    pword **old_tt = TT;
+    word n;
+    /* this is a little dirty: _collect_vars() will write one pword above TG,
+     * but due to GLOBAL_TRAIL_GAP, this is safe */
+    n = _collect_vars(ec_eng, vterm, tterm, 1, 0, 0, 0, 0/*!*/, 1);
+    Untrail_Variables(old_tt);
+    Succeed_If(n==0);
+}
+
+
+static int
+p_ground(value vterm, type tterm, ec_eng_t *ec_eng)
+{
+    pword **old_tt = TT;
+    word n;
+    /* this is a little dirty: _collect_vars() will write one pword above TG,
+     * but due to GLOBAL_TRAIL_GAP, this is safe */
+    n = _collect_vars(ec_eng, vterm, tterm, 1, 0, 0, 0, 0/*!*/, 1);
+    Untrail_Variables(old_tt);
+    Succeed_If(n);
 }
 
 
@@ -2178,18 +2256,19 @@ bip_delay_init(int flags)
     d_postponed_ = in_dict("postponed", 0);
     if (flags & INIT_SHARED)
     {
+	built_in(in_dict("ground", 1), p_ground,	B_SAFE);
+	built_in(in_dict("nonground", 1), p_nonground,	B_SAFE);
+	built_in(in_dict("nonground", 2), p_nonground_lr2,	B_UNSAFE|U_GLOBAL);
+	built_in(in_dict("nonground_rl", 2), p_nonground_rl2,	B_UNSAFE|U_GLOBAL);
+	built_in(in_dict("nonground", 3), p_nonground_lr3,	B_UNSAFE|U_GLOBAL);
+	built_in(in_dict("nonground_rl", 3), p_nonground_rl3,	B_UNSAFE|U_GLOBAL);
+	built_in(in_dict("term_variables", 2), p_term_variables_lr, B_UNSAFE|U_GLOBAL);
+	built_in(in_dict("term_variables_reverse", 2), p_term_variables_reverse, B_UNSAFE|U_GLOBAL);
+	built_in(in_dict("term_variables_array", 2), p_term_variables_array, B_UNSAFE|U_GLOBAL);
+	built_in(in_dict("term_variables_count", 2), p_term_variables_count, B_UNSAFE);
+
 	built_in(in_dict("delayed_goals",1),	p_delayed_goals,
 		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(1, NONVAR);
-	built_in(in_dict("nonground", 3), p_nonground3,	B_UNSAFE|U_GLOBAL)
-	    -> mode = BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-	built_in(in_dict("term_variables", 2), p_term_variables_rl,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	built_in(in_dict("term_variables_rl", 2), p_term_variables_rl,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	built_in(in_dict("term_variables_lr", 2), p_term_variables_lr,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	built_in(in_dict("term_variables_array", 2), p_term_variables_array,
-	    B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
 	local_built_in(in_dict("meta_bind", 2), p_meta_bind, B_UNSAFE|U_UNIFY)
 	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
 	local_built_in(in_dict("undo_meta_bind", 2), p_undo_meta_bind, B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
@@ -2239,8 +2318,6 @@ bip_delay_init(int flags)
 		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
 	exported_built_in(in_dict("first_woken", 2), p_first_woken,
 		B_UNSAFE|U_GLOBAL) -> mode = BoundArg(2, NONVAR);
-	(void) built_in(in_dict("nonground", 2), p_nonground2,
-		B_UNSAFE|U_UNIFY);
 	(void) built_in(in_dict("schedule_woken", 1), p_schedule_woken,
 		B_SAFE);
 	(void) built_in(in_dict("init_suspension_list", 2),

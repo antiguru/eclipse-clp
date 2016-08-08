@@ -978,29 +978,61 @@ yes.
 	desc:html("<P>
    This predicate collects all the variables inside Term into the list
    VarList.  Every variable occurs only once in VarList, even if it occurs
-   several times in Term.  The order of the variables in the list is not
-   specified.
+   several times in Term.  The order of the variables in the list
+   corresponds to the order in which they are first encountered during
+   a depth-first, left-to-right traversal of Term.
 </P><P>
    As usual, attributed variables are also considered variables.
 </P><P>
-   This predicate terminates even with cyclic terms.
+   This predicate can handle cyclic terms.
+</P><P>
+   Compatibility Note: In ECLiPSe releases prior to 7.0, the list was
+   constructed in reverse order. Use eclipse_6:term_variables/2 if you
+   require this behaviour.  The new behaviour is compatible with ISO-Prolog.
 </P>
 "),
 	args:["Term" : "Prolog term.", "VarList" : "List or variable."],
 	exceptions:[5 : "VarList instantiated but not to a list."],
 	eg:"
-Success:
-    term_variables(atom, []).
-    term_variables(Term, Vs).       % gives Vs = [Term]
-    term_variables(f(a,B,c), Vs).   % gives Vs = [B]
-    term_variables([X,Y,Z], Vs).    % gives Vs = [Z,Y,X]
-    term_variables([X,Y,X], Vs).    % gives Vs = [Y,X]
-    term_variables(s(X{a}), Vs).    % gives Vs = [X{a}]
-
-Fail:
-    term_variables(f(a,B,c), []).
+    term_variables(atom, Vs).	      % gives Vs = []
+    term_variables(Term, Vs).         % gives Vs = [Term]
+    term_variables(f(a,Y,c), Vs).     % gives Vs = [Y]
+    term_variables(f(X,g(Y),c), Vs).  % gives Vs = [X,Y]
+    term_variables(X+3*Y, Vs).        % gives Vs = [X,Y]
+    term_variables([X,Y,Z], Vs).      % gives Vs = [X,Y,Z]
+    term_variables([X,Y,X], Vs).      % gives Vs = [X,Y]
+    term_variables(s(X{a}), Vs).      % gives Vs = [X{a}]
 ",
-	see_also:[term_variables_array/2, nonground / 1, nonground / 2, nonground / 3, nonvar / 1, var / 1]]).
+	see_also:[eclipse_6:term_variables/2, term_variables_array/2,
+		term_variables_count/2,
+		nonground / 1, nonground / 2, nonground / 3,
+		nonvar / 1, var / 1]]).
+
+
+:- comment(term_variables_count / 2, [
+	summary:"Succeeds if N is the number of distinct variables in Term.",
+	amode:(term_variables_count(?,-) is det),
+	desc:html("<P>
+   This predicate counts the number of different variables in Term.
+   Repeat occurrences of variables are ignored.
+</P><P>
+   As usual, attributed variables are also considered variables.
+</P><P>
+   This predicate can handle cyclic terms.
+</P>
+"),
+	args:["Term" : "Prolog term.", "N" : "Variable or integer."],
+	eg:"
+    term_variables_count(f(bar), N)       gives N=0
+    term_variables_count(f(X,b,Y), N)     gives N=2
+    term_variables_count(f(X,Y,X), N)     gives N=2
+    term_variables_count(X, N)            gives N=1
+    X=f(X), term_variables_count(X, N)    gives N=0
+    X=f(X,Y), term_variables_count(X, N)  gives N=1
+",
+	see_also:[term_variables/2, term_variables_array/2,
+		nonground / 1, nonground / 2, nonground / 3,
+		nonvar / 1, var / 1]]).
 
 
 :- comment(term_variables_array / 2, [
@@ -1009,27 +1041,26 @@ Fail:
 	desc:html("<P>
    This predicate collects all the variables inside Term into an array
    VarArr.  Every variable occurs only once in VarArr, even if it occurs
-   several times in Term.  The order of the variables in the array corresponds
-   to the order in which they are first encountered during a left-to-right,
-   depth-first traversal of Term.
+   several times in Term.  The order of the variables in the array
+   corresponds to the order in which they are first encountered during
+   a depth-first, left-to-right traversal of Term.
 </P><P>
    As usual, attributed variables are also considered variables.
 </P><P>
-   This predicate terminates even with cyclic terms.
+   This predicate can handle cyclic terms.
 </P>
 "),
 	args:["Term" : "Prolog term.", "VarArr" : "Array or variable."],
 	eg:"
-Success:
-    term_variables_array(atom, []).
-    term_variables_array(Term, Vz).       % gives Vz = [](Term)
-    term_variables_array(f(a,B,c), Vz).   % gives Vz = [](B)
-    term_variables_array([X,Y,Z], Vz).    % gives Vz = [](X,Y,Z)
-    term_variables_array([X,Y,X], Vz).    % gives Vz = [](X,Y)
-    term_variables_array(s(X{a}), Vz).    % gives Vz = [](X{a})
-
-Fail:
-    term_variables_array(f(a,B,c), []).
+    term_variables(atom, Vs).	      % gives Vs = []
+    term_variables(Term, Vs).         % gives Vs = [](Term)
+    term_variables(f(a,Y,c), Vs).     % gives Vs = [](Y)
+    term_variables(f(X,g(Y),c), Vs).  % gives Vs = [](X,Y)
+    term_variables(X+3*Y, Vs).        % gives Vs = [](X,Y)
+    term_variables([X,Y,Z], Vs).      % gives Vs = [](X,Y,Z)
+    term_variables([](X,Y,Z), Vs).    % gives Vs = [](X,Y,Z)
+    term_variables([X,Y,X], Vs).      % gives Vs = [](X,Y)
+    term_variables(s(X{a}), Vs).      % gives Vs = [](X{a})
 ",
 	see_also:[term_variables/2, nonvar / 1, var / 1]]).
 

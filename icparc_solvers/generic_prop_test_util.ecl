@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Author:	Joachim Schimpf, Coninfer Ltd
-% Version:	$Id: generic_prop_test_util.ecl,v 1.2 2013/01/27 23:24:26 jschimpf Exp $
+% Version:	$Id: generic_prop_test_util.ecl,v 1.3 2016/08/08 14:35:15 jschimpf Exp $
 %
 % IDENTIFICATION:	generic_prop_test_util.pl
 %
@@ -43,7 +43,7 @@
 :- comment(summary, "Tools for testing global constraints").
 :- comment(author, "Joachim Schimpf, Coninfer Ltd").
 :- comment(copyright, "Joachim Schimpf, Coninfer Ltd").
-:- comment(date, "$Date: 2013/01/27 23:24:26 $").
+:- comment(date, "$Date: 2016/08/08 14:35:15 $").
 
 
 %----------------------------------------------------------------------
@@ -88,7 +88,9 @@
 :- tool(random_bound_reduction_test/2,random_bound_reduction_test_/3).
 
 random_bound_reduction_test_(Out, Goal, Module) :-
-	term_variables(Goal, Vars),
+	% term_variables_reverse/2 used here instead of term_variables/2
+	% for compatibility with pre-7.0 behaviour
+	sepia_kernel:term_variables_reverse(Goal, Vars),
 	random_bound_reduction_test_(Out, Goal, Vars, Module).
 
 
@@ -127,7 +129,9 @@ random_bound_reduction_test_(_, _, _, _).
 :- export random_reduce_until_ground/3.
 
 random_reduce_until_ground(Out, OriginalVars, Remaining) :-
-	term_variables(Remaining, Vars),
+	% term_variables_reverse/2 used here instead of term_variables/2
+	% for compatibility with pre-7.0 behaviour
+	sepia_kernel:term_variables_reverse(Remaining, Vars),
 	( Vars = [] ->
 	    true
 	;

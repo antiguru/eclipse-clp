@@ -572,6 +572,7 @@
 :-(reexport(from(/(term_to_bytes,2),sepia_kernel))).
 :-(reexport(from(/(term_variables,2),sepia_kernel))).
 :-(reexport(from(/(term_variables_array,2),sepia_kernel))).
+:-(reexport(from(/(term_variables_count,2),sepia_kernel))).
 :-(reexport(from(/(test_and_setval,3),sepia_kernel))).
 :-(reexport(from(/(text_to_string,2),sepia_kernel))).
 :-(reexport(from(/(throw,1),sepia_kernel))).

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.22 2016/08/05 10:15:08 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.23 2016/08/08 14:34:24 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -357,7 +357,7 @@ read_term_(Stream, Term, Options, Module) :-
     % If you make a change here, change also check_read_option/1!
     :- mode handle_read_option(+,?,+).
     handle_read_option(variables(Vs), Term, _Vars) :-
-	term_variables_lr(Term, Vs).
+	term_variables(Term, Vs).
     handle_read_option(variable_names(VNs), _Term, Vars) :-
     	name_eq_var(Vars, VNs).
     handle_read_option(singletons(NamesSingletons), Term, NsVs) :-

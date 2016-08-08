@@ -36,7 +36,8 @@ variables inside Term.
    non-groundness.  When Term contains several variables, it is not
    specified which one will be returned as Variable.  As usual, attributed
    variables are also considered variables.
-
+<P>
+    This predicate can handle cyclic terms.
 <P>
 "),
 	args:["Term" : "Prolog term.", "Variable" : "A variable."],
@@ -78,6 +79,8 @@ them in the list VarList.
     nonground(Term) :- nonground(1, Term, _).
     nonground(Term, Var) :- nonground(1, Term, [Var]).
 </PRE>
+<P>
+    This predicate can handle cyclic terms.
 "),
 	args:["N" : "Integer.", "Term" : "Prolog term.", "VarList" : "List or variable."],
 	fail_if:"Fails if Term contains less than N variables",
@@ -345,6 +348,8 @@ Fail:
     Used to test whether VarTerm is not ground i.e. whether it is itself a
     variable, or it has at least one subterm that is a uninstantiated variable.
     This is the negation of ground/1.
+</P><P>
+    This predicate can handle cyclic terms.
 <P>
 "),
 	args:["VarTerm" : "Prolog term."],
@@ -365,8 +370,10 @@ Fail:
 ",
 	amode:(ground(?) is semidet),
 	desc:html("
-	Used to test whether Term is ground, i.e. contains no variables.
-	This is the negation of nonground/1.
+    Used to test whether Term is ground, i.e. contains no variables.
+    This is the negation of nonground/1.
+<P>
+    This predicate can handle cyclic terms.
 "),
 	args:["Term" : "Prolog term."],
 	fail_if:"Fails if Term is not ground",

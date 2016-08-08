@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.10 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.11 2016/08/08 14:34:24 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -42,7 +42,6 @@
  *	occurs/2	p_occurs	B_UNSAFE
  *	variant/2	p_variant	B_UNSAFE
  *	instance/2	p_instance	B_UNSAFE
- *	nonground/1	p_nonground	B_FUNCTION
  *
  *****************************************************************************/
 
@@ -702,26 +701,8 @@ _instance(
 
 
 /*
-	nonground/1
-	succeeds if the term is not fully instantiated
-*/
-
-static int
-p_nonground(value v, type t, ec_eng_t *ec_eng)
-{
-    Succeed_If(ec_nonground(v, t))
-}
-
-int
-p_ground(value v, type t, ec_eng_t *ec_eng)
-{
-    Succeed_If(!ec_nonground(v, t))
-}
-
-
-/*
  * Check if a term is cyclic. We mark the target of every TLIST or TCOMP
- * pointer, and if we encouter it withing its descendants, we know we have
+ * pointer, and if we encouter it within its descendants, we know we have
  * a cycle and stop. This algorithm is very naive and simple. It is not
  * tail recursive and therefore may nest deeply. It also does not detect
  * shared (already traversed) subtrees, and thus traverses them again.
@@ -1568,8 +1549,6 @@ bip_comp_init(int flags)
 	    -> mode = BoundArg(1, CONSTANT) |
 			BoundArg(4, NONVAR);
 	(void) built_in(in_dict("occurs", 2),	p_occurs,	B_UNSAFE);
-	(void) built_in(d_.nonground,		p_nonground,	B_SAFE);
-	(void) built_in(d_.ground,		p_ground,	B_SAFE);
 	(void) built_in(in_dict("acyclic_term",1),	p_acyclic_term,	B_SAFE);
 	built_in(in_dict("merge", 5), 	p_merge5, 	B_UNSAFE|U_UNIFY)
 	    -> mode = BoundArg(3, NONVAR) | BoundArg(4, NONVAR) | BoundArg(5, NONVAR);

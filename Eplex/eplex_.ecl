@@ -25,7 +25,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Author/s:	Joachim Schimpf, IC-Parc
 %               Kish Shen,       IC-Parc
-% Version:	$Id: eplex_.ecl,v 1.19 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: eplex_.ecl,v 1.20 2016/08/08 14:34:53 jschimpf Exp $
 %
 % TODO:
 %	- cplex_change_col_type: accept list
@@ -2373,7 +2373,9 @@ lp_setup_body(Cstr, OptExpr, Options, Handle, CallerModule) :-
         % Ints extracted from Options: could contain vars not in Cstr
         % use the *ObjFunct instead of Expr to avoid large structres
         % which may crash term_variables/2 
-	term_variables([ExtraVars,Ints,LinObjFunct,QuadObjFunct|CstrNorm], Vars),
+	% Use term_variables_reverse/2 for compatibility with pre-7.0 ECLiPSe.
+	sepia_kernel:term_variables_reverse(
+		[ExtraVars,Ints,LinObjFunct,QuadObjFunct|CstrNorm], Vars),
 
         % setup change_suspension list
         init_suspension_list(change_suspensions of prob, Handle),
