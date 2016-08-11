@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION    $Id: bip_arith.c,v 1.26 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION    $Id: bip_arith.c,v 1.27 2016/08/11 22:07:45 jschimpf Exp $
  */
 
 /*
@@ -738,29 +738,6 @@ _error_:
  * More frequently used ones are in the emulator
  *-----------------------------------------------------------------------*/
 
-int
-p_sgn(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
-{
-    int err;
-    pword result;
-    if (IsRef(t1)) { Bip_Error(PDELAY_1) }
-    err = tag_desc[TagType(t1)].arith_op[ARITH_SGN](ec_eng, v1, &result);
-    if (err != PSUCCEED) return err;
-    Return_Numeric(v, t, result)
-}
-
-static int
-p_min(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
-{
-    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_MIN);
-}
-
-static int
-p_max(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
-{
-    return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_MAX);
-}
-
 static int
 p_gcd(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
@@ -798,18 +775,6 @@ static int
 p_lcm(value v1, type t1, value v2, type t2, value v, type t, ec_eng_t *ec_eng)
 {
     return binary_arith_op(v1, t1, v2, t2, v, t, ec_eng, ARITH_LCM);
-}
-
-static int
-p_uplus(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
-{
-    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_PLUS, TINT);
-}
-
-static int
-p_abs(value v1, type t1, value v, type t, ec_eng_t *ec_eng)
-{
-    return unary_arith_op(v1, t1, v, t, ec_eng, ARITH_ABS, TINT);
 }
 
 static int
@@ -2184,13 +2149,10 @@ bip_arith_init(int flags)
     (void) exported_built_in(in_dict("collapse_linear", 2), p_collapse_linear,	B_UNSAFE);
     (void) b_built_in(in_dict("between", 4), p_between, d_.kernel_sepia);
 
-    (void) built_in(in_dict("+", 2),	p_uplus, B_UNSAFE|U_SIMPLE);
-    (void) built_in(in_dict("abs", 2),	p_abs,	B_UNSAFE|U_SIMPLE);
+    /* see code.c for operations that have an abstract machine instruction */
     (void) built_in(in_dict("^", 3),	p_power, B_UNSAFE|U_SIMPLE|PROC_DEMON);
     (void) built_in(in_dict("<<", 3),	p_lshift, B_UNSAFE|U_SIMPLE|PROC_DEMON);
     (void) built_in(in_dict(">>", 3),	p_rshift, B_UNSAFE|U_SIMPLE|PROC_DEMON);
-    (void) built_in(in_dict("min", 3),	p_min,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
-    (void) built_in(in_dict("max", 3),	p_max,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
     (void) built_in(in_dict("gcd", 3),	p_gcd,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
     (void) built_in(in_dict("gcd", 5),	p_gcd_ext,	B_UNSAFE|U_GROUND|PROC_DEMON);
     (void) built_in(in_dict("lcm", 3),	p_lcm,	B_UNSAFE|U_SIMPLE|PROC_DEMON);
@@ -2213,7 +2175,6 @@ bip_arith_init(int flags)
     (void) built_in(in_dict("truncate", 2), p_truncate, B_UNSAFE|U_SIMPLE);
     (void) built_in(in_dict("numerator", 2), p_numerator, B_UNSAFE|U_SIMPLE);
     (void) built_in(in_dict("denominator", 2), p_denominator,B_UNSAFE|U_SIMPLE);
-    (void) built_in(in_dict("sgn", 2), p_sgn,	B_UNSAFE|U_SIMPLE);
     (void) local_built_in(in_dict("pi", 1), p_pi, B_UNSAFE|U_SIMPLE);
     (void) local_built_in(in_dict("e", 1), p_e, B_UNSAFE|U_SIMPLE);
 

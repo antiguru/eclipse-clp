@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.26 2015/05/27 16:48:51 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.27 2016/08/11 22:09:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1200,8 +1200,13 @@ testclause(bip(functions), [(
 		\/(K,2,L),
 		xor(L,2,M),
 		\(M,N),
+		+(N,O),
+		abs(O,P),
+		min(O,P,Q),
+		max(P,Q,R),
+		sgn(R,S),
 		arity(foo(a,b,c),3),
-		arg(N,foo(a,b,c),Z)
+		arg(S,foo(a,b,c),Z)
 )]).
 
 % different cases for output argument unification

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.6 2013/04/29 01:02:11 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.7 2016/08/11 22:07:45 jschimpf Exp $
  */
 
 /*
@@ -443,6 +443,11 @@ char * inst_name[] = {
 "BI_Compare                ",
 "BI_ListEnd                ",
 "BI_Qualify                ",
+"BI_Abs                    ",
+"BI_Sgn                    ",
+"BI_Min                    ",
+"BI_Max                    ",
+"BI_Plus                   ",
 
 "Inst_Error                "
 };

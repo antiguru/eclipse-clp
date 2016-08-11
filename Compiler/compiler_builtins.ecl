@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_builtins.ecl,v 1.5 2015/01/14 01:31:08 jschimpf Exp $
+% Version:	$Id: compiler_builtins.ecl,v 1.6 2016/08/11 22:09:40 jschimpf Exp $
 %
 % Part of module(compiler_codegen)
 % ----------------------------------------------------------------------
@@ -208,7 +208,7 @@ generate_simple_goal(Goal, ChunkData0, ChunkData, Code0, Code, Options, Module) 
 generate_simple_goal(goal{functor: P, args:Args}, ChunkData0, ChunkData, Code0, Code, _Options, Module) ?-
 	P = _/Arity,
 	dim(RegArr, [Arity]),
-	dim(RegDescs, [Arity]),
+	dim(RegDescArr, [Arity]),
 	heuristic_put_order(Args, ChunkData0, OrderedPuts),
 	(
 	    foreach(put(_,I,Arg),OrderedPuts),
@@ -289,6 +289,9 @@ inlined_builtin(=<,		3,	unbounded,	bi_le(arg,arg,arg,desc)).
 inlined_builtin(>=,		3,	unbounded,	bi_ge(arg,arg,mod,desc)).
 inlined_builtin(>=,		3,	unbounded,	bi_ge(arg,arg,arg,desc)).
 inlined_builtin(-,		2,	unbounded,	bi_minus(arg,uarg,desc)).
+inlined_builtin(+,		2,	unbounded,	bi_plus(arg,uarg,desc)).
+inlined_builtin(abs,		2,	unbounded,	bi_abs(arg,uarg,desc)).
+inlined_builtin(sgn,		2,	unbounded,	bi_sgn(arg,uarg,desc)).
 inlined_builtin(+,		3,	unbounded,	bi_addi(arg,int,uarg,desc)).
 inlined_builtin(+,		3,	unbounded,	bi_add(arg,arg,uarg,desc)).
 inlined_builtin(-,		3,	unbounded,	bi_sub(arg,arg,uarg,desc)).
@@ -306,6 +309,8 @@ inlined_builtin(\,		2,	unbounded,	bi_bitnot(arg,uarg,desc)).
 inlined_builtin(arg,		3,	unbounded,	bi_arg(int,arg,uarg,desc)).
 inlined_builtin(arg,		3,	unbounded,	bi_arg(arg,arg,uarg,desc)).
 inlined_builtin(arity,		2,	unbounded,	bi_arity(arg,uarg,desc)).
+inlined_builtin(min,		3,	unbounded,	bi_min(arg,arg,uarg,desc)).
+inlined_builtin(max,		3,	unbounded,	bi_max(arg,arg,uarg,desc)).
 inlined_builtin(get_bip_error,	1,	0,		bi_get_bip_error(uarg)).
 inlined_builtin(compare,	3,	0,		bi_compare(uarg,arg,arg)).
 inlined_builtin(list_end,	2,	0,		bi_list_end(arg,uarg)).

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.34 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.35 2016/08/11 22:07:45 jschimpf Exp $
  */
 
 /*
@@ -7324,13 +7324,100 @@ _exit_engine_:				/* (scratch_pw) */
 		Next_Pp;
 	    }
 	    err_code = ARITH_NEG;
-
 _nun_op_:				/* (err_code,pw1,PP,proc) */
 	    Export_B_Sp_Tg_Tt_Eb_Gb
 	    err_code = un_arith_op(pw1->val, pw1->tag, ArgP(PP-2), ec_eng, err_code, TINT);
 	    Import_Tg_Tt
 	    goto _nbip_res_;
 
+	Case(BI_Plus, I_BI_Plus)
+	    proc = plus_proc_;
+	    PP += 3;
+	    pw1 = ArgP(PP-3);
+	    Dereference_Pw(pw1);
+	    NDelay_Check_1(pw1)
+	    if (IsNumber(pw1->tag))
+	    {
+		*ArgP(PP-2) = *pw1;
+		Next_Pp;
+	    }
+	    err_code = ARITH_TYPE_ERROR;
+	    goto _nbip_res_;	     /* (err_code,proc), args at *PP[-arity-1..-2] */
+
+	Case(BI_Abs, I_BI_Abs)
+	    proc = abs_proc_;
+	    PP += 3;
+	    pw1 = ArgP(PP-3);
+	    Dereference_Pw(pw1);
+	    NDelay_Check_1(pw1)
+	    if (IsInteger(pw1->tag))
+	    {
+		tmp1 = pw1->val.nint;
+		if (tmp1 < 0) {
+		    if (tmp1 == MIN_S_WORD) {
+			err_code = INTEGER_OVERFLOW;
+			goto _nbip_err_;
+		    }
+		    tmp1 = -tmp1;
+		}
+		Make_Integer(ArgP(PP-2), tmp1);
+		Next_Pp;
+	    }
+	    err_code = ARITH_ABS;
+	    goto _nun_op_;		/* (err_code,pw1,PP,proc) */
+
+	Case(BI_Sgn, I_BI_Sgn)
+	    proc = sgn_proc_;
+	    PP += 3;
+	    pw1 = ArgP(PP-3);
+	    Dereference_Pw(pw1);
+	    NDelay_Check_1(pw1)
+	    if (IsInteger(pw1->tag)) {
+		tmp1 = pw1->val.nint > 0 ? 1 : pw1->val.nint < 0 ? -1 : 0;
+		Make_Integer(ArgP(PP-2), tmp1);
+		Next_Pp;
+	    } else if (IsDouble(pw1->tag)) {
+		dbl_res = Dbl(pw1->val) + (double)PP[-3].nint;
+		tmp1 = Dbl(pw1->val) > 0 ? 1 : Dbl(pw1->val) < 0 ? -1 : 0;
+		Make_Integer(ArgP(PP-2), tmp1);
+		Next_Pp;
+	    }
+	    err_code = ARITH_SGN;
+	    goto _nun_op_;		/* (err_code,pw1,PP,proc) */
+
+	Case(BI_Min, I_BI_Min)
+	    proc = min_proc_;
+	    PP += 4;
+	    pw1 = ArgP(PP-4);
+	    Dereference_Pw(pw1);
+	    NDelay_Check_1(pw1)
+	    pw2 = ArgP(PP-3);
+	    Dereference_Pw(pw2);
+	    NDelay_Check_2(pw2)
+	    Kill_DE		/* it's a demon */
+	    if (IsInteger(pw1->tag) && IsInteger(pw2->tag)) {
+		Make_Integer(ArgP(PP-2), pw1->val.nint > pw2->val.nint ? pw2->val.nint : pw1->val.nint);
+		Next_Pp;
+	    }
+	    err_code = ARITH_MIN;
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
+
+	Case(BI_Max, I_BI_Max)
+	    proc = max_proc_;
+	    PP += 4;
+	    pw1 = ArgP(PP-4);
+	    Dereference_Pw(pw1);
+	    NDelay_Check_1(pw1)
+	    pw2 = ArgP(PP-3);
+	    Dereference_Pw(pw2);
+	    NDelay_Check_2(pw2)
+	    Kill_DE		/* it's a demon */
+	    if (IsInteger(pw1->tag) && IsInteger(pw2->tag)) {
+		Make_Integer(ArgP(PP-2), pw1->val.nint < pw2->val.nint ? pw2->val.nint : pw1->val.nint);
+		Next_Pp;
+	    }
+	    err_code = ARITH_MAX;
+	    goto _nbin_op_;		/* (err_code,pw1,pw2,proc,PP) */
 
 	Case(BI_Addi, I_BI_Addi)
 	    proc = add_proc_;

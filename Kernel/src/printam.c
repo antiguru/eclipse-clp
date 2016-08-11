@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.11 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.12 2016/08/11 22:07:45 jschimpf Exp $
  */
 
 /*
@@ -476,6 +476,8 @@ print_am(vmcode *code,
 	case BI_And:
 	case BI_Or:
 	case BI_Xor:
+	case BI_Min:
+	case BI_Max:
 	case BI_Lt:
 	case BI_Le:
 	case BI_Gt:
@@ -486,6 +488,9 @@ print_am(vmcode *code,
 	        Am;
 		/* fall through */
 
+	case BI_Abs:
+	case BI_Plus:
+	case BI_Sgn:
 	case BI_Minus:
 	case BI_Bitnot:
 	case BI_CutToStamp:

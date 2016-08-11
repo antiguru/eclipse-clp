@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.19 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.20 2016/08/11 22:07:45 jschimpf Exp $
  */
 
 /********************************************************************
@@ -168,10 +168,15 @@ pri	*true_proc_,
         *not_identical_proc_,
         *inequality_proc_,
         *not_ident_list_proc_,
+        *abs_proc_,
+        *sgn_proc_,
         *minus_proc_,
+        *plus_proc_,
         *add_proc_,
         *sub_proc_,
         *mul_proc_,
+        *min_proc_,
+        *max_proc_,
         *quot_proc_,
         *div_proc_,
         *rem_proc_,
@@ -1261,6 +1266,9 @@ code_init(int flags)
     make_test_bip(in_dict("callable",1), BI_Callable, 0, 0, -1, EXPORT);
 
     make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
+    make_function_bip(in_dict("+",2), BI_Plus, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
+    make_function_bip(in_dict("abs",2), BI_Abs, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
+    make_function_bip(in_dict("sgn",2), BI_Sgn, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
     make_function_bip(in_dict("+",3), BI_Add, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
     make_function_bip(in_dict("-",3), BI_Sub, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
     make_function_bip(in_dict("*",3), BI_Mul, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
@@ -1273,6 +1281,8 @@ code_init(int flags)
     make_function_bip(in_dict("\\/",3), BI_Or, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
     make_function_bip(in_dict("xor", 3), BI_Xor, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
     make_function_bip(in_dict("\\",2), BI_Bitnot, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
+    make_function_bip(in_dict("min",3), BI_Min, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
+    make_function_bip(in_dict("max",3), BI_Max, PROC_DEMON|U_SIMPLE, BoundArg(3,CONSTANT), 16, 1);
 
     make_function_bip(in_dict("arity",2), BI_Arity, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
     make_function_bip(in_dict("arg",3), BI_Arg, PROC_DEMON|U_UNIFY, BoundArg(2, NONVAR) | BoundArg(3, NONVAR), 16, 1);
@@ -1314,6 +1324,11 @@ code_init(int flags)
     not_ident_list_proc_ = KernelProc(in_dict("\\==",3));
     inequality_proc_ = KernelProc(d_.diff_reg);
     minus_proc_ = KernelProc(in_dict("-",2));
+    plus_proc_ = KernelProc(in_dict("+",2));
+    abs_proc_ = KernelProc(in_dict("abs",2));
+    sgn_proc_ = KernelProc(in_dict("sgn",2));
+    min_proc_ = KernelProc(in_dict("min",3));
+    max_proc_ = KernelProc(in_dict("max",3));
     add_proc_ = KernelProc(in_dict("+",3));
     sub_proc_ = KernelProc(in_dict("-",3));
     mul_proc_ = KernelProc(in_dict("*",3));

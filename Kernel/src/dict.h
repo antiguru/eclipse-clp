@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.7 2016/08/04 09:46:07 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.8 2016/08/11 22:07:45 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -584,6 +584,9 @@ Extern pri
 	*cut_to_proc_,
 	*cut_to_stamp_proc_,
 	*minus_proc_,
+	*plus_proc_,
+	*abs_proc_,
+	*sgn_proc_,
 	*add_proc_,
 	*sub_proc_,
 	*mul_proc_,
@@ -591,6 +594,8 @@ Extern pri
 	*div_proc_,
 	*rem_proc_,
 	*fdiv_proc_,
+	*min_proc_,
+	*max_proc_,
 	*mod_proc_,
 	*and_proc_,
 	*or_proc_,

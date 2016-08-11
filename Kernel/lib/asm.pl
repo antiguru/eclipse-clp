@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: asm.pl,v 1.10 2013/06/21 19:27:26 kish_shen Exp $
+% Version:	$Id: asm.pl,v 1.11 2016/08/11 22:08:50 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -912,6 +912,11 @@ instr(put_module(a(A),C),		404, [a(A),atom(C)]).
 instr(bi_compare(a(UA),a(A1),a(A2)),	405, [a(UA),a(A1),a(A2)]).
 instr(bi_list_end(a(A1),a(UA)),		406, [a(A1),a(UA)]).
 instr(bi_qualify(a(A1),a(UA),a(A3)),	407, [a(A1),a(UA),a(A3)]).
+instr(bi_abs(a(A1),a(UA2),4'10),	408, [a(A1),a(UA2),i(4'10)]).
+instr(bi_sgn(a(A1),a(UA2),4'10),	409, [a(A1),a(UA2),i(4'10)]).
+instr(bi_min(a(A1),a(A2),a(UA3),4'100),	410, [a(A1),a(A2),a(UA3),i(4'100)]).
+instr(bi_max(a(A1),a(A2),a(UA3),4'100),	411, [a(A1),a(A2),a(UA3),i(4'100)]).
+instr(bi_plus(a(A1),a(UA2),4'10),	412, [a(A1),a(UA2),i(4'10)]).
 
 
 /***************************************************************************
