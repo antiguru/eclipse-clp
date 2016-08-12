@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.12 2010/07/25 13:29:04 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.13 2016/08/12 17:39:18 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2010/07/25 13:29:04 $").
+:- comment(date, "$Date: 2016/08/12 17:39:18 $").
 
 :- use_module(compiler_common).
 :- import state_lookup_binding/3 from compiler_analysis.
@@ -765,7 +765,8 @@ dump_indexes(disjunction{callpos:CallPos,determinism:BranchDets,indexes:Indexes}
 		Q1 is round(10*Q)/10,	% printf's rounding is unreliable
 %		printf("%d. Quality %.1f, variable %d%n", [I,Q1,VarId]),
 		printf("%d. Quality %.1f%n", [I,Q1]),
-		dt_list(Dt, Parts), 
+		dt_list(Dt, Parts0), 
+		keysort(Parts0, Parts),	% for reproducible output
 		( foreach(Part,Parts) do
 		    printf("    %w%n", [Part])
 		)

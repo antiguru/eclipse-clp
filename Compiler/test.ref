@@ -3099,10 +3099,10 @@ p :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -3155,10 +3155,10 @@ p :-
 INDEXES for (nondet) disjunction [3]
 1. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [3]
     Branch 1: try
     Branch 2: trust
@@ -3204,10 +3204,10 @@ p :-
 INDEXES for (nondet) disjunction [3]
 1. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 2. Quality 1.3
     [] - []
     [atom] - []
@@ -3282,10 +3282,10 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2, 3]
 2. Quality 2.0
     [] - [3]
-    [var] - [1, 2, 3]
     [integer] - [3]
     [integer, 1] - [1, 3]
     [integer, 2] - [2, 3]
+    [var] - [1, 2, 3]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: retry
@@ -3354,13 +3354,13 @@ p(A, B) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.8
     [] - []
-    [var] - [1]
-    [rational] - [3]
-    [breal] - [3]
     [bignum] - [2, 3]
+    [breal] - [3]
+    [double] - [3]
     [integer] - [2, 3]
     [integer, 1] - [1, 2, 3]
-    [double] - [3]
+    [rational] - [3]
+    [var] - [1]
 2. Quality 2.0
     [] - [3]
     [atom] - [3]
@@ -3452,14 +3452,14 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 2.2
     [] - []
-    [var] - [1, 2]
-    [rational] - [4]
-    [breal] - [4]
     [bignum] - [3, 4]
+    [breal] - [4]
+    [double] - [4]
     [integer] - [3, 4]
     [integer, 1] - [1, 3, 4]
     [integer, 2] - [2, 3, 4]
-    [double] - [4]
+    [rational] - [4]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: retry
@@ -3545,16 +3545,16 @@ p :-
 INDEXES for (semidet) disjunction [3]
 1. Quality 1.0
     [] - []
-    [var] - [2]
     [atom] - []
     [atom, a] - [1]
     [atom, b] - [2]
+    [var] - [2]
 2. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [3]
     Branch 1: det
     Branch 2: det
@@ -3610,8 +3610,8 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
     [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
@@ -3698,8 +3698,8 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 2.0
     [] - []
-    [var] - [1, 2]
     [double] - [1, 2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -3735,8 +3735,8 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 2.0
     [] - [3]
-    [var] - [1, 2, 3]
     [string] - [1, 2, 3]
+    [var] - [1, 2, 3]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: retry
@@ -3795,8 +3795,8 @@ INDEXES for (nondet) disjunction [2]
 1. Quality 2.0
     [] - [3]
     [structure] - [3]
-    [structure, g / 2] - [2, 3]
     [structure, f / 1] - [1, 3]
+    [structure, g / 2] - [2, 3]
     [var] - [1, 2, 3]
 Branch determinisms for disjunction [2]
     Branch 1: try
@@ -3930,16 +3930,16 @@ p :-
 INDEXES for (semidet) disjunction [3]
 1. Quality 1.0
     [] - []
-    [var] - [2]
     [atom] - []
     [atom, a] - [1]
     [atom, b] - [2]
+    [var] - [2]
 2. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [3]
     Branch 1: det
     Branch 2: det
@@ -4003,16 +4003,16 @@ p :-
 INDEXES for (nondet) disjunction [3]
 1. Quality 1.7
     [] - [3]
-    [var] - [2, 3]
     [atom] - [3]
     [atom, a] - [1, 3]
     [atom, b] - [2, 3]
+    [var] - [2, 3]
 2. Quality 2.0
     [] - [3]
-    [var] - [1, 2, 3]
     [integer] - [3]
     [integer, 1] - [1, 3]
     [integer, 2] - [2, 3]
+    [var] - [1, 2, 3]
 Branch determinisms for disjunction [3]
     Branch 1: try
     Branch 2: try
@@ -4109,8 +4109,8 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 0.7
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -4148,9 +4148,9 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 0.7
     [] - []
+    [string] - [2]
     [structure] - []
     [structure, f / 1] - [1]
-    [string] - [2]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -4206,8 +4206,8 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 0.8
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
     [structure] - []
     [structure, f / 1] - [3]
 Branch determinisms for disjunction [2]
@@ -4413,20 +4413,20 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.8
     [] - []
-    [list] - [9]
     [[]] - [8]
-    [structure] - []
-    [structure, foo / 1] - [10]
     [atom] - []
     [atom, hello] - [7]
-    [var] - [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    [breal] - [5]
-    [rational] - [4]
     [bignum] - [2]
+    [breal] - [5]
+    [double] - [3]
     [integer] - []
     [integer, 1] - [1]
+    [list] - [9]
+    [rational] - [4]
     [string] - [6]
-    [double] - [3]
+    [structure] - []
+    [structure, foo / 1] - [10]
+    [var] - [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: retry
@@ -4588,18 +4588,18 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
-    [handle] - [11]
-    [list] - [9]
     [[]] - [7]
-    [structure] - [10]
     [atom] - [8]
-    [var] - [1]
-    [breal] - [5]
-    [rational] - [4]
-    [integer] - [2]
     [bignum] - [2]
-    [string] - [6]
+    [breal] - [5]
     [double] - [3]
+    [handle] - [11]
+    [integer] - [2]
+    [list] - [9]
+    [rational] - [4]
+    [string] - [6]
+    [structure] - [10]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -4718,9 +4718,9 @@ INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
     [[]] - [1]
-    [var] - [2]
     [atom] - [1]
     [atom, hello] - [1, 2]
+    [var] - [2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -4781,8 +4781,8 @@ INDEXES for (nondet) disjunction [2]
     [] - []
     [atom] - []
     [atom, ghi] - [3]
-    [var] - [1, 2, 3]
     [string] - [1, 2]
+    [var] - [1, 2, 3]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: retry
@@ -4840,10 +4840,10 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -4892,10 +4892,10 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - [3]
-    [var] - [1]
     [integer] - [3]
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -4948,11 +4948,11 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
-    [var] - [1]
     [bignum] - [3]
     [integer] - [3]
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -6163,10 +6163,10 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
-    [var] - [1]
     [integer] - []
     [integer, 1] - [2]
     [integer, 2] - [3]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -6221,10 +6221,10 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
-    [var] - [1]
     [integer] - []
     [integer, 1] - [2]
     [integer, 2] - [3]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -6280,10 +6280,10 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
-    [var] - [1]
     [bignum] - [3]
     [integer] - [3]
     [integer, 1] - [2]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -6359,8 +6359,8 @@ INDEXES for (nondet) disjunction [2]
     [] - []
     [[]] - [4]
     [atom] - [4]
-    [integer] - [1, 2, 3]
     [bignum] - [1, 2, 3]
+    [integer] - [1, 2, 3]
 2. Quality 2.2
     [] - [4]
     [atom] - [4]
@@ -6502,18 +6502,18 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
-    [handle] - [8]
-    [list] - [6]
     [[]] - [4]
-    [structure] - [7]
     [atom] - [5]
-    [var] - [1]
-    [breal] - [3]
-    [rational] - [2]
-    [integer] - [2]
     [bignum] - [2]
-    [string] - [5]
+    [breal] - [3]
     [double] - [2]
+    [handle] - [8]
+    [integer] - [2]
+    [list] - [6]
+    [rational] - [2]
+    [string] - [5]
+    [structure] - [7]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -6526,10 +6526,10 @@ Branch determinisms for disjunction [2]
 INDEXES for (semidet) disjunction [2, 2, 2]
 1. Quality 0.8
     [] - []
-    [rational] - [3]
-    [integer] - [1]
     [bignum] - [1]
     [double] - [2]
+    [integer] - [1]
+    [rational] - [3]
 Branch determinisms for disjunction [2, 2, 2]
     Branch 1: det
     Branch 2: det
@@ -6693,8 +6693,8 @@ INDEXES for (nondet) disjunction [2]
 2. Quality 2.0
     [] - []
     [[]] - [1, 2]
-    [var] - [1, 2]
     [atom] - [1, 2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -6742,10 +6742,10 @@ INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
     [[]] - [1]
-    [var] - [1, 2]
     [atom] - [1]
-    [integer] - [2]
     [bignum] - [2]
+    [integer] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -6800,13 +6800,13 @@ INDEXES for (nondet) disjunction [2]
 2. Quality 2.0
     [] - []
     [[]] - [1, 2]
-    [var] - [1, 2]
     [atom] - [1, 2]
+    [var] - [1, 2]
 3. Quality 2.0
     [] - []
-    [var] - [1, 2]
-    [integer] - [1, 2]
     [bignum] - [1, 2]
+    [integer] - [1, 2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -6927,19 +6927,19 @@ p(foo(bar)) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 0.9
     [] - []
-    [list] - [9]
     [[]] - [8]
-    [structure] - []
-    [structure, foo / 1] - [10]
     [atom] - []
     [atom, hello] - [7]
-    [breal] - [5]
-    [rational] - [4]
     [bignum] - [2]
+    [breal] - [5]
+    [double] - [3]
     [integer] - []
     [integer, 1] - [1]
+    [list] - [9]
+    [rational] - [4]
     [string] - [6]
-    [double] - [3]
+    [structure] - []
+    [structure, foo / 1] - [10]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -7050,11 +7050,11 @@ INDEXES for (nondet) disjunction [2]
     [var] - [1, 2, 3]
 2. Quality 1.5
     [] - []
-    [var] - [1, 2, 3]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
     [integer, 3] - [3]
+    [var] - [1, 2, 3]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: retry
@@ -7121,10 +7121,10 @@ INDEXES for (nondet) disjunction [2]
     [] - []
     [bignum] - [5, 6]
     [integer] - []
-    [integer, 20000000000] - [4]
-    [integer, 10000000000] - [3]
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [integer, 10000000000] - [3]
+    [integer, 20000000000] - [4]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -7373,10 +7373,10 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -8988,10 +8988,10 @@ p(A) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
+    [bignum] - [2]
+    [integer] - [2]
     [var] - []
     [var, meta] - [1]
-    [integer] - [2]
-    [bignum] - [2]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -10770,11 +10770,11 @@ INDEXES for (semidet) disjunction [2]
     [] - []
     [[]] - [1]
     [atom] - [1]
-    [rational] - [2]
-    [integer] - [2]
-    [breal] - [2]
     [bignum] - [2]
+    [breal] - [2]
     [double] - [2]
+    [integer] - [2]
+    [rational] - [2]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -11464,20 +11464,20 @@ INDEXES for (nondet) disjunction [2]
 1. Quality 4.4
     [] - [21]
     [[]] - [5, 8, 17, 18, 20, 21]
+    [atom] - [3, 5, 8, 17, 18, 21]
+    [bignum] - [5, 9, 10, 16, 17, 21]
+    [breal] - [5, 12, 14, 16, 17, 21]
+    [double] - [5, 12, 13, 16, 17, 21]
+    [goal] - [2, 5, 17, 21]
+    [handle] - [3, 4, 5, 17, 21]
+    [integer] - [5, 9, 16, 17, 21]
+    [list] - [5, 18, 19, 20, 21]
+    [rational] - [5, 11, 16, 17, 21]
+    [string] - [5, 15, 17, 21]
+    [structure] - [5, 18, 19, 21]
     [var] - [6, 21]
     [var, free] - [1, 6, 21]
     [var, meta] - [6, 7, 21]
-    [atom] - [3, 5, 8, 17, 18, 21]
-    [bignum] - [5, 9, 10, 16, 17, 21]
-    [goal] - [2, 5, 17, 21]
-    [double] - [5, 12, 13, 16, 17, 21]
-    [list] - [5, 18, 19, 20, 21]
-    [structure] - [5, 18, 19, 21]
-    [rational] - [5, 11, 16, 17, 21]
-    [handle] - [3, 4, 5, 17, 21]
-    [breal] - [5, 12, 14, 16, 17, 21]
-    [integer] - [5, 9, 16, 17, 21]
-    [string] - [5, 15, 17, 21]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: try
@@ -11719,18 +11719,18 @@ INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
     [[]] - [2]
-    [var] - [1]
     [atom] - [2]
     [bignum] - [2]
-    [goal] - [2]
-    [double] - [2]
-    [list] - [3]
-    [structure] - [3]
-    [rational] - [2]
-    [handle] - [2]
     [breal] - [2]
+    [double] - [2]
+    [goal] - [2]
+    [handle] - [2]
     [integer] - [2]
+    [list] - [3]
+    [rational] - [2]
     [string] - [2]
+    [structure] - [3]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -11790,18 +11790,18 @@ INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
     [[]] - [2]
-    [var] - [1]
     [atom] - [2]
     [bignum] - [3]
-    [goal] - [7]
-    [double] - [3]
-    [list] - [5]
-    [structure] - [5]
-    [rational] - [3]
-    [handle] - [6]
     [breal] - [3]
+    [double] - [3]
+    [goal] - [7]
+    [handle] - [6]
     [integer] - [3]
+    [list] - [5]
+    [rational] - [3]
     [string] - [4]
+    [structure] - [5]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -11885,20 +11885,20 @@ INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
     [[]] - [3]
+    [atom] - [3]
+    [bignum] - [4]
+    [breal] - [4]
+    [double] - [4]
+    [goal] - [7]
+    [handle] - [6]
+    [integer] - [4]
+    [list] - [3]
+    [rational] - [4]
+    [string] - [5]
+    [structure] - [3]
     [var] - []
     [var, free] - [1]
     [var, meta] - [2]
-    [atom] - [3]
-    [bignum] - [4]
-    [goal] - [7]
-    [double] - [4]
-    [list] - [3]
-    [structure] - [3]
-    [rational] - [4]
-    [handle] - [6]
-    [breal] - [4]
-    [integer] - [4]
-    [string] - [5]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -12147,8 +12147,13 @@ p(A) :-
 	\/(L, 2, M),
 	xor(M, 2, N),
 	\(N, O),
+	O + P,
+	abs(P, Q),
+	min(P, Q, R),
+	max(Q, R, S),
+	sgn(S, T),
 	arity(foo(a, b, c), 3),
-	arg(O, foo(a, b, c), A).
+	arg(T, foo(a, b, c), A).
 
 p / 1:
 label(L0):
@@ -12181,6 +12186,11 @@ label(L0):
 	put_integer              a(2)     2 
 	bi_xor                   a(1)     a(2)     a(1)     16 
 	bi_bitnot                a(1)     a(1)     4 
+	bi_plus                  a(1)     a(1)     4 
+	bi_abs                   a(1)     a(2)     4 
+	bi_min                   a(1)     a(2)     a(1)     16 
+	bi_max                   a(2)     a(1)     a(1)     16 
+	bi_sgn                   a(1)     a(1)     4 
 	put_structure            a(2)     foo / 3 
 	write_atom2              a     b 
 	write_atom               c 
@@ -12348,10 +12358,10 @@ q(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
@@ -12428,8 +12438,8 @@ conc([A|B], C, [A|D]) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
     [var] - [1, 2]
 2. Quality 1.5
     [] - [1]
@@ -12486,8 +12496,8 @@ conc(A, B, C) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
     [var] - [1, 2]
 2. Quality 1.5
     [] - [1]
@@ -12737,8 +12747,8 @@ conc([A|B], C, [A|D]) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 1.0
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
     [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
@@ -12785,8 +12795,8 @@ conc([A|B], C, [A|D]) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
     [var] - [1, 2]
 2. Quality 1.5
     [] - [1]
@@ -12974,8 +12984,8 @@ simplify_code([code(A, B, C)|D], E) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [list] - [2]
     [[]] - [1]
+    [list] - [2]
     [var] - [1, 2]
 2. Quality 1.5
     [] - [2]
@@ -13271,15 +13281,15 @@ INDEXES for (nondet) disjunction [2]
 1. Quality 1.7
     [] - [3, 4, 5]
     [atom] - [3, 4, 5]
-    [atom, profile] - [2]
     [atom, lists] - [1]
+    [atom, profile] - [2]
     [var] - [1]
 2. Quality 3.3
     [] - [1, 2, 5]
-    [var] - [1, 2, 3]
     [integer] - [1, 2, 5]
-    [integer, 85] - [1, 2, 4, 5]
     [integer, 75] - [1, 2, 3]
+    [integer, 85] - [1, 2, 4, 5]
+    [var] - [1, 2, 3]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -13398,19 +13408,19 @@ attach_suspensions(A, B) :-
 INDEXES for (semidet) disjunction [2]
 1. Quality 0.8
     [] - [4]
-    [handle] - [3]
-    [list] - [3]
     [[]] - [2]
-    [structure] - [3]
     [atom] - [2]
     [atom, postponed] - [1]
-    [rational] - [3]
-    [integer] - [3]
-    [breal] - [3]
     [bignum] - [3]
-    [string] - [3]
+    [breal] - [3]
     [double] - [3]
     [goal] - [3]
+    [handle] - [3]
+    [integer] - [3]
+    [list] - [3]
+    [rational] - [3]
+    [string] - [3]
+    [structure] - [3]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -13533,9 +13543,9 @@ do_x(A, B, C, D) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.5
     [] - [2]
-    [var] - [1, 2]
     [integer] - [2]
     [integer, 0] - [1, 2]
+    [var] - [1, 2]
 2. Quality 1.5
     [] - [2]
     [[]] - [1, 2]
@@ -13681,8 +13691,8 @@ INDEXES for (nondet) disjunction [2]
     [] - []
     [structure] - []
     [structure, name / 1] - [2]
-    [structure, wh / 1] - [3]
     [structure, np_head / 1] - [1]
+    [structure, wh / 1] - [3]
     [var] - [1, 2, 3]
 2. Quality 2.0
     [] - [3]
@@ -13812,9 +13822,9 @@ INDEXES for (semidet) disjunction [2]
     [] - []
     [atom] - []
     [atom, pinf] - [1]
-    [var] - [1]
-    [integer] - [2]
     [bignum] - [2]
+    [integer] - [2]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -13877,11 +13887,11 @@ compute_stop(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.4
     [] - [6]
-    [var] - [1]
     [bignum] - [4, 5, 6]
     [integer] - [4, 5, 6]
-    [integer, 1] - [2]
     [integer, -1] - [3]
+    [integer, 1] - [2]
+    [var] - [1]
 Branch determinisms for disjunction [2]
     Branch 1: det
     Branch 2: det
@@ -14018,9 +14028,9 @@ q(A, B) :-
 INDEXES for (nondet) disjunction [3]
 1. Quality 1.5
     [] - [2]
-    [var] - [1, 2]
     [integer] - [2]
     [integer, 1] - [1, 2]
+    [var] - [1, 2]
 2. Quality 1.5
     [] - [2]
     [atom] - [2]
@@ -15260,21 +15270,21 @@ p(A) :-
 INDEXES for (nondet) disjunction [2]
 1. Quality 1.3
     [] - []
-    [var] - [1, 2]
     [integer] - []
-    [integer, 4] - [2]
     [integer, 1] - [1]
     [integer, 2] - [1]
+    [integer, 4] - [2]
+    [var] - [1, 2]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: trust
 INDEXES for (semidet) disjunction [2, 1, 2]
 1. Quality 1.0
     [] - []
-    [var] - [1]
     [integer] - []
     [integer, 1] - [1]
     [integer, 2] - [2]
+    [var] - [1]
 Branch determinisms for disjunction [2, 1, 2]
     Branch 1: det
     Branch 2: det
@@ -15459,9 +15469,9 @@ test A :-
 INDEXES for (semidet) disjunction [3]
 1. Quality 1.0
     [] - [2]
-    [var] - [1]
     [integer] - [2]
     [integer, 1] - [1]
+    [var] - [1]
 Branch determinisms for disjunction [3]
     Branch 1: det
     Branch 2: det
