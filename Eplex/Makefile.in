@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Eplex
-# $Id: Makefile.in,v 1.13 2016/07/24 19:34:43 jschimpf Exp $
+# $Id: Makefile.in,v 1.14 2016/09/13 13:26:43 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -239,7 +239,7 @@ bugclp: bug.c
 $(ARCH)/segurobi$(GUROBI_VERSION).$(OBJ_SUFFIX): eplex.c eplex.h eplex_gurobi.h eplex_gurobi.c
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CC) -DGUROBI $(CPPFLAGS) $(CFLAGS) -I$(GUROBIDIR)/include -c eplex.c
-	$(DYLD) $(DYNLDFLAGS)  eplex.o $(GUROBIDIR)/$(DLIBDIR)/$(LIB_PREFIX)gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ECLIBS) -o $@
+	$(DYLD) $(DYNLDFLAGS)  eplex.o -L$(GUROBIDIR)/$(DLIBDIR) -lgurobi$(GUROBI_VERSION) $(ECLIBS) -o $@
 	cp $(GUROBIDIR)/$(DLIBDIR)/$(LIB_PREFIX)gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) $(ARCH)
 	cp $(GUROBIDIR)/$(DLIBDIR)/$(LIB_PREFIX)gurobi$(GUROBI_VERSION).$(OBJ_SUFFIX) ../lib/$(ARCH)
 
