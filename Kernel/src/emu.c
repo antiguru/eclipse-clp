@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.35 2016/08/11 22:07:45 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.36 2016/09/16 15:45:00 jschimpf Exp $
  */
 
 /*
@@ -91,13 +91,13 @@
 /*
  * There are three variants of the emulator:
  *	!THREADED		uses switch()
+ *	THREADED && HAVE_COMPUTED_GOTO	use gnu's && operator and computed
+ *				gotos to make a threaded code emulator
  *	THREADED && POSTPRO	postprocess the assembler output to turn
  *				the emulator into a threaded code one
- *	THREADED && __GNUC__	use gnu's && operator and computed gotos
- *				to make a threaded code emulator
  */
 
-#if defined(THREADED) && defined(__GNUC__)
+#if defined(THREADED) && defined(HAVE_COMPUTED_GOTO)
 
 #define Next_Pp			goto *PP++->emu_addr;
 #define Case(Opcode, Oplab)	case Opcode: Oplab: Mark_Prof(Opcode)
@@ -130,7 +130,7 @@ typedef union s_code_item {
     pri			*proc_entry;
     int			(*func)();
     union s_code_item	*code;
-#if defined(__GNUC__) && defined(THREADED)
+#if defined(THREADED) && defined(HAVE_COMPUTED_GOTO)
     void		*emu_addr;
 #endif
 } code_item;
@@ -780,7 +780,7 @@ ec_emulate(ec_eng_t *ec_eng)
     emu_code	back_code;
     double	dbl_res;
 
-#if defined(__GNUC__) && defined(THREADED)
+#if defined(THREADED) && defined(HAVE_COMPUTED_GOTO)
     if (!ec_eng)	/* initialize the array of instruction addresses */
     {
 	i = 0;

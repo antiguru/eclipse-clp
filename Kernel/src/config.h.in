@@ -348,6 +348,9 @@
 /* On some machines struct nlist uses n_un.n_name, on others it does not */
 #undef N_NAME
 
+/* Does the compiler support goto &&label; */
+#undef HAVE_COMPUTED_GOTO
+
 /* Do we have the GMP (or compatible) multi precision library */
 #undef HAVE_LIBGMP
 

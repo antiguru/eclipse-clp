@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.9 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.10 2016/09/16 15:45:00 jschimpf Exp $
  */
 
 /*
@@ -488,7 +488,7 @@ bip_emu_init(int flags)
  * With gcc we use a different scheme and ignore POSTPRO. 
  */
 
-#if defined(THREADED) && !defined(POSTPRO)
+#if defined(THREADED) && defined(HAVE_COMPUTED_GOTO)
 vmcode	op_addr[NUMBER_OP];
 #endif
 
@@ -496,7 +496,7 @@ void
 opaddr_init(void)
 {
 #ifdef THREADED
-#if defined(__GNUC__) || defined(_WIN32)
+#if defined(HAVE_COMPUTED_GOTO)
     op_addr[0] = 0;
     (void) ec_emulate(NULL);	/* to init op_addr[] */
     if (op_addr[Retry] == op_addr[Retry_inline]

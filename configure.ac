@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.69 2016/08/05 18:43:28 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.70 2016/09/16 15:45:36 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -804,6 +804,13 @@ AC_COMPILE_IFELSE([
      CFLAGS="$SAVED_CFLAGS -fPIC"],
     [AC_MSG_RESULT(no)
      CFLAGS="$SAVED_CFLAGS"])
+
+AC_MSG_CHECKING(whether compiler supports computed gotos)
+AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([], [[void *p = &&label; goto *p; label:]])],
+    [AC_MSG_RESULT(yes)
+     AC_DEFINE(HAVE_COMPUTED_GOTO)],
+    [AC_MSG_RESULT(no)])
 
 dnl Check for void pointers
 AC_CACHE_CHECK(for void pointer, ec_cv_c_void_p,
