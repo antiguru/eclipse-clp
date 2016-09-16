@@ -22,7 +22,7 @@
 # 
 # END LICENSE BLOCK
 #
-# IC-Parc, $Id: BUILD_ROTD,v 1.18 2015/05/05 14:47:13 jschimpf Exp $
+# IC-Parc, $Id: BUILD_ROTD,v 1.19 2016/09/16 12:33:55 jschimpf Exp $
 #
 # Build ECLiPSe Release-Of-The-Day.
 #
@@ -133,6 +133,10 @@ Options:
 	--no-install-archives
 		Don't copy any archive files to the main archive directory.
 
+	--archive-subdir <subdir>
+		Place under the given subdirectory on the archive site.
+		This might be something named Dev or Old.
+
 	--jeclipse-tests
 		If an architecture built a \"jeclipse\" executable, run the
 		tests using that as well.  (default)
@@ -202,6 +206,15 @@ required_site_params="
 	PACK_MACHINE \
 "
 
+# Optional site_info parameters are:
+#	CONFIG_HOST_<arch>
+#	CONFIG_SITE_<arch>
+#	MACHINE_<arch>
+#	MACHINE_NAME_<name>
+#	MACHINE_USER_<name>
+#	TEST_MACHINES_<arch>
+#	MACHINE_CLASS_ALIAS_<name>
+
 for param_name in $required_site_params; do
     eval param_val="\$$param_name"
     if [ -z "$param_val" ]; then 
@@ -269,6 +282,10 @@ while [ $# -gt 0 ]; do
     --no-install-archives)
 	install_archives=no ;;
 
+    --archive-subdir)
+	ARCHIVE_SUBDIR=$2
+	shift ;;
+
     --jeclipse-tests)
 	jeclipse_tests=yes ;;
     --no-jeclipse-tests)
@@ -335,11 +352,12 @@ umask $UMASK
 PREFIX=$ROTD_DIR
 LOCAL_PREFIX=$LOCAL_ROTD_DIR
 
-if [ -n "$BRANCH_TAG" ] ; then
-    ROTD_SUBDIR=patch-$ROTD_NAME
-    STABLE_DIR=patch
+if [ -n "$BRANCH_TAG" -a "$BRANCH_TAG" != "rotd" ] ; then
+    ROTD_SUBDIR=$BRANCH_TAG-$ROTD_NAME
+    STABLE_DIR=$BRANCH_TAG
     LAST_SUCCESSFUL_BUILD_TAG=last_successful_$BRANCH_TAG
 else
+    BRANCH_TAG=
     ROTD_SUBDIR=rotd-$ROTD_NAME
     STABLE_DIR=dev
     LAST_SUCCESSFUL_BUILD_TAG=last_successful_main_branch
@@ -398,6 +416,7 @@ if [ "$resume_build" = "yes" ] ; then
 	SUMMARY="${SUMMARY}\
 Resuming/retrying previous build
 "
+	rm -f $ABORT_FLAG
 	# Save the old logs...
 	n=1
 	old_log_dir="$LOCAL_PREFIX/$ROTD_SUBDIR/old_logs.$n"
@@ -629,8 +648,7 @@ check_arch_build_machines() {	# list of architectures
 	    check_result=1
 	fi
     done
-
-    [ "$check_result" = 0 ]
+    return $check_result
 }
 
 # Checks that appropriate machine(s) have been specified for testing each
@@ -666,8 +684,7 @@ check_arch_test_machines() {	# list of architectures
 
 	eval 'TEST_MACHINES_'$arch=\"$real_machines\"
     done
-
-    [ "$check_result" = 0 ]
+    return $check_result
 }
 
 
@@ -714,20 +731,11 @@ check_out_sources() {	# no arguments
 build_architecture() {	# architecture
     arch=$1
     eval machine='$MACHINE_'$arch
+    eval CONFIG_HOST='$CONFIG_HOST_'$arch
+    eval config_site='$CONFIG_SITE_'$arch
 
     BUILD_LOGFILE="$PREFIX/$LOG_DIR/log.$arch.build"
     LOCAL_BUILD_LOGFILE="$LOCAL_PREFIX/$LOG_DIR/log.$arch.build"
-
-    case "$arch" in
-	i386_nt)
-	    CONFIG_HOST="--host=i386-mingw32msvc" ;;
-	x86_64_nt)
-	    CONFIG_HOST="--host=x86_64-pc-mingw32" ;;
-	i386_linux)
-	    CONFIG_HOST="--build=i586-pc-linux-gnu" ;;
-	*)
-	    CONFIG_HOST= ;;
-    esac
 
     if milestone_already_achieved built_$arch ; then
 	echo "Milestone: Skipping build of $arch"
@@ -739,10 +747,11 @@ build_architecture() {	# architecture
 	    # In case we're cross-compiling
 	    ARCH=\"$arch\"
 	    export ARCH
-
+	    CONFIG_SITE=\"$config_site\"
+	    export CONFIG_SITE
 	    (
                 uname -a
-		CONFIG_SITE=config.$arch ./configure $CONFIG_HOST
+		./configure $CONFIG_HOST
 		make -f Makefile.$arch
 	    ) >> $BUILD_LOGFILE 2>&1 &&
 
@@ -840,8 +849,8 @@ clean_build_archs() {	# list of architectures
 
 # NUM_INSTALLS		Number of installs
 # INSTALL_<n>_archs	Architectures for install n
-# INSTALL_<n>_name	"Name" for install n
-# INSTALL_<n>_package	Package for install n
+# INSTALL_<n>_name	"Name" for install n (arch name or 'all')
+# INSTALL_<n>_package	Package for install n (standard / runtime)
 # INSTALL_<n>_type	Install type for install n (solo / all)
 # INSTALL_<n>_keep	Whether to keep install n when everything's finished
 # 			(default is to keep combined installs)
@@ -1009,13 +1018,12 @@ install_archives() {	# installation number
 
 		echo "Installing for machine $machine and arch $arch " | tee -a $LOCAL_INSTALL_LOGFILE
 
-		eval jre=\"'$JRE_HOME_'$arch\"
 		remote_commands "$machine" "$PREFIX/$install_dir" "
                      # In case we are cross-building (e.g. 32 on 64 bit)
 	             ARCH=\"$arch\"
 	             export ARCH
-                     eval JRE_HOME=\"$jre\"
-                     export JRE_HOME
+		     JRE_HOME=\"\${JRE_HOME_$arch:-\$JRE_HOME}\"
+		     export JRE_HOME
 		    ./RUNME < /dev/null >> $INSTALL_LOGFILE 2>&1
 		" || install_result=1
 	    done
@@ -1064,7 +1072,7 @@ install_all_archives() {
 #			    in given test phase (see run_all_tests)
 # TEST_MACHINES		List of machines on which some tests are to be run
 
-# TEST_RESULT_<type>_<package>_<embedding>_<machine>
+# TEST_RESULT_<arch>_<type>_<package>_<embedding>_<machine>
 # 			Result of test which matches the given parameters
 
 # Generate a set of test combinations, placing their details in the TEST_*
@@ -1077,19 +1085,22 @@ generate_test_combinations() {	# list of installations
     	set_install_params $install_num
 
 	for arch in $archs ; do
-	    if [ "$install_name" = all ] ; then
-		if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
-		    phase=1
-		else
-		    phase=2
-		fi
-	    else
-		if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
-		    phase=2
-		else
-		    phase=1
-		fi
-	    fi
+
+# We no longer do this 2-phase testing:
+#	    if [ "$install_name" = all ] ; then
+#		if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
+#		    phase=1
+#		else
+#		    phase=2
+#		fi
+#	    else
+#		if [ "$arch" = i386_nt -o "$arch" = x86_64_nt ] ; then
+#		    phase=2
+#		else
+#		    phase=1
+#		fi
+#	    fi
+	    phase=1
 
 	    eval machines=\"'$TEST_MACHINES_'$arch\"
 
@@ -1120,6 +1131,7 @@ generate_test_combinations() {	# list of installations
 	    done
 	done
     done
+    echo "TEST_MACHINES are $TEST_MACHINES"
     NUM_TESTS=$n
 }
 
@@ -1134,10 +1146,11 @@ set_test_params() {	# test number
     eval test_embedding=\"'${TEST_'$1'_embedding}'\"
     eval test_successful=\"'${TEST_'$1'_successful}'\"
     eval class=\"'${CLASS_'$machine'}'\"
-    test_dir="$ROTD_SUBDIR/$install_name/test.$package_type.$test_embedding.$machine"
-    test_result_file="$RESULT_DIR/result.$install_name.test.$package_type.$test_embedding.$class"
-    test_logfile="$LOG_DIR/log.$install_name.test.$package_type.$test_embedding.$machine"
-    eval test_milestone_key=\"${install_milestone_key}_${test_embedding}_${class}\"
+    test_sub="test.$arch.$install_type.$package_type.$test_embedding.$machine"
+    test_dir="$ROTD_SUBDIR/$install_name/$test_sub"
+    test_result_file="$RESULT_DIR/result.$install_name.test.$arch.$install_type.$package_type.$test_embedding.$class"
+    test_logfile="$LOG_DIR/log.$install_name.test.$arch.$install_type.$package_type.$test_embedding.$machine"
+    eval test_milestone_key=\"${install_milestone_key}_${arch}_${install_type}_${test_embedding}_${class}\"
     if [ "$package_type" = runtime ] ; then
 	test_flags="--test-flags runtime"
     else
@@ -1372,14 +1385,13 @@ run_test_win_nt() {
 # Run the tests on a remote Unix machine.
 run_test_unix() {
     rsync_out   # ($machine, $arch -> $is_remote_machine, $remote_prefix)
-    eval jre=\"'$JRE_HOME_'$arch\"
     if [ -n "$is_remote_machine" ] ; then
 	remote_commands "$machine" "$remote_prefix" "
 	    cd $install_dir &&
 	    rm -f lib/$arch/SITE_PARAMS &&
             ARCH=$arch &&
             export ARCH &&
-            eval JRE_HOME=\"$jre\" &&
+            JRE_HOME=\"\${JRE_HOME_$arch:-\$JRE_HOME}\" &&
             export JRE_HOME &&
 	    ./RUNME < /dev/null >> \"$remote_prefix/$test_logfile\" 2>&1
 	"
@@ -1392,6 +1404,8 @@ run_test_unix() {
 	    timeout=\`expr \$timeout - 1\`
 	done
         cd $test_dir &&
+	JRE_HOME=\"\${JRE_HOME_$arch:-\$JRE_HOME}\" &&
+	export JRE_HOME &&
         \"$remote_prefix/$test_dir/test_eclipse\" \
                 --test-dir \"$remote_prefix/$test_dir\" \
                 $test_flags \
@@ -1421,7 +1435,7 @@ run_test() {	# test number
     elif [ -e $LOCAL_PREFIX/$test_result_file ] && milestone_already_achieved tested_$test_milestone_key ; then
 	echo "Milestone: Skipping testing for $test_milestone_key"
     else
-	echo "Running test $test_num ($install_type/$package_type/$test_embedding) on $machine." | tee -a $LOCAL_TEST_LOGFILE
+	echo "Running test $test_num ($arch/$install_type/$package_type/$test_embedding) on $machine." | tee -a $LOCAL_TEST_LOGFILE
 
 	if [ "$arch" = i386_nt  -o "$arch" = x86_64_nt ] ; then
 	    run_test_win_nt
@@ -1431,27 +1445,118 @@ run_test() {	# test number
 	run_test_result=$?
 
 	{
-	    echo TEST_RESULT_${install_type}_${package_type}_${test_embedding}_${machine}=$run_test_result
+	    echo TEST_RESULT_${arch}_${install_type}_${package_type}_${test_embedding}_${machine}=$run_test_result
 	    echo TEST_${test_num}_successful=$run_test_result 
 	} > $LOCAL_PREFIX/$test_result_file
 
 	if [ "$run_test_result" = 0 ] ; then
 	    mark_milestone_achieved tested_$test_milestone_key
-	    echo "Test $test_num ($install_type/$package_type/$test_embedding) on $machine successful." | tee -a $LOCAL_TEST_LOGFILE
+	    echo "Test $test_num ($arch/$install_type/$package_type/$test_embedding) on $machine successful." | tee -a $LOCAL_TEST_LOGFILE
 	else
-	    echo "Test $test_num ($install_type/$package_type/$test_embedding) on $machine failed." | tee -a $LOCAL_TEST_LOGFILE
+	    echo "Test $test_num ($arch/$install_type/$package_type/$test_embedding) on $machine failed." | tee -a $LOCAL_TEST_LOGFILE
 	    false
 	fi
     fi
 }
 
+
+release_remote_test() {	# test number
+    test_num=$1
+    set_test_params $test_num
+
+    LOCAL_TEST_LOGFILE=$LOCAL_PREFIX/$test_logfile
+
+    if [ -e "$ABORT_FLAG" ] ; then
+	echo "$ABORT_FLAG found, aborting prematurely"
+	false
+    elif [ -e $LOCAL_PREFIX/$test_result_file ] && milestone_already_achieved tested_$test_milestone_key ; then
+	echo "Milestone: Skipping testing for $test_milestone_key"
+	false
+    else
+	echo "Releasing test $test_num ($arch/$install_type/$package_type/$test_embedding) on $machine." | tee -a $LOCAL_TEST_LOGFILE
+
+	rm -f "$LOCAL_PREFIX/$test_dir/test_result"
+	jobs_dir="$LOCAL_PREFIX/$ROTD_SUBDIR/jobs"
+	test_spec=$arch.test.$install_type.$package_type.$test_embedding
+	cat > "$jobs_dir/$test_spec.new" <<EOF
+run_remote_test `hostname` "$LOCAL_PREFIX/$ROTD_SUBDIR" $install_name install.$package_type $test_sub $arch $ECLIPSE_VERSION $test_embedding
+EOF
+	# release it only after fully created
+	mv "$jobs_dir/$test_spec.new" "$jobs_dir/$test_spec.avail"
+    fi
+}
+
+await_test_results() {	# tests machine
+
+    awaited_tests_successful=true
+    unfinished_tests=$1
+
+    while [ -n "$unfinished_tests" ]; do
+	echo "Waiting for machine $2 to finish tests $unfinished_tests"
+	sleep 10
+	still_unfinished=
+
+	# poll for finished tests
+	for test_num in $unfinished_tests; do
+	    set_test_params $test_num
+	    test_return_status="$LOCAL_PREFIX/$test_dir/test_result"
+
+	    # echo "Checking for $test_return_status"
+	    if [ -e "$test_return_status" ]; then
+		# this test has finished
+		LOCAL_TEST_LOGFILE=$LOCAL_PREFIX/$test_logfile
+		run_test_result=`cat "$test_return_status"`
+		echo "Found $test_return_status with result $run_test_result"
+		{
+		    echo TEST_RESULT_${arch}_${install_type}_${package_type}_${test_embedding}_${machine}=$run_test_result
+		    echo TEST_${test_num}_successful=$run_test_result 
+		} > $LOCAL_PREFIX/$test_result_file
+
+		if [ "$run_test_result" = 0 ] ; then
+		    mark_milestone_achieved tested_$test_milestone_key
+		    echo "Test $test_num ($arch/$install_type/$package_type/$test_embedding) on $machine successful." | tee -a $LOCAL_TEST_LOGFILE
+		else
+		    awaited_tests_successful=false
+		    echo "Test $test_num ($arch/$install_type/$package_type/$test_embedding) on $machine failed." | tee -a $LOCAL_TEST_LOGFILE
+		fi
+	    else
+		still_unfinished="$still_unfinished $test_num"
+	    fi
+	done
+
+	if [ -e "$ABORT_FLAG" ] ; then
+	    echo "$ABORT_FLAG found, aborting prematurely"
+	    awaited_tests_successful=false
+	    break
+	fi
+	unfinished_tests="$still_unfinished"
+    done
+    $awaited_tests_successful
+}
+
+
 # Run all the tests on the given machine.
 test_machine() {	# machine, phase
     eval tests=\"'$TESTS_'$1'_'$2\"
     test_machine_result=0
-    for test_num in $tests ; do
-	run_test $test_num || test_machine_result=1
-    done
+    jobs_dir="$LOCAL_PREFIX/$ROTD_SUBDIR/jobs"
+    if [ $1 = remote ]; then
+	# release tests for remote workers
+        mkdir -p "$jobs_dir"
+	echo "Releasing tests: $tests"
+	released_tests=
+	for test_num in $tests ; do
+	    release_remote_test $test_num && released_tests="$released_tests $test_num"
+	done
+	# wait until all released tests are done
+	await_test_results "$released_tests" $1 || test_machine_result=1
+    else
+	# run tests actively and sequentially
+	for test_num in $tests ; do
+	    run_test $test_num || test_machine_result=1
+	done
+    fi
+
     if [ "$test_machine_result" = 0 ] ; then
 	echo "Testing machine $1 (phase $2) completed: success."
     else
@@ -1498,9 +1603,9 @@ run_all_tests() {
     while [ $n -le $NUM_TESTS ] ; do
 	set_test_params $n
 	. $LOCAL_PREFIX/$test_result_file \
-	|| eval TEST_RESULT_${install_type}_${package_type}_${test_embedding}_${machine}='?'
+	|| eval TEST_RESULT_${arch}_${install_type}_${package_type}_${test_embedding}_${machine}='?'
 
-	if eval [ \"'$TEST_RESULT_'${install_type}_${package_type}_${test_embedding}_${machine}\" != 0 ] ; then
+	if eval [ \"'$TEST_RESULT_'${arch}_${install_type}_${package_type}_${test_embedding}_${machine}\" != 0 ] ; then
 	    # Something went wrong, so make sure we keep the test and
 	    # corresponding installation.
 	    set_keep_test $n
@@ -1522,22 +1627,24 @@ print_test_results() {
     echo "    Machine          Arch  none none none none java java java java"
     echo "    -------          ----  ---- ---- ---- ---- ---- ---- ---- ----"
 
-    for machine in $TEST_MACHINES ; do
-	eval arch=\"'${ARCH_'$machine'}'\"
-    	printf "%11s  %12s " $machine $arch
+    for arch in $built_archs ; do
+	eval test_machines_arch=\"'${TEST_MACHINES_'$arch'}'\"
+	for machine in $test_machines_arch ; do
+	    printf "%11s  %12s " $machine $arch
 
-	for test_embedding in $test_embeddings ; do
-	    for package_type in standard runtime ; do
-		for install_type in solo all ; do
-		    eval res='$TEST_RESULT_'${install_type}_${package_type}_${test_embedding}_${machine}
-		    [ "$res" = 0 ] && res=yes
-		    [ "$res" = 1 ] && res=no
-		    [ "$res" = "" ] && res="-"
-		    printf "%5s" "$res"
+	    for test_embedding in $test_embeddings ; do
+		for package_type in standard runtime ; do
+		    for install_type in solo all ; do
+			eval res='$TEST_RESULT_'${arch}_${install_type}_${package_type}_${test_embedding}_${machine}
+			[ "$res" = 0 ] && res=yes
+			[ "$res" = 1 ] && res=no
+			[ "$res" = "" ] && res="-"
+			printf "%5s" "$res"
+		    done
 		done
 	    done
+	    echo
 	done
-	echo
     done
 }
 
@@ -1546,7 +1653,7 @@ print_failed_test_logs() {
     while [ $n -le $NUM_TESTS ] ; do
 	set_test_params $n
 
-	if eval [ \"'$TEST_RESULT_'${install_type}_${package_type}_${test_embedding}_${machine}\" != 0 ] ; then
+	if eval [ \"'$TEST_RESULT_'${arch}_${install_type}_${package_type}_${test_embedding}_${machine}\" != 0 ] ; then
 	    # Something went wrong, so print the test log
 	    echo
 	    cat $LOCAL_PREFIX/$test_logfile
@@ -1792,6 +1899,7 @@ copy_to_ftps() {
 	for archive_dest in $ARCHIVE_DESTS ; do
 	    FTP_MACHINE=`echo $archive_dest|sed 's/:.*//'`
 	    BASE_ARCHIVE_DIR=`echo $archive_dest|sed 's/.*://'`
+	    [ -n $ARCHIVE_SUBDIR ] &&  BASE_ARCHIVE_DIR=$BASE_ARCHIVE_DIR/$ARCHIVE_SUBDIR
 	    copy_to_ftp || all_ftps_ok=1
 	done 
 	return $all_ftps_ok
