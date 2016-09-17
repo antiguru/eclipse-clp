@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_general.h,v 1.1 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: ec_general.h,v 1.2 2016/09/17 19:15:43 jschimpf Exp $
  *
  * General types and macros used in ECLiPSe-related C source.
  * Do not include ECLiPSe-specific definitions here.
@@ -115,8 +115,6 @@ typedef pthread_cond_t ec_cond_t;
 /*		Machine-dependent definitions			 */
 /******************************************************************/
 
-#ifndef __ECLIPSE_MEMMAN_H
-
 #ifndef __CHAR_UNSIGNED__
 typedef char		int8;			/* exactly 8 bit */
 #else
@@ -130,8 +128,11 @@ typedef unsigned short	uint16;
 #if (SIZEOF_INT == 4)
 typedef int		int32;			/* exactly 32 bit */
 typedef unsigned int	uint32;
+#else
+#error "No code for dealing with sizeof(int) != 4"
 #endif
 
+#define ECLIPSE_TYPEDEF_WORD			/* tested in memman.h */
 #if (SIZEOF_CHAR_P == SIZEOF_INT)
 typedef int		word;			/* pointer-sized */
 typedef unsigned int	uword;
@@ -144,9 +145,9 @@ typedef unsigned long long 	uword;
 #elif defined(HAVE___INT64) && SIZEOF_CHAR_P == 8
 typedef __int64          word;
 typedef unsigned __int64 uword;
+#else
+#error "No code for dealing with word size > long long/__int64!"
 #endif
-
-#endif /* __ECLIPSE_MEMMAN_H */
 
 
 /* A "word" is a pointer-sized integer.

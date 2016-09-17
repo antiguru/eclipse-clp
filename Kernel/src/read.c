@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.13 2016/08/05 19:59:02 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.14 2016/09/17 19:15:43 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1796,7 +1796,7 @@ _alloc_parse_env(ec_eng_t *ec_eng, int options, stream_id nst, dident module, ty
     {
 	if (NUMBER_VAR != pd->var_table_size)	/* table size changed */
 	{
-	    hp_free_size((generic_ptr) pd->var_table, pd->var_table_size*sizeof(vword));
+	    hp_free_size(pd->var_table, pd->var_table_size*sizeof(vword));
 	    pd->var_table_size = NUMBER_VAR;
 	    pd->var_table = (vword *) hp_alloc_size((int)NUMBER_VAR * sizeof(vword));
 	    pd->counter = 0;
@@ -1811,7 +1811,7 @@ _alloc_parse_env(ec_eng_t *ec_eng, int options, stream_id nst, dident module, ty
 	pd->counter = 0;
 	pd->engine = ec_eng;
 	Temp_Create(pd->string_store, 1024);
-	PARSENV = (void_ptr) pd;	/* store it globally */
+	PARSENV = pd;	/* store it globally */
     }
 
     pd->nst = nst;
@@ -1841,10 +1841,10 @@ destroy_parser_env(ec_eng_t *ec_eng)	/* called when exiting emulators */
 
     if (pd)				/* deallocate the parsing environment */
     {
-	hp_free_size((generic_ptr) pd->var_table, pd->var_table_size*sizeof(vword));
+	hp_free_size(pd->var_table, pd->var_table_size*sizeof(vword));
 	Temp_Destroy(pd->string_store);
-	hp_free_size((generic_ptr) pd, sizeof(parse_desc));
-	PARSENV = (void_ptr) 0;
+	hp_free_size(pd, sizeof(parse_desc));
+	PARSENV = 0;
     }
     return 0;
 }

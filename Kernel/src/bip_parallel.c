@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_parallel.c,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: bip_parallel.c,v 1.5 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -168,8 +168,8 @@ p_dbag_enter(value vbag, type tbag, value vterm, type tterm, ec_eng_t *ec_eng)
     {
 	Bip_Error(MPS_ERROR);
     }
-    bmem_cpy((generic_ptr) ((char *) msg_data + sizeof(amsg_ref_t)),
-	    (generic_ptr) BufferStart(term_as_bytes),
+    bmem_cpy(((char *) msg_data + sizeof(amsg_ref_t)),
+	    BufferStart(term_as_bytes),
 	    (bmem_size_t) BufferSize(term_as_bytes));
     TG = old_tg;	/* pop the temporary stack string */
 
@@ -205,7 +205,7 @@ p_dbag_dissolve(value vdbag, type tdbag, value vl, type tl, ec_eng_t *ec_eng)
 
     this_msg = dbag_descr->first.msg;
     this_msg_data_hdr = dbag_descr->first.msg_data_hdr;
-    hp_free_size((generic_ptr) dbag_descr, sizeof(dbag_descr_t));
+    hp_free_size(dbag_descr, sizeof(dbag_descr_t));
     cdr = &list;
     while (this_msg_data_hdr != &dbag_descr->first)
     {
@@ -358,8 +358,8 @@ p_set_par_goal(value v, type t, ec_eng_t *ec_eng)
     {
 	Bip_Error(MPS_ERROR);
     }
-    bmem_cpy(	(generic_ptr) msg_data,
-		(generic_ptr) BufferStart(term_as_bytes),
+    bmem_cpy(	msg_data,
+		BufferStart(term_as_bytes),
 		(bmem_size_t) BufferSize(term_as_bytes));
     TG = old_tg;	/* pop the temporary stack string */
     Succeed_;

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_bag.c,v 1.4 2016/08/04 09:46:07 jschimpf Exp $
+ * Version:	$Id: bip_bag.c,v 1.5 2016/09/17 19:15:42 jschimpf Exp $
  *
  * Contents:	Built-ins for the bag-primitives
  *
@@ -87,7 +87,7 @@ _erase_heap_bag(t_heap_bag *obj)	/* obj != NULL */
 	pword *pw = cdr.val.ptr;
 	free_heapterm(pw);
 	cdr = pw[1];
-	hg_free_size((generic_ptr)(pw), 2*sizeof(pword));
+	hg_free_size(pw, 2*sizeof(pword));
     }
     Make_List(obj->list, obj->list);	/* reinitialize */
     Make_Nil(&obj->list[1]);

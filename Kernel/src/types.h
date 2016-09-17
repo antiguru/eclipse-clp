@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.17 2016/08/04 09:09:04 jschimpf Exp $
+ * $Id: types.h,v 1.18 2016/09/17 19:15:44 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -48,8 +48,6 @@
 
 #ifndef EC_EXTERNAL
 #include "memman.h"
-#else
-typedef void *generic_ptr;
 #endif
 
 #include "ec_general.h"
@@ -136,18 +134,14 @@ typedef uword vmcode;
  * Make sure the sizes match the real ones!
  *---------------------------------------------------------------------------*/
 
-#ifndef _PDS_TYPES_H_
-typedef word		*void_ptr;
-#endif /* _PDS_TYPES_H */
-
 typedef uint32		aport_handle_t;		/* aport_id_t */
 
 typedef aport_handle_t	site_handle_t;		/* site_id_t */
 
 typedef struct st_handle_ds {
 	site_handle_t	site;
-	void_ptr	edge;
-	void_ptr	knot;
+	void *		edge;
+	void *		knot;
 } st_handle_t;					/* st_id_t */
 
 
@@ -215,7 +209,7 @@ typedef struct action_list {
 
 typedef struct stream_d {
     int			unit;		/* system identifier (fd)	*/
-    void_ptr		methods;	/* I/O method table (io_channel_t *) */
+    void *		methods;	/* I/O method table (io_channel_t *) */
     int			nref;		/* refs from handles, dids, etc	*/
     int			encoding;	/* bytes, utf8, etc.		*/
     int			mode;		/* flags			*/
@@ -238,19 +232,19 @@ typedef struct stream_d {
     int			fd_pid;		/* process that owns the fd	*/
     ec_mutex_t		lock;		/* shared memory lock (par)	*/
     aport_handle_t	aport;		/* stream handler's address (par) */
-    generic_ptr		stdfile;	/* FILE stream for this fd	*/
+    void		*stdfile;	/* FILE stream for this fd	*/
     pword		event;		/* the event to raise ([] if none) */
     struct ec_eng_s *	event_eng;	/* engine to receive events	*/
    					/* (only set when event \= [])	*/
     uint32		rand;		/* random generator state	*/
     int			last_written;	/* last character written	*/
-    void_ptr		signal_thread;	/* to simulate sigio on Windows	*/
+    void *		signal_thread;	/* to simulate sigio on Windows	*/
     dident		pathname;	/* full file path name		*/
 } stream_desc;
 
 typedef stream_desc	*stream_id;
 #else
-typedef void_ptr	stream_id;
+typedef void		*stream_id;
 #endif
 
 
@@ -315,11 +309,11 @@ typedef struct
 typedef struct			/* debugger registers */
 {
     pword	debug_top;
-    HIDE_EXT(fail_data_t *, void_ptr) fail_trace;
+    HIDE_EXT(fail_data_t *, void *) fail_trace;
     word	next_invoc;
 
 				/* passing info into notify event */
-    HIDE_EXT(struct pri *, void_ptr) call_proc;
+    HIDE_EXT(struct pri *, void *) call_proc;
     word	call_port;
     word	call_invoc;
     word	first_delay_invoc;
@@ -396,7 +390,7 @@ typedef union control {
 	pword           *gctg;
 	pword           *tg_soft_lim;
 	pword		*tg_before;
-	void_ptr	parser_env;
+	void		*parser_env;
 	int		nesting_level;
 	pword		arg_0;
 	/* arguments */
@@ -597,7 +591,7 @@ typedef struct ec_eng_s
     word	segment_size;	/* garbage collection interval */
     int		nesting_level;	/* of recursive emulator invovations */
 
-    void_ptr	parser_env;	/* parser data structure */
+    void	*parser_env;	/* parser data structure */
     void	*it_buf;	/* for throw via longjmp */
 
     pword	posted;		/* posted goals */
@@ -647,7 +641,7 @@ typedef struct ec_eng_s
 } ec_eng_t;
 
 
-typedef void_ptr (*func_ptr)(void);
+typedef void * (*func_ptr)(void);
 typedef func_ptr (*continuation_t)(ec_eng_t*);
 
 
@@ -727,35 +721,34 @@ struct shared_data_t {
 		max_errors,
 		meta_arity;
 
-	void_ptr
-		dictionary,			/* has its own lock */
+	void *	dictionary;			/* has its own lock */
 
-		abolished_procedures,		/* proc_chain_lock */
-		compiled_structures,
-		global_procedures,		/* proc_chain_lock */
-		constant_table,
+	void *	abolished_procedures;		/* proc_chain_lock */
+	void *	compiled_structures;
+	void *	global_procedures;		/* proc_chain_lock */
+	void *	constant_table;
 
-		meta_attribute,
-		stream_descriptors,
-		error_handler,
-		default_error_handler,
-		interrupt_handler,
-		interrupt_handler_flags,
-		interrupt_name,
-		error_message,
-		message,
-		startup_goal,
-		debug_macros,
-		worker_statistics,
+	void *	meta_attribute;
+	void *	stream_descriptors;
+	void *	error_handler;
+	void *	default_error_handler;
+	void *	interrupt_handler;
+	void *	interrupt_handler_flags;
+	void *	interrupt_name;
+	void *	error_message;
+	void *	message;
+	void *	startup_goal;
+	void *	debug_macros;
+	void *	worker_statistics;
 
-		extension_ptr,
-		extension_ptr1,
-		extension_ptr2,
-		extension_ptr3,
-		extension_ptr4,
-		extension_ptr5,
-		extension_ptr6,
-		extension_ptr7;
+	void *	extension_ptr;
+	void *	extension_ptr1;
+	void *	extension_ptr2;
+	void *	extension_ptr3;
+	void *	extension_ptr4;
+	void *	extension_ptr5;
+	void *	extension_ptr6;
+	void *	extension_ptr7;
 };
 
 /*---------------------------------------------------------------------------

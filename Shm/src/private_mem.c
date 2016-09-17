@@ -23,7 +23,7 @@
 /*---------------------------------------------------------------------
  * IDENTIFICATION	private_mem.c
  *
- * VERSION		$Id: private_mem.c,v 1.2 2007/07/03 00:10:25 jschimpf Exp $
+ * VERSION		$Id: private_mem.c,v 1.3 2016/09/17 19:16:17 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -78,7 +78,7 @@ struct prmem {
 	/* first word reserved to be compatible with shared memory's
 	 * application_header
 	 */
-	generic_ptr first_word_in_heap;
+	void *first_word_in_heap;
 	struct page_admin pages;
 	struct heap heap;
 };
@@ -91,19 +91,19 @@ struct heap_descriptor private_heap;
  *---------------------------------------------------------------------*/
 
 /*ARGSUSED*/
-static generic_ptr
+static void *
 _private_sbrk(word size, int align, struct heap_descriptor *hd)
 {
 #ifdef HAVE_WINDOWS_H
-    generic_ptr address = VirtualAlloc(NULL,size,MEM_COMMIT,PAGE_READWRITE);
-    return address ? address : (generic_ptr) -1;
+    void *address = VirtualAlloc(NULL,size,MEM_COMMIT,PAGE_READWRITE);
+    return address ? address : (void *) -1;
 #else
 #ifdef USE_MMAP
-    generic_ptr address = mmap((void*) 0, size,
+    void *address = mmap((void*) 0, size,
 	    PROT_READ|PROT_WRITE,
 	    MAP_ANONYMOUS|MAP_PRIVATE,
 	    hd->map_fd, (off_t) 0);
-    return address == MAP_FAILED ? (generic_ptr) -1 : address;
+    return address == MAP_FAILED ? (void *) -1 : address;
 #else
     register word difference = (word) sbrk(0) % align;
     if (difference)
@@ -113,13 +113,13 @@ _private_sbrk(word size, int align, struct heap_descriptor *hd)
 #endif
 	(void) sbrk(align - difference);
     }
-    return (generic_ptr) sbrk(size);
+    return (void *) sbrk(size);
 #endif
 #endif
 }
 
 static int
-_private_release(generic_ptr address, word size, struct heap_descriptor *hd)
+_private_release(void *address, word size, struct heap_descriptor *hd)
 {
 #ifdef HAVE_WINDOWS_H
     return VirtualFree(address, 0, MEM_RELEASE);
@@ -200,20 +200,20 @@ private_mem_release()
  * Header-less allocation
  */
 
-generic_ptr
+void *
 hp_alloc_size(word bytes_needed)
 {
     return alloc_size(&private_heap, bytes_needed);
 }
 
 void
-hp_free_size(generic_ptr ptr, word size)
+hp_free_size(void *ptr, word size)
 {
     free_size(&private_heap, ptr, size);
 }
 
-generic_ptr 
-hp_realloc_size(generic_ptr ptr, word oldsize, word newsize)
+void * 
+hp_realloc_size(void *ptr, word oldsize, word newsize)
 {
     return realloc_size(&private_heap, ptr, oldsize, newsize);
 }
@@ -225,20 +225,20 @@ hp_realloc_size(generic_ptr ptr, word oldsize, word newsize)
  * It gives us also space for a magic number.
  *---------------------------------------------------------------------*/
 
-generic_ptr
+void *
 hp_alloc(word size)
 {
     return h_alloc(&private_heap, size);
 }
 
 void
-hp_free(generic_ptr ptr)
+hp_free(void *ptr)
 {
     h_free(&private_heap, ptr);
 }
 
-generic_ptr
-hp_resize(generic_ptr ptr, word newsize)
+void *
+hp_resize(void *ptr, word newsize)
 {
     return h_realloc(&private_heap, ptr, newsize);
 }

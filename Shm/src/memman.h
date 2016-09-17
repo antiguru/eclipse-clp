@@ -29,14 +29,8 @@
  * USAGE:		include this file, link with libshm.a
  *---------------------------------------------------------------------*/
 
-#ifndef __ECLIPSE_MEMMAN_H
-#define __ECLIPSE_MEMMAN_H
-
-#ifdef HAVE_NO_VOID_PTR
-typedef char *generic_ptr;
-#else
-typedef void *generic_ptr;
-#endif
+#ifndef ECLIPSE_MEMMAN_H
+#define ECLIPSE_MEMMAN_H
 
 #ifdef _WIN32
 #ifndef DLLEXP
@@ -50,53 +44,38 @@ typedef void *generic_ptr;
  * Size-dependent values
  *---------------------------------------------------------------------*/
 
-#ifndef __CHAR_UNSIGNED__
-typedef char		int8;			/* exactly 8 bit */
-#else
-typedef signed char	int8;
-#endif
-typedef unsigned char	uint8;
-
-typedef short		int16;			/* exactly 16 bit */
-typedef unsigned short	uint16;
-
 #if (SIZEOF_INT == 4)
-typedef int		int32;			/* exactly 32 bit */
-typedef unsigned int	uint32;
+typedef unsigned int	bits32;			/* exactly 32 bit */
+#else
+#error "No code for dealing with sizeof(int) != 4"
 #endif
 
+#ifndef ECLIPSE_TYPEDEF_WORD
 #if (SIZEOF_CHAR_P == SIZEOF_INT)
 typedef int		word;			/* pointer-sized */
 typedef unsigned int	uword;
-#define WSUF(X) X
 #elif (SIZEOF_CHAR_P == SIZEOF_LONG)
 typedef long		word;			/* pointer-sized */
 typedef unsigned long	uword;
-#define WSUF(X) (X##L)
 #elif (defined(HAVE_LONG_LONG) || defined(__GNUC__)) && \
    (SIZEOF_CHAR_P == __SIZEOF_LONG_LONG__)
 typedef long long 		word;		/* pointer-sized */
 typedef unsigned long long 	uword;
-#define WSUF(X) (X##LL)
 #elif (defined(HAVE___INT64) && SIZEOF_CHAR_P == 8)
 typedef __int64          word;
 typedef unsigned __int64 uword;
-#define WSUF(X) (X##I64)
-#endif  /* no code for dealing with word size > long long/__int64! */
+#else
+#error "No code for dealing with word size > long long/__int64!"
+#endif
+#endif
 
 
 #if (SIZEOF_CHAR_P == 8)
 /* Maximal representable address divided by bits per byte. */
 /* For -taso we address only the 32-bit memory */
 #define MAX_ADDRESS_BYTE	0x20000000
-#ifndef SIGN_BIT
-#define SIGN_BIT		((uword) WSUF(0x8000000000000000))
-#endif
 #else
 #define MAX_ADDRESS_BYTE	0x20000000
-#ifndef SIGN_BIT
-#define SIGN_BIT		((uword) 0x80000000L)
-#endif
 #endif
 
 
@@ -120,28 +99,34 @@ typedef union
 #define UNITS_PER_PAGE		(BYTES_PER_PAGE/BYTES_PER_UNIT)
 #define WORDS_PER_PAGE		(BYTES_PER_PAGE/sizeof(bits32))
 #define BITMAP_BLOCKSIZE	BYTES_PER_PAGE
+#if (SIZEOF_CHAR_P == 4)
+/* Maximal representable address divided by bits per byte. */
+#define MAX_ADDRESS_BYTE	0x20000000
 #define BITMAP_BLOCKS		(MAX_ADDRESS_BYTE/BYTES_PER_PAGE/BITMAP_BLOCKSIZE)
+#define USE_BITMAPS
+#else
+#define BITMAP_BLOCKS		1
+#undef USE_BITMAPS
+#endif
 #define PAGE_LISTS		32
 #define MIN_OS_PAGE_REQUEST	8	/* min pages to get from OS */
 
-typedef uint32 bits32;
-
 struct cluster {
 	struct cluster	*next;
-	generic_ptr	addr;
+	void		*addr;
 	word		size;
 	word		dummy;
 };
 
 struct page_log {
-    generic_ptr addr;
+    void *addr;
     word npages;
 };
 
 struct page_admin {
 	word		allocated;		/* # pages gotten from OS */
 	word		freed;			/* # pages in free list */
-	generic_ptr	min_addr, max_addr;
+	void		*min_addr, *max_addr;
 	struct page_log	*log_page;		/* log of more'd pages */
 	word		log_idx;
 	struct cluster	*free[PAGE_LISTS];	/* free[i]: i-page-clusters */
@@ -165,10 +150,10 @@ struct page_admin {
 #define POWERS			32
 
 struct heap {
-	generic_ptr small_blocks[LARGEST_SMALL_BLOCK+1];
-	generic_ptr powers[POWERS];
+	void	 *small_blocks[LARGEST_SMALL_BLOCK+1];
+	void	 *powers[POWERS];
 
-	generic_ptr alloc_ptr;
+	void	*alloc_ptr;
 	word	alloc_free;		/* in heap_units */
 
     /* statistics */
@@ -211,11 +196,7 @@ typedef union mem_header
 #define Clr_Interrupts_Pending() delayed_it_ = 0;
 
 extern volatile int it_disabled_, delayed_it_;
-#ifdef __STDC__
 extern void (*delayed_irq_func)(void);
-#else
-extern void (*delayed_irq_func)();
-#endif
 
 /*---------------------------------------------------------------------
  * Spin Locks
@@ -238,22 +219,16 @@ struct heap_descriptor {
 	struct page_admin *pages;
 	struct heap	*heap;
 	int		map_fd;
-#ifdef __STDC__
-	generic_ptr	(*more)(word,int,struct heap_descriptor*);
-	int		(*less)(generic_ptr,word,struct heap_descriptor*);
+	void*		(*more)(word,int,struct heap_descriptor*);
+	int		(*less)(void*,word,struct heap_descriptor*);
 	void		(*panic)(const char*, const char*);
-#else
-	generic_ptr	(*more)();
-	generic_ptr	(*less)();
-	void		(*panic)();
-#endif
 	int		debug_level;
 };
 
 /* The shared memory part (only if really shared) */
 
 struct shm_desc {
-	generic_ptr application_header;	/* must be the first word! */
+	void *application_header;	/* must be the first word! */
 	char *start;			/* own address */
 	char *brk;			/* end of allocated space */
 	char *lim;			/* end of the mapped region */
@@ -279,13 +254,11 @@ extern struct heap_descriptor private_heap;
  * Function prototypes
  *---------------------------------------------------------------------*/
 
-#ifdef __STDC__
-
 void		pagemanager_init(struct heap_descriptor *);
 void		pagemanager_fini(struct heap_descriptor *);
-generic_ptr	alloc_page(struct heap_descriptor *);
-generic_ptr	alloc_pagewise(struct heap_descriptor *, word, word *);
-void		free_pages(struct heap_descriptor *, generic_ptr, word);
+void *		alloc_page(struct heap_descriptor *);
+void *		alloc_pagewise(struct heap_descriptor *, word, word *);
+void		free_pages(struct heap_descriptor *, void *, word);
 
 void		irq_lock_init(void (*irq_fct)(void));
 int		a_mutex_init(a_mutex_t *);
@@ -295,22 +268,22 @@ int		a_mutex_destroy(a_mutex_t *);
 
 void		alloc_init(struct heap_descriptor *);
 void		alloc_debug_level(struct heap_descriptor *, int);
-generic_ptr	alloc_size(struct heap_descriptor *, word);
-void		free_size(struct heap_descriptor *, generic_ptr, word);
-generic_ptr	realloc_size(struct heap_descriptor *, generic_ptr, word, word);
-generic_ptr	h_alloc(struct heap_descriptor *, word);
-void		h_free(struct heap_descriptor *, generic_ptr);
-generic_ptr	h_realloc(struct heap_descriptor *, generic_ptr, word);
-int		address_in_heap(struct heap_descriptor *, generic_ptr);
+void *		alloc_size(struct heap_descriptor *, word);
+void		free_size(struct heap_descriptor *, void *, word);
+void *		realloc_size(struct heap_descriptor *, void *, word, word);
+void *		h_alloc(struct heap_descriptor *, word);
+void		h_free(struct heap_descriptor *, void *);
+void *		h_realloc(struct heap_descriptor *, void *, word);
+int		address_in_heap(struct heap_descriptor *, void *);
 int		alloc_statistics(struct heap_descriptor *, int);
 
-generic_ptr	hp_alloc_size(word size);
-void		hp_free_size(generic_ptr, word size);
-generic_ptr	hp_realloc_size(generic_ptr, word, word);
+void *		hp_alloc_size(word size);
+void		hp_free_size(void *, word size);
+void *		hp_realloc_size(void *, word, word);
 /* export these for possible use in eplex */
-DLLEXP generic_ptr	hp_alloc(word size);
-DLLEXP void		hp_free(generic_ptr);
-DLLEXP generic_ptr	hp_resize(generic_ptr, word);
+DLLEXP void *	hp_alloc(word size);
+DLLEXP void	hp_free(void *);
+DLLEXP void *	hp_resize(void *, word);
 int		hp_statistics(int what);
 
 char		*shared_mem_base(void);
@@ -329,46 +302,4 @@ void		private_mem_fini();
 void		private_mem_fini_desc(struct heap_descriptor *hd);
 
 
-#else /* __STDC__ */
-
-void		pagemanager_init();
-generic_ptr	alloc_page();
-generic_ptr	alloc_pagewise();
-void		free_pages();
-
-void		irq_lock_init();
-int		a_mutex_init();
-int		a_mutex_lock();
-int		a_mutex_unlock();
-int		a_mutex_destroy();
-
-void		alloc_init();
-generic_ptr	alloc_size();
-void		free_size();
-generic_ptr	realloc_size();
-generic_ptr	h_alloc();
-void		h_free();
-generic_ptr	h_realloc();
-int		address_in_heap();
-int		alloc_statistics();
-
-generic_ptr	hp_alloc_size();
-void		hp_free_size();
-generic_ptr	hp_realloc_size();
-generic_ptr	hp_alloc();
-void		hp_free();
-generic_ptr	hp_resize();
-int		hp_statistics();
-
-char		*shared_mem_base();
-char		*shared_mem_init();
-void		shared_mem_release();
-int		shared_mem_save();
-int		shared_mem_restore();
-void		private_mem_init();
-char *		private_mem_init_desc();
-
-
-#endif /* __STDC__ */
-
-#endif /* __ECLIPSE_MEMMAN_H */
+#endif /* ECLIPSE_MEMMAN_H */

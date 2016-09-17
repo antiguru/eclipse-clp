@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.12 2016/08/11 22:07:45 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.13 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -1689,7 +1689,7 @@ print_port(stream_id nst, int port)
         (pw) = elem[0].val.ptr;			\
         (arity) = elem[0].tag.kernel;		\
         queue_head = elem[1].val.ptr;		\
-        hg_free_size((generic_ptr)elem, 2*sizeof(pword)); \
+        hg_free_size(elem, 2*sizeof(pword)); \
 }
  
 #define EmptyQueue() (!queue_head)
@@ -1754,7 +1754,7 @@ ppw(pword *pw)				/* print prolog words */
 	else if (SP <= pw && pw < SP_ORIG) region = 'l';
 	else if (B_ORIG <= pw && pw < B.args) region = 'c';
 	else if (TT <= (pword **) pw && (pword **) pw < TT_ORIG) region = 't';
-	else if (address_in_heap(&global_heap, (generic_ptr) pw)) region = 'h';
+	else if (address_in_heap(&global_heap, pw)) region = 'h';
 	else region = '?';
 
 	p_fprintf(current_output_, "%c 0x%08x:  0x%08x 0x%08x  %s ", region,

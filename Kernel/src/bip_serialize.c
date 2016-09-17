@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_serialize.c,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: bip_serialize.c,v 1.3 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ static int	_fill_procedures(ec_eng_t*, pword *prev_ld, dident mod, type tmod);
 	(mark) = (arity) & QUEUE_MASK;			\
 	(arity) = (arity) & ~QUEUE_MASK;		\
 	queue_head = elem[1].val.ptr;			\
-	hg_free_size((generic_ptr)elem, 2*sizeof(pword));	\
+	hg_free_size(elem, 2*sizeof(pword));	\
 }
 
 #define EmptyQueue() (!queue_head)

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.16 2016/08/05 19:59:02 jschimpf Exp $
+ * $Id: sepia.h,v 1.17 2016/09/17 19:15:44 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1029,7 +1029,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 }
 
 #define ExternalClass(h)	((t_ext_type*) (h)[0].val.ptr)
-#define ExternalData(h)		((generic_ptr) (h)[1].val.ptr)
+#define ExternalData(h)		((void*) (h)[1].val.ptr)
 
 #define HANDLE_ANCHOR_SIZE	2
 

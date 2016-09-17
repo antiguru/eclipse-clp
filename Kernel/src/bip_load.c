@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_load.c,v 1.4 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_load.c,v 1.5 2016/09/17 19:15:42 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -246,7 +246,7 @@ bip_load_fini(void)
 
 #else /*!OS_SUPPORTS_DL */
 
-static generic_ptr dload_list = 0;
+static void *dload_list = 0;
 
 static int 
 p_load(value v, type t, ec_eng_t *ec_eng)

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.21 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.22 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -326,7 +326,7 @@ extern long		lseek();
 	unsigned char *empty_buf = BufHeader(StreamBuf(nst))->prev;  \
 	BufHeader(BufHeader(empty_buf)->prev)->next = StreamBuf(nst);  \
 	BufHeader(StreamBuf(nst))->prev = BufHeader(empty_buf)->prev;  \
-	hg_free((generic_ptr) BufHeader(empty_buf));  \
+	hg_free(BufHeader(empty_buf));  \
 }
 
 
@@ -353,7 +353,7 @@ typedef struct linked_io_buffer {
     unsigned char *		next;
     uword			cnt;
     /* char			_lookahead[LOOKAHEAD];  but aligned: */
-    void_ptr			_lookahead[(LOOKAHEAD-1)/sizeof(void_ptr) + 1];
+    word			_lookahead[(LOOKAHEAD-1)/sizeof(word) + 1];
 } linked_io_buffer_t;
 
 
@@ -557,13 +557,13 @@ init_stream(stream_id nst, int unit, int mode, dident name, stream_id paired_str
     nst->signal_thread = 0;
     switch (mode & STYPE)
     {
-	case SSTRING:	nst->methods = (void_ptr) &ec_string_stream;	break;
-	case SPIPE:	nst->methods = (void_ptr) &ec_pipe;		break;
-	case SQUEUE:	nst->methods = (void_ptr) &ec_queue_stream;	break;
-	case SNULL:	nst->methods = (void_ptr) &ec_null_stream;	break;
-	case STTY:	nst->methods = (void_ptr) &ec_tty;		break;
-	case SSOCKET:	nst->methods = (void_ptr) &ec_socket;		break;
-	default:	nst->methods = (void_ptr) &ec_file;		break;
+	case SSTRING:	nst->methods = &ec_string_stream;	break;
+	case SPIPE:	nst->methods = &ec_pipe;		break;
+	case SQUEUE:	nst->methods = &ec_queue_stream;	break;
+	case SNULL:	nst->methods = &ec_null_stream;		break;
+	case STTY:	nst->methods = &ec_tty;			break;
+	case SSOCKET:	nst->methods = &ec_socket;		break;
+	default:	nst->methods = &ec_file;		break;
     }
     StreamMode(nst) = mode|StreamMethods(nst).mode_defaults;
 
@@ -686,7 +686,7 @@ find_free_stream(void)
     }
 
     StreamDescriptors = (stream_desc **) hg_realloc_size(
-		(generic_ptr) StreamDescriptors,
+		StreamDescriptors,
 		NbStreams * sizeof(stream_desc *),
 		(NbStreams + STREAM_INC) * sizeof(stream_desc *));
     for (; i < NbStreams + STREAM_INC; i++)
@@ -800,7 +800,7 @@ _free_stream(stream_id nst)
 	    {
 		linked_io_buffer_t *this = BufHeader(next);
 		next = this->next;
-		hg_free((generic_ptr) this);
+		hg_free(this);
 	    } while (next != first);
 	}
 	else
@@ -813,13 +813,13 @@ _free_stream(stream_id nst)
 	    {
 		linked_io_buffer_t *this = BufHeader(prev);
 		prev = this->prev;
-		hg_free((generic_ptr) this);
+		hg_free(this);
 	    }
 	    while (next)
 	    {
 		linked_io_buffer_t *this = BufHeader(next);
 		next = this->next;
-		hg_free((generic_ptr) this);
+		hg_free(this);
 	    }
 	}
 	StreamBuf(nst) = NO_BUF;
@@ -852,12 +852,12 @@ _free_stream(stream_id nst)
     }
     else if (StreamLexAux(nst) != NO_BUF)
     {
-	hg_free((generic_ptr)StreamLexAux(nst));
+	hg_free(StreamLexAux(nst));
 	StreamLexAux(nst) = NO_BUF;
     }
 
     if (StreamMode(nst) & SSLAVE)
-	hg_free_size((generic_ptr) nst, sizeof(stream_desc));
+	hg_free_size(nst, sizeof(stream_desc));
     else 
 	StreamMode(nst) = SCLOSED;
 }
@@ -1219,7 +1219,7 @@ set_readline(stream_id nst)
     if (f == (FILE *) 0) {
 	return SYS_ERROR;
     }
-    nst->stdfile = (generic_ptr) f;
+    nst->stdfile = (void *) f;
     StreamMode(nst) |= READLINE;
     using_history();
     stifle_history(100);
@@ -1362,7 +1362,7 @@ ec_getstring(stream_id nst,
     {
 	while (lex_aux_size < n)
 		lex_aux_size *= 2;
-	hg_free((generic_ptr) StreamLexAux(nst));
+	hg_free(StreamLexAux(nst));
 	StreamLexAux(nst) = (unsigned char *) hg_alloc((int)lex_aux_size);
 	StreamLexSize(nst) = lex_aux_size;
     }
@@ -1838,7 +1838,7 @@ _resize_stream_buffer(stream_id nst, word newsize)
 
     StreamBuf(nst) = (unsigned char *) (
 			(linked_io_buffer_t*) hg_resize(
-				(generic_ptr)(StreamBufHeader(nst)),
+				StreamBufHeader(nst),
 				(int)(sizeof(linked_io_buffer_t) + newsize + 1))
 			+ 1);
     StreamBuf(nst)[newsize] = EOB_MARK;
@@ -2331,7 +2331,7 @@ _string_truncate(stream_id nst)
 	do {
 	    linked_io_buffer_t *this = BufHeader(next);
 	    next = this->next;
-	    hg_free((generic_ptr) this);
+	    hg_free(this);
 	} while (next);
 	StreamBufHeader(nst)->next = (unsigned char) 0;
     }

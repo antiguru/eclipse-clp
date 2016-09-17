@@ -653,7 +653,7 @@ end_of_oracle(void)
 typedef union {
     double align;
     struct {
-	    generic_ptr dest;
+	    void *dest;
 	    int size;
     } h;
 } copy_header;
@@ -677,8 +677,7 @@ _init_memcpy(struct copy_session_desc *csd)
 void
 _cleanup_memcpy(struct copy_session_desc *csd)
 {
-    hg_free_size((generic_ptr) csd->buf,
-			(char *) csd->buf_end - (char *) csd->buf);
+    hg_free_size(csd->buf, (char *) csd->buf_end - (char *) csd->buf);
 }
 
 void
@@ -713,7 +712,7 @@ _get_memory(struct copy_session_desc *csd)
 	    p_fprintf(current_err_, "   memcpy(0x%x,0x%x,%d)\n", r->h.dest, r+1, size);
 	    ec_flush(current_err_);
 #endif
-	    bmem_cpy(r->h.dest, (generic_ptr)(r+1), size);
+	    bmem_cpy(r->h.dest, r+1, size);
 	}
 	if (!r->h.dest)			/* hit the terminator */
 	{
@@ -767,7 +766,7 @@ _chk_memory(struct copy_session_desc *csd)
 
 void
 _put_memory(struct copy_session_desc *csd,
-	generic_ptr from,
+	void *from,
 	int size)			/* we allow blocks with size == 0 */
 {
     int units_free, units_to_copy, size_in_units;
@@ -806,10 +805,10 @@ _put_memory(struct copy_session_desc *csd,
 	else if (size_to_copy == sizeof(pword))
 	    *(pword *)(w+1) = *(pword *)from;
 	else if (size_to_copy > 0)
-	    bmem_cpy((generic_ptr) (w+1), from, size_to_copy);
+	    bmem_cpy(w+1, from, size_to_copy);
 	w += units_to_copy + 1;
 	csd->w = w == csd->buf_end ? csd->buf : w;	/* trigger receiver */
-	from = (generic_ptr) ((char *) from + size_to_copy);
+	from = (char *) from + size_to_copy;
 	size -= size_to_copy;
 	size_in_units -= units_to_copy;
     } while (size > 0);
@@ -1057,18 +1056,18 @@ _put_modifications(struct copy_session_desc *csd, pword **tt, pword **ttcommon, 
 	case TRAIL_ADDRESS:
 	    addr = *tt++;
 	    if (addr < tgcommon || addr >= spcommon)
-		_put_memory(csd, (generic_ptr) addr, sizeof(pword));
+		_put_memory(csd, addr, sizeof(pword));
 	    break;
 	case TRAIL_TAG:
 	    addr = *(tt+1);
 	    if (addr < tgcommon || addr >= spcommon)
-		_put_memory(csd, (generic_ptr) addr, sizeof(pword));
+		_put_memory(csd, addr, sizeof(pword));
 	    tt += 2;
 	    break;
 	case TRAIL_MULT:
 	    addr = (pword *) ((uword *) *(tt+1) + TrailedOffset((word) *tt));
 	    if (addr < tgcommon || addr >= spcommon)
-		_put_memory(csd, (generic_ptr) addr,
+		_put_memory(csd, addr,
 		    ((int) TrailedNumber((word) *tt) + 1) * sizeof(uword));
 	    tt += TrailedNumber((word) *tt) + 3;
 	    break;
@@ -1248,8 +1247,8 @@ eng_donate_state(eng_handle_t m, const st_handle_t *dest_node, const st_handle_t
 		ec_flush(current_err_);
 		return;
 	    }
-	    bmem_cpy(	(generic_ptr) msg_data,
-			(generic_ptr) amsg_data(par_goal_msg_),
+	    bmem_cpy(	msg_data,
+			amsg_data(par_goal_msg_),
 			amsg_size(par_goal_msg_));
 	    if (amsg_send(recv_eng_port, msg, MDT_BYTE, amsg_size(msg), 0)
 		!= AMSG_OK)
@@ -1327,22 +1326,22 @@ eng_donate_state(eng_handle_t m, const st_handle_t *dest_node, const st_handle_t
 
 	    /* Now copy the stacks above bcommon to shared memory.
 	     */
-	    _put_memory(&cd->stacks, (generic_ptr) bcommon,
+	    _put_memory(&cd->stacks, bcommon,
 		(char *)bnew - (char*)bcommon);
 #ifdef COPY_LOCAL_STACK_COMPLETELY
 	    /* While we have no solution for the problem of environment cell
 	     * initialization, we copy the local stack completely */
 	    WStat_Add(copy_to_extra,
 		    ((char*)BChp(broot)->sp - (char*)BChp(bcommon)->sp));
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(bnew)->sp,
+	    _put_memory(&cd->stacks, BChp(bnew)->sp,
 		(char*)BChp(broot)->sp - (char *)BChp(bnew)->sp);
 #else
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(bnew)->sp,
+	    _put_memory(&cd->stacks, BChp(bnew)->sp,
 		(char*)BChp(bcommon)->sp - (char *)BChp(bnew)->sp);
 #endif
-	    _put_memory(&cd->stacks, (generic_ptr) TT,
+	    _put_memory(&cd->stacks, TT,
 		(char *)BChp(bcommon)->tt - (char*)TT);
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(bcommon)->tg,
+	    _put_memory(&cd->stacks, BChp(bcommon)->tg,
 		(char *)BChp(bnew)->tg - (char*)BChp(bcommon)->tg);
 
 	    /* Wait for the bcopy information to be sent back */
@@ -1362,15 +1361,15 @@ eng_donate_state(eng_handle_t m, const st_handle_t *dest_node, const st_handle_t
 	    }
 
 	    /* Now bcopy .. bcommon */
-	    _put_memory(&cd->stacks, (generic_ptr) bcopy,
+	    _put_memory(&cd->stacks, bcopy,
 		(char *)bcommon - (char*)bcopy);
 #ifndef COPY_LOCAL_STACK_COMPLETELY
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(bcommon)->sp,
+	    _put_memory(&cd->stacks, BChp(bcommon)->sp,
 		(char*)BChp(bcopy)->sp - (char *)BChp(bcommon)->sp);
 #endif
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(bcommon)->tt,
+	    _put_memory(&cd->stacks, BChp(bcommon)->tt,
 		(char*)BChp(bcopy)->tt - (char *)BChp(bcommon)->tt);
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(bcopy)->tg,
+	    _put_memory(&cd->stacks, BChp(bcopy)->tg,
 		(char *)BChp(bcommon)->tg - (char*)BChp(bcopy)->tg);
 #ifdef COPY_LOCAL_STACK_COMPLETELY
 	    _put_modifications(&cd->stacks, TT , BChp(bcopy)->tt,
@@ -1379,22 +1378,22 @@ eng_donate_state(eng_handle_t m, const st_handle_t *dest_node, const st_handle_t
 	    _put_modifications(&cd->stacks, TT , BChp(bcopy)->tt,
 		BChp(bcopy)->sp, BChp(bcopy)->tg);
 #endif
-	    _put_memory(&cd->stacks, (generic_ptr) 0, 0);	/* terminate */
+	    _put_memory(&cd->stacks, 0, 0);	/* terminate */
 
 	}
 	else
 	{
 	    /* Now copy the stacks to shared memory.
 	     */
-	    _put_memory(&cd->stacks, (generic_ptr) broot,
+	    _put_memory(&cd->stacks, broot,
 		(char *)bnew - (char*)broot);
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(bnew)->sp,
+	    _put_memory(&cd->stacks, BChp(bnew)->sp,
 		(char*)BChp(broot)->sp - (char *)BChp(bnew)->sp);
-	    _put_memory(&cd->stacks, (generic_ptr) TT,
+	    _put_memory(&cd->stacks, TT,
 		(char *)BChp(broot)->tt - (char*)TT);
-	    _put_memory(&cd->stacks, (generic_ptr) BChp(broot)->tg,
+	    _put_memory(&cd->stacks, BChp(broot)->tg,
 		(char *)BChp(bnew)->tg - (char*)BChp(broot)->tg);
-	    _put_memory(&cd->stacks, (generic_ptr) 0, 0);	/* terminate */
+	    _put_memory(&cd->stacks, 0, 0);	/* terminate */
 
 	    /* Wait until receiver starts copying - not really necessary */
 	    while (!cd->receipt)
@@ -1583,7 +1582,7 @@ eng_accept_state(amsg_t msg, amsg_data_t *msg_data, amsg_count_t msg_size)
 	{
 	    /* short_sleep(1000); */
 	}
-	hg_free_size((generic_ptr) cd, sizeof(struct copy_data));
+	hg_free_size(cd, sizeof(struct copy_data));
 	Notify("Received stacks - Waiting for job\n");
 
 	/* tell the destination node that we are ready for a job */

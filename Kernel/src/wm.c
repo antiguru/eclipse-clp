@@ -79,10 +79,6 @@ extern void *memcpy();
 #include "pds.h"
 #include "nsrv.h"
 
-#ifndef _PDS_TYPES_H_
-typedef long		*void_ptr;
-#endif /* _PDS_TYPES_H */
-
 #include "sch_types.h"
 #include "trace.h"
 #include "wm_msgs.h"
@@ -1481,7 +1477,7 @@ aport_id_t port_id;
 	  {
 	    Notify("WM: Got WORKER_INFO_NOTIFY message\n");
 	    send_worker_info(worker_info_msg->req_wid, worker_info_msg->size,
-			     (void_ptr) (worker_info_msg + 1));
+			     worker_info_msg + 1);
 	  }
 	freemsg = 0;
       }
@@ -2664,7 +2660,7 @@ int usec;
   
 send_worker_info(reqwid, bufsize, buf)
 int reqwid, bufsize;
-void_ptr buf;
+void *buf;
 {
  
   amsg_t msg;
@@ -2685,7 +2681,7 @@ void_ptr buf;
   worker_info_msg->header.msg_type = WORKER_INFO_NOTIFY;
   worker_info_msg->header.wid = 0;
   worker_info_msg->size = bufsize;
-  memcpy((void_ptr) ((worker_info_msg_t *) msg_data + 1), buf, bufsize); 
+  memcpy((worker_info_msg_t *) msg_data + 1, buf, bufsize); 
   check_amsg_soft(amsg_send(w->wm_aport_id,msg,MDT_BYTE,size,0),__LINE__,3);
 }
 

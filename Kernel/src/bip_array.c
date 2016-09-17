@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_array.c,v 1.4 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_array.c,v 1.5 2016/09/17 19:15:42 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -883,7 +883,7 @@ free_array(pword *prop_value)
 	for (; size > 0; --size)
 	    free_heapterm(array_contents++);
     }
-    hg_free((generic_ptr) array_header);
+    hg_free(array_header);
 }
 
 

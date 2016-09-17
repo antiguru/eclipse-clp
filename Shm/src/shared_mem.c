@@ -23,7 +23,7 @@
 /*---------------------------------------------------------------------
  * IDENTIFICATION	shared_mem.c
  *
- * VERSION		$Id: shared_mem.c,v 1.2 2007/07/03 00:10:25 jschimpf Exp $
+ * VERSION		$Id: shared_mem.c,v 1.3 2016/09/17 19:16:17 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -88,8 +88,8 @@ extern char	*sbrk();
 extern char	*strcpy();
 #endif
 
-static generic_ptr shared_sbrk(word size, int align, struct heap_descriptor *hd);
-static int shared_release(generic_ptr address, word size, struct heap_descriptor *hd);
+static void *shared_sbrk(word size, int align, struct heap_descriptor *hd);
+static int shared_release(void *address, word size, struct heap_descriptor *hd);
 
 
 /*---------------------------------------------------------------------
@@ -309,7 +309,7 @@ shared_mem_release(struct heap_descriptor *hd)
 
 
 #ifdef HAVE_MMAP
-static generic_ptr
+static void *
 shared_sbrk(word size, int align, struct heap_descriptor *hd)
 {
     char *p;
@@ -355,11 +355,11 @@ _return_:
     /*
     a_mutex_unlock(&hd->shared_header->lock);
     */
-    return (generic_ptr) p;
+    return (void *) p;
 }
 
 static int
-shared_release(generic_ptr address, word size, struct heap_descriptor *hd)
+shared_release(void *address, word size, struct heap_descriptor *hd)
 {
     return 1;
 }
@@ -464,10 +464,10 @@ shared_mem_restore(struct heap_descriptor *hd, int fd)
  */
 
 int
-address_in_heap(struct heap_descriptor *hd, generic_ptr ptr)
+address_in_heap(struct heap_descriptor *hd, void *ptr)
 {
     if (!hd->shared_header)
 	return 0;
-    return ptr >= (generic_ptr) hd->shared_header->start
-	&& ptr <  (generic_ptr) hd->shared_header->brk;
+    return ptr >= (void *) hd->shared_header->start
+	&& ptr <  (void *) hd->shared_header->brk;
 }

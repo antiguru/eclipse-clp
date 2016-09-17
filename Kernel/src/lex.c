@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.20 2016/08/05 23:26:36 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.21 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -990,7 +990,7 @@ _extend_lex_aux(stream_id nst)
 {
     register long		n = StreamLexSize(nst);
 
-    StreamLexAux(nst) = (unsigned char *) hg_resize((generic_ptr) (StreamLexAux(nst)), (int)(n + n));
+    StreamLexAux(nst) = (unsigned char *) hg_resize(StreamLexAux(nst), n+n);
     StreamLexSize(nst) = n + n;
     return StreamLexAux(nst) + n;
 }
@@ -1186,7 +1186,7 @@ p_copy_syntax(value vfrom, type tfrom, value vto, type tto, ec_eng_t *ec_eng)
     from = ModuleItem(vfrom.did);
     to = ModuleItem(vto.did);
 
-    hg_free_size((generic_ptr) to->syntax, sizeof(syntax_desc));
+    hg_free_size(to->syntax, sizeof(syntax_desc));
     to->syntax = copy_syntax_desc(from->syntax);
     Succeed_;
 }

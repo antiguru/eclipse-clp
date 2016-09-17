@@ -23,7 +23,7 @@
 /*
 * IDENTIFICATION	alloc.c
 *
-* VERSION		$Id: alloc.c,v 1.3 2012/10/20 13:16:02 jschimpf Exp $
+* VERSION		$Id: alloc.c,v 1.4 2016/09/17 19:16:17 jschimpf Exp $
 *
 * AUTHOR		Joachim Schimpf
 *
@@ -63,14 +63,14 @@
 #  define bcopy(s1, s2, n)	(void) memcpy((char *)(s2), (char *)(s1), n)
 #endif
 
-#define OUT_OF_HEAP	((generic_ptr)(-1))
+#define OUT_OF_HEAP	((void *)(-1))
 
 
 /* DEBUG_HEAP works only when linked with sepia! */
 
 #ifdef DEBUG_HEAP
 #include <stdio.h>
-typedef void *          stream_id;
+typedef void *         stream_id;
 extern  stream_id       current_err_;
 void	pr_heap();
 #endif
@@ -150,10 +150,6 @@ irq_lock_init(void (*irq_func)(void))
 
 #define RoundTo(n,unit) ((n) - ((n) - 1) % (unit) -1 + (unit))
 
-#if (SIZEOF_CHAR_P == 4)
-#define USE_BITMAPS
-#endif
-
 #ifdef USE_BITMAPS
 
 /* Define bitmasks and their widths for memory parameters. */
@@ -225,10 +221,10 @@ pagemanager_init(struct heap_descriptor *hd)
 }
 
 
-static generic_ptr
+static void *
 _alloc_aux_page(struct heap_descriptor *hd)
 {
-    generic_ptr address;
+    void *address;
     address = hd->more(BYTES_PER_PAGE, BYTES_PER_PAGE, hd);
     if (address == OUT_OF_HEAP)
     {
@@ -240,7 +236,7 @@ _alloc_aux_page(struct heap_descriptor *hd)
 }
 
 static void
-_release_aux_page(struct heap_descriptor *hd, generic_ptr address)
+_release_aux_page(struct heap_descriptor *hd, void *address)
 {
     (void) hd->less(address, BYTES_PER_PAGE, hd);
     --hd->pages->allocated;
@@ -282,7 +278,7 @@ _new_bitmap_block(struct heap_descriptor *hd)
 
 static void
 _add_to_list(struct heap_descriptor *hd,
-	generic_ptr ptr,
+	void *ptr,
 	word number_of_pages)	/* should be > 0 */
 {
     int list_index = number_of_pages < PAGE_LISTS ? number_of_pages : 0;
@@ -294,7 +290,7 @@ _add_to_list(struct heap_descriptor *hd,
 
 static void
 _remove_from_list(struct heap_descriptor *hd,
-	generic_ptr ptr,
+	void *ptr,
 	word	number_of_pages)	/* should be > 0 */
 {
     register struct cluster **p;
@@ -317,11 +313,11 @@ _remove_from_list(struct heap_descriptor *hd,
 void
 _check_address(
 	struct heap_descriptor *hd,
-	generic_ptr ptr,
+	void *ptr,
 	uword size)
 {
     if (ptr < hd->pages->min_addr ||
-    	((generic_ptr)((char*) ptr + size) > hd->pages->max_addr && hd->pages->max_addr))
+    	((void *)((char*) ptr + size) > hd->pages->max_addr && hd->pages->max_addr))
     {
 	_print("SHM: attempt to free out-of-heap pointer!\n");
     }
@@ -333,7 +329,7 @@ _check_address(
 void
 free_pages(
 	struct heap_descriptor *hd,
-	generic_ptr ptr,
+	void	*ptr,
 	word	number_of_pages)	/* should be > 0 */
 {
     int	block;
@@ -366,12 +362,12 @@ free_pages(
 	} while (*p & mask);
 	Page_Parameters(ptr, block, p, mask);
 	Prev_Bit(block, p, mask);
-	_remove_from_list(hd, (generic_ptr) from, ((char*)ptr-from)/BYTES_PER_PAGE);
+	_remove_from_list(hd, (void *) from, ((char*)ptr-from)/BYTES_PER_PAGE);
     }
     while (number_of_pages--)		/* update the bitmap */
     {
 	Next_Bit(block, p, mask);
-	ptr = (generic_ptr) ((char *) ptr + BYTES_PER_PAGE);
+	ptr = (void *) ((char *) ptr + BYTES_PER_PAGE);
 #ifdef CHECK_HEAP
 	if (mask & *p)
 	{
@@ -390,21 +386,21 @@ free_pages(
 	} while (*p & mask);
 	_remove_from_list(hd, ptr, (to-(char*)ptr)/BYTES_PER_PAGE);
     }
-    _add_to_list(hd, (generic_ptr) from, (to-from)/BYTES_PER_PAGE);
+    _add_to_list(hd, (void *) from, (to-from)/BYTES_PER_PAGE);
 }
 
 #else
 
-#define GenericAdd(p,off) ((generic_ptr)((char*)(p)+(off)))
+#define GenericAdd(p,off) ((void *)((char*)(p)+(off)))
 
 void
 free_pages(
 	struct heap_descriptor *hd,
-	generic_ptr ptr,
+	void	*ptr,
 	word	number_of_pages)	/* should be > 0 */
 {
     struct cluster *clu, *next;
-    generic_ptr to;
+    void *to;
     int i;
     struct page_admin *pages = hd->pages;
 
@@ -467,7 +463,7 @@ free_pages(
  */
 
 static void
-_log_more_pages(struct heap_descriptor *hd, generic_ptr address, word pages_requested)
+_log_more_pages(struct heap_descriptor *hd, void *address, word pages_requested)
 {
     struct page_log *log_page = hd->pages->log_page;
 
@@ -534,7 +530,7 @@ _release_logged_pages(struct heap_descriptor *hd)
  * much as was requested, but rounded up to the next page multiple.
  */
 
-generic_ptr
+void *
 alloc_pagewise(
 	struct heap_descriptor *hd,
 	word	bytes_needed,
@@ -606,7 +602,7 @@ alloc_pagewise(
 	    *cluster_list = cluster->next;	/* remove from free list */
 	    if (cluster->size > pages_needed)	/* put back the rest, if any */
 	    {
-		_add_to_list(hd, (generic_ptr)
+		_add_to_list(hd, (void *)
 			((char *) cluster->addr + pages_needed*BYTES_PER_PAGE),
 			cluster->size - pages_needed);
 	    }
@@ -628,7 +624,7 @@ alloc_pagewise(
      * get a sufficiently large cluster from the operating system
      */
     {
-	register generic_ptr address;
+	register void *address;
 	word pages_requested, bytes_requested;
 
 	/* allocate pages_needed, but at least MIN_OS_PAGE_REQUEST */
@@ -648,7 +644,7 @@ alloc_pagewise(
 		Unlock_Heap(hd);
 		(*hd->panic)("Out of swap space", "heap allocation");
 	    }
-	    return (generic_ptr) 0;
+	    return (void *) 0;
 	}
 	if ((word) address % BYTES_PER_PAGE != 0)
 	{
@@ -662,8 +658,8 @@ alloc_pagewise(
 	if (!pages->min_addr || address < pages->min_addr)
 	    pages->min_addr = address;
 	if (!pages->min_addr ||
-	    (generic_ptr)((char*)address + bytes_requested) > pages->max_addr)
-	    pages->max_addr = (generic_ptr)((char*)address + bytes_requested);
+	    (void *)((char*)address + bytes_requested) > pages->max_addr)
+	    pages->max_addr = (void *)((char*)address + bytes_requested);
 
 	/* put excess pages in the free list */
 	if (pages_requested > pages_needed)
@@ -678,7 +674,7 @@ alloc_pagewise(
  * Allocate a single page (of size BYTES_PER_PAGE)
  */
 
-generic_ptr
+void *
 alloc_page(struct heap_descriptor *hd)
 {
     word dummy;
@@ -709,12 +705,12 @@ alloc_init(struct heap_descriptor *hd)
     struct heap *heap = hd->heap;
     for (i=0; i <= LARGEST_SMALL_BLOCK; i++)
     {
-	heap->small_blocks[i] = (generic_ptr) 0;
+	heap->small_blocks[i] = (void *) 0;
 	heap->small_allocated[i] = 0;
     }
     for (i=0; i < POWERS; i++)
     {
-	heap->powers[i] = (generic_ptr) 0;
+	heap->powers[i] = (void *) 0;
 	heap->powers_allocated[i] = 0;
     }
     heap->alloc_ptr = alloc_page(hd);
@@ -733,11 +729,11 @@ alloc_debug_level(struct heap_descriptor *hd, int debug_level)
     hd->debug_level = debug_level;
 }
 
-generic_ptr
+void *
 alloc_size(struct heap_descriptor *hd, word bytes_needed)
 {
     register word units_needed = Units(bytes_needed);
-    generic_ptr ptr;
+    void *ptr;
     struct heap *heap = hd->heap;
 
     Lock_Heap(hd);
@@ -754,7 +750,7 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
 	heap->small_allocated[units_needed]++;
 	if (ptr)			/* we have one in the free list */
 	{
-	    heap->small_blocks[units_needed] = *((generic_ptr *) ptr);
+	    heap->small_blocks[units_needed] = *((void**) ptr);
 	}
 	else
 	{
@@ -762,7 +758,7 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
 	    {
 		if (heap->alloc_free)	/* put the rest into a free list */
 		{
-		    * ((generic_ptr *) heap->alloc_ptr) =
+		    * ((void**) heap->alloc_ptr) =
 				heap->small_blocks[heap->alloc_free];
 		    heap->small_blocks[heap->alloc_free] = heap->alloc_ptr;
 		}
@@ -772,7 +768,7 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
 	    }
 	    ptr = heap->alloc_ptr;	/* allocate from the current block */
 	    heap->alloc_free -= units_needed;
-	    heap->alloc_ptr = (generic_ptr)
+	    heap->alloc_ptr = (void *)
 		((char *) heap->alloc_ptr + units_needed*BYTES_PER_UNIT);
 	}
     }
@@ -791,13 +787,13 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
 	heap->powers_allocated[index]++;
 	if (ptr)			/* we have one in the free list */
 	{
-	    heap->powers[index] = *((generic_ptr *) ptr);
+	    heap->powers[index] = *((void**) ptr);
 	}
 	else if (blocksize <= heap->alloc_free)	/* get from allocation block */
 	{
 	    ptr = heap->alloc_ptr;
 	    heap->alloc_free -= blocksize;
-	    heap->alloc_ptr = (generic_ptr)
+	    heap->alloc_ptr = (void *)
 		((char *) heap->alloc_ptr + blocksize*BYTES_PER_UNIT);
 	}
 	else	/* get a fresh page and split into blocks of blocksize */
@@ -808,12 +804,12 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
 	    initptr = (unit_type *) ptr + UNITS_PER_PAGE - blocksize;
 	    *(unit_type **) initptr = (unit_type *) 0;
 	    initptr -= blocksize;
-	    while ((generic_ptr) initptr > ptr)
+	    while ((void *) initptr > ptr)
 	    {
 		*(unit_type **) initptr = initptr + blocksize;
 		initptr -= blocksize;
 	    }
-	    heap->powers[index] = (generic_ptr)(initptr + blocksize);
+	    heap->powers[index] = (void *)(initptr + blocksize);
 	}
     }
     else					/* allocate pagewise */
@@ -827,7 +823,7 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
 }
 
 void
-free_size(struct heap_descriptor *hd, generic_ptr ptr, word size)
+free_size(struct heap_descriptor *hd, void *ptr, word size)
 {
     register word units = Units(size);
     struct heap *heap = hd->heap;
@@ -849,7 +845,7 @@ free_size(struct heap_descriptor *hd, generic_ptr ptr, word size)
     if (units <= LARGEST_SMALL_BLOCK)		/* perfect fit algorithm */
     {
 	heap->used -= units;
-	* ((generic_ptr *) ptr) = heap->small_blocks[units];
+	* ((void**) ptr) = heap->small_blocks[units];
 	heap->small_blocks[units] = ptr;
 	heap->small_allocated[units]--;
     }
@@ -864,7 +860,7 @@ free_size(struct heap_descriptor *hd, generic_ptr ptr, word size)
 	    index++;
 	}
 	heap->used -= blocksize;
-	* ((generic_ptr *) ptr) = heap->powers[index];
+	* ((void**) ptr) = heap->powers[index];
 	heap->powers[index] = ptr;
 	heap->powers_allocated[index]--;
     }
@@ -897,10 +893,10 @@ _true_size(word size)
     }
 }
 
-generic_ptr
+void *
 realloc_size(
 	struct heap_descriptor *hd,
-	generic_ptr ptr,
+	void *ptr,
 	word oldsize,
 	word newsize)
 {
@@ -910,7 +906,7 @@ realloc_size(
     }
     else		/* grow or shrink */
     {
-	generic_ptr new_ptr = alloc_size(hd, newsize);
+	void *new_ptr = alloc_size(hd, newsize);
 	if (new_ptr)
 	{
 	    bcopy((char *) ptr, (char *) new_ptr,
@@ -928,19 +924,19 @@ realloc_size(
  * It gives us also space for a magic number.
  *---------------------------------------------------------------------*/
 
-generic_ptr
+void *
 h_alloc(struct heap_descriptor *hd, word size)
 {
     HEADER *ptr;
     if (!(ptr = (HEADER*) alloc_size(hd, size + sizeof(HEADER))))
-	return (generic_ptr) 0;
+	return (void *) 0;
     ptr->s.size = size;
     ptr->s.magic = hd->heap;
-    return (generic_ptr)(ptr + 1);
+    return (void *)(ptr + 1);
 }
 
 void
-h_free(struct heap_descriptor *hd, generic_ptr ptr)
+h_free(struct heap_descriptor *hd, void *ptr)
 {
     HEADER *h;
     if (!ptr)
@@ -953,11 +949,11 @@ h_free(struct heap_descriptor *hd, generic_ptr ptr)
 	return;
     }
     h->s.magic = (struct heap *) 0;
-    free_size(hd, (generic_ptr) h, h->s.size + sizeof(HEADER));
+    free_size(hd, (void *) h, h->s.size + sizeof(HEADER));
 }
 
-generic_ptr
-h_realloc(struct heap_descriptor *hd, generic_ptr ptr, word newsize)
+void *
+h_realloc(struct heap_descriptor *hd, void *ptr, word newsize)
 {
     HEADER *h;
     word oldsize;
@@ -974,7 +970,7 @@ h_realloc(struct heap_descriptor *hd, generic_ptr ptr, word newsize)
 	return ptr;
     }
     h->s.size = newsize;
-    return (generic_ptr) ((HEADER*) realloc_size(hd, (generic_ptr) h,
+    return (void *) ((HEADER*) realloc_size(hd, (void *) h,
 	oldsize + sizeof(HEADER),
 	newsize + sizeof(HEADER)) + 1);
 }
@@ -1011,7 +1007,7 @@ void
 pr_heap(struct heap_descriptor *hd)
 {
     int	i, j, blocksize;
-    generic_ptr p;
+    void *p;
     struct cluster *cl;
     struct page_admin *pages = hd->pages;
     struct heap *heap = hd->heap;
@@ -1019,7 +1015,7 @@ pr_heap(struct heap_descriptor *hd)
     p_fprintf(current_err_, "\nSMALL BLOCK MANAGEMENT:\n");
     for (i=1; i <= LARGEST_SMALL_BLOCK; i++)
     {
-	for (j=0, p = heap->small_blocks[i]; p; p = *(generic_ptr *)p, j++)
+	for (j=0, p = heap->small_blocks[i]; p; p = *(void**)p, j++)
 		;
 	p_fprintf(current_err_, "%10d byte blocks: %4d allocated, %4d free\n",
 		i*BYTES_PER_UNIT, heap->small_allocated[i], j);
@@ -1029,7 +1025,7 @@ pr_heap(struct heap_descriptor *hd)
 	blocksize <= LARGEST_POWER_BLOCK;
 	i++, blocksize <<= 1)
     {
-	for (j=0, p = heap->powers[i]; p; p = *(generic_ptr *)p, j++)
+	for (j=0, p = heap->powers[i]; p; p = *(void**)p, j++)
 		;
 	p_fprintf(current_err_, "%10u byte blocks: %4d allocated, %4d free\n",
 		blocksize*BYTES_PER_UNIT, heap->powers_allocated[i], j);

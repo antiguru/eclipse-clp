@@ -42,8 +42,8 @@ void sch_genesis        (st_handle_t *, st_handle_t *, st_handle_t *, int);
 void sch_init_lodge	(aport_id_t, int, st_handle_t *);
 void sch_idle_eng	(aport_id_t);
 void sch_wake_eng 	(aport_id_t);
-void sch_get_info	(aport_id_t, int *, void_ptr *);
-void sch_set_info	(aport_id_t, void_ptr);
+void sch_get_info	(aport_id_t, int *, void**);
+void sch_set_info	(aport_id_t, void*);
 void sch_reduce_worker	(aport_id_t);
 #else /* __STDC__ */
 void sch_port_upcall    ();

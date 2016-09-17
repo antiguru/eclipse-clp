@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.11 2016/08/04 09:09:04 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.12 2016/09/17 19:15:43 jschimpf Exp $
  *
  * IDENTIFICATION:	property.c
  *
@@ -467,12 +467,12 @@ erase_property(dident functor, int property_name, dident module, type mod_tag, i
 			    *prev_m = m->next_mod;
 			    _rem_from_module_entry(m, pm);
 			    free_prop_value(property_name, &m->property_value);
-			    hg_free_size((generic_ptr) m, sizeof(property));
+			    hg_free_size(m, sizeof(property));
 
 			    if (p->next_mod == p && p->module == D_UNKNOWN)
 			    {	/* all erased, remove head descriptor	*/
 				*prev_p = p->next_prop;
-				hg_free_size((generic_ptr) p, sizeof(property));
+				hg_free_size(p, sizeof(property));
                               /* this is not an error, it is a message
                                  to notify that the property is erased
                                  completely */
@@ -492,7 +492,7 @@ erase_property(dident functor, int property_name, dident module, type mod_tag, i
 		    if (p->next_mod == p)
 		    {		/* no locals: remove global descriptor	*/
 			*prev_p = p->next_prop;
-			hg_free_size((generic_ptr) p, sizeof(property));
+			hg_free_size(p, sizeof(property));
                       /* this is not an error, it is a message to notify
                          that the property is erased completely       */
 			res = PFAIL;
@@ -538,7 +538,7 @@ erase_module_props(property *prop_list)
 	p = prop_list;
 	prop_list = prop_list->next_prop;
 	free_prop_value((int) p->name, &p->property_value);
-	hg_free_size((generic_ptr) p, sizeof(property));
+	hg_free_size(p, sizeof(property));
     }
 }
 
@@ -589,7 +589,7 @@ free_prop_value(int prop_name, pword *prop_value)
     case WRITE_GOAL_TRANS_PROP:
     case CLAUSE_TRANS_PROP:
     case WRITE_CLAUSE_TRANS_PROP:
-	hg_free((generic_ptr)prop_value->val.ptr);
+	hg_free(prop_value->val.ptr);
 	break;
 
     case EVENT_PROP:

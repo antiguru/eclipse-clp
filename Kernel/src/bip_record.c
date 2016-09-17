@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.6 2016/08/04 10:49:26 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.7 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -143,7 +143,7 @@ _rec_free_elem(t_heap_rec *this)
 	ec_flush(current_err_);
 #endif
 	free_heapterm(&this->term);
-	hg_free_size((generic_ptr) this, sizeof(t_heap_rec));
+	hg_free_size(this, sizeof(t_heap_rec));
     }
 }
 
@@ -185,7 +185,7 @@ _rec_free_all(t_heap_rec_hdr *header)
 	    ec_cond_destroy(header->cond);
 	    hg_free_size(header->cond, sizeof(ec_cond_t));
 	}
-	hg_free_size((generic_ptr) header, sizeof(t_heap_rec_hdr));
+	hg_free_size(header, sizeof(t_heap_rec_hdr));
     }
 }
 

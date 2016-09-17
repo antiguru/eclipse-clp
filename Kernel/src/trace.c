@@ -530,7 +530,7 @@ p_worker_stat_reset(value vwid, type twid, ec_eng_t *ec_eng)
     }
     else if (valid_wid((int) vwid.nint))
     {
-/*	wm_set_worker_info(vwid.nint, WSTAT_INFO, 0, (void_ptr) 0);*/
+/*	wm_set_worker_info(vwid.nint, WSTAT_INFO, 0, 0);*/
       reset_wstat((int) vwid.nint);
     }
     else

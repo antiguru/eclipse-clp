@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.8 2016/09/17 19:15:43 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -165,7 +165,7 @@ _new_pri(dident functor, dident module)
 static void
 _free_pri(pri *pd)
 {
-    hg_free_size((generic_ptr)pd, sizeof(pri));
+    hg_free_size(pd, sizeof(pri));
 }
 
 
@@ -356,7 +356,7 @@ delete_proc_from_chain(pri *p, proc_duet **chain)
 	if (current_gd->desc == p)
 	{ /* found, so delete it from the chain */
 	    *chain = current_gd->next;
-	    hg_free_size((generic_ptr) current_gd, sizeof(proc_duet));
+	    hg_free_size(current_gd, sizeof(proc_duet));
 	    break;
 	}
 	chain = &current_gd->next;
@@ -1741,9 +1741,9 @@ reclaim_procedure(vmcode *code)
 	    a_mutex_unlock(&ProcChainLock);
 	}
 	else if (BlockType(code) == UNDEFINED_PROC)
-	    hg_free_size((generic_ptr) code, sizeof(vmcode) * (UNDEF_CODE_SIZE + PROC_PREFIX_SIZE));
+	    hg_free_size(code, sizeof(vmcode) * (UNDEF_CODE_SIZE + PROC_PREFIX_SIZE));
 	else
-	    hg_free((generic_ptr) code);
+	    hg_free(code);
     }
     while (code = next);
 }

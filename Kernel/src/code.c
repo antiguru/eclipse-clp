@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.20 2016/08/11 22:07:45 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.21 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /********************************************************************
@@ -316,7 +316,7 @@ reclaim_ground_structure(vmcode *code_header)
     extern void free_heapterm();
 
     free_heapterm(ProcStruct(CodeStart(code_header)));
-    hg_free((generic_ptr) code_header);
+    hg_free(code_header);
 }
 
 

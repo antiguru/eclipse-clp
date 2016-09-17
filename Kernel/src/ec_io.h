@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.7 2016/08/05 10:15:09 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.8 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -76,7 +76,7 @@
 #define StreamPastEof(nst)	((nst)->mode & MEOF)
 #define StreamFILE(nst)		((FILE *) (nst)->stdfile)
 #define StreamMethods(nst)	(* (io_channel_t *) (nst)->methods)
-#define SetStreamMethods(nst,m)	(nst)->methods = (void_ptr) (m);
+#define SetStreamMethods(nst,m)	(nst)->methods = (m);
 
 #define StreamHandle(nst) \
 	ecl_handle(ec_eng, &stream_tid, (t_ext_ptr)stream_tid.copy(nst))

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: mem.h,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: mem.h,v 1.3 2016/09/17 19:15:43 jschimpf Exp $
  *
  * IDENTIFICATION	mem.h
  *
@@ -201,7 +201,7 @@ extern uword	*buffer_next ARGS((unbounded_buffer *bd, uword *ptr));
 #define Delete_Array(type, name, size)
 #else
 #define New_Array(type, name, size) type *name = (type*)hp_alloc_size(size*sizeof(type))
-#define Delete_Array(type, name, size) hp_free_size((generic_ptr)(name), size*sizeof(type))
+#define Delete_Array(type, name, size) hp_free_size(name, size*sizeof(type))
 #endif
 
 
@@ -224,19 +224,19 @@ extern uword	*buffer_next ARGS((unbounded_buffer *bd, uword *ptr));
 extern struct heap_descriptor global_heap;
 
 #ifdef __STDC__
-generic_ptr     hg_alloc_size(word size);
-void            hg_free_size(generic_ptr, word size);
-generic_ptr     hg_realloc_size(generic_ptr, word, word);
-generic_ptr     hg_alloc(word size);
-void            hg_free(generic_ptr);
-generic_ptr     hg_resize(generic_ptr, word);
+void *          hg_alloc_size(word size);
+void            hg_free_size(void *, word size);
+void *          hg_realloc_size(void *, word, word);
+void *          hg_alloc(word size);
+void            hg_free(void *);
+void *          hg_resize(void *, word);
 int             hg_statistics(int what);
 #else /* __STDC__ */
-generic_ptr     hg_alloc_size();
+void *          hg_alloc_size();
 void            hg_free_size();
-generic_ptr     hg_realloc_size();                          
-generic_ptr     hg_alloc();                                 
+void *          hg_realloc_size();                          
+void *          hg_alloc();                                 
 void            hg_free();
-generic_ptr     hg_resize();
+void *          hg_resize();
 int             hg_statistics();
 #endif /* __STDC__ */

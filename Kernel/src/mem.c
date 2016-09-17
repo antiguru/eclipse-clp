@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.4 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.5 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -492,7 +492,7 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
 void
 dealloc_stack_pairs(struct stack_struct *lower, struct stack_struct *upper)
 {
-    generic_ptr addr = lower[0].start;
+    void *addr = lower[0].start;
     uword bytes = (char*) upper[1].start - (char*) addr;
 
     switch(ec_options.allocation)
@@ -642,7 +642,7 @@ stack_destroy(register struct stack_header **pstack)
     do {
 	next = stack->down;
 	Disable_Int();
-	free_pages(&private_heap, (generic_ptr) stack,
+	free_pages(&private_heap, stack,
 			(stack->limit - (uword *) stack)/UWORDS_PER_PAGE);
 	Enable_Int();
     } while (stack = next);
@@ -730,7 +730,7 @@ temp_destroy(struct temp_header **ptemp)
     do {
 	next = temp->next;
 	Disable_Int();
-	free_pages(&private_heap, (generic_ptr) temp, (temp->limit - (char *) temp)/BYTES_PER_PAGE);
+	free_pages(&private_heap, temp, (temp->limit - (char *) temp)/BYTES_PER_PAGE);
 	Enable_Int();
     } while (temp = next);
     *ptemp = (struct temp_header *) 0;
@@ -914,7 +914,7 @@ buffer_destroy(unbounded_buffer *bd)
 	hp_free((uword *) this);
 #else
 	Disable_Int();
-	free_pages(&private_heap, (generic_ptr) this,
+	free_pages(&private_heap, this,
 		(this->limit - (uword *) this)/UWORDS_PER_PAGE);
 	Enable_Int();
 #endif
@@ -956,21 +956,21 @@ malloc(unsigned n)
 free(char *ptr)
 {
     if (ptr != NULL)
-	hp_free((generic_ptr) ptr);
+	hp_free(ptr);
 }
 
 char           *
 realloc(char *ptr, unsigned n)
 {
     if (ptr != NULL)
-	return (char *) hp_resize((generic_ptr) ptr, (word) n);
+	return (char *) hp_resize(ptr, (word) n);
     else
 	return malloc(n);
 }
 
 cfree(char *ptr)
 {
-   hp_free((generic_ptr) ptr);
+   hp_free(ptr);
 }
 
 char           *
@@ -1003,10 +1003,10 @@ calloc(unsigned n, unsigned size)
  * Header-less allocation
  */
 
-generic_ptr
+void *
 hg_alloc_size(word bytes_needed)
 {
-    generic_ptr p;
+    void *p;
     mt_mutex_lock(&global_heap_lock);
     p = alloc_size(&global_heap, bytes_needed);
     mt_mutex_unlock(&global_heap_lock);
@@ -1014,27 +1014,27 @@ hg_alloc_size(word bytes_needed)
 }
 
 void
-hg_free_size(generic_ptr ptr, word size)
+hg_free_size(void *ptr, word size)
 {
     mt_mutex_lock(&global_heap_lock);
     free_size(&global_heap, ptr, size);
     mt_mutex_unlock(&global_heap_lock);
 }
 
-generic_ptr 
-hg_realloc_size(generic_ptr ptr, word oldsize, word newsize)
+void *
+hg_realloc_size(void *ptr, word oldsize, word newsize)
 {
-    generic_ptr p;
+    void *p;
     mt_mutex_lock(&global_heap_lock);
     p = realloc_size(&global_heap, ptr, oldsize, newsize);
     mt_mutex_unlock(&global_heap_lock);
     return p;
 }
 
-generic_ptr 
+void *
 hg_alloc(word size)
 {
-    generic_ptr p;
+    void *p;
     mt_mutex_lock(&global_heap_lock);
     p = h_alloc(&global_heap, size);
     mt_mutex_unlock(&global_heap_lock);
@@ -1042,17 +1042,17 @@ hg_alloc(word size)
 }
 
 void
-hg_free(generic_ptr ptr)
+hg_free(void *ptr)
 {
     mt_mutex_lock(&global_heap_lock);
     h_free(&global_heap, ptr);
     mt_mutex_unlock(&global_heap_lock);
 }
 
-generic_ptr
-hg_resize(generic_ptr ptr, word newsize)
+void *
+hg_resize(void *ptr, word newsize)
 {
-    generic_ptr p;
+    void *p;
     mt_mutex_lock(&global_heap_lock);
     p = h_realloc(&global_heap, ptr, newsize);
     mt_mutex_unlock(&global_heap_lock);
@@ -1270,10 +1270,10 @@ mem_init(int flags)
 
 #ifdef lint
     {
-	(void) hp_free((generic_ptr) 0);
-	(void) hp_free_size((generic_ptr) 0, 0);
-	(void) hp_realloc_size((generic_ptr) 0, 0, 0);
-	(void) hp_resize((generic_ptr) 0, 0);
+	(void) hp_free(0);
+	(void) hp_free_size(0, 0);
+	(void) hp_realloc_size(0, 0, 0);
+	(void) hp_resize(0, 0);
     }
 #endif
 }

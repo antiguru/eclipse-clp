@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: term_copy.c,v 1.3 2016/08/01 13:00:30 jschimpf Exp $
+ * VERSION	$Id: term_copy.c,v 1.4 2016/09/17 19:15:44 jschimpf Exp $
  *
  * IDENTIFICATION:	term_copy.c (was part of property.c)
  *
@@ -1353,7 +1353,7 @@ free_heapterm(pword *root)
 	}	
 
 	/* free the heap copy itself and its handle table */
-	hg_free_size((generic_ptr) HeaptermHeader(root->val.ptr), 
+	hg_free_size(HeaptermHeader(root->val.ptr), 
 		     HeaptermSize(root->val.ptr) + 
 		     HeaptermNumHandles(root->val.ptr) * sizeof(value) + 
 		     sizeof(pword));
@@ -1413,7 +1413,7 @@ create_heapterm(
     {
 	if (size > 0)
 	{
-	    hg_free_size((generic_ptr) HeaptermHeader(pw), HeaptermSize(pw) + 
+	    hg_free_size(HeaptermHeader(pw), HeaptermSize(pw) + 
 				HeaptermNumHandles(pw) * sizeof(value) + sizeof(pword));
 	}
 	return TYPE_ERROR;

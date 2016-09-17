@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.12 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.13 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -1197,7 +1197,7 @@ trim_dynamic_event_queue(ec_eng_t *ec_eng)
 		ec_eng->dyn_event_q.total_event_slots-- )
 	{
 	    ec_eng->dyn_event_q.tail->next = slot->next;
-	    hp_free_size((generic_ptr)slot, sizeof(dyn_event_q_slot_t));
+	    hp_free_size(slot, sizeof(dyn_event_q_slot_t));
 	    slot = ec_eng->dyn_event_q.tail->next;
 	}
     }
@@ -1212,7 +1212,7 @@ ec_fini_dynamic_event_queue(ec_eng_t *ec_eng)
     dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.prehead;
     do {
 	dyn_event_q_slot_t *next = slot->next;
-	hp_free_size((generic_ptr)slot, sizeof(dyn_event_q_slot_t));
+	hp_free_size(slot, sizeof(dyn_event_q_slot_t));
 	slot = next;
     } while (slot != ec_eng->dyn_event_q.prehead);
     ec_eng->dyn_event_q.prehead = ec_eng->dyn_event_q.tail = NULL;
@@ -1949,8 +1949,8 @@ ecl_assign(
 #if 0
 #ifdef PRINTAM
     if (!(TG_ORIG <= argpw && argpw < TG) &&
-    	!((void_ptr)ec_eng <= (void_ptr)argpw &&
-			   (void_ptr)argpw < (void_ptr)(ec_eng+1)))
+    	!((void *)ec_eng <= (void *)argpw &&
+			   (void *)argpw < (void *)(ec_eng+1)))
     {
 	pword *argpw1 = argpw;
 	p_fprintf(current_output_,"INTERNAL ERROR: ecl_assign of heap term: ");
@@ -2432,7 +2432,7 @@ check_arg(ec_eng_t *ec_eng, pword *pw)
 
 
 #define InGlobal(p)  ((p) >= min && (p) < max)
-#define InHeap(p)  (address_in_heap(&global_heap, (generic_ptr) p))
+#define InHeap(p)  (address_in_heap(&global_heap, p))
 
 check_global(ec_eng_t *ec_eng)
 {

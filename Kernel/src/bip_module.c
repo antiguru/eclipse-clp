@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.14 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.15 2016/09/17 19:15:42 jschimpf Exp $
  */
 
 /*
@@ -285,7 +285,7 @@ p_unlock2(value v, type t, value vl, type tl, ec_eng_t *ec_eng)
    m = ModuleItem(v.did);
    if (!strcmp(m->lock, StringStart(vl)))
    {
-       hg_free((generic_ptr) m->lock);
+       hg_free(m->lock);
        DidModule(v.did) = UNLOCK_MODULE;
        m->lock = (char *) 0;
        Succeed_;
@@ -815,7 +815,7 @@ delete_duet_from_chain(dident the_name, didlist **chain)
 	if (current_duet->name == the_name)
 	{
 	    *chain = current_duet->next;
-	    hg_free_size((generic_ptr) current_duet, sizeof(didlist));
+	    hg_free_size(current_duet, sizeof(didlist));
 	    break;
 	}
 	chain = &(current_duet->next);
@@ -855,7 +855,7 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod, ec
 	/* first, clean the procedures, we can reclaim the space	*/
 	erase_module_procs(pm->procedures);
 
-	hg_free_size((generic_ptr) pm->syntax, sizeof(syntax_desc));
+	hg_free_size(pm->syntax, sizeof(syntax_desc));
 
 	/* reclaim the properties					*/
 

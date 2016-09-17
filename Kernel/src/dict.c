@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.15 2016/08/04 09:09:04 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.16 2016/09/17 19:15:43 jschimpf Exp $
  */
 
 /*
@@ -288,7 +288,7 @@ dict_init(int flags)
     {
 	int i;
 	dict = (struct dictionary *) hg_alloc_size(sizeof(struct dictionary));
-	shared_data->dictionary = (void_ptr) dict;
+	shared_data->dictionary = dict;
 	for (i=0; i< DICT_HASH_TABLE_SIZE; i++)
 	    dict->hash_table[i] = D_UNKNOWN;
 	for (i=0; i< DICT_DIRECTORY_SIZE; i++)
@@ -389,14 +389,14 @@ static pword *
 alloc_string(int length)
 {
     pword *ptr;
-    ptr = (pword *) hg_alloc_size((int) StringSize(length));
+    ptr = (pword *) hg_alloc_size(StringSize(length));
     return ptr;
 }
 
 static void
 free_string(pword *ptr)
 {
-    hg_free_size((generic_ptr) ptr, (int) StringSize(ptr->val.nint));
+    hg_free_size(ptr, StringSize(ptr->val.nint));
 }
 
 
@@ -586,7 +586,7 @@ _in_dict_opt(char *name,	/* might not be NUL-terminated! */
 	dict_string = alloc_string(length);
 	Set_Buffer_Size(dict_string, length+1);
 	dict_string->tag.kernel = TBUFFER|IN_DICT;
-	Copy_Bytes((char *)(dict_string+1), name, (int) (length));
+	Copy_Bytes((char *)(dict_string+1), name, length);
 	((char *)(dict_string+1))[length] = 0;
 	if (start)
 	    dict->collisions++;
@@ -1653,7 +1653,7 @@ _constant_table_init(int flags)
     {
 	uword i;
 	constant_table = (struct constant_table *) hg_alloc_size(sizeof(struct constant_table));
-	shared_data->constant_table = (void_ptr) constant_table;
+	shared_data->constant_table = constant_table;
 	constant_table->size = CONSTANT_TABLE_MIN_SIZE;
 	constant_table->nentries = 0;
 	constant_table->nreuse = 0;

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.c,v 1.9 2016/07/30 10:30:31 jschimpf Exp $
+ * $Id: embed.c,v 1.10 2016/09/17 19:15:43 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.c
@@ -110,7 +110,7 @@ ec_refs_destroy(ec_refs variable)
 	variable->prev->next = variable->next;
     }
     variable->refstate = EC_REF_FREE;
-    hp_free_size((generic_ptr)variable, sizeof(struct eclipse_ref_));
+    hp_free_size(variable, sizeof(struct eclipse_ref_));
 }
 
 /*ARGSUSED*/

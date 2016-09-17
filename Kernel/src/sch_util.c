@@ -139,7 +139,7 @@ type  t_inst;
 
    if (instruction) {
       void wm_set_worker_info();
-      wm_set_worker_info((int) v_wid.nint, 1, sizeof(int), (void_ptr) &instruction);
+      wm_set_worker_info((int) v_wid.nint, 1, sizeof(int), &instruction);
    }
    Succeed_;
 }
@@ -182,7 +182,7 @@ type  t_info;
    int i, bufsize = sizeof(scheduler_t);
    extern void wm_get_worker_info();
    Check_Integer(t_wid);
-   wm_get_worker_info((int) v_wid.nint, 1, bufsize, (void_ptr) scheduler_data);
+   wm_get_worker_info((int) v_wid.nint, 1, bufsize, scheduler_data);
 
    prev_mc = NULL;
    /* smsg_subcount */
@@ -562,17 +562,17 @@ type  t_info;
 void sch_get_info(site,infosize,infoval)
 aport_id_t site;
 int * infosize;
-void_ptr * infoval;
+void * *infoval;
 {
    scheduler_t * site_scheduler();
-   *infoval = (void_ptr) site_scheduler(site);
+   *infoval = site_scheduler(site);
    *infosize = sizeof(scheduler_t);
    return;
 }
 
 void sch_set_info(site,infoval)
 aport_id_t site;
-void_ptr infoval;
+void * infoval;
 {
   scheduler_t * site_scheduler();
   scheduler_t *s = (scheduler_t *) site_scheduler(site);

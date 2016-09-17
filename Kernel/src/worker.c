@@ -206,7 +206,7 @@ nsrv_name_t wm_hostname; /* name of worker manager host */
 int local_wm = 0;  /* set if worker manager is on the same host */
 
 /* for sending and rec. worker info */
-void_ptr worker_info_buf, worker_info_bufin;
+void *worker_info_buf, *worker_info_bufin;
 int worker_info_bufsize, worker_info_bufinsize;
 
 /* for receiving worker statistics */
@@ -1040,10 +1040,10 @@ wm_notify(port_id)
 	    Notify("Got WORKER_INFO_SET message");
 	    set_worker_info(worker_info_msg->req_wid, 
 			    worker_info_msg->infotype, 
-			    (void_ptr) (worker_info_msg + 1));
+			    worker_info_msg + 1);
 	    send_worker_info(worker_info_msg->req_wid, 
 			     worker_info_msg->infotype,
-			     0, (void_ptr) NULL); 
+			     0, NULL); 
 	    break;
 	    
 	  case WORKER_INFO_GET:
@@ -1873,7 +1873,7 @@ void wm_set_worker_info(wid, infotype, bufsize, buf)
 int wid;
 int infotype; 
 int bufsize;
-void_ptr buf;
+void *buf;
 
 {
  amsg_t msg;
@@ -1921,7 +1921,7 @@ wm_get_worker_info( wid, infotype, bufsize, buf)
 int wid;
 int infotype;
 int bufsize;
-void_ptr buf;
+void *buf;
 {
   amsg_t msg;
   amsg_data_t * msg_data;
@@ -1954,7 +1954,7 @@ send_worker_info(recwid,infotype,bufsize,buf)
 int recwid;
 int infotype;
 int bufsize;
-void_ptr buf;
+void *buf;
 {
   amsg_t msg;
   amsg_data_t * msg_data;
@@ -1987,7 +1987,7 @@ void_ptr buf;
 get_worker_info(infotype,infosize,infoval)
 int infotype;
 int *infosize;
-void_ptr * infoval;
+void ** infoval;
 
 {
   
@@ -2005,7 +2005,7 @@ void_ptr * infoval;
 set_worker_info(req_wid, infotype, infoval)
 int req_wid;  /* worker id of requesting worker */
 int infotype;
-void_ptr infoval;
+void *infoval;
 {
   if (req_wid < 0)
     req_wid = - req_wid;
