@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.18 2016/09/17 19:15:44 jschimpf Exp $
+ * $Id: types.h,v 1.19 2016/09/20 22:26:35 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -49,8 +49,6 @@
 #ifndef EC_EXTERNAL
 #include "memman.h"
 #endif
-
-#include "ec_general.h"
 
 
 /* TEMPORARY: disable old locking primitives from parallel system */
@@ -98,6 +96,7 @@ typedef union
 	uword		*wptr;
 	struct s_pword	*ptr;
 	char		*str;
+	void		*vptr;
 	word		nint;
 	dident		did;
 #ifdef UNBOXED_DOUBLES
@@ -449,7 +448,8 @@ typedef struct top_frame	*top_ptr;
 
 typedef struct _dyn_event_q_slot_t {
     pword event_data;
-    struct _dyn_event_q_slot_t *next;      
+    struct _dyn_event_q_slot_t *prev, *next;      
+    int	urgent;
 } dyn_event_q_slot_t;
 
 typedef struct {
@@ -578,7 +578,6 @@ typedef struct ec_eng_s
 
     pword * volatile tg_soft_lim;	/* garbage collection trigger point */
     pword *	tg_soft_lim_shadow;	/* needed in case of faked overflow */
-    volatile int irq_faked_overflow;	/* for faking overflow in interrupts */
 
     pword *	tg_limit;	/* stack limits for overflow checks */
     pword **	tt_limit;
@@ -621,7 +620,9 @@ typedef struct ec_eng_s
 	dyn_event_q_t dyn_event_q; /* Dynamic synchronous event queue */
 
     int	requested_exit_code;	/* if (EVENT_FLAGS & EXIT_REQUEST) */
+#if 0
     pword requested_throw_ball;	/* if (EVENT_FLAGS & THROW_REQUEST) */
+#endif
 
     int	needs_dgc_marking;	/* awaiting dictionary marking from this engine */
     struct ec_eng_s *parent_engine; /* engine waiting for this engine, */
@@ -692,10 +693,7 @@ typedef struct {
 struct shared_data_t {
 #if 0
 	a_mutex_t
-		general_lock,			/* if none of the others used */
 		mod_desc_lock,			/* module descriptor */
-		prop_desc_lock,			/* property descriptors */
-		    prop_list_lock,		/* functor property list */
 		proc_desc_lock,			/* procedure descriptors */
 		    proc_list_lock,		/* functor procedure list */
 		    proc_chain_lock;		/* shared procedure chains */
@@ -703,7 +701,7 @@ struct shared_data_t {
 	ec_mutex_t
 		general_lock,
 		engine_list_lock,
-		arrays_lock;
+		prop_list_lock;			/* property access */
 #endif
 
 	int	global_flags,
@@ -711,7 +709,6 @@ struct shared_data_t {
 		output_mode_mask,
 		compile_id,
 		code_heap_used,
-		global_var_index,
 		load_release_delay,
 		publishing_param,
 		nbstreams,
@@ -722,10 +719,8 @@ struct shared_data_t {
 		meta_arity;
 
 	void *	dictionary;			/* has its own lock */
-
 	void *	abolished_procedures;		/* proc_chain_lock */
 	void *	compiled_structures;
-	void *	global_procedures;		/* proc_chain_lock */
 	void *	constant_table;
 
 	void *	meta_attribute;
@@ -736,10 +731,6 @@ struct shared_data_t {
 	void *	interrupt_handler_flags;
 	void *	interrupt_name;
 	void *	error_message;
-	void *	message;
-	void *	startup_goal;
-	void *	debug_macros;
-	void *	worker_statistics;
 
 	void *	extension_ptr;
 	void *	extension_ptr1;
@@ -1018,7 +1009,7 @@ typedef struct
 
 typedef struct 
 {
-    struct shared_data_t	*shared;
+    struct shared_data_t	shared;
     struct tag_descriptor	td[NTYPES+1];
     standard_dids		d;
 

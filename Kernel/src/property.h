@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: property.h,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: property.h,v 1.3 2016/09/20 22:26:35 jschimpf Exp $
  */
  
 /*************************************************************
@@ -96,13 +96,4 @@ Extern int	erase_property ARGS((dident, int, dident, type, int));
 Extern void	erase_module_props ARGS((property*));
 Extern void	erase_records ARGS((pword*));
 Extern void	mark_dids_from_properties ARGS((property*));
-
-Extern void	get_heapterm ARGS((ec_eng_t*,pword*, pword*));
-Extern int	create_heapterm ARGS((ec_eng_t*, pword*, value, type));
-Extern void	free_heapterm ARGS((pword*));
-Extern void	move_heapterm ARGS((pword*, pword*));
-Extern void	make_heapterm_persistent ARGS((pword*));
-Extern void	mark_dids_from_heapterm ARGS((pword*));
-Extern void	set_string ARGS((pword*, char*));
-Extern void	set_string_n ARGS((pword*, char*, int));
 

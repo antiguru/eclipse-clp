@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.8 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.9 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -179,31 +179,16 @@ p_global_flags(value vc, type tc, value vs, type ts, value v, type t, ec_eng_t *
 }
 
 #define ALLOWED_TO_CLR	ALLOWED_TO_SET
-#define ALLOWED_TO_SET	(TRACE|STATISTICS|GLOBAL_NO_IT|WAS_EXIT|NO_EXIT)
+#define ALLOWED_TO_SET	(TRACE|STATISTICS)
 
 static int
 p_vm_flags(value vc, type tc, value vs, type ts, value v, type t, ec_eng_t *ec_eng)
 {
-	int was_global_no_it;
 	Check_Integer(tc)
 	Check_Integer(ts)
 
-	Disable_Int();
-
-	was_global_no_it = VM_FLAGS & GLOBAL_NO_IT;
 	VM_FLAGS = (VM_FLAGS & ~(ALLOWED_TO_CLR & vc.nint)) |
 			(ALLOWED_TO_SET & vs.nint);
-
-	/* keep disabled or re-enable or re-enable twice */
-	if (!(VM_FLAGS & GLOBAL_NO_IT))
-	{
-	    Enable_Int();
-	}
-	if (was_global_no_it)
-	{
-	    Enable_Int();
-	}
-
 	Return_Unify_Integer(v,t,VM_FLAGS);
 }
 

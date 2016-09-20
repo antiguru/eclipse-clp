@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: bip_heapevents.c,v 1.3 2016/08/04 09:09:04 jschimpf Exp $
+ * Version:	$Id: bip_heapevents.c,v 1.4 2016/09/20 22:26:35 jschimpf Exp $
  *
  * Contents:	Built-ins for the heap-event-primitives
  *
@@ -185,12 +185,6 @@ p_event_create4(value vevent, type tevent, value vopt, type topt, value vhandle,
 	Check_List(topt);
     }
 
-    /* Disable interrupts - this safeguards our Tom-foolery with
-     * the reference counts and guards the event allocation from
-     * aborts.
-     */
-    Disable_Int();
-
     event = (t_heap_event *) ec_new_heap_event(true_pw_.val, true_pw_.tag, vmodule, tmodule, defers);
     hevent = ecl_handle(ec_eng, &heap_event_tid, (t_ext_ptr) event);
 
@@ -202,7 +196,6 @@ p_event_create4(value vevent, type tevent, value vopt, type topt, value vhandle,
 
     if (res != PSUCCEED) {
 	hg_free_size(event, sizeof(t_heap_event));
-	Enable_Int();
 	Bip_Error(res);
     }
 
@@ -212,8 +205,6 @@ p_event_create4(value vevent, type tevent, value vopt, type topt, value vhandle,
      * maintained by the embedded internal reference. 
      */
     event->ref_ctr = 1;
-
-    Enable_Int();
 
     Succeed_;
 }

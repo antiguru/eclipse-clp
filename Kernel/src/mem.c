@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.5 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.6 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /*
@@ -1232,10 +1232,7 @@ mem_init(int flags)
     {
 	alloc_debug_level(&global_heap, ec_options.debug_level);
 
-	shared_data = (struct shared_data_t *)
-			hg_alloc_size(sizeof(struct shared_data_t));
-
-	shared_data->shutdown_in_progress = 0;
+	ShutdownInProgress = 0;
 
 	EclGblFlags =
 #ifdef PRINTAM
@@ -1248,40 +1245,15 @@ mem_init(int flags)
 
 	mt_mutex_init_recursive(&SharedDataLock);
 	mt_mutex_init_recursive(&PropertyLock);
-	mt_mutex_init_recursive(&shared_data->engine_list_lock); /* must be recursive because of broadcast_exit/1 */
+	mt_mutex_init_recursive(&EngineListLock); /* must be recursive because of broadcast_exit/1 */
 	a_mutex_init(&ModuleLock);
 	a_mutex_init(&ProcedureLock);
 	a_mutex_init(&ProcListLock);
 	a_mutex_init(&ProcChainLock);
+    }
 
-	/* Make it visible with HEAP_READY flag off!! */
-	*(struct shared_data_t **) start_shared_heap = shared_data;
-    }
-#if 0
-    else
-    {
-	/* wait for heap to become fully initialised by first worker */
-	while (!(shared_data = *(struct shared_data_t **) start_shared_heap))
-	{
-	    /* sleep(1); */
-	}
-    }
-#endif
-
-#ifdef lint
-    {
-	(void) hp_free(0);
-	(void) hp_free_size(0, 0);
-	(void) hp_realloc_size(0, 0, 0);
-	(void) hp_resize(0, 0);
-    }
-#endif
 }
 
-static void
-dummy_delayed_irq_handler(void)
-{
-}
 
 void
 malloc_init(void)
@@ -1306,7 +1278,6 @@ malloc_init(void)
 # endif
 #endif
 
-    irq_lock_init(dummy_delayed_irq_handler);
     private_mem_init(ec_panic);
     alloc_debug_level(&private_heap, ec_options.debug_level);
 

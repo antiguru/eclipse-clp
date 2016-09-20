@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.11 2016/08/04 09:41:41 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.12 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -562,10 +562,6 @@ ec_worker_cleanup(void)
 
     if (ec_options.parallel_worker)
 	exit_mps();
-
-    /* disable interrupts because we cannot serve them properly when
-     * all streams are closed */
-    Disable_Int();
 
     /* finally, release all heap memory */
     mem_fini();

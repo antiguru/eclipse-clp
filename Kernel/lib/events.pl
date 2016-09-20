@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.35 2016/08/04 10:50:11 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.36 2016/09/20 22:27:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -1703,7 +1703,7 @@ after_loop :-
 	    DueTime-Desc = TE,
 	    ( DueTime =< CurrentTime ->
 		after(_Delay, Interval, Event, Engine) = Desc,
-		engine_post_event(Engine, Event),
+		engine_post(Engine, event(Event)),
 		( Interval > 0 ->
 		    NextDue is CurrentTime+Interval,
 		    RE1 = [NextDue-Desc|RE2]

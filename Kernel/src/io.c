@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.22 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.23 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /*
@@ -2552,11 +2552,9 @@ _local_tty_in(stream_id nst)
     /* We handle only after resetting raw mode, in case the handler longjmps */
     for (;;)
     {
-	Disable_Int()
 	errno = 0;
 	if ((res = _set_raw_tty(StreamUnit(nst), 1, 0, &tbuf)) != PSUCCEED)
 	{
-	    Enable_Int()
 	    return res;
 	}
 	if (E_read_hook != NULL)
@@ -2586,12 +2584,10 @@ _local_tty_in(stream_id nst)
 	if (errno != EINTR)
 	    break;
 	res = _unset_raw_tty(StreamUnit(nst), &tbuf);
-	Enable_Int()
 	if (res != PSUCCEED)
 	    return res;
     }
     res = _unset_raw_tty(StreamUnit(nst), &tbuf);
-    Enable_Int()
     if (res != PSUCCEED)
 	return res;
     if(n < 1)
@@ -2620,15 +2616,12 @@ ec_tty_outs(stream_id nst, char *s, int n)
 	int res;
 	Termio	tbuf;
 
-	Disable_Int()
 	if ((res = _set_raw_tty(StreamUnit(nst), 1, 0, &tbuf)) != PSUCCEED)
 	{
-	    Enable_Int()
 	    return res;
 	}
 	res = StreamMethods(nst).write(StreamUnit(nst), s, n);
 	res = _unset_raw_tty(StreamUnit(nst), &tbuf);
-	Enable_Int();
 	return(res);
 #endif
     }

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.36 2016/09/16 15:45:00 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.37 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /*
@@ -316,13 +316,9 @@ extern dident	*interrupt_name_;
   */
 
 #define Start_Countdown() \
-	    Disable_Int(); \
-	    EVENT_FLAGS |= COUNT_DOWN; \
-	    Enable_Int();
+	    atomic_or(&EVENT_FLAGS, COUNT_DOWN);
 #define Stop_Countdown() \
-	    Disable_Int(); \
-	    EVENT_FLAGS &= ~COUNT_DOWN; \
-	    Enable_Int();
+	    atomic_and(&EVENT_FLAGS, ~COUNT_DOWN);
 
 #define MODE_READ	0
 #define MODE_WRITE	1
@@ -1854,17 +1850,16 @@ _handle_events_at_res_:				/* (tmp1) */
 
 _handle_events_at_return_:
 	Mark_Prof(_handle_events_at_return_)
-	Reset_Faked_Overflow;
 	Push_Ret_Code(PP)			/* (Re)push a return address */
 
 	if (GlobalOverflow)			/* call the garbage collector */
 	{
 	    PP = (emu_code) auto_gc_code_;
-	    if (MU || EVENT_FLAGS)
-		{ Fake_Overflow; }		/* postpone further	*/
 	    Next_Pp;				/* no call port		*/
 	}
-	else if (MU)				/* meta_term_unify */
+
+	Reset_Faked_Overflow;			/* we are polling now! */
+	if (MU)					/* meta_term_unify */
 	{
 	    /* We assume that this handler is always Prolog, no tool,
 	     * and has arity 1 */
@@ -1873,48 +1868,44 @@ _handle_events_at_return_:
 	    A[1].val.ptr = MU;
 	    A[1].tag.kernel = TLIST;
 	    Reset_Unify_Exceptions
-	    if (EVENT_FLAGS)
+	    if (atomic_load(&EVENT_FLAGS))
 		{ Fake_Overflow; }		/* postpone it further */
 	}
-	else if (EVENT_FLAGS && !PO)
+	else if ((err_code = atomic_load(&EVENT_FLAGS))
+#ifdef NEW_ORACLE
+		&& !PO
+#endif
+		)
 	{
-	    if (EVENT_FLAGS & EXIT_REQUEST)
+	    if (err_code & EXIT_REQUEST)
 	    {
+_do_requested_exit_:
 		Make_Integer(&scratch_pw, ec_eng->requested_exit_code);
-		if (EVENT_FLAGS &= ~EXIT_REQUEST)
-		    { Fake_Overflow; }
+		if (atomic_and(&EVENT_FLAGS, ~EXIT_REQUEST))
+		    { Fake_Overflow; }		/* there are other events */
 		goto _exit_engine_;
 	    }
-	    else if (EVENT_FLAGS & DICT_GC_REQUEST)
+	    else if (err_code & DICT_GC_REQUEST)
 	    {
-		if (EVENT_FLAGS &= ~DICT_GC_REQUEST)
-		    { Fake_Overflow; }
+		if (atomic_and(&EVENT_FLAGS, ~DICT_GC_REQUEST))
+		    { Fake_Overflow; }		/* there are other events */
 		Export_B_Sp_Tg_Tt_Eb_Gb
 		ecl_mark_engine(ec_eng, 0L);
 		Import_None;
 		Pop_Ret_Code
 		Next_Pp;
 	    }
-	    else if (EVENT_FLAGS & THROW_REQUEST)
-	    {
-_do_requested_throw_:
-		if (EVENT_FLAGS &= ~THROW_REQUEST)
-		    { Fake_Overflow; }		/* postpone it further */
-		A[1] = ec_eng->requested_throw_ball;
-		PP = (emu_code) do_exit_block_code_;
-		Next_Pp;
-	    }
 #ifdef PRINTAM
-	    else if (EVENT_FLAGS & TEST_REQUEST)
+	    else if (err_code & TEST_REQUEST)
 	    {
 		p_fprintf(log_output_, "Handling test_request in emulator!\n"); ec_flush(log_output_);
-		if (EVENT_FLAGS &= ~TEST_REQUEST)
-		    { Fake_Overflow; }		/* postpone it further */
+		if (atomic_and(&EVENT_FLAGS, ~TEST_REQUEST))
+		    { Fake_Overflow; }		/* there are other events */
 	    }
 #endif
-	    else if (EVENT_FLAGS & EVENT_POSTED)
+	    else if (err_code & EVENT_POSTED)
 	    {
-		if (VM_FLAGS & EVENTS_DEFERRED)
+		if ((VM_FLAGS & EVENTS_DEFERRED) || (ec_eng->nesting_level > 1))
 		{
 		    /* p_fprintf(log_output_,"event posted but handling deferred %08x\n",VM_FLAGS); ec_flush(log_output_); */
 		    Pop_Ret_Code
@@ -1923,44 +1914,45 @@ _do_requested_throw_:
 		else
 		{
 		    /* NOTE: Sync events are only handled in nesting level 1! */
-		    next_posted_event(ec_eng, &A[1]);	/* may redo Fake_Overflow */
-		    if (ec_eng->nesting_level > 1)	/* don't handle now */
+_do_requested_throw_:
+		    if (next_posted_item(ec_eng, &scratch_pw, 0))	/* may redo Fake_Overflow */
 		    {
-			ecl_post_event(ec_eng, A[1]); /* re-post */
-			Pop_Ret_Code
-			Next_Pp;
+			/* it's a throw request */
+			Export_B_Sp_Tg_Tt;
+			get_heapterm(ec_eng, &scratch_pw, &A[1]);	/* copy the heap ball to the engine */
+			free_heapterm(&scratch_pw);
+			Import_Tg_Tt;
+			PP = (emu_code) do_exit_block_code_;
 		    }
-		    else	/* handle posted event now */
+		    else if (IsTag(scratch_pw.tag.kernel, TPTR))        /* Heap copied event */
 		    {
-			if (IsTag(A[1].tag.kernel, TPTR))        /* Heap copied event */
-			{
-			    t_heap_event *event = (t_heap_event *)A[1].val.ptr;
-			    A[2] = A[3] = event->module;
-			    if (event->enabled) {
-				Export_B_Sp_Tg_Tt;
-				get_heapterm(ec_eng, &event->goal, &A[1]);
-				Import_Tg_Tt;
-				if (event->defers)
-				{
-				    /* p_fprintf(log_output_,"event defers others\n"); ec_flush(log_output_); */
-				    VM_FLAGS |= EVENTS_DEFERRED;
-				}
-			    } else {
-				Make_Atom(&A[1], d_.true0);
+			t_heap_event *event = (t_heap_event *)scratch_pw.val.ptr;
+			A[2] = A[3] = event->module;
+			if (event->enabled) {
+			    Export_B_Sp_Tg_Tt;
+			    get_heapterm(ec_eng, &event->goal, &A[1]);
+			    Import_Tg_Tt;
+			    if (event->defers)
+			    {
+				/* p_fprintf(log_output_,"event defers others\n"); ec_flush(log_output_); */
+				VM_FLAGS |= EVENTS_DEFERRED;
 			    }
-			    heap_event_tid.free((t_ext_ptr)event);
-			    PP = (emu_code) do_call_code_;
+			} else {
+			    Make_Atom(&A[1], d_.true0);
 			}
-			else 
-			{
-			    A[2].tag.kernel = TNIL;
-			    Make_Atom(&A[3], d_.kernel_sepia);
-			    Make_Atom(&A[4], d_.kernel_sepia);
-			    PP = (emu_code) prolog_error_code_;
-			}
+			heap_event_tid.free((t_ext_ptr)event);
+			PP = (emu_code) do_call_code_;
 		    }
-		    if (EVENT_FLAGS & ~EVENT_POSTED)
-			{ Fake_Overflow; }
+		    else 					/* atom-event */
+		    {
+			A[1] = scratch_pw;
+			A[2].tag.kernel = TNIL;
+			Make_Atom(&A[3], d_.kernel_sepia);
+			Make_Atom(&A[4], d_.kernel_sepia);
+			PP = (emu_code) prolog_error_code_;
+		    }
+		    if (err_code & ~(EVENT_POSTED|URGENT_EVENT_POSTED))
+			{ Fake_Overflow; }		/* there are other events */
 		}
 	    }
 	    else if (ec_eng->nesting_level == 1)	/* parallelism-related event */
@@ -1984,7 +1976,7 @@ _do_requested_throw_:
 		    {
 			Fake_Overflow;		/* retrigger countdown */
 		    }
-		    if (!(EVENT_FLAGS & ~COUNT_DOWN))
+		    if (!(err_code & ~COUNT_DOWN))
 			{ Next_Pp; }		/* countdown only, continue */
 		}
 		Export_All

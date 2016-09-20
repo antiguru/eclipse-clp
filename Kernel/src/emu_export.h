@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.16 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.17 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /*
@@ -586,36 +586,23 @@ extern pword	*spmax_;
 #define FakedOverflow	(atomic_load(&TG_SL) == NULL)
 
 #define Fake_Overflow				\
-	atomic_store(&TG_SL, (pword *) 0)
-
-#define Interrupt_Fake_Overflow {		\
-	Fake_Overflow;				\
-	IFOFLAG = 1;				\
-    }
+	atomic_store(&TG_SL, NULL)
 
 /* The following must only be called when we are about to handle
  * FakedOverflow conditions anyway, or in interrupt protected regions,
  * since we may miss an Interrupt_Fake_Overflow when overwriting TG_SL!
  */
 #define Reset_Faked_Overflow			\
-	TG_SL = TG_SLS;
+	atomic_store(&TG_SL, TG_SLS)
 
-/* Reset TG_SL from TG_SLS if possible, i.e. if there is no
- * FakedOverflow condition. Take care of possible interruptions
- * by Interrupt_Fake_Overflow.
+
+/* Update TG_SL and TG_SLS if there is no FakedOverflow condition.
+ * Otherwise only update TG_SLS.
  */
-#define Refresh_Tg_Soft_Lim {			\
-	IFOFLAG = 0;				\
-	if (!FakedOverflow) {			\
-	    TG_SL = TG_SLS;			\
-	    if (IFOFLAG)			\
-		Fake_Overflow;			\
-	}					\
-    }
 
 #define Set_Tg_Soft_Lim(new) {			\
+	compare_and_swap(&TG_SL, TG_SLS, new);	\
 	TG_SLS = new;				\
-	Refresh_Tg_Soft_Lim;			\
     }
 
 #define Save_Tg_Soft_Lim(saved)			\
@@ -650,22 +637,35 @@ extern pword	*spmax_;
 	gcb = _gcb;				\
     }
 
-#define EventPending		(TG >= TG_SL)
+#define EventPending		(TG >= atomic_load(&TG_SL))
 
 #define GlobalOverflow		(TG >= TG_SLS)	/* a real stack overflow */
 
 
+/* Macros to check for exit- or throw-requests, and service them */
+
 #ifdef IN_C_EMULATOR
 #define Poll_Interrupts() {			\
-	if (EVENT_FLAGS & THROW_REQUEST)	\
-	    goto _do_requested_throw_;		\
-    }
-#else
-#define Poll_Interrupts(jump) {			\
-	if (EVENT_FLAGS & THROW_REQUEST)	\
-	    return ecl_do_requested_throw(ec_eng, jump); \
+	int _event_flags = atomic_load(&EVENT_FLAGS); \
+	if (_event_flags & URGENT_EVENT_POSTED) goto _do_requested_throw_;		\
+	if (_event_flags & EXIT_REQUEST) goto _do_requested_exit_;		\
     }
 #endif
+
+#define Return_On_Request() { \
+	int _event_flags; \
+	if (FakedOverflow && ((_event_flags = atomic_load(&EVENT_FLAGS)) \
+				    & (URGENT_EVENT_POSTED|EXIT_REQUEST))) \
+	    return ecl_do_requested_action(ec_eng, _event_flags, 0); \
+    }
+
+#define Longjmp_On_Request() { \
+	int _event_flags; \
+	if (FakedOverflow && ((_event_flags = atomic_load(&EVENT_FLAGS)) \
+				    & (URGENT_EVENT_POSTED|EXIT_REQUEST))) \
+	    ecl_do_requested_action(ec_eng, _event_flags, 1); \
+    }
+
 
 /*---------------------------------------------------------------------------
  * General purpose macros
@@ -1664,13 +1664,9 @@ Extern	void	ecl_engine_exit ARGS((ec_eng_t*, int));
 Extern	int	ecl_housekeeping(ec_eng_t*, word valid_args, int allow_exit);
 Extern	void	ecl_pause_engine(ec_eng_t *ec_eng, int arity, int allow_exit);
 Extern	void	ecl_unpause_engine(ec_eng_t *ec_eng);
-#if 0
-Extern	int	return_throw ARGS((ec_eng_t*, value, type));
-Extern	void	longjmp_throw ARGS((ec_eng_t*, value, type));
-#endif
-Extern	int	ecl_do_requested_throw(ec_eng_t*,int);
+Extern	int	ecl_do_requested_action(ec_eng_t*,int event_flags,int jump);
 Extern	void	delayed_exit ARGS((ec_eng_t*));
-Extern	void	next_posted_event ARGS((ec_eng_t*, pword *));
+Extern	int	next_posted_item(ec_eng_t*, pword*, int);
 Extern	int	next_urgent_event ARGS((ec_eng_t*));
 Extern	int	deep_suspend ARGS((ec_eng_t*, value, type, int, pword*, int));
 Extern	DLLEXP	pword *	add_attribute ARGS((ec_eng_t*, word, pword*, word, int));
@@ -1769,6 +1765,15 @@ Extern	ec_eng_t * ecl_resurrect_engine(ec_eng_t *ec_eng);
 /* from term_copy.c */
 Extern	int	ec_copy_term_across(ec_eng_t *from_eng, ec_eng_t *ec_eng, value v, type t, pword *dest, int with_attributes);
 Extern	int	unreference_embedded_handle(t_ext_ptr handle, pword *root);
+Extern	void	get_heapterm(ec_eng_t*,pword*, pword*);
+Extern	int	create_heapterm(ec_eng_t*, pword*, value, type);
+Extern	void	free_heapterm(pword*);
+Extern	void	move_heapterm(pword*, pword*);
+Extern	void	make_heapterm_persistent(pword*);
+Extern	void	mark_dids_from_heapterm(pword*);
+Extern	void	set_string(pword*, char*);
+Extern	void	set_string_n(pword*, char*, int);
+
 
 /* from bip_misc.c */
 Extern	void	ec_frand_init(int32 *pstate);

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.11 2016/07/30 15:46:59 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.12 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /** @file
@@ -103,6 +103,7 @@ int sigaction(int sig, sig_action_t *action, sig_action_t *oldact)
     return sigvec(sig, action, oldact);
 }
 #else
+#define MUST_RESET_HANDLER_ON_ENTRY
 typedef struct {
 	RETSIGTYPE (*sa_handler)(int);
 	int sa_mask;
@@ -312,12 +313,6 @@ extern RETSIGTYPE sigprof_handler(int);
 	{ Bip_Error(RANGE_ERROR) }
 
 
-
-void
-delayed_break(void)
-{}
-
-
 /*----------------------------------------------------------------------*
  * Signal Thread
  *----------------------------------------------------------------------*/
@@ -335,6 +330,9 @@ static RETSIGTYPE
 _write_to_pipe(int signr)
 {
     char signr_byte = signr;
+#ifdef MUST_RESET_HANDLER_ON_ENTRY
+    signal(signr, _write_to_pipe);	/* restore signal disposition */
+#endif
     if(write(signal_pipe[1], &signr_byte, 1)) /*ignore*/;
 }
 
@@ -535,12 +533,12 @@ _signal_thread_function(void* dummy)
 		break;
 
 	    case IH_THROW:
-		ecl_request_throw(interrupt_posting_engine_[signr],
+		ecl_post_throw(NULL, interrupt_posting_engine_[signr],
 					ec_atom(interrupt_name_[signr]));
 		break;
 
 	    case IH_ABORT:
-		ecl_request_throw(interrupt_posting_engine_[signr],
+		ecl_post_throw(NULL, interrupt_posting_engine_[signr],
 					ec_atom(d_.abort));
 		break;
 
@@ -607,6 +605,10 @@ _catch_fatal(int sig)
 	"- certain operations on circular terms\n"
 	"- machine stack overflow\n"
 	"- an internal error in ECLiPSe\n";
+
+#ifdef MUST_RESET_HANDLER_ON_ENTRY
+    signal(signr, _write_to_pipe);	/* restore signal disposition */
+#endif
 #ifdef SA_SIGINFO
     if (si)
 	sprintf(buf, "Fatal signal (signal=%d, si_code=%d, si_addr=%08x)\n",
@@ -1570,10 +1572,6 @@ handlers_init(int flags)
 	    -> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);
     }
     
-
-    /* This must be done before we install _break() as a handler */
-    irq_lock_init(delayed_break);
-
     if (flags & INIT_PROCESS)
     {
 	Save_Sig_Mask(initial_sig_mask_);

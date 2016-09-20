@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_array.c,v 1.5 2016/09/17 19:15:42 jschimpf Exp $
+ * VERSION	$Id: bip_array.c,v 1.6 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1172,7 +1172,6 @@ bip_array_init(int flags)
 
     if (flags & INIT_SHARED)
     {
-	GlobalVarIndex = 0;
 	local_built_in(in_dict("array_info", 3), p_array_info, B_UNSAFE)
 	    -> mode = BoundArg(1, GROUND) | BoundArg(2, GROUND);
 	(void) local_built_in(in_dict("make_array_", 4),

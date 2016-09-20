@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.3 2016/08/04 09:09:38 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.4 2016/09/20 22:26:35 jschimpf Exp $
  *
  */
 
@@ -243,6 +243,7 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	DbgPrintf("Async go to sleep 0x%x\n", ec_eng);
 	ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
     }
+    ec_thread_detach(ec_thread_self());
     EngLogMsg(ec_eng, "thread terminated", 0);
     return NULL;
 }
@@ -284,7 +285,7 @@ ecl_engine_init(ec_eng_t *parent_eng, ec_eng_t *new_eng)
     emu_init(parent_eng, new_eng);
 
     /* link it into the global list of engines */
-    mt_mutex_lock(&shared_data->engine_list_lock);
+    mt_mutex_lock(&EngineListLock);
     new_eng->needs_dgc_marking = 0;	/* under lock, see gc_dictionary() */
     if (new_eng == eng_chain_header) {
 	assert(eng_chain_header->next == NULL); /* must be first engine inserted */
@@ -295,7 +296,7 @@ ecl_engine_init(ec_eng_t *parent_eng, ec_eng_t *new_eng)
 	new_eng->prev->next = new_eng;
 	eng_chain_header->prev = new_eng;
     }
-    mt_mutex_unlock(&shared_data->engine_list_lock);
+    mt_mutex_unlock(&EngineListLock);
 
     /* Start a thread if necessary */
     if (new_eng->options.init_flags & INIT_ASYNC) {
@@ -342,7 +343,7 @@ ecl_engine_create(t_eclipse_options *opts, ec_eng_t *parent_eng, ec_eng_t **eng)
     ec_eng_t *new_eng;
 
     /* check whether engine creation is forbidden */
-    if (shared_data->shutdown_in_progress)
+    if (ShutdownInProgress)
     	return ENGINE_NOT_UP;
 
     /* check minimum stack sizes */
@@ -474,10 +475,10 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 	     */
 #else
 	    /* unchain, if not already done in ec_emu_fini() */
-	    mt_mutex_lock(&shared_data->engine_list_lock);
+	    mt_mutex_lock(&EngineListLock);
 	    ec_eng->next->prev = ec_eng->prev;
 	    ec_eng->prev->next = ec_eng->next;
-	    mt_mutex_unlock(&shared_data->engine_list_lock);
+	    mt_mutex_unlock(&EngineListLock);
 #endif
 	    ec_cond_destroy(&ec_eng->cond);
 	    mt_mutex_destroy(&ec_eng->lock);
@@ -1124,7 +1125,7 @@ ecl_request(ec_eng_t *ec_eng, int request)
 	/* unpaused: can go to paused (followed by poll) */
 	DbgPrintf("Making request(%d)!\n", request);
 	/* Note: no guarantee that the engine will handle the request! */
-	EVENT_FLAGS |= request;
+	atomic_or(&EVENT_FLAGS, request);
 	Fake_Overflow;
 	res = PRUNNING;
     }
@@ -1171,48 +1172,35 @@ ecl_request_exit(ec_eng_t *ec_eng, int exit_code)
 	}
 
     } else if (EngPauseExitable(ec_eng)) {
-	/* TODO: if owned: shouldn't happen. Else: cancel thread first,
-	 * then acquire by force, exit. */
-	DbgPrintf("ecl_request_exit(%x): exiting from pause\n", ec_eng);
-	ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
-	res = PEXITED;
+	if (ec_eng->owner_thread == ec_thread_self()) {
+	    /* shouldn't happen */
+	    DbgPrintf("ecl_request_exit(%x): exiting from pause\n", ec_eng);
+	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
+	    res = PEXITED;
+	} else if (ec_eng->owner_thread == ec_eng->own_thread) {
+	    DbgPrintf("ecl_request_exit(%x): cancel/acquire/exiting from pause\n", ec_eng);
+	    ec_thread_cancel_and_join(ec_eng->owner_thread);
+	    ec_eng->owner_thread = ec_eng->own_thread = ec_thread_self();
+	    ec_eng->paused = 0;
+	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
+	    res = PEXITED;
+	} else {
+	    /* owned by random thread, just post */
+	    DbgPrintf("ecl_request_exit(%x): posting request\n", ec_eng);
+	    /* Note: no guarantee that the engine will handle the request! */
+	    ec_eng->requested_exit_code = exit_code;
+	    atomic_or(&EVENT_FLAGS, EXIT_REQUEST);
+	    Fake_Overflow;
+	    res = PRUNNING;
+	}
 
     } else {
 	DbgPrintf("ecl_request_exit(%x): posting request\n", ec_eng);
 	/* Note: no guarantee that the engine will handle the request! */
 	ec_eng->requested_exit_code = exit_code;
-	EVENT_FLAGS |= EXIT_REQUEST;
+	atomic_or(&EVENT_FLAGS, EXIT_REQUEST);
 	Fake_Overflow;
 	res = PRUNNING;
-    }
-    mt_mutex_unlock(&ec_eng->lock);
-    return res;
-}
-
-/**
- * Request that the engine performs a throw(Ball) at the next occasion.
- * @param ball	the exception term thrown
- * @return
- *	- PSUCCEED	request was raised
- *	- PEXITED	engine is already dead, request ignored
- *
- * TODO: could do longjmp_throw when paused.
- */
-
-int Winapi
-ecl_request_throw(ec_eng_t *ec_eng, pword ball)
-{
-    int res = PSUCCEED;
-
-    mt_mutex_lock(&ec_eng->lock);
-    if (EngIsDead(ec_eng)) {
-	DbgPrintf("ecl_request_throw(%x): already dead\n", ec_eng);
-	res = PEXITED;
-    } else {
-	DbgPrintf("ecl_request_throw(%x): requesting\n", ec_eng);
-	ec_eng->requested_throw_ball = ball;
-	EVENT_FLAGS |= THROW_REQUEST;
-	Fake_Overflow;
     }
     mt_mutex_unlock(&ec_eng->lock);
     return res;

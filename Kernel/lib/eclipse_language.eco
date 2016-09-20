@@ -194,7 +194,7 @@
 :-(reexport(from(/(engine_resume_thread,2),sepia_kernel))).
 :-(reexport(from(/(engine_join,2),sepia_kernel))).
 :-(reexport(from(/(engine_join,3),sepia_kernel))).
-:-(reexport(from(/(engine_post_event,2),sepia_kernel))).
+:-(reexport(from(/(engine_post,2),sepia_kernel))).
 :-(reexport(from(/(engine_properties,2),sepia_kernel))).
 :-(reexport(from(/(engine_self,1),sepia_kernel))).
 :-(reexport(from(/(engine_status,2),sepia_kernel))).

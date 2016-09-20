@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_general.h,v 1.2 2016/09/17 19:15:43 jschimpf Exp $
+ * $Id: ec_general.h,v 1.3 2016/09/20 22:26:35 jschimpf Exp $
  *
  * General types and macros used in ECLiPSe-related C source.
  * Do not include ECLiPSe-specific definitions here.
@@ -71,6 +71,8 @@ typedef pthread_cond_t ec_cond_t;
 #ifdef __GNUC__
 
 #define atomic_add(p,c)			__sync_add_and_fetch(p,c)
+#define atomic_and(p,c)			__sync_and_and_fetch(p,c)
+#define atomic_or(p,c)			__sync_or_and_fetch(p,c)
 #define atomic_load(p)			(*(p))
 #define atomic_store(p,v)		(*(p)=v)
 #define compare_and_swap(p,c,v)		__sync_bool_compare_and_swap(p,c,v)
@@ -80,6 +82,8 @@ typedef pthread_cond_t ec_cond_t;
 
 #warning "WARNING: not using atomic load/store primitives (requires gcc)!"
 #define atomic_add(p,c)			(*(p)+=(c))
+#define atomic_and(p,c)			(*(p)&=(c))
+#define atomic_or(p,c)			(*(p)|=(c))
 #define atomic_load(p)			(*(p))
 #define atomic_store(p,v)		(*(p)=v)
 #define compare_and_swap(p,c,v)		(*(p)=v,1)	/* assume this intention */

@@ -23,7 +23,7 @@
 /*
 * IDENTIFICATION	alloc.c
 *
-* VERSION		$Id: alloc.c,v 1.4 2016/09/17 19:16:17 jschimpf Exp $
+* VERSION		$Id: alloc.c,v 1.5 2016/09/20 22:25:57 jschimpf Exp $
 *
 * AUTHOR		Joachim Schimpf
 *
@@ -86,32 +86,6 @@ _print(char *msg)
     (void) write(2, msg, strlen(msg));
 }
 #endif
-
-
-/*---------------------------------------------------------------------
- * Interrupt Locks
- *---------------------------------------------------------------------*/
-
-#define Lock_Heap(hd) { \
-    if (hd->shared_header) { a_mutex_lock(&hd->shared_header->lock); } \
-    else { Disable_Int(); }}
-
-#define Unlock_Heap(hd) { \
-    if (hd->shared_header) { a_mutex_unlock(&hd->shared_header->lock); } \
-    else { Enable_Int(); }}
-
-void (*delayed_irq_func)(void) = 0;	/* to process delayed interrupts	*/
-
-volatile int it_disabled_ = 0;		/* number of nested disables */
-volatile int delayed_it_ = 0;		/* flags that something is in the queue */
-
-
-void
-irq_lock_init(void (*irq_func)(void))
-{
-    it_disabled_ = delayed_it_ = 0;
-    delayed_irq_func = irq_func;
-}
 
 
 /*---------------------------------------------------------------------
@@ -641,7 +615,6 @@ alloc_pagewise(
 	{
 	    if (hd->panic)
 	    {
-		Unlock_Heap(hd);
 		(*hd->panic)("Out of swap space", "heap allocation");
 	    }
 	    return (void *) 0;
@@ -736,8 +709,6 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
     void *ptr;
     struct heap *heap = hd->heap;
 
-    Lock_Heap(hd);
-
 #ifdef DEBUG_HEAP
     heap->requested += bytes_needed;
     if (++heap->allocs == alloc_stop)
@@ -817,8 +788,6 @@ alloc_size(struct heap_descriptor *hd, word bytes_needed)
 	word bytes_allocated;
 	ptr = alloc_pagewise(hd, bytes_needed, &bytes_allocated);
     }
-
-    Unlock_Heap(hd);
     return ptr;
 }
 
@@ -827,8 +796,6 @@ free_size(struct heap_descriptor *hd, void *ptr, word size)
 {
     register word units = Units(size);
     struct heap *heap = hd->heap;
-
-    Lock_Heap(hd);
 
 #ifdef CHECK_HEAP
     _check_address(hd, ptr, size);
@@ -869,7 +836,6 @@ free_size(struct heap_descriptor *hd, void *ptr, word size)
 	word pages_allocated = (size-1)/BYTES_PER_PAGE + 1;
 	free_pages(hd, ptr, pages_allocated);
     }
-    Unlock_Heap(hd);
 }
 
 /* return the actual size of a memory block */

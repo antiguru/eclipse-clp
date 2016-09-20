@@ -58,9 +58,7 @@ typedef void *eng_handle_t;	/* Dummy type for struct machine */
 
 #define Set_Load(load) \
 	if (LOAD < 0) { \
-	    Disable_Int(); \
-	    EVENT_FLAGS &= ~COUNT_DOWN; \
-	    Enable_Int(); \
+	    atomic_and(&EVENT_FLAGS, ~COUNT_DOWN); \
 	} LOAD = load;
 
 #define WStat_Incr(item)	wstat_.item++
@@ -376,9 +374,7 @@ eng_stop(eng_handle_t m)
 void
 eng_msg_trigger(eng_handle_t m)
 {
-    Disable_Int();
-    EVENT_FLAGS |= SCH_MSG_PENDING;
-    Enable_Int();
+    atomic_or(&EVENT_FLAGS, SCH_MSG_PENDING);
     if (ec_eng->nesting_level == 1)
     {
 	Fake_Overflow;
@@ -390,9 +386,7 @@ eng_msg_trigger(eng_handle_t m)
 void
 eng_msg_reset(eng_handle_t m)
 {
-    Disable_Int();
-    EVENT_FLAGS &= ~SCH_MSG_PENDING;
-    Enable_Int();
+    atomic_and(&EVENT_FLAGS, ~SCH_MSG_PENDING);
 }
 
 
@@ -1604,9 +1598,7 @@ eng_accept_state(amsg_t msg, amsg_data_t *msg_data, amsg_count_t msg_size)
 void
 eng_port_upcall(aport_id_t aport)
 {
-    Disable_Int();
-    EVENT_FLAGS |= ENG_MSG_PENDING;
-    Enable_Int();
+    atomic_or(&EVENT_FLAGS, ENG_MSG_PENDING);
     if (ec_eng->nesting_level == 1)
     {
 	Fake_Overflow;
@@ -1645,7 +1637,7 @@ eng_sync_msg_handler(void)			/* synchronous handler */
     }
     /* Checking that there are no messages (AMSG_NOMESSAGE) and
      * resetting the ENG_MSG_PENDING bit must be uninterruptable! */
-    EVENT_FLAGS &= ~ENG_MSG_PENDING;
+    atomic_and(&EVENT_FLAGS, ~ENG_MSG_PENDING);
     Enable_Int();
 }
 

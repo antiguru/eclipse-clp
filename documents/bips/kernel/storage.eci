@@ -2542,7 +2542,7 @@ Fail:
     args:[
     	"Type" : "One of the atoms 'record', 'shelf', 'store' or 'stream'",
     	"Name" : "The name of a objects (atom or compound)",
-    	"Handle" : "A variable tha will be unified with a handle"],
+    	"Handle" : "A variable that will be unified with a handle"],
     fail_if:"Fails if there is no visible object of type Type with name Name",
     desc:html("<P>\
     Some types of ECLiPSe objects can alternatively be referred
@@ -2561,11 +2561,12 @@ Fail:
     This predicate maps a name to a handle, i.e. it obtains an anonymous
     handle for an existing named object.  This is needed when one wants
     to use generic operations (such as mutual exclusion or conditions
-    for thread synchronisation) to the object, because the corresponding
+    for thread synchronisation) on the object, because the corresponding
     primitives accept only handles.
 </P><P>
-    Note that some types of objects can have compound names.  In these cases,
-    only the functor (name/arity) of Name are important for the lookup.
+    Note that for some types of object, Name can be a compound term.
+    In those cases, only the functor (name/arity) of Name is important
+    for the lookup.
 </P><P>
     Generally, alias names should be used sparingly, because they prevent
     automatic garbage collection of objects.

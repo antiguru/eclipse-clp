@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: term_copy.c,v 1.4 2016/09/17 19:15:44 jschimpf Exp $
+ * VERSION	$Id: term_copy.c,v 1.5 2016/09/20 22:26:35 jschimpf Exp $
  *
  * IDENTIFICATION:	term_copy.c (was part of property.c)
  *
@@ -1422,6 +1422,21 @@ create_heapterm(
     if ((int8*)top - (int8*)pw != size)
 	return PERROR;
 
+    return PSUCCEED;
+}
+
+
+/*
+ * A variant of create_heapterm() that does not need an engine,
+ * but works only for simple terms.
+ */
+
+int
+create_heapterm_simple(pword *root, pword simple)
+{
+    if (!IsSimple(simple.tag))
+    	return TYPE_ERROR;
+    *root = simple;
     return PSUCCEED;
 }
 

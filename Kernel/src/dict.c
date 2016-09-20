@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.16 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.17 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /*
@@ -1043,7 +1043,7 @@ _gc_dictionary(int not_locked)
     LogPrintf("DICTIONARY GC #%d start (season=%d)\n", dict->gc_number, dict->current_season);
 
     /* Send marking request to every engine (including aux/sig/timer engine) */
-    mt_mutex_lock(&shared_data->engine_list_lock);	/* protect engine list */
+    mt_mutex_lock(&EngineListLock);	/* protect engine list */
     eng = eng_chain_header;
     do {
 	++engine_markings_required;
@@ -1064,7 +1064,7 @@ _gc_dictionary(int not_locked)
 	}
 	eng = eng->next;
     } while(eng != eng_chain_header);
-    mt_mutex_unlock(&shared_data->engine_list_lock);
+    mt_mutex_unlock(&EngineListLock);
 
     /* If all engine markings are already done, finish gc now.
      * Otherwise, leave it to the engine marker that finishes last.

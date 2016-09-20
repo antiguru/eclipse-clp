@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.6 2016/07/30 10:30:31 jschimpf Exp $
+ * $Id: os_support.h,v 1.7 2016/09/20 22:26:35 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -262,7 +262,6 @@ int ec_mutex_destroy(CRITICAL_SECTION*);
 int ec_mutex_lock(CRITICAL_SECTION*);
 int ec_mutex_trylock(CRITICAL_SECTION*);
 int ec_mutex_unlock(CRITICAL_SECTION*);
-int ec_mutex_was_locked(CRITICAL_SECTION*);
 int ec_cond_init(CONDITION_VARIABLE*);
 int ec_cond_destroy(CONDITION_VARIABLE*);
 int ec_cond_signal(CONDITION_VARIABLE*, int all);
@@ -275,7 +274,6 @@ int ec_mutex_destroy(pthread_mutex_t*);
 int ec_mutex_lock(pthread_mutex_t*);
 int ec_mutex_trylock(pthread_mutex_t*);
 int ec_mutex_unlock(pthread_mutex_t*);
-int ec_mutex_was_locked(pthread_mutex_t*);
 int ec_cond_init(pthread_cond_t*);
 int ec_cond_destroy(pthread_cond_t*);
 int ec_cond_signal(pthread_cond_t*, int all);
@@ -286,7 +284,6 @@ int ec_cond_wait(pthread_cond_t*, pthread_mutex_t*, int timeout_ms);
 #define ec_mutex_lock(m)	1
 #define ec_mutex_trylock(m)	1
 #define ec_mutex_unlock(m)	1
-#define ec_mutex_was_locked(m)	0
 #define ec_cond_init(c)		0
 #define ec_cond_destroy(c)	0
 #define ec_cond_signal(c,a)	0
@@ -301,6 +298,8 @@ int	ec_thread_wait ARGS((void* thread, int* result, int timeout));
 int	ec_thread_terminate ARGS((void* thread, int timeout));
 
 int	ec_thread_create(void** os_thread, void*(*fun)(void*), void* arg);
+int	ec_thread_detach(void* os_thread);
+int	ec_thread_cancel_and_join(void* os_thread);
 
 
 /* DLLEXP, because these are used in main() */

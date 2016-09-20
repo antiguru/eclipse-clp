@@ -184,19 +184,16 @@ typedef union mem_header
 
 
 /*---------------------------------------------------------------------
- * Interrupt disabling
+ * Interrupt disabling (obsolete)
  *---------------------------------------------------------------------*/
 
-#define InterruptsDisabled	it_disabled_
-#define Disable_Int()		it_disabled_++;
-#define Enable_Int() \
-	{ if (--it_disabled_ == 0 && delayed_it_) (*delayed_irq_func)(); }
-#define InterruptsPending	delayed_it_
-#define Set_Interrupts_Pending() delayed_it_ = 1;
-#define Clr_Interrupts_Pending() delayed_it_ = 0;
+#define InterruptsDisabled	0
+#define Disable_Int()
+#define Enable_Int()
+#define InterruptsPending	0
+#define Set_Interrupts_Pending()
+#define Clr_Interrupts_Pending()
 
-extern volatile int it_disabled_, delayed_it_;
-extern void (*delayed_irq_func)(void);
 
 /*---------------------------------------------------------------------
  * Spin Locks

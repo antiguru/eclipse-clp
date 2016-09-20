@@ -24,6 +24,7 @@
 :- comment(summary, "Built-ins for controlling independent engines and threads").
 :- comment(categories, ["Built-In Predicates"]).
 
+:- tool(engine_post/2).
 :- tool(engine_resume/3).
 :- tool(engine_resume_thread/2).
 :- tool(with_mutex/2).
@@ -150,7 +151,7 @@ An engine can be in one of the following states:
 <DL>
     <DT><B>running</B></DT><DD>
        Engine is running and cannot be used, except for
-       engine_join/3, engine_status/2 and engine_post_event/2.</DD>
+       engine_join/3, engine_status/2 and engine_post/2.</DD>
 
     <DT><B>true</B></DT><DD>
        Engine is stopped after success of its goals.
@@ -412,13 +413,12 @@ ECLiPSe's event mechanism can be used to interrupt a running engine and to
 insert an arbitrary goal into the execution.  This is the same mechanism
 used for timer-controlled after-events and for signal-triggered events.
 </P><P>
-Use engine_post_event/2 to post an event (an atom, or an event created
-using event_create/3) to a particular engine:
+Use engine_post/2 to post such a goal to a particular engine:
 <PRE>
 ?- engine_create(E, [thread]),
    engine_resume_thread(E, (repeat,fail)),   % run forever
    sleep(3),
-   engine_post_event(E, abort),
+   engine_post(E, abort),
    engine_join(E, block, Status).
 
 E = 'ENGINE'(16'315bd10f)
@@ -949,20 +949,24 @@ Yes (3.00s cpu)
     see_also:[engine_create/2,engine_resume_thread/2,engine_status/2]]).
 
 
-:- comment( engine_post_event/2, [
-    amode:(engine_post_event(+,+) is det),
+:- comment( engine_post/2, [
+    amode:(engine_post(+,+) is det),
     args:["Engine":"An engine handle",
-          "Event" :"Atom or event handle"
+          "EventGoal" :"Callable term, or event handle"
     ],
-    summary:"Post an event to an engine",
+    summary:"Post an event goal to an engine",
     desc:html("<P>\
-    Posts an event to the specified engine.  The receiving engine can be
-    in any state.  If the receiving engine is running, the event will be
-    handled at the next synchronous point in execution, usually the next
-    predicate call.  If the receiving engine is stopped, the event will
+    Posts an event goal to the specified engine.  The receiving engine can
+    be in any state.  If the receiving engine is running, the event goal
+    will be handled at the next synchronous point in execution, usually the
+    next predicate call.  If the receiving engine is stopped, the event will
     be handled immediately after it is resumed.
 </P><P>
-    The event handler should either succeed or throw an exception (throw/1).
+    The goal can be given either as a callable term (in which case a copy
+    of EventGoal will be executed on Engine), or as an event handle, as
+    created with event_create/3.
+</P><P>
+    The event goal should either succeed or throw an exception (throw/1).
     It makes little sense for the handler to fail, because it is inserted
     in an unknown position during execution and the scope of the failure is
     not known.  The considerations are similar to those for after-events.
@@ -970,20 +974,13 @@ Yes (3.00s cpu)
     The most likely use for this mechanism is to abort an asynchronously
     running engine.  But one could also cause the engine to initiate an
     exchange of information (via yield/2, streams or shared storage objects).
-</P><P>
-    Note that the event/1 built-in could be defined as
-<PRE>
-    event(Event) :-
-        engine_self(Engine),
-        engine_post_event(Engine, Event).
-</PRE>
 </P>
     "),
     eg:"
     ?- engine_create(E, [thread]),
        engine_resume_thread(E, (repeat,fail)),   % run forever
        sleep(3),
-       engine_post_event(E, abort),
+       engine_post(E, abort),
        engine_join(E, block, Status).
 
     E = 'ENGINE'(16'315bd10f)

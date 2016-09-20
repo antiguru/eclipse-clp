@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.8 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.9 2016/09/20 22:27:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2016/07/28 03:34:35 $").
+:- comment(date, "$Date: 2016/09/20 22:27:39 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -350,13 +350,13 @@ do_option(0'a, _) :-
 	    	AbortLast = E
 	    ; engine_status(E, running) ->
 		printf(warning_output, 'Posting abort to running engine %d%n', [I]),
-	    	engine_post_event(E, Exit)
+	    	engine_post(E, Exit)
 	    ;
 		true
 	    )
 	),
 	( var(AbortLast) -> true ;
-	    engine_post_event(AbortLast, Exit)
+	    engine_post(AbortLast, Exit)
 	).
 do_option(0'b, Worker) :- (get_flag(worker, Worker) -> break ; true).
 do_option(0'c, _).

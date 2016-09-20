@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.62 2016/08/06 00:12:08 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.63 2016/09/20 22:27:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -189,6 +189,7 @@
    tool(current_record/1, current_record_body/2),
    tool(define_macro/3, define_macro_/4),
    tool(set_syntax/2, set_syntax_/3),
+   tool(engine_post/2, engine_post_/3),
    tool(engine_resume/3, engine_resume_/4),
    tool(engine_resume_thread/2, engine_resume_thread_/3),
    tool(ensure_loaded/1, ensure_loaded/2),
@@ -797,31 +798,18 @@ cleanup_before_exit :-
 	timer_engine_cleanup,
 	broadcast_exit(N),
 	(
-	    % Wait until all engines except the default engine have
-	    % disappeared, and the default engine has exited.
+	    % Wait until all (non-hidden) engines have disappeared or exited.
 	    between(1,10,1,_),
 	    (
-		current_engines([DefaultEngine]),
-		engine_status(DefaultEngine, exited(_))
-	    ->
-		true
+		leftover_engines([])
 	    ;
-		%writeln(sleep(0.1)),
 		sleep(0.1),
 		fail
 	    )
 	->
 	    true
 	;
-	    current_engines(Es),
-	    ( foreach(E,Es), fromto(LEs,LEs2,LEs1,[]) do
-		engine_status(E, Status),
-		( Status = exited(_) ->
-		    LEs2 = LEs1
-		;
-		    LEs2 = [E:Status|LEs1]
-		)
-	    ),
+	    leftover_engines(LEs),
 	    ( LEs == [] ->
 		true
 	    ;
@@ -834,6 +822,17 @@ cleanup_before_exit :-
 	    )
 	),
 	erase_modules.
+
+    leftover_engines(LEs) :-
+	current_engines(Es),
+	( foreach(E,Es), fromto(LEs,LEs2,LEs1,[]) do
+	    engine_status(E, Status),
+	    ( Status = exited(_) ->
+		LEs2 = LEs1
+	    ;
+		LEs2 = [E:Status|LEs1]
+	    )
+	).
 
 
 %----------------------------------------

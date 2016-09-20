@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.17 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.18 2016/09/20 22:27:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -99,9 +99,9 @@ do_get_flag(dfid_compile,X, _) :-
 	get_flag(extension, dfid),
 	global_flags(0,0,F),
 	(F /\ 16'01000000 =:= 0 -> X=off ; X=on).
-do_get_flag(enable_interrupts, X, _) :-
-	vm_flags(0,0,F),
-	(F /\ 16'00000002 =:= 0 -> X=on ; X=off).
+do_get_flag(enable_interrupts, on, _).	% obsolete
+%	vm_flags(0,0,F),
+%	(F /\ 16'00000002 =:= 0 -> X=on ; X=off).
 do_get_flag(breal_exceptions, X, _) :-
 	global_flags(0,0,F),
 	(F /\ 16'00000001 =:= 1 -> X=on ; X=off).
@@ -422,12 +422,12 @@ do_set_flag(gc_interval,X, _) :- !,
 do_set_flag(gc_interval_dict,X, _) :- !,
 	( integer(X) -> dict_param(7,X) ; set_bip_error(5) ).
 
-do_set_flag(enable_interrupts, X, _) :- !,
-	(
-	    X == off ->	vm_flags(0, 16'00000002, _) ;
-	    X == on ->	vm_flags(16'00000002, 0, _) ;
-	    wrong_atom(X)
-	).
+do_set_flag(enable_interrupts, _, _) :- !.	% obsolete
+%	(
+%	    X == off ->	vm_flags(0, 16'00000002, _) ;
+%	    X == on ->	vm_flags(16'00000002, 0, _) ;
+%	    wrong_atom(X)
+%	).
 do_set_flag(debugger_warnings, _X, _) :- !,
 %	(
 %	    X == off ->	sys_flags(4, 0) ;
@@ -634,6 +634,7 @@ long_flag(workers).
 
 obsolete_flag(all_dynamic).
 obsolete_flag(dfid_compile).
+obsolete_flag(enable_interrupts).
 obsolete_flag(occur_check).
 obsolete_flag(object_suffix).
 obsolete_flag(worker).

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.17 2016/09/17 19:15:44 jschimpf Exp $
+ * $Id: sepia.h,v 1.18 2016/09/20 22:26:35 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1203,13 +1203,13 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
  */
 
 #define SharedDataLock		(shared_data->general_lock)
-#define ArraysLock		(shared_data->arrays_lock)
 #define ModuleLock		(shared_data->mod_desc_lock)
-#define PropertyLock		(shared_data->general_lock) /*TODO*/
-#define PropListLock		(shared_data->prop_list_lock)
+#define PropertyLock		(shared_data->prop_list_lock)
 #define ProcedureLock		(shared_data->proc_desc_lock)
 #define ProcListLock		(shared_data->proc_list_lock)
 #define ProcChainLock		(shared_data->proc_chain_lock)
+#define EngineListLock		(shared_data->engine_list_lock)
+
 #define EclGblFlags		(shared_data->global_flags)
 #define PrintDepth		(shared_data->print_depth)
 #define LoadReleaseDelay	(shared_data->load_release_delay)
@@ -1217,9 +1217,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define OutputModeMask		(shared_data->output_mode_mask)
 #define CompileId		(shared_data->compile_id)
 #define CodeHeapUsed		(shared_data->code_heap_used)
-#define GlobalVarIndex		(shared_data->global_var_index)
 #define AbolishedProcedures	(*(proc_duet **) &shared_data->abolished_procedures)
-#define GlobalProcedures	(*(proc_duet **) &shared_data->global_procedures)
 #define CompiledStructures	(*(proc_duet **) &shared_data->compiled_structures)
 #define NbStreams		(shared_data->nbstreams)
 #define NbStreamsFree		(shared_data->nbstreams_free)
@@ -1234,6 +1232,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define MaxErrors		(shared_data->max_errors)
 #define MetaArity		(shared_data->meta_arity)
 #define MetaAttribute		(*(dident **) &shared_data->meta_attribute)
+#define ShutdownInProgress	(shared_data->shutdown_in_progress)
 
 
 /****************************************************************/
@@ -1292,7 +1291,6 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define	TCS		ec_eng->top_constructed_structure
 #define	TG_SL		ec_eng->tg_soft_lim
 #define	TG_SLS		ec_eng->tg_soft_lim_shadow
-#define	IFOFLAG		ec_eng->irq_faked_overflow
 #define	TG_SEG		ec_eng->segment_size
 #define	TG_LIM		ec_eng->tg_limit
 #define	TT_LIM		ec_eng->tt_limit
@@ -1362,8 +1360,8 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 
 /****************************************************************/
 /* The bits in EVENT_FLAGS (per engine)				*/
-/* EVENT_FLAGS may be changed by signal handlers and must	*/
-/* only be updated inside interrupt-protected regions		*/
+/* EVENT_FLAGS is volatile and bits can be set (atomically)	*/
+/* by threads that don't own the engine.			*/
 /****************************************************************/
 
 #define SCH_MSG_PENDING	0X00000001 /* scheduler message pending		*/
@@ -1371,7 +1369,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define SLEEP_REQUEST	0X00000002 /* engine should go to sleep		*/
 #define COUNT_DOWN	0X00000008 /* countdown running			*/
 #define EVENT_POSTED	0X00000010 /* events in posted_events-queue	*/
-#define THROW_REQUEST	0X00000020 /* insert throw/1 asap		*/
+#define URGENT_EVENT_POSTED	0X00000020 /* urgent events in queue	*/
 #define EXIT_REQUEST	0X00000040 /* exit engine as soon as possible	*/
 #define DICT_GC_REQUEST	0X00000080 /* do dictionary marking for gc	*/
 #define TEST_REQUEST	0X00000100 /* temporary	*/
@@ -1383,8 +1381,6 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 /****************************************************************/
 
 #define EVENTS_DEFERRED	0X00000001 /* sync event handling is suppressed	*/
-#define GLOBAL_NO_IT	0X00000002 /* interrupts are disabled at Prolog level */
-				   /* (only set together with it_disabled_ !) */
 #define TRACE		0X00000008 /* we are tracing VM instructions	*/
 #define ORACLES_ENABLED	0X00000010 /* record oracles during execution	*/
 #define STATISTICS	0X00000020 /* we are counting VM instructions	*/
@@ -1393,13 +1389,9 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define ENG_DETACHED	0x00002000 /* exit engine when finished		*/
 #define ENG_VERBOSE	0x00004000 /* print some debug messages		*/
 #define ENG_HIDDEN	0X00008000 /* engine not in current_engines/1	*/
-#define NO_EXIT		0X04000000 /* exit_block is forbidden		*/
-#define WAS_EXIT	0X08000000 /* an exit_block has been delayed	*/
 #define FP_EXCEPTION	0X10000000 /* floating point exception		*/
 #define EXPORTED	0X40000000 /* registers have been globalized	*/
 #define DET		0X80000000 /* no choicepoint			*/
-
-#define INT_SAFE_BITS	0	/* mask to be saved/restored on interrupts */
 
 
 /****************************************************************/
@@ -1488,7 +1480,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 
 #define tag_desc		(ec_.td)
 #define d_			(ec_.d)
-#define shared_data		(ec_.shared)
+#define shared_data		(&ec_.shared)
 
 /* engines */
 #define eng_chain_header	(&ec_.m_aux)
@@ -1500,7 +1492,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 /*		Dynamic event queue limits			*/
 /****************************************************************/
 
-#define MIN_DYNAMIC_EVENT_SLOTS 	8
+#define MIN_DYNAMIC_EVENT_SLOTS 	4
 #define DYNAMIC_EVENT_Q_SHRINK_FACTOR	2
 
 /****************************************************************/

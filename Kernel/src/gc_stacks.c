@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.8 2016/08/05 19:59:02 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.9 2016/09/20 22:26:35 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -675,7 +675,6 @@ collect_stacks(ec_eng_t *ec_eng, word arity, word gc_forced)
     trim_global_trail(ec_eng, TG_SEG);
     if (TG_LIM - TG < TG_MIN_SEG)
     {
-	VM_FLAGS &= ~(NO_EXIT|WAS_EXIT);
 	ov_reset(ec_eng);		/* overflow even after collection */
     }
     Set_Tg_Soft_Lim(TG_LIM);
@@ -701,7 +700,6 @@ make_choicepoint(ec_eng_t *ec_eng, word ar)
 	Print_Err("GB != B->tg");
     }
 
-    Disable_Int()
     chp = (B.chp)++;
     chp->sp = SP;
     chp->tg = TG;
@@ -715,7 +713,6 @@ make_choicepoint(ec_eng_t *ec_eng, word ar)
     top = (B.top)++;
     top->frame.chp = chp;
     top->backtrack = gc_fail_code_;
-    Enable_Int()
 
     pw = TG++;				/* push a dummy word (needed	*/
     pw->tag.kernel = TNIL;		/* for updating chp->tg)	*/

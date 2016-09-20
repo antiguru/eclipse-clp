@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.18 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: os_support.c,v 1.19 2016/09/20 22:26:35 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -1461,6 +1461,12 @@ ec_thread_create(void **os_thread, void*(*fun)(void*), void *arg)
     return 0;
 }
 
+int
+ec_thread_detach(void *thread_id)
+{
+    return 0;
+}
+
 void *
 ec_thread_self(void)
 {
@@ -1471,6 +1477,38 @@ void
 ec_thread_exit(void* retval)
 {
     ExitThread((DWORD)(DWORD_PTR)retval);
+}
+
+int
+ec_thread_cancel_and_join(void *thread_id)
+{
+    DWORD res;
+
+    HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, (DWORD) thread_id);
+    if (!thread)
+    	return (int)GetLastError();
+
+    if (!TerminateThread(thread, 99))
+    	return (int)GetLastError();
+
+    res = WaitForSingleObject(thread, 10000/*ms*/);
+    switch(res)
+    {
+    case WAIT_OBJECT_0:	/* termination was signalled */
+	res = 0;
+
+    default:
+    case WAIT_ABANDONED:
+    case WAIT_TIMEOUT:
+	break;
+
+    case WAIT_FAILED:
+	res = GetLastError();
+    }
+
+    if (!CloseHandle(thread))
+	res = res ? res : GetLastError();
+    return (int) res;
 }
 
 
@@ -1506,13 +1544,6 @@ ec_mutex_unlock(CRITICAL_SECTION *pm)
 {
     LeaveCriticalSection(pm);
     return 1;
-}
-
-/* ONLY FOR DEVELOPMENT: uses undocumented Windows internals */
-int
-ec_mutex_was_locked(CRITICAL_SECTION *pm)
-{
-    return pm->LockCount;
 }
 
 
@@ -1564,10 +1595,14 @@ ec_thread_create(void **os_thread, void*(*fun)(void*), void *arg)
     sigfillset(&block);				/* block all signals */
     pthread_sigmask(SIG_BLOCK, &block, &old);	/* thread will inherit */
     res = pthread_create((pthread_t*) os_thread, NULL, fun, arg);
-    if (res == 0)
-	res = pthread_detach(*(pthread_t*)os_thread);
     pthread_sigmask(SIG_SETMASK, &old, NULL);	/* reset signal mask */
     return res;
+}
+
+int
+ec_thread_detach(void *os_thread)
+{
+    return pthread_detach((pthread_t)os_thread);
 }
 
 void *
@@ -1581,6 +1616,19 @@ ec_thread_exit(void* retval)
 {
     pthread_exit(retval);
 }
+
+int
+ec_thread_cancel_and_join(void *os_thread)
+{
+    int err;
+
+    err = pthread_cancel((pthread_t) os_thread);
+    if (err) return err;
+
+    err = pthread_join((pthread_t) os_thread, NULL);
+    return err;
+}
+
 
 
 int
@@ -1654,14 +1702,6 @@ ec_mutex_unlock(pthread_mutex_t *pm)
     }
     return 1;
 }
-
-/* ONLY FOR DEVELOPMENT: uses undocumented pthread internals */
-int
-ec_mutex_was_locked(pthread_mutex_t *pm)
-{
-    return pm->__data.__lock;
-}
-
 
 
 /**

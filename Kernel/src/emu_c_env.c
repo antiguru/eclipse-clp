@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.13 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.14 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /*
@@ -111,22 +111,14 @@ extern st_handle_t eng_root_branch;
 void
 re_fake_overflow(ec_eng_t *ec_eng)
 {
-    Disable_Int();
-    if (MU ||
-    	(EVENT_FLAGS && ec_eng->nesting_level == 1 && !PO) ||
-	InterruptsPending)
+    /* Note the order: reset unconditionally, then test and set faked overflow.
+     * Other threads may raise events and fake overflow asynchronously.
+     */
+    Reset_Faked_Overflow;
+    if (MU || (atomic_load(&EVENT_FLAGS) && ec_eng->nesting_level == 1 && !PO))
     {
-	if (ec_eng->nesting_level > 1) {
-	    Interrupt_Fake_Overflow;	/* maybe we are in an interrupt */
-	} else {
-	    Fake_Overflow;
-	}
+	Fake_Overflow;
     }
-    else
-    {
-	Reset_Faked_Overflow;
-    }
-    Enable_Int();
 }
 
 #define EMU_INIT_LD	1
@@ -159,7 +151,6 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
     *((vmcode **) SP) = &fail_return_env_0_[1];
 
     i = VM_FLAGS;
-    Disable_Int()			/* will be reset in ..._emulc() */
     if (fail_code != &recurs_fail_code_[0])
 	B.args += SAFE_B_AREA;		/* leave some free space */
     b_aux.args = B.args;
@@ -500,7 +491,6 @@ _start_goal(ec_eng_t *ec_eng, value v_goal, type t_goal, value v_mod, type t_mod
 /*
  * This is a wrapper round the emulator _emul_trampoline()
  * which catches the longjumps.
- * This procedure must be called with interrupts disabled (Disable_Int)!!!
  */
 static int
 emulc(ec_eng_t *ec_eng)
@@ -526,8 +516,7 @@ emulc(ec_eng_t *ec_eng)
 	/* run_thread used to longjmp from signal handlers */
 	saved_thread = ec_eng->run_thread;
 	ec_eng->run_thread = ec_thread_self();
-	Enable_Int();		/* not earlier, since it may call a
-				 * recursive emulator that throws */
+
     } else {
 
 	/* Do the cleanup we missed by not returning from the external */
@@ -546,6 +535,9 @@ emulc(ec_eng_t *ec_eng)
 	    PP = do_exit_block_code_;
 	    /* in case we aborted in polling mode */
 	    msg_nopoll();
+	    break;
+	case PEXITED: 
+	    PP = engine_exit_code_;
 	    break;
 	default:
 	    /* We get here when a C++ external wants to raise an error */
@@ -623,7 +615,7 @@ sub_emulc_opt(ec_eng_t *ec_eng, value vgoal, type tgoal, value vmod, type tmod, 
     {
 	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
 	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc(ec_eng);
+    	result = emulc(ec_eng);
     }
     if (result == PTHROW  &&  !(options & GOAL_CATCH))
 	siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, PTHROW);
@@ -649,7 +641,7 @@ slave_emulc(ec_eng_t *ec_eng)
     {
 	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
 	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc(ec_eng);
+    	result = emulc(ec_eng);
     }
 
     if (result == PTHROW)
@@ -658,11 +650,6 @@ slave_emulc(ec_eng_t *ec_eng)
 
 }
 
-restart_emulc(ec_eng_t *ec_eng)
-{
-    Disable_Int();
-    return emulc(ec_eng);
-}
 
 /*
  * Resume an engine that runs the main/0 loop.  Returns with (see yield/4):
@@ -679,7 +666,6 @@ int
 resume_emulc(ec_eng_t *ec_eng)
 {
     int res, status;
-    Disable_Int();
     res = emulc(ec_eng);
     assert(IsInteger(A[1].tag));	/* expect status or exit code */
     if (res == PYIELD) {
@@ -737,12 +723,15 @@ ecl_engine_exit(ec_eng_t *ec_eng, int exit_code)
 int
 ecl_housekeeping(ec_eng_t *ec_eng, word valid_args, int allow_exit)
 {
-    if (allow_exit  &&  (EVENT_FLAGS & EXIT_REQUEST)) {
+    int event_flags = atomic_load(&EVENT_FLAGS);
+    if (allow_exit  &&  (event_flags & EXIT_REQUEST)) {
+	atomic_and(&EVENT_FLAGS, ~EXIT_REQUEST);
 	ecl_engine_exit(ec_eng, ec_eng->requested_exit_code);
 	return PEXITED;
     }
 
-    if (EVENT_FLAGS & DICT_GC_REQUEST) {
+    if (event_flags & DICT_GC_REQUEST) {
+	atomic_and(&EVENT_FLAGS, ~DICT_GC_REQUEST);
 	ecl_mark_engine(ec_eng, valid_args);
     }
     return PSUCCEED;
@@ -765,7 +754,7 @@ boot_emulc(ec_eng_t *ec_eng, value v_file, type t_file, value v_mod, type t_mod)
     {
 	Make_Atom(&A[1], in_dict("Nested emulator yielded",0));
 	Make_Integer(&A[2], RESUME_CONT);
-    	result = restart_emulc(ec_eng);
+    	result = emulc(ec_eng);
     }
     return result;
 }
@@ -791,16 +780,37 @@ longjmp_throw(ec_eng_t *ec_eng, value v_tag, type t_tag)
     siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, PTHROW);
 }
 
+
+/*
+ * Perform (one of) the actions encoded in event_flags:
+ *  - URGENT_EVENT_POSTED
+ *  - EXIT_REQUEST
+ * either via return code or via siglongjmp.
+ */
 int
-ecl_do_requested_throw(ec_eng_t *ec_eng, int jump)
+ecl_do_requested_action(ec_eng_t *ec_eng, int event_flags, int jump)
 {
-    assert(EVENT_FLAGS & THROW_REQUEST);
-    EVENT_FLAGS &= ~THROW_REQUEST;
-    A[1] = ec_eng->requested_throw_ball;
+    int action;
+    if (event_flags & URGENT_EVENT_POSTED) {
+	pword ball;
+	next_posted_item(ec_eng, &ball, 1);
+	get_heapterm(ec_eng, &ball, &A[1]);
+	free_heapterm(&ball);
+	action = PTHROW;
+
+    } else if (event_flags & EXIT_REQUEST) {
+	Make_Integer(&A[1], ec_eng->requested_exit_code);
+	atomic_and(&EVENT_FLAGS, ~EXIT_REQUEST);
+	/* do not clear FakeOverflow, too complex to get right here */
+	action = PEXITED;
+    } else {
+	assert(0);
+    }
     if (jump)
-	siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, PTHROW);
+	siglongjmp(*(sigjmp_buf*)ec_eng->it_buf, action);
+	/*NOTREACHED*/
     else
-	return PTHROW;
+	return action;
 }
 
 
@@ -846,7 +856,6 @@ print_dynamic_queued_events(ec_eng_t *ec_eng)
     dyn_event_q_slot_t *slot;
     uword cnt = 0, total;
 
-    Disable_Int();
     slot = ec_eng->dyn_event_q.prehead->next; /* get */
     total = ec_eng->dyn_event_q.total_event_slots - ec_eng->dyn_event_q.free_event_slots;
     p_fprintf(current_err_, "Dynamic event queue: Total: %" W_MOD "d Free: %" W_MOD "d:", 
@@ -856,85 +865,50 @@ print_dynamic_queued_events(ec_eng_t *ec_eng)
 	p_fprintf(current_err_, " %d:%x", slot->event_data.tag.kernel, slot->event_data.val.ptr);
     }
     ec_newline(current_err_);
-    Enable_Int();
 }
 #endif
 
 
+/**
+ * Post a pword item (whose content is not important here) as
+ * either urgent (front of queue) or normal (tail of queue).
+ *
+ * @param event		either event (not urgent) or heap_term (urgent)
+ * @param no_duplicates	do nothing if already in queue (with same urgency)
+ * @param urgent	0 (insert at tail) or 1 (insert at front)
+ *
+ * @return
+ *	PSUCCEED	item was posted
+ *	PFAIL		duplicate, not posted
+ *	ENGINE_DEAD	engine dead, not posted
+ */
+
 static int
-_post_event_dynamic(ec_eng_t *ec_eng, pword event, int no_duplicates)
+_post_item(ec_eng_t *ec_eng, pword item, int no_duplicates, int urgent)
 {
     int res = PSUCCEED;
 
-    Disable_Int();
     mt_mutex_lock(&ec_eng->lock);
 
     if (EngIsDead(ec_eng)) {
-	res = PEXITED;
+	res = ENGINE_DEAD;
 	goto _unlock_return_;
     }
-
-    if (IsHandle(event.tag))
-    {
-	Check_Type(event.val.ptr->tag, TEXTERN);
-	if (ExternalClass(event.val.ptr) != &heap_event_tid) {
-	    res = TYPE_ERROR;
-	    goto _unlock_return_;
-	}
-        if (!(ExternalData(event.val.ptr))) {
-	    res = STALE_HANDLE;
-	    goto _unlock_return_;
-	}
-
-	/* If the event is disabled, don't post it to the queue */
-	if (!((t_heap_event *)ExternalData(event.val.ptr))->enabled) {
-	    goto _unlock_return_;
-	}
-	
-	/* Don't put the handle in the queue! */
-	event.tag.kernel = TPTR;
-	event.val.wptr = heap_event_tid.copy(ExternalData(event.val.ptr));
-    }
-    else if (IsTag(event.tag.kernel, TPTR))
-    {
-	/* Assume it'a a TPTR to a t_heap_event (we use this when posting
-	 * an event that was stored in a stream descriptor).
-	 * As above, if the event is disabled, don't post it to the queue.
-	 */
-	if (!((t_heap_event *)event.val.ptr)->enabled) {
-	    goto _unlock_return_;
-	}
-	event.val.wptr = heap_event_tid.copy(event.val.wptr);
-    }
-    else if (!IsAtom(event.tag))
-    {
-	res = IsRef(event.tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
-	goto _unlock_return_;
-    }
-
-    /* Events are either atoms or handles (anonymous).
-     * Such events go to the dynamic event queue
-     */
 
     if (no_duplicates)
     {
 	uword cnt, total;
-	/* if this event is already posted, don't do it again */
+	/* if this exact item is already posted, don't do it again */
 	dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.prehead->next; /* get */
 	
 	total = ec_eng->dyn_event_q.total_event_slots - ec_eng->dyn_event_q.free_event_slots;
 	for( cnt = 0; cnt < total; cnt++, slot = slot->next )
 	{
-	    if (slot->event_data.tag.all == event.tag.all
-	     && slot->event_data.val.all == event.val.all)
+	    if (slot->urgent == urgent
+	     && slot->event_data.tag.all == item.tag.all
+	     && slot->event_data.val.all == item.val.all)
 	    {
-		/* If the anonymous event handle reference count was bumped
-		 * (via the copy ready for queue insertion) decrement it again!
-		 */
-		if (IsTag(event.tag.kernel, TPTR))
-		{
-		    heap_event_tid.free(event.val.wptr);
-		}
+		res = PFAIL;
 		goto _unlock_return_;
 	    }
 	}
@@ -954,28 +928,110 @@ _post_event_dynamic(ec_eng_t *ec_eng, pword event, int no_duplicates)
 	event_q_assert(ec_eng->dyn_event_q.prehead == 
 		       ec_eng->dyn_event_q.tail); /* put == get */
 
-	if ((slot = (dyn_event_q_slot_t *)hp_alloc_size(sizeof(dyn_event_q_slot_t))) == NULL) 
-	{
-	    res = RANGE_ERROR;	/* not enough memory - queue full */
-	    goto _unlock_return_;
-	}
+	slot = hp_alloc_size(sizeof(*slot));
+
+	/* insert after tail(==prehead), make it the new prehead */
+	slot->prev = ec_eng->dyn_event_q.tail;
 	slot->next = ec_eng->dyn_event_q.tail->next;
+	slot->next->prev = slot;
 	ec_eng->dyn_event_q.tail->next = slot;
+	ec_eng->dyn_event_q.prehead = slot;
 	ec_eng->dyn_event_q.total_event_slots++;
-	ec_eng->dyn_event_q.prehead = ec_eng->dyn_event_q.prehead->next; /* reflect insertion */
     }
 
-    ec_eng->dyn_event_q.tail = ec_eng->dyn_event_q.tail->next; /* update tail and put */
-    ec_eng->dyn_event_q.tail->event_data = event; /* delayed set of old put */
-    EVENT_FLAGS |= EVENT_POSTED;
-    Fake_Overflow; /* Not served in signal handler */
+    if (urgent) {
+	ec_eng->dyn_event_q.prehead->urgent = urgent;
+	ec_eng->dyn_event_q.prehead->event_data = item;
+	ec_eng->dyn_event_q.prehead = ec_eng->dyn_event_q.prehead->prev;
+    } else {
+	ec_eng->dyn_event_q.tail = ec_eng->dyn_event_q.tail->next;
+	ec_eng->dyn_event_q.tail->urgent = urgent;
+	ec_eng->dyn_event_q.tail->event_data = item;
+    }
+    atomic_or(&EVENT_FLAGS, EVENT_POSTED|(urgent?URGENT_EVENT_POSTED:0));
+    Fake_Overflow;
 
 _unlock_return_:
     mt_mutex_unlock(&ec_eng->lock);
-    Enable_Int();
     return res;
 }
 
+
+/**
+ * Post event goal to engine.
+ *
+ * @param event
+ *	atom
+ *	event-THANDLE
+ *	event-TPTR
+ * @param no_duplicates
+ *	do nothing if event already in queue
+ *
+ * @return
+ *	PSUCCEED		was posted
+ *	ENGINE_DEAD		engine dead, not posted
+ *	TYPE_ERROR		not an event handle or atom
+ *	STALE_HANDLE		stale event handle
+ *	INSTANTIATION_FAULT	event uninstantiated
+ */
+
+static int
+_post_event_dynamic(ec_eng_t *ec_eng, pword event, int no_duplicates)
+{
+    int res;
+
+    if (IsHandle(event.tag))
+    {
+	Check_Type(event.val.ptr->tag, TEXTERN);
+	if (ExternalClass(event.val.ptr) != &heap_event_tid) {
+	    return TYPE_ERROR;
+	}
+        if (!(ExternalData(event.val.ptr))) {
+	    return STALE_HANDLE;
+	}
+
+	/* If the event is disabled, don't post it to the queue */
+	if (!((t_heap_event *)ExternalData(event.val.ptr))->enabled) {
+	    return PSUCCEED;
+	}
+	
+	/* Don't put the handle in the queue! */
+	event.tag.kernel = TPTR;
+	event.val.wptr = heap_event_tid.copy(ExternalData(event.val.ptr));
+    }
+    else if (IsTag(event.tag.kernel, TPTR))
+    {
+	/* Assume it's a TPTR to a t_heap_event (we use this when posting
+	 * an event that was stored in a stream descriptor).
+	 * As above, if the event is disabled, don't post it to the queue.
+	 */
+	if (!((t_heap_event *)event.val.ptr)->enabled) {
+	    return PSUCCEED;
+	}
+	event.val.wptr = heap_event_tid.copy(event.val.wptr);
+    }
+    else if (!IsAtom(event.tag))
+    {
+	return IsRef(event.tag) ? INSTANTIATION_FAULT : TYPE_ERROR;
+    }
+
+    res = _post_item(ec_eng, event, no_duplicates, 0);
+
+    if (res != PSUCCEED) {
+	/* If the anonymous event handle reference count was bumped
+	 * (via the copy ready for queue insertion) decrement it again!
+	 */
+	if (IsTag(event.tag.kernel, TPTR))
+	    heap_event_tid.free(event.val.wptr);
+	res = (res==PFAIL) ? PSUCCEED : res;	/* suppressed duplicate is ok */
+    }
+    return res;
+}
+
+
+/**
+ * Shorthands for event posting.
+ */
 int Winapi
 ecl_post_event_unique(ec_eng_t *ec_eng, pword event)
 {
@@ -997,54 +1053,117 @@ ecl_post_event_string(ec_eng_t *ec_eng, const char *event)
 }
 
 
-void
-next_posted_event(ec_eng_t *ec_eng, pword *out)
+/**
+ * Request that the engine perform a throw(Ball) at the next occasion.
+ * Do this by posting a heap copy of ball as an 'urgent' item.
+ * The target engine does not have to be owned by the calling thread.
+ *
+ * @param from_eng	the engine where the ball term resides (owned)
+ *			(can be NULL if ball is simple)
+ * @param ec_eng	the engine to post to (not owned)
+ * @param ball		the exception term to throw
+ *
+ * @return
+ *	PSUCCEED	request was raised (or already there)
+ *	ENGINE_DEAD	engine is already dead, request ignored
+ *	TYPE_ERROR	non-simple ball and no from_eng
+ *
+ */
+int Winapi
+ecl_post_throw(ec_eng_t *from_eng, ec_eng_t *ec_eng, pword ball)
 {
-    int n;
+    int res;
+    pword heap_ball;
+    if (IsSimple(ball.tag))
+	create_heapterm_simple(&heap_ball, ball);
+    else if (from_eng)
+	create_heapterm(from_eng, &heap_ball, ball.val, ball.tag);
+    else
+    	return TYPE_ERROR;
+    res = _post_item(ec_eng, heap_ball, 1/*dup?*/, 1);
+    if (res != PSUCCEED)
+        free_heapterm(&heap_ball);
+    return (res==PFAIL) ? PSUCCEED : res; /* suppressed duplicate is ok */
+}
 
-    /* Execute all static event queue entries before 
-     * dynamic queue entries.
-     * Assumption here is that it's ok to disrespect the 
-     * precise post order of interleaved 
-     * asynchronously-posted events with all other events.
-     * i.e. synchronously-posted events.
-     * In addition eventual servicing of dynamic event queue is
-     * assumed and so starvation unlikely / not problematic!
-     */
 
-    Disable_Int();
+/*
+ * This is expected to be called according to EVENT_FLAGS
+ * settings EVENT_POSTED and URGENT_EVENT_POSTED.
+ * Any associated Fake_Overflow has already been reset.
+ * On return, Fake_Overflow and EVENT_FLAGS are adjusted.
+ *
+ * @param expect_urgent	0 (any) or 1 (urgent) events
+ * @return
+ *	0: normal event (returned value is an event)
+ *	1: urgent event (returned value is a heap_term)
+ *
+ * Example usage:
+ *
+ * if (FakedOverflow() && (EVENT_FLAGS & EVENT_POSTED)) {
+ *	pword item;
+ *	if (next_posted_item(ec_eng, &item, 0)) {
+ *	   item is a a heap_ball
+ *	} else {
+ *	   item is an event
+ *	}
+ *
+ * if (FakedOverflow() && (EVENT_FLAGS & URGENT_EVENT_POSTED)) {
+ *	pword heap_ball;
+ *	next_posted_item(ec_eng, &heap_ball, 1);
+ *	...
+ * }
+ */
+
+int
+next_posted_item(ec_eng_t *ec_eng, pword *out, int expect_urgent)
+{
+    int res = 0;
+    dyn_event_q_slot_t *first;
+
     mt_mutex_lock(&ec_eng->lock);
 
-    /* Service the dynamic event queue */
-    if (!IsEmptyDynamicEventQueue())
-    {
-	ec_eng->dyn_event_q.prehead = 
-	    ec_eng->dyn_event_q.prehead->next; /* get = get->next */
-	*out = ec_eng->dyn_event_q.prehead->event_data; /* Delayed update of get */
-	ec_eng->dyn_event_q.free_event_slots++;
-    }
-    else
-    {
-	/* The queues were empty although flag was set: shouldn't happen */
-	mt_mutex_unlock(&ec_eng->lock);
-	ec_panic("Bogus event queue notification", "next_posted_event()");
-    }
+    assert(!IsEmptyDynamicEventQueue());
 
-    /* If either queue contain events fake the over flow to handle next */
+    first = ec_eng->dyn_event_q.prehead->next;
+    assert(expect_urgent ? first->urgent : 1);
+
+    *out = first->event_data;
+    res = first->urgent ? 1 : 0;
+    ec_eng->dyn_event_q.prehead = first;	/* pop */
+    ec_eng->dyn_event_q.free_event_slots++;
+
+    /* If the queue contains events, fake overflow to handle next */
     if (IsEmptyDynamicEventQueue()) 
     {
-	event_q_assert(ec_eng->dyn_event_q.prehead == 
+	/* queue empty, reset EVENT_FLAGS */
+	assert(ec_eng->dyn_event_q.prehead == 
 		       ec_eng->dyn_event_q.tail); /* put == get */
-	EVENT_FLAGS &= ~EVENT_POSTED;
+	atomic_and(&EVENT_FLAGS, ~(EVENT_POSTED|URGENT_EVENT_POSTED));
+    }
+    else if (first->next->urgent)
+    {
+	/* both flags must still be set */
+	assert(res == 2);
+	assert((atomic_load(&EVENT_FLAGS) & (EVENT_POSTED|URGENT_EVENT_POSTED)) == (EVENT_POSTED|URGENT_EVENT_POSTED));
+	Fake_Overflow;
+    }
+    else if (res==2)
+    {
+	/* we consumed the last urgent */
+	atomic_and(&EVENT_FLAGS, ~URGENT_EVENT_POSTED);
+	assert(atomic_load(&EVENT_FLAGS) & EVENT_POSTED);
+	Fake_Overflow;
     }
     else
     {
-	event_q_assert(EVENT_FLAGS & EVENT_POSTED);
+	/* we consumed a non-urgent, no change */
+	assert((atomic_load(&EVENT_FLAGS) & (EVENT_POSTED|URGENT_EVENT_POSTED)) == EVENT_POSTED);
 	Fake_Overflow;
     }
 
     mt_mutex_unlock(&ec_eng->lock);
-    Enable_Int();
+    return res;
 }
 
 
@@ -1055,19 +1174,16 @@ next_posted_event(ec_eng_t *ec_eng, pword *out)
 void 
 purge_disabled_dynamic_events(ec_eng_t *ec_eng, t_heap_event *event)
 {
-    dyn_event_q_slot_t *slot, *prev;
     uword cnt = 0, total;
     pword *pevent;
 
-    Disable_Int();
     mt_mutex_lock(&ec_eng->lock);
 
     total = ec_eng->dyn_event_q.total_event_slots - ec_eng->dyn_event_q.free_event_slots;
 
     if (total > 0 )
     {
-	prev = ec_eng->dyn_event_q.prehead;
-	slot = prev->next; /* get */
+	dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.prehead->next;
 
 	/* Process all slots but the tail */
 	for( cnt = 1; cnt < total; cnt++ )
@@ -1076,16 +1192,18 @@ purge_disabled_dynamic_events(ec_eng_t *ec_eng, t_heap_event *event)
 
 	    if (IsTag(pevent->tag.kernel, TPTR) && pevent->val.wptr == (uword*)event)
 	    {
+		dyn_event_q_slot_t *next = slot->next;
 		ec_eng->dyn_event_q.free_event_slots++;
-		prev->next = slot->next;
-		slot->next = ec_eng->dyn_event_q.tail->next; /* insert before put */
-		ec_eng->dyn_event_q.tail->next = slot; /* update put */
+		slot->prev->next = slot->next;	/* unlink */
+		slot->next->prev = slot->prev;
+		slot->next = ec_eng->dyn_event_q.tail->next; /* insert after tail */
+		ec_eng->dyn_event_q.tail->next = slot;
+		slot->next->prev = slot;
+		slot->prev = ec_eng->dyn_event_q.tail;
 		ExternalClass(pevent->val.ptr)->free(ExternalData(pevent->val.ptr));
-		slot = prev->next;
+		slot = next;
 		continue;
 	    }
-
-	    prev = slot;
 	    slot = slot->next;
 	}
 
@@ -1098,20 +1216,18 @@ purge_disabled_dynamic_events(ec_eng_t *ec_eng, t_heap_event *event)
 	if (IsTag(pevent->tag.kernel, TPTR) && pevent->val.wptr == (uword*)event)
 	{
 	    ec_eng->dyn_event_q.free_event_slots++;
-	    ec_eng->dyn_event_q.tail = prev;
+	    ec_eng->dyn_event_q.tail = slot->prev;
 	    ExternalClass(pevent->val.ptr)->free(ExternalData(pevent->val.ptr));
 	}
 
-	/* If both static and dynamic event queues are 
-	 * now empty clear the flags 
+	/* If queue is now empty, clear the flags 
 	 */
 	if (IsEmptyDynamicEventQueue())
 	{
-	    EVENT_FLAGS &= ~EVENT_POSTED;
+	    atomic_and(&EVENT_FLAGS, ~EVENT_POSTED);
 	}
     }
     mt_mutex_unlock(&ec_eng->lock);
-    Enable_Int();
 }
 
 
@@ -1124,8 +1240,6 @@ ec_init_dynamic_event_queue(ec_eng_t *ec_eng)
 {
     int cnt;
 
-    Disable_Int();
-
     if ((ec_eng->dyn_event_q.prehead = 
 	(dyn_event_q_slot_t *)hp_alloc_size(sizeof(dyn_event_q_slot_t))) == NULL) 
     {
@@ -1136,16 +1250,19 @@ ec_init_dynamic_event_queue(ec_eng_t *ec_eng)
 
     for(cnt = 0; cnt < MIN_DYNAMIC_EVENT_SLOTS - 1; cnt++) 
     {
-	if ((ec_eng->dyn_event_q.tail->next = 
-	    (dyn_event_q_slot_t *)hp_alloc_size(sizeof(dyn_event_q_slot_t))) == NULL) 
+	dyn_event_q_slot_t *slot = hp_alloc_size(sizeof(*slot));
+	if (!slot) 
 	{
 	    ec_panic(MEMORY_P, "emu_init()");
 	}
-	ec_eng->dyn_event_q.tail = ec_eng->dyn_event_q.tail->next;
+	slot->prev = ec_eng->dyn_event_q.tail;
+	ec_eng->dyn_event_q.tail->next = slot;
+	ec_eng->dyn_event_q.tail = slot;
     }
 
     /* Link tail to head to complete circular list creation */
     ec_eng->dyn_event_q.tail->next = ec_eng->dyn_event_q.prehead;
+    ec_eng->dyn_event_q.prehead->prev = ec_eng->dyn_event_q.tail;
 
     /* Set tail insertion point */
     /* Empty queue condition: 
@@ -1157,8 +1274,6 @@ ec_init_dynamic_event_queue(ec_eng_t *ec_eng)
     /* Dynamic queue is initially empty */
     ec_eng->dyn_event_q.total_event_slots = 
 		ec_eng->dyn_event_q.free_event_slots = MIN_DYNAMIC_EVENT_SLOTS;
-
-    Enable_Int();
 }
 
 
@@ -1170,8 +1285,6 @@ ec_init_dynamic_event_queue(ec_eng_t *ec_eng)
 void
 trim_dynamic_event_queue(ec_eng_t *ec_eng)
 {
-    Disable_Int();
-
     if (ec_eng->dyn_event_q.free_event_slots > MIN_DYNAMIC_EVENT_SLOTS)
     {
 	dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.tail->next; /* put */
@@ -1197,12 +1310,11 @@ trim_dynamic_event_queue(ec_eng_t *ec_eng)
 		ec_eng->dyn_event_q.total_event_slots-- )
 	{
 	    ec_eng->dyn_event_q.tail->next = slot->next;
+	    slot->next->prev = ec_eng->dyn_event_q.tail;
 	    hp_free_size(slot, sizeof(dyn_event_q_slot_t));
 	    slot = ec_eng->dyn_event_q.tail->next;
 	}
     }
-
-    Enable_Int();
 }
 
 
@@ -1383,19 +1495,21 @@ ec_unify_(ec_eng_t *ec_eng,
 	    return tag_desc[TagType(t1)].equal(v1.ptr, v2.ptr) ? PSUCCEED : PFAIL;
 	}
 
-	Poll_Interrupts(1);	/* because we might be looping */
+	Return_On_Request();	/* because we might be looping */
 	
 	/* arity > 0 */
 	for (;;)
 	{
+	    int res;
 	    pw1 = v1.ptr++;
 	    pw2 = v2.ptr++;
 	    Dereference_(pw1);
 	    Dereference_(pw2);
 	    if (--arity == 0)
 		break;
-	    if (ec_unify_(ec_eng, pw1->val, pw1->tag, pw2->val, pw2->tag, list) == PFAIL)
-		return PFAIL;
+	    res = ec_unify_(ec_eng, pw1->val, pw1->tag, pw2->val, pw2->tag, list);
+	    if (res != PSUCCEED)
+		return res;	/* PFAIL|PTHROW|PEXITED */
 	}
 	v1.all = pw1->val.all;
 	t1.all = pw1->tag.all;

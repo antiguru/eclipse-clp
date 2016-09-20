@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_comp.c,v 1.11 2016/08/08 14:34:24 jschimpf Exp $
+ * VERSION	$Id: bip_comp.c,v 1.12 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1029,6 +1029,8 @@ ecl_keysort(ec_eng_t *ec_eng, value v1, value vk, type tk, int reverse, int keep
     Dereference_(h1);
     while(! IsRef(h1->tag) && IsList(h1->tag))
     {
+	Longjmp_On_Request();	/* in case of looping */
+
 	h1 = h1->val.ptr;
 	comp_ptr = h1;
 	Dereference_(comp_ptr);
@@ -1489,6 +1491,8 @@ _merge(value vk, type tk,
 		goto _merge_error_;
 	    }
 	}
+
+	Longjmp_On_Request();	/* in case of looping */
     } /* for(;;) */
 
     Return_Unify_Pw(result.val, result.tag, v, t);

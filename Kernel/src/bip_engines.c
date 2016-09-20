@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.4 2016/08/04 09:41:41 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.5 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -69,6 +69,7 @@ static dident
 	d_thread1_,
 	d_clone_,
 	d_clone1_,
+	d_event1_,
 	d_detached_,
 	d_detached1_,
 	d_engine_,
@@ -520,12 +521,12 @@ p_engine_self(value v, type t, ec_eng_t *ec_eng)
 }
 
 
-/*
- * engine_post_event(+Engine, +Event)
+/**
+ * engine_post(+Engine, +GoalOrEvent)@Module
  */
 
 static int
-p_engine_post_event(value v, type t, value vevent, type tevent, ec_eng_t *ec_eng)
+p_engine_post(value v, type t, value vevent, type tevent, value vmod, type tmod, ec_eng_t *ec_eng)
 {
     int res;
     pword event;
@@ -534,19 +535,46 @@ p_engine_post_event(value v, type t, value vevent, type tevent, ec_eng_t *ec_eng
     event.tag = tevent;
     Get_Typed_Object(v, t, &engine_tid, eng);
 
-    mt_mutex_lock(&eng->lock);
-    if (IsAtom(tevent) && vevent.did == d_.abort)
-	/* will also work for looping unifications etc, via Poll_Interrupts() */
-	res = ecl_request_throw(eng, event);
-    else
+    if (IsStructure(tevent) && vevent.ptr->val.did == d_.throw1) {
+	/* Treat throws separately, because they can be handled in more
+	 * situations than general events, e.g. aborting looping operations.
+	 */
+	pword *pball = &vevent.ptr[1];
+	Dereference_(pball);
+	res = ecl_post_throw(ec_eng, eng, *pball);
+
+    } else if (IsStructure(tevent) && vevent.ptr->val.did == d_event1_) {
+	/* atom-event */
+	pword *pevent = &vevent.ptr[1];
+	Dereference_(pevent);
+	res = ecl_post_event(eng, *pevent);
+
+    } else if (IsAtom(tevent) && vevent.did == d_.abort) {
+	/* like throw(abort) */
+	res = ecl_post_throw(ec_eng, eng, event);
+
+    } else if (IsCompound(tevent) || IsAtom(tevent) || IsNil(tevent)) {
+	/* convert goal to event and post that */
+	pword goal;
+	create_heapterm(ec_eng, &goal, vevent, tevent);
+	event.val.vptr = ec_new_heap_event(goal.val, goal.tag, vmod, tmod, 0);
+	event.tag.kernel = TPTR;
 	res = ecl_post_event(eng, event);
-    mt_mutex_unlock(&eng->lock);
+
+    } else {
+	/* event handle */
+	res = ecl_post_event(eng, event);
+    }
     Return_If_Error(res);
     Succeed_;
 }
 
 
 
+#if 0
+/*
+ * For testing purposes only.
+ */
 static int
 p_engine_request(value v, type t, value vcode, type tcode, ec_eng_t *ec_eng)
 {
@@ -556,6 +584,19 @@ p_engine_request(value v, type t, value vcode, type tcode, ec_eng_t *ec_eng)
     (void) ecl_request(eng, (int)vcode.nint);
     Succeed_;
 }
+
+static int
+p_engine_hang(ec_eng_t *ec_eng)
+{
+    /*
+    pword ball = ecl_term(ec_eng, in_dict("foo",1), ec_atom(in_dict("hello",0)));
+    Bip_Throw(ball.val, ball.tag);
+    */
+    while(1) {
+	Longjmp_On_Request()
+    }
+}
+#endif
 
 
 static int
@@ -578,8 +619,8 @@ p_broadcast_exit(value v, type t, ec_eng_t *ec_eng)
     Check_Integer(t);
 
     /* send the request to all engines */
-    mt_mutex_lock(&shared_data->engine_list_lock);
-    shared_data->shutdown_in_progress = 1;
+    mt_mutex_lock(&EngineListLock);
+    ShutdownInProgress = 1;
     eng = eng_chain_header;
     do {
 	ec_eng_t *next = eng->next;
@@ -593,7 +634,7 @@ p_broadcast_exit(value v, type t, ec_eng_t *ec_eng)
 	}
 	eng = next;
     } while(eng != eng_chain_header);
-    mt_mutex_unlock(&shared_data->engine_list_lock);
+    mt_mutex_unlock(&EngineListLock);
     Succeed_;
 }
 
@@ -612,7 +653,7 @@ p_current_engines(value v, type t, ec_eng_t *ec_eng)
     pword *pw = &result;
     ec_eng_t *eng = eng_chain_header;
 
-    mt_mutex_lock(&shared_data->engine_list_lock);
+    mt_mutex_lock(&EngineListLock);
     do {
 #undef SHOW_HIDDEN_ENGINES
 #ifndef SHOW_HIDDEN_ENGINES
@@ -631,7 +672,7 @@ p_current_engines(value v, type t, ec_eng_t *ec_eng)
 	eng = eng->next;
     } while(eng != eng_chain_header);
     Make_Nil(pw);
-    mt_mutex_unlock(&shared_data->engine_list_lock);
+    mt_mutex_unlock(&EngineListLock);
     Return_Unify_Pw(v, t, result.val, result.tag);
 }
 
@@ -693,6 +734,7 @@ bip_engines_init(int flags)
     d_thread1_ = in_dict("thread",1);
     d_clone_ = in_dict("clone",0);
     d_clone1_ = in_dict("clone",1);
+    d_event1_ = in_dict("event",1);
     d_detached_ = in_dict("detached",0);
     d_detached1_ = in_dict("detached",1);
     d_engine_ = in_dict("engine",0);
@@ -718,14 +760,17 @@ bip_engines_init(int flags)
 	(void) built_in(in_dict("engine_join", 3), p_engine_join, B_SAFE);
 	(void) built_in(in_dict("engine_status", 2), p_engine_status, B_SAFE);
 	(void) built_in(in_dict("engine_self", 1), p_engine_self, B_SAFE);
-	(void) built_in(in_dict("engine_post_event", 2), p_engine_post_event, B_SAFE);
+	(void) built_in(in_dict("engine_post_", 3), p_engine_post, B_SAFE);
 	(void) built_in(in_dict("engine_properties", 2), p_engine_properties, B_SAFE);
 	(void) built_in(in_dict("current_engines", 1), p_current_engines, B_SAFE);
 
 	(void) built_in(in_dict("broadcast_exit", 1), p_broadcast_exit, B_SAFE);
 	(void) built_in(in_dict("engine_exit", 2), p_engine_exit, B_SAFE);
-	(void) built_in(in_dict("engine_request", 2), p_engine_request, B_SAFE);
 
+#if 0
+	(void) built_in(in_dict("engine_request", 2), p_engine_request, B_SAFE);
+	(void) built_in(in_dict("engine_hang", 0), p_engine_hang, B_SAFE);
+#endif
     }
 }
 

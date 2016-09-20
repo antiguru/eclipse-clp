@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.10 2016/09/16 15:45:00 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.11 2016/09/20 22:26:35 jschimpf Exp $
  */
 
 /*
@@ -338,11 +338,11 @@ ec_emu_fini(ec_eng_t *ec_eng)
 #ifdef UNCHAIN_ENGINES_WHEN_DEAD
     /* unchain engine, unless it is the header */
     if (ec_eng != eng_list_header) {
-	mt_mutex_lock(&shared_data->engine_list_lock);
+	mt_mutex_lock(&EngineListLock);
 	ec_eng->next->prev = ec_eng->prev;
 	ec_eng->prev->next = ec_eng->next;
 	ec_eng->prev = ec_eng->next = ec_eng;
-	mt_mutex_unlock(&shared_data->engine_list_lock);
+	mt_mutex_unlock(&EngineListLock);
 
     }
 #endif
