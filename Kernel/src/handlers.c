@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.12 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.13 2016/09/20 22:43:29 jschimpf Exp $
  */
 
 /** @file
@@ -607,7 +607,7 @@ _catch_fatal(int sig)
 	"- an internal error in ECLiPSe\n";
 
 #ifdef MUST_RESET_HANDLER_ON_ENTRY
-    signal(signr, _write_to_pipe);	/* restore signal disposition */
+    signal(sig, _catch_fatal);	/* restore signal disposition */
 #endif
 #ifdef SA_SIGINFO
     if (si)
