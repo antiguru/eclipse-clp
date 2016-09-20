@@ -104,6 +104,9 @@ typedef union
 #define MAX_ADDRESS_BYTE	0x20000000
 #define BITMAP_BLOCKS		(MAX_ADDRESS_BYTE/BYTES_PER_PAGE/BITMAP_BLOCKSIZE)
 #define USE_BITMAPS
+#ifndef SIGN_BIT
+#define SIGN_BIT		((uword) 0x80000000L)
+#endif
 #else
 #define BITMAP_BLOCKS		1
 #undef USE_BITMAPS
