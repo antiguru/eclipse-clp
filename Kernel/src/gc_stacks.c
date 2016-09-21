@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.9 2016/09/20 22:26:35 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.10 2016/09/21 11:33:25 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -706,7 +706,7 @@ make_choicepoint(ec_eng_t *ec_eng, word ar)
     chp->tt = TT;
     chp->e = E;
     chp->ld = LD;
-    pw = &ec_eng->emu_args[1];
+    pw = &A[1];
     for(; ar > 0; ar--) {
 	*((B.args)++) = *(pw++);
     }
@@ -737,7 +737,7 @@ pop_choicepoint(ec_eng_t *ec_eng)
     TG = chp.chp->tg;
     LD = chp.chp->ld;
     chp.chp++;
-    pw = &ec_eng->emu_args[1];			/* reload arguments	*/
+    pw = &A[1];			/* reload arguments	*/
     while(chp.top < top)
 	*pw++ = *(chp.args)++;
     B.any_frame = top->frame;	/* pop the choicepoint	*/
@@ -747,7 +747,7 @@ pop_choicepoint(ec_eng_t *ec_eng)
     /* Now mark the other arguments invalid (for recursive emulators).
      * Caution: There may be a module argument which must be skipped first.
      */
-    while(++pw < &ec_eng->emu_args[NARGREGS] && pw->tag.kernel != TEND)
+    while(++pw < &A[NARGREGS] && pw->tag.kernel != TEND)
     {
 	pw->tag.kernel = TEND;
 	pw->val.nint = 0x11111111;

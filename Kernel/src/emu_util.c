@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.11 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.12 2016/09/21 11:33:25 jschimpf Exp $
  */
 
 /*
@@ -563,8 +563,7 @@ find_word(ec_eng_t *ec_eng, uword w)	/* scan Prolog data areas for a particular 
 	if (*p == w) p_fprintf(current_err_, "control 0x%x\n", p);
     for(p = ec_eng->control_local[1].end; p < ec_eng->control_local[1].start; p++)
 	if (*p == w) p_fprintf(current_err_, "local 0x%x\n", p);
-    for(p = (uword *) &ec_eng->emu_args[0];
-				p < (uword *) &ec_eng->emu_args[NARGREGS]; p++)
+    for(p = (uword *) &ec_eng->a[0]; p < (uword *) &ec_eng->a[NARGREGS]; p++)
 	if (*p == w) p_fprintf(current_err_, "arg 0x%x\n", p);
     ec_flush(current_err_);
 }

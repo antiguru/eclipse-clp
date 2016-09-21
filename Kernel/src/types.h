@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.19 2016/09/20 22:26:35 jschimpf Exp $
+ * $Id: types.h,v 1.20 2016/09/21 11:33:25 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -533,6 +533,8 @@ typedef struct
 
 typedef struct ec_eng_s
 {
+    pword	a[NARGREGS];	/* argument registers (first, for emulator speed) */
+
     pword *	sp;		/* top of local stack */
     pword **	tt;		/* top of trail stack */
     pword *	tg;		/* top of global stack */
@@ -598,8 +600,6 @@ typedef struct ec_eng_s
     struct eclipse_ref_ allrefs; /* list of ec_refs (externals) */
     globalref *	references;	/* list of "named references" */
 
-    pword	emu_args[NARGREGS];
-
     int32	frand_state;	/* random generator state */
     dident	default_module;	/* for posted/resumed/rpc goals */
 
@@ -620,9 +620,6 @@ typedef struct ec_eng_s
 	dyn_event_q_t dyn_event_q; /* Dynamic synchronous event queue */
 
     int	requested_exit_code;	/* if (EVENT_FLAGS & EXIT_REQUEST) */
-#if 0
-    pword requested_throw_ball;	/* if (EVENT_FLAGS & THROW_REQUEST) */
-#endif
 
     int	needs_dgc_marking;	/* awaiting dictionary marking from this engine */
     struct ec_eng_s *parent_engine; /* engine waiting for this engine, */

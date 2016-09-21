@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.5 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.6 2016/09/21 11:33:24 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -299,7 +299,7 @@ _encode_result(ec_eng_t *ec_eng, ec_eng_t *eng, int status_known, pword *pw)
 #endif
 
     /* get the actual status code from the Prolog level */
-    parg = &eng->emu_args[1];
+    parg = &eng->a[1];
     Dereference_(parg)
     res = IsInteger(parg->tag) ? parg->val.nint : TYPE_ERROR;
 
@@ -331,10 +331,10 @@ _exited_:
 	Make_Struct(pw, TG);
 	Push_Struct_Frame(d_waitio1_);
 _get_arg1_:
-	if (IsSimple(eng->emu_args[2].tag))
-	    pw->val.ptr[1] = eng->emu_args[2];
+	if (IsSimple(eng->a[2].tag))
+	    pw->val.ptr[1] = eng->a[2];
 	else if (PSUCCEED !=
-	    ec_copy_term_across(eng, ec_eng, eng->emu_args[2].val, eng->emu_args[2].tag, &pw->val.ptr[1], 0))
+	    ec_copy_term_across(eng, ec_eng, eng->a[2].val, eng->a[2].tag, &pw->val.ptr[1], 0))
 	{
 	    Make_Atom(&pw->val.ptr[1], d_.question);
 	}

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.18 2016/09/20 22:26:35 jschimpf Exp $
+ * $Id: sepia.h,v 1.19 2016/09/21 11:33:25 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1302,7 +1302,7 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define	PARSENV		ec_eng->parser_env
 #define POSTED  	ec_eng->posted
 #define POSTED_LAST	ec_eng->posted_last
-#define	A		ec_eng->emu_args
+#define	A		ec_eng->a
 #define PostponedList	ec_eng->postponed_list
 
 

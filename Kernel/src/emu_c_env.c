@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.14 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.15 2016/09/21 11:33:25 jschimpf Exp $
  */
 
 /*
@@ -451,7 +451,7 @@ ecl_engine_clone(ec_eng_t* from_eng, ec_eng_t* to_eng)
 	ec_panic(MEMORY_P, __func__);
 #undef ec_eng
 
-    /* copy/relocate the emu_args and stacks */
+    /* copy/relocate the arguments and stacks */
     _clone_global(from_eng, to_eng);
 
     return 0;

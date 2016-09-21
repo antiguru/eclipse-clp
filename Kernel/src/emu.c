@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.37 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.38 2016/09/21 11:33:24 jschimpf Exp $
  */
 
 /*
@@ -428,7 +428,7 @@ extern dident	*interrupt_name_;
 #define Get_Temporary_Offs(off, p) \
 			p = ByteOffsetPlus(SP, (PP+(off))->offset);
 
-#define ArgP(pp)	(&A[(pp)->nint])
+#define ArgP(pp)	ByteOffsetPlus(A, (pp)->nint)
 #define Get_Argument(d)	d = ArgP(PP++);
 
 #define Dereference_Pw_Tag(pw, t) \
