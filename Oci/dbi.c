@@ -26,7 +26,7 @@
  *
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.c,v 1.8 2016/09/21 22:55:59 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	dbi.c
@@ -589,6 +589,13 @@ p_session_sql_prepare(
 	    Bip_Error(dbi_errno);
 	}
 
+	/* check_not_prepared_query returns -1: statement is a query
+	                                     1: statement not a query
+                                             0: DB unable to determine if 
+					        statement is a query
+	*/
+	if (check_not_prepared_query(cursor) == -1) Bip_Error(dbi_errno);
+ 
 	p_cursor = ecl_handle(ec_eng, &cursor_handle_tid, cursor);
 	Return_Unify_Pw(v_cursor, t_cursor, p_cursor.val, p_cursor.tag);
 }

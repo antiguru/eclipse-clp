@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.12 2016/07/28 03:34:36 jschimpf Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.13 2016/09/21 22:55:59 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -80,7 +80,7 @@
 #define DBI_BAD_SESSION     3
 #define DBI_BAD_FIELD       4
 #define DBI_BAD_TEMPLATE    5
-#define DBI_NOT_QUERY       6
+#define DBI_QUERY_MISMATCH  6
 #define DBI_CANCELLED       7
 #define DBI_NOT_PREPARED    8
 #define DBI_NO_PARAM        9
@@ -126,7 +126,7 @@ char *dbi_error[] =
 /* DBI_BAD_SESSION */	"DBI-003: bad session state",
 /* DBI_BAD_FIELD */	"DBI-004: bad field name",
 /* DBI_BAD_TEMPLATE */  "DBI-005: bad template",
-/* DBI_NOT_QUERY */	"DBI-006: not a query",
+/* DBI_QUERY_MISMATCH */"DBI-006: query mismatch",
 /* DBI_CANCELLED */	"DBI-007: cursor was cancelled",
 /* DBI_NOT_PREPARED */	"DBI-008: cursor was not a prepared SQL",
 /* DBI_NO_PARAM */      "DBI-009: input parameters not supplied",
@@ -846,7 +846,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
 
     if (query == NULL)
     {/* query template cannot be NULL for a query */
-	raise_dbi_error(DBI_NOT_QUERY);
+	raise_dbi_error(DBI_QUERY_MISMATCH);
 	return NULL;
     }
 
@@ -869,7 +869,7 @@ ready_session_sql_cursor(session_t *session, template_t *params, template_t *que
     */
     if (resdata == NULL)
     {
-	raise_dbi_error(DBI_NOT_QUERY);
+	raise_dbi_error(DBI_QUERY_MISMATCH);
 	return NULL;
     }
 
@@ -1133,10 +1133,22 @@ session_sql_prep(session_t *session,
     return cursor;
 }
 
+/* MySQL can determine if a prepared statement is a query before execution */
+int
+check_not_prepared_query(cursor_t * cursor)
+{
+  MYSQL_RES *resdata = mysql_stmt_result_metadata(cursor->s.stmt);
+
+  if (resdata == NULL) return 1;
+  mysql_free_result(resdata);
+  raise_dbi_error(DBI_QUERY_MISMATCH);
+  return -1;
+}
+
 int 
 session_tostr(session_t * session, char *buf, int quoted)
 {
-    sprintf(buf, "'MySQLS'(16'%"W_MOD"x)", (word) session);
+    sprintf(buf, "'MySQLS'(16'%"W_MOD"x)", (unsigned int) session);
     return strlen(buf); /* size of actual string */
 }
 
@@ -1330,7 +1342,7 @@ cursor_one_tuple(cursor_t *cursor)
 
     if (! cursor->tuple_template)
     {
-	raise_dbi_error(DBI_NOT_QUERY);
+	raise_dbi_error(DBI_QUERY_MISMATCH);
 	return -1;
     }
 
@@ -1516,7 +1528,7 @@ cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples
 int 
 cursor_tostr(cursor_t * cursor, char *buf, int quoted)
 {
-    sprintf(buf, "'MySQLC'(16'%"W_MOD"x)", (word) cursor);
+    sprintf(buf, "'MySQLC'(16'%"W_MOD"x)", (unsigned int) cursor);
     return strlen(buf); /* size of actual string */
 }
 

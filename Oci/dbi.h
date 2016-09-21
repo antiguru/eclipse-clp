@@ -218,6 +218,9 @@ ready_session_sql_cursor(session_t *session,
         word N, char use_prepared);
 
 int 
+check_not_prepared_query(cursor_t *cursor);
+
+int 
 session_tostr(session_t * session, char *buf, int quoted);
 
 void

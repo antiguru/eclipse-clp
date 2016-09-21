@@ -23,7 +23,7 @@
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.11 2016/07/28 03:34:36 jschimpf Exp $
+% $Header: /cvsroot/eclipse-clp/Eclipse/Oci/dbi.ecl,v 1.12 2016/09/21 22:55:59 kish_shen Exp $
 %
 %
 % IDENTIFICATION:	dbi.ecl
@@ -51,7 +51,7 @@
 :- comment(categories, ["Interfacing"]).
 :- comment(summary, "Interface to MySQL databases").
 :- comment(author, "Kish Shen, based on Oracle interface by Stefano Novello").
-:- comment(date, "$Date: 2016/07/28 03:34:36 $").
+:- comment(date, "$Date: 2016/09/21 22:55:59 $").
 :- comment(copyright, "Cisco Systems, 2006").
 
 :- lib(lists).
@@ -474,7 +474,7 @@ dbi_initialize :-
 dbi_finalize :-
         dbi_final.
 
-:- local initialization(dbi_initialize), finalization(dbi_finalize).
+?- local initialization(dbi_initialize), finalization(dbi_finalize).
 
 
 /******************************************************************************/
@@ -951,7 +951,8 @@ make_accounts(Session) :-
         exceptions: [5: "Session is not a valid session handle, or SQL"
                         " not a string, or ParamTemplate not a structure",
                      dbi_error: "Error from DBMS while preparing SQL",
-                     dbi_bad_template: "ParamTemplate has the wrong arity"
+                     dbi_bad_template: "ParamTemplate has the wrong arity",
+                     dbi_bad_query: "SQL is a query"
                     ],
         eg:"
   % note \'?\' in SQL in the syntax MySQL uses for placeholders. This may be
@@ -976,8 +977,9 @@ make_accounts(Session) :-
  then be used in subsequent library predicates.
 </P><P>
  The SQL statement must be a non-query, i.e. it does not return any
- results. If the SQL statement is a query, an error would be raised
- when the statement is executed.
+ results. If the SQL statement is a query, a dbi_bad_query error would
+ be raise if the DBMS can detect the error during preparation,
+ otherwise an error would be raised when the statement is executed
 </P><P>
  A prepared SQL statement is parsed by the DBMS, so that it could be
  executed more efficiently. It can also be parameterised, where the 
@@ -1347,7 +1349,7 @@ make_accounts(Session) :-
                      dbi_error: "Error from DBMS while executing SQL"
                                 " associated with Cursor.",
                      dbi_error: "Error from DBMS while fetching result",
-                     dbi_not_query: "The SQL associated with Cursor is not"
+                     dbi_bad_query: "The SQL associated with Cursor is not"
                                     " a query and so cannot return results.",
                      dbi_buffer_over: "Result value(s) too big for the"
                                       " buffer",
@@ -1409,7 +1411,7 @@ make_accounts(Session) :-
                      dbi_error: "Error from DBMS while executing SQL"
                                 " associated with Cursor.",
                      dbi_error: "Error from DBMS while fetching result",
-                     dbi_not_query: "The SQL associated with Cursor is not"
+                     dbi_bad_query: "The SQL associated with Cursor is not"
                                     " a query and so cannot return results."
                     ],
         desc: html("\
@@ -1446,7 +1448,7 @@ make_accounts(Session) :-
                      dbi_error: "Error from DBMS while executing SQL"
                                 " associated with Cursor.",
                      dbi_error: "Error from DBMS while fetching result",
-                     dbi_not_query: "The SQL associated with Cursor is not"
+                     dbi_bad_query: "The SQL associated with Cursor is not"
                                     " a query and so cannot return results."
                     ],
         desc: html("\
