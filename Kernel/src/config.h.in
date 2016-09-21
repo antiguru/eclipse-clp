@@ -213,6 +213,9 @@
 /* Define if you have gethostname.  */
 #undef HAVE_GETHOSTNAME
 
+/* Define if you have clock_gettime. */
+#undef HAVE_CLOCK_GETTIME
+
 /* Define if you have gethrtime (high resolution timer).  */
 #undef HAVE_GETHRTIME
 

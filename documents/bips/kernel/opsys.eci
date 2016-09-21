@@ -744,34 +744,30 @@ Error:
 	see_also:[existing_file / 4, pathname / 4]]).
 
 :- comment(cputime / 1, [
-	summary:"Succeeds if Time is the elapsed user cpu time in seconds.
-
-",
+	summary:"Returns the calling thread's cpu time",
 	amode:(cputime(-) is det),
-	desc:html("   Used to find the elapsed user cpu time in seconds, it is equivalent to
-   statistics(times, [Time|_]).
-
+	desc:html("<P>
+   Used to find the cpu time that the calling thread has consumed,
+   in seconds.  It is equivalent to statistics(cputime, Time).
 <P>
-   The cpu time is the `user' time i.e.  the CPU time used while executing
-   instructions in the user space of the calling process.
-
+   Whether this time includes 'system' cputime (i.e. time spent in
+   system calls on behalf of the thread) depends on the operating system.
+   E.g., for Linux system time is included, for Windows it is not.
 <P>
-   Note that the granularity of the system clock is usually 1/60 or 1/50 of
-   a second.  Hence if you use cputime/1 to measure runtimes make sure that
-   the measured intervals are long enough.
-
+   The granularity of this timer also varies depending on the operating
+   system and/or hardware.  It can be as coarse as 1/60 or 1/50 of a second.
+   Hence if you use cputime/1 to measure runtimes make sure that the
+   measured intervals are long enough.  Alternatively, if supported,
+   use statistics(hr_time,Time).
 <P>
-   The time given by the ps command gives the sum of `user' time and
-   `system' time, which is the CPU time used by the system on behalf of the
-   calling process.
-
+   To obtain the cputime for the whole process (all threads), use
+   statistics(times, [UserCpu,SystemCpu|_]).
 <P>
-    Note that (like all predicates that return a number as their last
-    argument), this predicate can be used as a function inside arithmetic
-    expressions.
+   Note that (like all predicates that return a number as their last
+   argument), this predicate can be used as a function inside arithmetic
+   expressions.
 "),
 	args:["Time" : "Float number or variable."],
-	exceptions:[5 : "Time is instantiated, but not to a float."],
 	eg:"
 Success:
    [eclipse]: cputime(T).
@@ -780,11 +776,6 @@ Success:
 
 Fail:
       cputime(0.000001).
-Error:
-      cputime(2).                    (Error 5).
-
-
-
 ",
 	see_also:[statistics / 0, statistics / 2, date / 1, get_flag / 2]]).
 

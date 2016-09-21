@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.7 2016/09/20 22:26:35 jschimpf Exp $
+ * $Id: os_support.h,v 1.8 2016/09/21 22:20:50 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -181,6 +181,7 @@ char *	canonical_filename ARGS((char *in, char *out));
 long	user_time ARGS((void));	/* ticks */
 int	all_times ARGS((double *user, double *system, double *elapsed));
 long	ec_unix_time ARGS((void)); /* seconds */
+int	ec_thread_cputime(double*);
 char *	ec_date_string ARGS((char *buf));
 int	ec_gethostname ARGS((char *buf, int size));
 int	ec_gethostid ARGS((char *buf, int size));

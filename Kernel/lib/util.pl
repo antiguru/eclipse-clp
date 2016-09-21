@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: util.pl,v 1.3 2010/04/22 14:12:49 jschimpf Exp $
+% Version:	$Id: util.pl,v 1.4 2016/09/21 22:22:53 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -43,7 +43,7 @@
 :- comment(categories, ["Programming Utilities"]).
 :- comment(author, "Various, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2010/04/22 14:12:49 $").
+:- comment(date, "$Date: 2016/09/21 22:22:53 $").
 :- comment(add_path/1, [template:"add_path(+Directory)",
     summary:"The directory will be added at the beginning of the library path."
     ]).
@@ -72,9 +72,6 @@
     ]).
 :- comment(streams/0, [template:"streams",
     summary:"List information about the currently opened I/O streams"
-    ]).
-:- comment(time/1, [template:"time(Goal)",
-    summary:"Call the goal Goal, measure its runtime (cputime) and print the result after success or failure"
     ]).
 :- comment(edit/1, [template:"edit(+PredSpec)",
     summary:"Invoke an editor on the source of the specified predicate (UNIX only)"
@@ -177,23 +174,48 @@ between(From, To, I) :-
 
 % time(+Goal) - like call(Goal), but print cputime used
 
-:- tool(time/1, time_body/2).
+:- comment(time/1, [template:"time(Goal)",
+    amode:(time(+) is semidet),
+    summary:"Run Goal to first solution, and print timings",
+    desc:http("<P>
+    Call the goal Goal (as with once/1), and print the timings after
+    the goal has succeeded or failed.  The four times printed are:
+<PRE>
+        - thread cputime (of the calling thread only)
+        - process cputime user (all threads)
+        - process cputime system (all threads)
+        - real time
+</PRE>
+    Note that for multithreaded programs, the total process cputime 
+    can be higher than the elapsed real time, because all the threads'
+    cputimes add up.
+    </P>"),
+    eg:"
+    ?- time( for(_,1,1000000) do true ).
 
+    Success, times: 1.0222s thread, 1.0200+0.0000s process, 1.03s real
+    "
+    ]).
+:- tool(time/1, time_body/2).
 time_body(Goal, Module) :-
+	statistics(times, Times0),
 	cputime(T0),
-	(
-	    call(Goal)@Module,
-	    true
-	->
-	    T is cputime - T0,
-	    write('\nSuccess, time = '),
-	    writeln(T)
+	( call(Goal)@Module, true ->
+	    Result = true,  Msg = "Success"
 	;
-	    T is cputime - T0,
-	    write('\nFailure, time = '),
-	    writeln(T),
-	    fail
-	).
+	    Result = false, Msg = "Failure"
+	),
+	cputime(T1),
+	statistics(times, Times1),
+	[U0,S0,R0] = Times0,
+	[U1,S1,R1] = Times1,
+	T is T1-T0,
+	U is U1-U0,
+	S is S1-S0,
+	R is R1-R0,
+	printf("%n%s, times: %fs thread, %f+%fs process, %.2fs real%n%n",
+		[Msg,T,U,S,R]),
+	Result.
 
 
 % print a list of compiled files and if they were modified since

@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.19 2016/09/20 22:26:35 jschimpf Exp $
+ * $Id: os_support.c,v 1.20 2016/09/21 22:20:50 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -1036,6 +1036,34 @@ user_time(void)
 	/* try at least with the real time */
 	return (long) time((time_t *) 0);
 #endif
+#endif
+}
+
+
+int
+ec_thread_cputime(double *cpu_seconds)
+{
+#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_THREAD_CPUTIME_ID)
+    struct timespec t;
+    int err = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t);
+    if (err) return err;
+    *cpu_seconds = (double)t.tv_sec + (double)t.tv_nsec/1000000000.0;
+    return 0;
+
+#elif _WIN32
+    FILETIME creation_time, exit_time, kernel_time, user_time;
+    LARGE_INTEGER li;
+    if (!GetThreadTimes(GetCurrentThread(),
+    		&creation_time, &exit_time, &kernel_time, &user_time))
+	return (int)GetLastError();
+    li.LowPart = user_time.dwLowDateTime;
+    li.HighPart = user_time.dwHighDateTime;
+    *cpu_seconds = (double)li.QuadPart / 10000000.0;
+    return 0;
+
+#else
+    *cpu_seconds = 0.0;
+    return 0;
 #endif
 }
 

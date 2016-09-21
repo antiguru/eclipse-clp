@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.11 2016/07/28 03:34:35 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.12 2016/09/21 22:20:50 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -912,11 +912,15 @@ p_get_sys_flag(value vf, type tf, value vv, type tv, ec_eng_t *ec_eng)
     Return_Unify_Pw(vv, tv, pw.val, pw.tag);
 }
 
+/**
+ * Thread cputime.  For process cputime use all_times/3.
+ */
 static int
 p_cputime(value val, type tag, ec_eng_t *ec_eng)
 {
-	Check_Output_Float(tag);
-	Return_Unify_Float(val, tag, ((double) (user_time())) / clock_hz);
+    double t;
+    if (ec_thread_cputime(&t)) t = 0.0;
+    Return_Unify_Float(val, tag, t);
 }
 
 static void
