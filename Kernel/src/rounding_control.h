@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.12 2015/05/02 17:22:34 jschimpf Exp $
+** $Id: rounding_control.h,v 1.13 2016/09/21 20:35:51 kish_shen Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -327,7 +327,6 @@
 
 #elif defined(HAVE_FENV_H)
 
-# ifndef __POWERPC__
 /* This version uses standard C99 functions. Unfortunately we have reports
    that these functions are not defined for MacOS X 10.1, even though Apple's on-line 
    documentation claim that they are available from 10.0 onwards. There may also be issues
@@ -356,8 +355,9 @@
                 fesetround(ec_fpu_round_orig_); \
             }
 
-# else  /* defined(__POWERPC__) */
-/* this code is based on David K. Wittenberg's macros */
+#elif defined(__APPLE__) && defined(__MACH__) && deinfed(__POWERPC__)
+/* old PowerPC Mac OS X specific macros
+   this code is based on David K. Wittenberg's macros */
 
     #define Declare_Rounding_Control_State
 
@@ -375,7 +375,6 @@
     #define restore_round_mode() { \
                 __asm__ ("mtfsfi 7,0") ; \
             }
-# endif
 
 #elif defined(HAVE_IEEE_FLAGS)
 
