@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.13 2016/09/21 20:35:51 kish_shen Exp $
+** $Id: rounding_control.h,v 1.14 2016/09/21 23:04:27 kish_shen Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -355,7 +355,7 @@
                 fesetround(ec_fpu_round_orig_); \
             }
 
-#elif defined(__APPLE__) && defined(__MACH__) && deinfed(__POWERPC__)
+#elif defined(__APPLE__) && defined(__MACH__) && defined(__POWERPC__)
 /* old PowerPC Mac OS X specific macros
    this code is based on David K. Wittenberg's macros */
 
