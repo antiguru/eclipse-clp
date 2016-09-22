@@ -25,7 +25,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.13 2016/09/21 22:55:59 kish_shen Exp $
+ * $Header: /cvsroot/eclipse-clp/Eclipse/Oci/mysql.c,v 1.14 2016/09/22 00:24:32 kish_shen Exp $
  *
  *
  * IDENTIFICATION:	mysql.c
@@ -1148,7 +1148,7 @@ check_not_prepared_query(cursor_t * cursor)
 int 
 session_tostr(session_t * session, char *buf, int quoted)
 {
-    sprintf(buf, "'MySQLS'(16'%"W_MOD"x)", (unsigned int) session);
+    sprintf(buf, "'MySQLS'(16'%"W_MOD"x)", (word) session);
     return strlen(buf); /* size of actual string */
 }
 
@@ -1528,7 +1528,7 @@ cursor_N_execute(cursor_t * cursor, word * tuplep, value v_tuples, type t_tuples
 int 
 cursor_tostr(cursor_t * cursor, char *buf, int quoted)
 {
-    sprintf(buf, "'MySQLC'(16'%"W_MOD"x)", (unsigned int) cursor);
+    sprintf(buf, "'MySQLC'(16'%"W_MOD"x)", (word) cursor);
     return strlen(buf); /* size of actual string */
 }
 
