@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.70 2016/09/16 15:45:36 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.71 2016/09/22 15:11:34 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -976,6 +976,9 @@ AC_CHECK_FUNC(vsprintf, AC_DEFINE(HAVE_VARARGS), echo "...Vsprintf not found")
 AC_CHECK_FUNCS(vsprintf vsnprintf)
 AC_CHECK_FUNCS(fpsetround ieee_flags)
 AC_CHECK_FUNCS(realpath)
+
+AC_SEARCH_LIBS(clock_gettime,rt)
+AC_CHECK_FUNCS(clock_gettime)
 
 dnl The following require wsock32 on Windows, and the check doesn't work:
 dnl this doesn't work: AC_SEARCH_LIBS(select, wsock32)
