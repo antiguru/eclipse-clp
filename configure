@@ -2841,7 +2841,7 @@ case $host in
     alpha*-*-linux*)
 	arch=alpha_linux
 	;;
-    armv7*-*-linux*)
+    armv7*-*-linux* | arm-*-linux-gnueabihf)
 	arch=armv7_linux
 	;;
     *)

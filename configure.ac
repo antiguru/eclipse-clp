@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.71 2016/09/22 15:11:34 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.72 2016/09/23 19:16:54 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -91,7 +91,7 @@ case $host in
     alpha*-*-linux*)
 	arch=alpha_linux
 	;;
-    armv7*-*-linux*)
+    armv7*-*-linux* | arm-*-linux-gnueabihf)
 	arch=armv7_linux
 	;;
     *)
