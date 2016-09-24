@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.18 2016/07/28 03:34:37 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.19 2016/09/24 20:23:11 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -1239,21 +1239,19 @@ ec_queue_create output r {tkecl:tkec_stream_to_window highlight .tkecl.pane.stdi
 ec_queue_create error r "tkecl:error_to_window .tkecl.pane.stdio.tout"
 ec_rpcq {set_stream user_output output} (()())
 ec_rpcq {set_stream user_error error} (()())
+ec_rpcq {set_stream log_output output} (()())
+ec_queue_create warning_output r "tkecl:tkec_stream_to_window warning .tkecl.pane.stdio.tout $tkecl(stop_scrolling)"
 
 # ensure_loaded rather than use_module: we don't want to import
 ec_rpcq {ensure_loaded {library toplevel}} ((()))
-#ec_rpcq {toplevel_init gui} (()) toplevel
 
+# create the streams needed for the toplevel protocol
 ec_queue_create gui_interrupt_request r tkecl:stop_request_handler
-ec_rpcq_check [list peer_queue_create answer_output host sync fromec ""] (()()()()())
 ec_queue_create answer_output r "ec_stream_to_window highlight .tkecl.pane.answer.tout"
-
-ec_queue_create warning_output r "tkecl:tkec_stream_to_window warning .tkecl.pane.stdio.tout $tkecl(stop_scrolling)"
-ec_rpcq_check [list peer_queue_create toplevel_out host sync fromec ""] (()()()()())
 ec_queue_create toplevel_out r tkecl:toplevel_out_handler
-ec_rpcq {toplevel_init gui} (()) toplevel
 ec_queue_create toplevel_in w tkecl:toplevel_in_handler
-ec_rpcq {set_stream_property warning_output flush end_of_line} (()()())
+
+ec_rpcq {toplevel_init gui} (()) toplevel
 
 if {![string match $tkecl(version) [lindex [ec_rpcq_check {get_flag version _} (()_)] 2]]} {
     tk_messageBox -icon warning -message "Version differences detected between Tcl and ECLiPSe codes" -type ok

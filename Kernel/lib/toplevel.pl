@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.9 2016/09/20 22:27:39 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.10 2016/09/24 20:22:45 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2016/09/20 22:27:39 $").
+:- comment(date, "$Date: 2016/09/24 20:22:45 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -591,11 +591,11 @@ tty_banner(_, Message) :-		% default handler for event 164
 %----------------------------------------------------------------------
 
 gui_toplevel_init :-
-
-	% make the three streams for the toplevel protocol
-	peer_queue_create(toplevel_in, host, sync, toec, ''),
+	% Assume that these streams have been created by the GUI:
+%	peer_queue_create(toplevel_in, host, sync, toec, ''),
 %	peer_queue_create(toplevel_out, host, sync, fromec, ''),
 %	peer_queue_create(answer_output, host, sync, fromec, ''),
+%	peer_queue_create(gui_interrupt_request, host, sync, fromec, ''),
 
 	% redirect standard i/o streams to queues if not already done
 	( peer_queue_get_property(output, peer_type, _) ->
@@ -609,11 +609,6 @@ gui_toplevel_init :-
 	),
 	set_stream_property(output, flush, end_of_line),
 	set_stream_property(error, flush, end_of_line),
-	set_stream(log_output, output),
-
-	% separate warning_output from output (for colouring)
-	% (otherwise: set_stream(warning_output, output))
-	peer_queue_create(warning_output, host, sync, fromec, ''),
 	set_stream_property(warning_output, flush, end_of_line),
 
 	% Interrupt handling
@@ -636,7 +631,6 @@ gui_toplevel_init :-
 	    true
 	),
 	set_interrupt_handler(int, event/1),
-	peer_queue_create(gui_interrupt_request, host, sync, fromec, ''),
 	set_event_handler(int, user_stop_request_handler/1),
 
 	% toplevel event handlers
