@@ -67,6 +67,7 @@ ALLARCHS="
 	i386_sunos5 \
 	x86_64_sunos5 \
 	alpha_linux \
+	armv7_linux \
 	ppc_macosx \
 	i386_macosx \
 	x86_64_macosx \

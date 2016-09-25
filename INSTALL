@@ -8,66 +8,72 @@ You should have the following environment settings:
 
     export ECLIPSEARCH=<architecture to build for>
 
-	the ECLiPSe architecture name, e.g.
-	    i386_linux
-	    x86_64_linux
-	    sparc_sunos5
-	    i386_sunos5
-	    x86_64_sunos5
-	    i386_nt           ("nt" stands for Windows)
-	    x86_64_nt         ("nt" stands for Windows)
-	    ppc_macosx
-	    i386_macosx
+        the ECLiPSe architecture name, e.g.
+
+            i386_linux        (Linux, Intel, 32-bit)
+            x86_64_linux      (Linux, Intel, 64-bit)
+            armv7_linux       (Linux, ARM, 32-bit)
+
+            i386_nt           (Windows, 32-bit, "nt" stands for any Windows)
+            x86_64_nt         (Windows, 64-bit, "nt" stands for any Windows)
+
+            ppc_macosx        (MacOS, PowerPC)
+            i386_macosx       (MacOS, Intel, 32-bit)
+            x86_64_macosx     (MacOS, Intel, 64-bit)
+
+            sparc_sunos5      (Solaris, Sparc, 32-bit)
+            i386_sunos5       (Solaris, Intel, 32-bit)
+            x86_64_sunos5     (Solaris, Intel, 64-bit)
 
     export ECLIPSETHIRDPARTY=/vol/Eclipse/thirdparty
 
-    	this points to the location of third-party components that
-	ECLiPSe builds interfaces for, e.g. gmp, cplex, xpress-mp,
-	flexlm, graphviz, grappa.  Configure will detect the presence
-	of components there and build interfaces if possible.
+        this points to the location of third-party components that
+        ECLiPSe builds interfaces for, e.g. gmp, cplex, xpress-mp,
+        flexlm, graphviz, grappa.  Configure will detect the presence
+        of components there and build interfaces if possible.
 
     CONFIG_SITE=config.$ECLIPSEARCH
 
-    	if a file config.$ECLIPSEARCH exists in this directory, you should have
-	this setting during configure, otherwise it can be left unset.
+        if a file config.$ECLIPSEARCH exists in this directory, you should have
+        this setting during configure, otherwise it can be left unset.
 
 
 Simple build from toplevel directory (e.g. for i386_linux, sparc_sunos5):
 
-	./configure
-	make -f Makefile.$ECLIPSEARCH
+        ./configure
+        make -f Makefile.$ECLIPSEARCH
 
 Build on multi-architecture machine, e.g. 64 bit build on 32/64 bit solaris:
 
-	export ECLIPSEARCH=x86_64_sunos5
-	CONFIG_SITE=config.$ECLIPSEARCH ./configure --build=x86_64-pc-solaris2.9
-	make -f Makefile.$ECLIPSEARCH
+        export ECLIPSEARCH=x86_64_sunos5
+        CONFIG_SITE=config.$ECLIPSEARCH ./configure --build=x86_64-pc-solaris2.9
+        make -f Makefile.$ECLIPSEARCH
 
 Cross build, e.g. for Windows on Linux:
 
-	export ECLIPSEARCH=i386_nt
-	CONFIG_SITE=config.$ECLIPSEARCH ./configure --host=i686-w64-mingw32
-	make -f Makefile.$ECLIPSEARCH
+        export ECLIPSEARCH=i386_nt
+        CONFIG_SITE=config.$ECLIPSEARCH ./configure --host=i686-w64-mingw32
+        make -f Makefile.$ECLIPSEARCH
 
-	export ECLIPSEARCH=x86_64_nt
-	CONFIG_SITE=config.$ECLIPSEARCH ./configure --host=x86_64-w64-mingw32
-	make -f Makefile.$ECLIPSEARCH
+        export ECLIPSEARCH=x86_64_nt
+        CONFIG_SITE=config.$ECLIPSEARCH ./configure --host=x86_64-w64-mingw32
+        make -f Makefile.$ECLIPSEARCH
 
 Build for Windows on Windows/Cygwin:
 
-	export ECLIPSEARCH=i386_nt
-	CONFIG_SITE=config_cygwin.i386_nt ./configure
-	make -f Makefile.$ECLIPSEARCH
+        export ECLIPSEARCH=i386_nt
+        CONFIG_SITE=config_cygwin.i386_nt ./configure
+        make -f Makefile.$ECLIPSEARCH
 
 Build for Windows64 on Windows64/Cygwin:
 
-	export ECLIPSEARCH=x86_64_nt
-	CONFIG_SITE=config_cygwin.x86_64_nt ./configure --build=x86_64-w64-mingw32
-	make -f Makefile.$ECLIPSEARCH
+        export ECLIPSEARCH=x86_64_nt
+        CONFIG_SITE=config_cygwin.x86_64_nt ./configure --build=x86_64-w64-mingw32
+        make -f Makefile.$ECLIPSEARCH
 
 To build the documentation:
 
-	make -f Makefile.$ECLIPSEARCH install_documents
+        make -f Makefile.$ECLIPSEARCH install_documents
 
 
 
@@ -79,34 +85,50 @@ It generates several makefiles and some config.h.
 For a native build, you can just configure with no arguments.
 The following options are relevant:
 
- --help
+  --help
 
- --prefix		where to install everything (not fully supported
- 			at the moment - use RUNME after compile instead)
+  --prefix              where to install everything (not fully supported
+                        at the moment - use RUNME after compile instead)
 
- --host=i386-mingw32msvc	cross-configure for i386_nt
+  --host=i386-mingw32msvc       cross-configure for i386_nt
 
   --enable-debug          compile with all debugging features
 
   --without-osi
   --with-osi[=versions]
-			Build ECLiPSe interface to COIN-OR's OSI.  You can
-			optionally specify a version list, e.g. 
-			"clpcbc symclp". In this case, version specifies the
-			actual solver(s) that OSI is connected to. 
-			Default is to build all available versions.
+                        Build ECLiPSe interface to COIN-OR's OSI.  You can
+                        optionally specify a version list, e.g. 
+                        "clpcbc symclp". In this case, version specifies the
+                        actual solver(s) that OSI is connected to. 
+                        The software is looked up in ECLIPSETHIRDPARTY.
+                        Default is to build all available versions.
 
   --without-cplex
   --with-cplex[=versions]
                         Build ECLiPSe interface to ILOG Cplex.  You can
                         optionally specify a version list, e.g. "81 90".
-                        Default is to build all available versions.
+                        The software is looked up in ECLIPSETHIRDPARTY.
+                        The first available version from the list is built.
 
   --without-xpress
   --with-xpress[=versions]
                         Build ECLiPSe interface to Dash Xpress-MP.  You can
                         optionally specify a version list, e.g. "1427 1525".
-                        Default is to build all available versions.
+                        The software is looked up in ECLIPSETHIRDPARTY.
+                        The first available version from the list is built.
+
+  --without-gurobi
+  --with-gurobi[=versions]
+                        Build ECLiPSe interface to a Gurobi Solver.  You can
+                        optionally specify a version list, e.g. "50 60".
+                        The software is looked up in ECLIPSETHIRDPARTY.
+                        The first available version from the list is built.
+
+  --without-gfd
+  --with-gfd
+                        Build ECLiPSe interface to Gecode Solver.
+                        The software is looked up in ECLIPSETHIRDPARTY.
+                        Default is to build the interface.
 
   --without-java
   --with-java[=dir]     Build ECLiPSe/Java interface.
@@ -119,19 +141,28 @@ The following options are relevant:
   --without-flexlm
   --with-flexlm[=version]
                         Build ECLiPSe interface to FlexLM. You can optionally
-                        specify a version preference list.  Default is to
-                        build first available.
+                        specify a version preference list.
+                        The software is looked up in ECLIPSETHIRDPARTY.
+                        Default is to build first available.
 
+  --without-graphviz
   --with-graphviz[=versions]
                         Copy graphviz executables into the installation.
                         You can optionally specify a version list, e.g. "1.10".
+                        The software is looked up in ECLIPSETHIRDPARTY.
                         Default is to use the first available version.
 
+  --without-mysql
   --with-mysql[=versions]
                         Build ECLiPSe database interface.  You can optionally
                         specify a version list, e.g. "50".
+                        The software is looked up in ECLIPSETHIRDPARTY.
                         Default is to build the first available version.
 
+  --without-cpviz
+                        Build ECLiPSe without the CP-Viz constraint visualiser
+                        (CP-Viz requires Java, Batik and Javahelp, which are
+                        looked up in ECLIPSETHIRDPARTY).
 
 
 Makefiles
@@ -142,27 +173,27 @@ For historical reasons, there are two variants:
 For Shm and Kernel, a Makefile is created in their $ECLIPSEARCH
 subdirectory (from src/Makefile.in). To run the local build,
 cd to {Shm,Kernel}/$ECLIPSEARCH and invoke
-	make install
+        make install
 The intermediate objects are built in the $ECLIPSEARCH directories,
 from the sources found using make's VPATH.
 
 Other directories (icparc_solvers etc) have a Makefile.$ECLIPSEARCH
 (generated from Makefile.in). To run the local build there,
 you need to call
-	make -f Makefile.$ECLIPSEARCH install
+        make -f Makefile.$ECLIPSEARCH install
 
 There is also a Makefile.$ECLIPSEARCH (generated from Makefile.in)
 in the toplevel directory which builds everything.
 
 Most makefiles implement the targets:
-	install
-	clean
-	archclean	% clean up machine-dependent targets
-	ecoclean	% remove .eco files (needed when format changed)
+        install
+        clean
+        archclean       % clean up machine-dependent targets
+        ecoclean        % remove .eco files (needed when format changed)
 
 After changing a Makefile.in or a config.h.in you can
 regenerate the Makefiles or config.h by invoking
-	./config.status
+        ./config.status
 in the toplevel directory, but only if you have not
 configured on a different architecture since the original
 configure!!! If you have, you must rerun toplevel configure.
