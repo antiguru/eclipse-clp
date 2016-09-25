@@ -164,16 +164,8 @@
 
 load_gfd_solver(Arch) :- 
         get_flag(object_suffix, O),
-        ( Arch = "x86_64_linux" ->
-            concat_string(["gfd.", O], SolverObj),
-            getcwd(Current),
-            cd(Arch),
-            block((load(SolverObj) -> cd(Current) ; cd(Current), fail), Tag,
-                  (cd(Current), exit_block(Tag)))
-        ;
-            concat_string([Arch,/,"gfd.", O], SolverObj),
-            load(SolverObj)
-        ).
+        concat_string([Arch,/,"gfd.", O], SolverObj),
+        load(SolverObj).
 
 :- 
         get_flag(hostarch, Arch),
