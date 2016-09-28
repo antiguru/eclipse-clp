@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.38 2016/09/21 11:33:24 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.39 2016/09/28 04:06:52 jschimpf Exp $
  */
 
 /*
@@ -7472,6 +7472,15 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 	    if (IsInteger(pw1->tag)) {
 		if (IsInteger(pw2->tag))
 		{
+#ifdef HAVE_DOUBLEWORD
+		    doubleword prod = (doubleword)pw1->val.nint * pw2->val.nint;
+		    tmp1 = (word) prod;
+		    if (prod != tmp1) {
+			err_code = INTEGER_OVERFLOW;
+			goto _nbip_err_;
+		    }
+		    Make_Integer(ArgP(PP-2), tmp1);
+#else
 		    tmp1 = pw1->val.nint;
 		    if (tmp1 != 0) {
 			tmp1 *= pw2->val.nint;
@@ -7483,6 +7492,7 @@ _nbin_op_:		/* (err_code,pw1,pw2,proc,PP) */
 			}
 		    }
 		    Make_Integer(ArgP(PP-2), tmp1);
+#endif
 		    Next_Pp;
 		}
 		if (IsDouble(pw2->tag)) {

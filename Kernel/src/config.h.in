@@ -80,6 +80,10 @@
 #undef HAVE_LONG_LONG
 #undef HAVE___INT64
 
+/* Define if we have a 128-bit int type.  */
+#undef HAVE_INT128_T
+#undef HAVE___INT128
+
 /* Define to `long' if <sys/types.h> doesn't define.  */
 #undef off_t
 

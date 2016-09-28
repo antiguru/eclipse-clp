@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_general.h,v 1.3 2016/09/20 22:26:35 jschimpf Exp $
+ * $Id: ec_general.h,v 1.4 2016/09/28 04:06:52 jschimpf Exp $
  *
  * General types and macros used in ECLiPSe-related C source.
  * Do not include ECLiPSe-specific definitions here.
@@ -136,6 +136,14 @@ typedef unsigned int	uint32;
 #error "No code for dealing with sizeof(int) != 4"
 #endif
 
+#ifndef HAVE_INT128_T
+#ifdef HAVE___INT128
+#define HAVE_INT128_T
+typedef __int128	int128_t;		/* exactly 128 bit */
+#endif
+#endif
+
+/* define word/uword: pointer-sized integers */
 #define ECLIPSE_TYPEDEF_WORD			/* tested in memman.h */
 #if (SIZEOF_CHAR_P == SIZEOF_INT)
 typedef int		word;			/* pointer-sized */
@@ -151,6 +159,25 @@ typedef __int64          word;
 typedef unsigned __int64 uword;
 #else
 #error "No code for dealing with word size > long long/__int64!"
+#endif
+
+
+/* if possible, define doubleword: a double-word sized integer */
+#if (SIZEOF_CHAR_P == 8)
+#ifdef HAVE_INT128_T
+#define HAVE_DOUBLEWORD
+typedef int128_t doubleword;
+#endif
+#elif (SIZEOF_CHAR_P == 4)
+#if defined(HAVE_LONG_LONG) && (__SIZEOF_LONG_LONG__ == 4)
+#define HAVE_DOUBLEWORD
+typedef long long doubleword;
+#elif defined(HAVE___INT64)
+#define HAVE_DOUBLEWORD
+typedef __int64 doubleword;
+#endif
+#else
+#error "No code for dealing with word size"
 #endif
 
 
