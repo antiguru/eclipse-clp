@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.72 2016/09/23 19:16:54 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.73 2016/09/28 03:33:52 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -781,7 +781,7 @@ AC_CHECK_SIZEOF(long,4)
 AC_CHECK_SIZEOF(char *,4)
 AC_CHECK_SIZEOF(long *,4)
 
-AC_CHECK_TYPES([long long, __int64])
+AC_CHECK_TYPES([long long, __int64, int128_t, __int128])
 
 dnl -fstrict-overflow breaks some code that does integer overflow detection
 dnl but the option is only present starting from gcc 4.2
@@ -791,9 +791,10 @@ AC_MSG_CHECKING(for version-dependent compiler options)
 SAVED_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -fno-strict-overflow"
 AC_TRY_COMPILE([] , [return 0;],
-    [AC_MSG_RESULT(yes)],[AC_MSG_RESULT(no)
-    CFLAGS="$SAVED_CFLAGS" 
-    AC_DEFINE(MAY_HAVE_STRICT_OVERFLOW)])
+    [AC_MSG_RESULT(yes)],
+    [AC_MSG_RESULT(no)
+     CFLAGS="$SAVED_CFLAGS" 
+     AC_DEFINE(MAY_HAVE_STRICT_OVERFLOW)])
 
 AC_MSG_CHECKING(whether fPIC compiler option is accepted)
 SAVED_CFLAGS="$CFLAGS"
@@ -1290,25 +1291,18 @@ fi
 # Linking libstdc++ 
 #----------------------------------------------------------------------
 
-dnl Did not find a way of doing this test in a less low-level way:
-dnl try to link stdc++ statically into a shared library 
 AC_MSG_CHECKING(test whether we can statically link lstdc++ into a shared library)
-rm -f conftest.cc conftest.o conftest.so
-cat > conftest.cc <<EOF
-#include "confdefs.h"
-#include <iostream>
-void p(void) { std::cout << "hello"; }
-EOF
-
-$CXX $CPPFLAGS $CFLAGS -c conftest.cc
-STDCXXLIB="-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic"
-if $CC $DYNLDFLAGS -o conftest.so conftest.o $STDCXXLIB >/dev/null 2>&1; then
-    AC_MSG_RESULT(yes)
-else
-    STDCXXLIB="-lstdc++"
-    AC_MSG_RESULT(no)
-fi
-rm -f conftest.cc conftest.o conftest.so
+AC_LANG_PUSH([C++])
+SAVED_LDFLAGS="$LDFLAGS"
+STDCXXLIB="-static-libstdc++ -static-libgcc"
+LDFLAGS="$LDFLAGS $DYNLDFLAGS $STDCXXLIB"
+AC_LINK_IFELSE([
+    AC_LANG_PROGRAM([#include<iostream>], [return 0;])],
+    [AC_MSG_RESULT(yes)],
+    [AC_MSG_RESULT(no)
+     STDCXXLIB=])
+LDFLAGS="$SAVED_LDFLAGS"
+AC_LANG_POP([C++])
 
 
 #----------------------------------------------------------------------
@@ -1725,7 +1719,7 @@ AC_ARG_ENABLE(eplex_own_malloc, [[  --enable-eplex-own-malloc
 #----------
 
 AC_ARG_WITH([gfd], [AS_HELP_STRING([--with-gfd],[
-	Build ECLiPSe interface to Gecode Solover.
+	Build ECLiPSe interface to Gecode Solver.
 	Default is to build the interface.])],
     [gfd_requested="$withval"], [gfd_requested=yes])
 
@@ -2049,6 +2043,7 @@ AC_CONFIG_HEADERS([
 
 
 dnl Words to substitute in the Makefiles
+AC_SUBST(CONFIG_SITE)
 AC_SUBST(ARCH)
 AC_SUBST(host)
 AC_SUBST(build)
