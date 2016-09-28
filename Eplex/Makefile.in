@@ -21,7 +21,7 @@
 # END LICENSE BLOCK
 #
 # Makefile for Eplex
-# $Id: Makefile.in,v 1.14 2016/09/13 13:26:43 jschimpf Exp $
+# $Id: Makefile.in,v 1.15 2016/09/28 13:25:53 jschimpf Exp $
 #
 
 # The location of third party software releases, e.g. Cplex, Xpress
@@ -55,6 +55,7 @@ OBJ_SUFFIX = @OBJECTS_SUFFIX@
 DLIBDIR = @DLIBDIR@
 DYNLDFLAGS = @DYNLDFLAGS@
 DYLD = @DYLD@
+DYLDCXX = @DYLDCXX@
 STRIP = @STRIP@
 STRIPFLAGS = @STRIPFLAGS@
 EXEEXT = @EXEEXT@
@@ -114,21 +115,21 @@ $(ARCH)/seosiclpcbc.$(OBJ_SUFFIX): eplex.c coinplex.cpp eplex_coin.h eplex_coin.
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CXX) -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DCOIN_USE_CLP -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c eplex.c
-	$(DYLD) $(DYNLDFLAGS) eplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCBCLIBS) $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o $@
+	$(DYLDCXX) $(DYNLDFLAGS) eplex.o coinplex.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib  $(COINCBCLIBS) $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o $@
 	$(STRIP) $(STRIPFLAGS) $@
 
 $(ARCH)/seosisymclp.$(OBJ_SUFFIX): eplex.c coinplex.cpp eplex_coin.h eplex_coin.c eplex.h 
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CXX) -DCOIN -DCOIN_USE_SYM $(CPPFLAGS) $(CFLAGS) -I$(SYMCLPARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c eplex.c
-	$(DYLD) $(DYNLDFLAGS) eplex.o coinplex.o -L$(SYMCLPARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o $@
+	$(DYLDCXX) $(DYNLDFLAGS) eplex.o coinplex.o -L$(SYMCLPARCHDIR)/lib -lOsiSym -lSym $(COINCLPLIBS) $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o $@
 	$(STRIP) $(STRIPFLAGS) $@
 
 $(ARCH)/seosiglpk.$(OBJ_SUFFIX): eplex.c coinplex.cpp eplex_coin.h eplex_coin.c eplex.h 
 	[ -d $(ARCH) ] || mkdir $(ARCH)
 	$(CXX) -DCOIN -DCOIN_USE_GLPK $(CPPFLAGS) $(CFLAGS) -I$(OSIGLPKARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -c eplex.c
-	$(DYLD) $(DYNLDFLAGS) eplex.o coinplex.o -L$(OSIGLPKARCHDIR)/lib -lOsiGlpk -lglpk  $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o $@
+	$(DYLDCXX) $(DYNLDFLAGS) eplex.o coinplex.o -L$(OSIGLPKARCHDIR)/lib -lOsiGlpk -lglpk  $(COINOSILIBS) $(STDCXXLIB) $(ECLIBS) $(GMP_LD) -o $@
 	$(STRIP) $(STRIPFLAGS) $@
 
 
@@ -229,7 +230,7 @@ bug65: bug.c
 bugclp: bug.c
 	$(CXX) -g -DCOIN -DCOIN_USE_CLP @OSICLP_ADDDEF@ -DNOECLIPSE $(CPPFLAGS) $(CFLAGS) -I$(CLPCBCARCHDIR)/include -c coinplex.cpp
 	$(CC) -DCOIN -DC_TO_COIN $(CPPFLAGS) $(CFLAGS) -DNOECLIPSE -c bug.c
-	$(CC) -g coinplex.o bug.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib $(COINCBCLIBS) $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) -DCOIN -o bugclp
+	$(DYLDCXX) -g coinplex.o bug.o $(CLPCBCARCHDIR)/lib/CbcBranchUser.o $(CLPCBCARCHDIR)/lib/CbcCompareUser.o -L$(CLPCBCARCHDIR)/lib $(COINCBCLIBS) $(COINCLPLIBS) @OSICLP_ADDLIB@ $(COINOSILIBS) $(STDCXXLIB) -DCOIN -o bugclp
 
 
 #----------------------------------------------------------------------
