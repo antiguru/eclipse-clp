@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.23 2016/08/08 14:34:24 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.24 2016/10/05 01:16:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -65,8 +65,6 @@
 	get_file_info/3,
 	op/3,
 	global_op/3,
-	phrase/2,
-	phrase/3,
 	peer/1,
 	peer_get_property/3,
 	peer_queue_create/5,
@@ -79,8 +77,6 @@
         peer_do_multitask/1.
 
 
-:- tool(phrase/2, phrase_body/3).
-:- tool(phrase/3, phrase_body/4).
 :- tool(file_query/2, file_query_body/3).
 
 
@@ -828,32 +824,6 @@ system(X) :-
 
 sh(X) :-
 	system(X).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%	MACROS
-%
-
-phrase_body(Grammar, S, R, M) :-
-	var(Grammar),
-	!,
-	error(4, phrase(Grammar, S, R), M).
-phrase_body(Grammar, S, R, M) :-
-	check_grammar(Grammar, S, R, M, NewGr),
-	call(NewGr)@M.
-
-check_grammar(Grammar, S, R, M, NewGr) :-
-	((number(Grammar) ; string(Grammar)) ->
-	    error(5, phrase(Grammar, S, R), M)
-	;
-	    true
-	),
-	Grammar =.. [F | L],
-	append(L, [S, R], NL),
-	NewGr =.. [F | NL].
-
-phrase_body(Grammar, S, M) :-
-	phrase_body(Grammar, S, [], M).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -1841,11 +1811,6 @@ cleanup_peer_multitask_infos(Peer) :-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Allow users to trace grammar rules through phrase/2/3
-?- unskipped
-	phrase_body/3,
-	phrase_body/4.
 
 % tool interfaces must be set to skipped explicitely
 :- skipped

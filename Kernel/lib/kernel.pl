@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.63 2016/09/20 22:27:39 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.64 2016/10/05 01:16:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -1801,7 +1801,7 @@ unfold(Goal, Unfolded, AnnGoal, AnnUnfolded, _CM, LM) :-
 	    true
 	; var(AnnBody) ->
 	    % inherit Goal's annotation for everything
-	    transformed_annotate_anon(Unfolded, AnnGoal, AnnUnfolded)
+	    term_to_annotated(Unfolded, AnnGoal, AnnUnfolded, false)
 	;
 	    % Body keeps its annotations. CAUTION: the Goal=Head unification
 	    % above may instantiate variables, and thus render the 'var'
@@ -1818,13 +1818,13 @@ unfold(Goal, Unfolded, AnnGoal, AnnUnfolded, _CM, LM) :-
 	    true
 	; var(AnnBody) ->
 	    % inherit Goal's annotation for everything
-	    transformed_annotate_anon(Unfolded, AnnGoal, AnnUnfolded)
+	    term_to_annotated(Unfolded, AnnGoal, AnnUnfolded, false)
 	;
 	    % Argument unification inherits Goal's annotation
-	    transformed_annotate_anon(Head, AnnGoal, AnnHead),
-	    inherit_annotation(AnnGoal=AnnHead, AnnGoal, AnnUnify),
+	    term_to_annotated(Head, AnnGoal, AnnHead, false),
+	    annotated_create(AnnGoal=AnnHead, AnnGoal, AnnUnify),
 	    % Body keeps its annotations, comma inherits Body's annotation,
-	    inherit_annotation((AnnUnify,AnnBody), AnnBody, AnnUnfolded)
+	    annotated_create((AnnUnify,AnnBody), AnnBody, AnnUnfolded)
 	)
 	*/
 
@@ -3997,7 +3997,6 @@ do_set_flag(Proc, Flag, Value, Module) :-
 	(*->)/2, 
 	'.'/2, 
 	(\=)/2, 
-	'C'/3, 
 	!/0,
 	(\+)/1,
         (?-)/2,
@@ -4440,11 +4439,124 @@ help :-
 	This message can be modified by setting the handler for event 231.").
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Predefined macros
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%----------------------------------------------------------------
+% Operations on "optional annotated terms"
+% These all allow input annotated terms to be uninstantiated,
+% in which case the output is also uninstantiated.
+%----------------------------------------------------------------
 
-%
+% Check an annotation
+good_annotation(_TermIn, In) :- var(In), !.
+good_annotation(Term, annotated_term(TermAnn,_,_,_,_,_)) :-
+	( var(Term) -> true ; functor(Term, F, N), functor(TermAnn, F, N) ).
+
+
+% Get the Ith annotated argument of AnnTerm (if any).
+% If AnnTerm was uninstantiated, so is the output.
+annotated_arg(_I, AnnTerm, _AnnArg) :- var(AnnTerm), !.
+annotated_arg(I, annotated_term(TermAnn,_,_,_,_,_), AnnArg) :-
+	arg(I, TermAnn, AnnArg).
+
+
+% Get a term with annotated subterms of AnnTerm,
+% or the annotated term itself (if atomic or variable).
+% If AnnTerm was uninstantiated, so is the output.
+annotated_match(AnnTerm, _TermAnn) :- var(AnnTerm), !.
+annotated_match(annotated_term(TermAnn,_,_,_,_,_), TermAnn).
+
+
+% Create one level of annotated term from its components.
+% TermAnn is either: the variable or atomic term to be annotated;
+% or: the compound term with annotated subterms (which may be
+% still uninstantiated at this time).
+% The location information is inherited from the annotated term Location.
+% If Location was uninstantiated, so is the output.
+% UseVarNames controls whether TNAME variable names may be used.
+% If Location is an annotated variable term, and Term is the same
+% variable, then it will inherit the name annotation as well.
+annotated_create(TermAnn, Location, AnnTerm) :-
+	annotated_create(TermAnn, Location, AnnTerm, true).
+
+annotated_create(_TermOut, In, _Out, _UseVarNames) :- var(In), !.
+annotated_create(TermOut,
+	    annotated_term(TermIn,TypeIn,File,Line,From,To),
+	    annotated_term(TermOut,TypeOut,File,Line,From,To), UseVarNames) :-
+	( nonvar(TermOut) ->
+	    type_of(TermOut, TypeOut)
+	; TermOut==TermIn ->	% same variable?
+	    TypeOut = TypeIn	% inherit name
+	; UseVarNames==true, get_var_info(TermOut, name, Name) ->
+	    % try to add the variable name if it is available from the parser
+	    TypeOut = var(Name)
+	;
+	    type_of(TermOut, TypeOut)
+	).
+
+
+% Create a fully annotated version of the plain term Term, inheriting the
+% location information for all subterms from the annotated term Location.
+% Note that the Term must not be further instantiated afterwards,
+% otherwise the var-annotations will become wrong!
+% If Location is an annotated variable term, then any occurrences
+% of this variable in Term will inherit the name as well.
+term_to_annotated(Term, Location, AnnTerm) :-
+	term_to_annotated(Term, Location, AnnTerm, true).
+
+% If UseVarNames is false, do not try to add variable names. This is useful
+% to suppress singleton warnings when the annotated term gets compiled.
+term_to_annotated(_Term, Location, _Ann, _UseVarNames) :-
+	var(Location), !.
+term_to_annotated(Term, Location, Ann, UseVarNames) :-
+	( compound(Term) ->
+	    functor(Term, F, A), 
+	    functor(TermAnn, F, A),
+	    annotated_create(TermAnn, Location, Ann, UseVarNames),
+	    ( for(I,1,A), param(Location,Term,TermAnn,UseVarNames) do
+		arg(I, Term, Arg),
+		arg(I, TermAnn, AnnArg),
+		term_to_annotated(Arg, Location, AnnArg, UseVarNames)
+	    )
+	;
+	    annotated_create(Term, Location, Ann, UseVarNames)
+	).
+	
+
+% Make an annotated term for TermOut with exactly the same annotation
+% as In (provided In was instantiated).  This works only if both terms
+% have the same type, as both location and type are inhertited.
+% If that is not the case, use instead:
+%	annotated_match(In, TermIn),
+%	annotated_create(TermOut, In, Out)
+
+same_annotation(_TermIn, In, _TermOut, _Out) :- var(In), !.
+same_annotation(TermIn, annotated_term(TermIn,Type,File,Line,From,To),
+	TermOut, annotated_term(TermOut,Type,File,Line,From,To)).
+
+
+% Reconstruct the plain term from the annotated term
+:- export annotated_to_term/2.
+annotated_to_term(AnnTerm, Term) :- var(AnnTerm), !,
+	error(4, annotated_to_term(AnnTerm, Term)).
+annotated_to_term(annotated_term(TermAnn,_,_,_,_,_), Term) :- !,
+	( compound(TermAnn) ->
+	    functor(TermAnn, F, N),
+	    functor(Term, F, N),
+	    ( for(I,1,N), param(TermAnn,Term) do
+		arg(I, TermAnn, AnnArg),
+		arg(I, Term, Arg),
+		annotated_to_term(AnnArg, Arg)
+	    )
+	;
+	    Term = TermAnn
+	).
+annotated_to_term(AnnTerm, Term) :-
+	error(5, annotated_to_term(AnnTerm, Term)).
+	
+
+%----------------------------------------------------------------
+% Predefined macros
+%----------------------------------------------------------------
+
 % The protecting functor no_macro_expansion/1
 %
 % Should just be
@@ -4461,7 +4573,7 @@ trprotect(In, Out) :- arg(1, In, Out).
 tr_match((Head ?- Body), (Head :- -?-> Body), AnnMatch, AnnTrans) :-
         same_annotation((AnnHead ?- AnnBody), AnnMatch, 
                         (AnnHead :- AnnMatchBody), AnnTrans),
-        inherit_annotation(-?-> AnnBody, AnnMatch, AnnMatchBody). 
+        annotated_create(-?-> AnnBody, AnnMatch, AnnMatchBody). 
 
 :- define_macro((?-)/2, tr_match/4, [clause, global]).
 
@@ -4502,45 +4614,6 @@ expand_goal_annotated_(Goal, AnnGoal, Expanded, AnnExpanded, Module) :-
 tr_goals(Goal, Expanded, Module) :-
 	tr_goals_annotated(Goal, _, Expanded, _, Module).
 
-
-% Check an annotation
-good_annotation(_TermIn, In) :- var(In), !.
-good_annotation(Term, annotated_term(TermAnn,_,_,_,_,_)) :-
-	( var(Term) -> true ; functor(Term, F, N), functor(TermAnn, F, N) ).
-
-annotated_arg(_I, AnnTerm, _AnnArg) :- var(AnnTerm), !.
-annotated_arg(I, annotated_term(TermAnn,_,_,_,_,_), AnnArg) :-
-	arg(I, TermAnn, AnnArg).
-
-annotated_match(AnnTerm, _TermAnn) :- var(AnnTerm), !.
-annotated_match(annotated_term(TermAnn,_,_,_,_,_), TermAnn).
-
-% Make annotated term for TermOut with same annotation as In.
-% TermIn and TermOut are assumed to have the same structure. Similar to:
-%   In = annotated_term{term:TermIn},
-%   update_struct(annotated_term, [term:TermOut], In, Out)
-% but leave Out uninstantiated if In was.
-
-same_annotation(_TermIn, In, _TermOut, _Out) :- var(In), !.
-same_annotation(TermIn, annotated_term(TermIn,Type,File,Line,From,To),
-	TermOut, annotated_term(TermOut,Type,File,Line,From,To)).
-
-% Make annotated term for TermOut, inheriting location from In. Similar to:
-%   update_struct(annotated_term, [term:TermOut,type:TypeOut], In, Out)
-% but leave Out uninstantiated if In was.
-inherit_annotation(TermOut, In, Out) :-
-	inherit_annotation(TermOut, In, Out, true).
-
-inherit_annotation(_TermOut, In, _Out, _UseVarNames) :- var(In), !.
-inherit_annotation(TermOut,
-	    annotated_term(_TermIn,_TypeIn,File,Line,From,To),
-	    annotated_term(TermOut,TypeOut,File,Line,From,To), UseVarNames) :-
-	( var(TermOut), UseVarNames==true, get_var_info(TermOut, name, Name) ->
-	    % try to add the variable name if it is available from the parser
-	    TypeOut = var(Name)
-	;
-	    type_of(TermOut, TypeOut)
-	).
 
 tr_goals_annotated(G, Ann, GC, AnnGC, M) :-
 	( current_pragma(inline_depth(D))@M, integer(D) -> true ; D=10 ),
@@ -4597,18 +4670,18 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, D, M) :-
     tr_colon(G, AnnG, NewG, AnnNewG, _M, LM, _D) :- 
 	var(LM), !, 
 	NewG = LM:G,
-	transformed_annotate(LM, AnnG, AnnLM),
-	inherit_annotation((AnnLM:AnnG), AnnG, AnnNewG).
+	term_to_annotated(LM, AnnG, AnnLM),
+	annotated_create((AnnLM:AnnG), AnnG, AnnNewG).
     tr_colon(_G, AnnG, NewG, AnnNewG, _M, [], _D) :- !, 
 	NewG = true,
-	inherit_annotation(NewG, AnnG, AnnNewG).
+	annotated_create(NewG, AnnG, AnnNewG).
     tr_colon(G, AnnG, NewG, AnnNewG, M, [LM|LMs], D) :- !,
         ( try_tr_goal(G, AnnG, LMG0, AnnLMG0, LM, M, D, D1) ->
 	    tr_goals_annotated(LMG0, AnnLMG0, LMG, AnnLMG, D1, M)
 	;
 	    LMG = LM:G,
-	    transformed_annotate(LM, AnnG, AnnLM),
-	    inherit_annotation((AnnLM:AnnG), AnnG, AnnLMG)
+	    term_to_annotated(LM, AnnG, AnnLM),
+	    annotated_create((AnnLM:AnnG), AnnG, AnnLMG)
 	),
 	( LMs == [] ->
 	    NewG = LMG,
@@ -4616,8 +4689,8 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, D, M) :-
 	;
             NewG = (LMG,LMsG),
 	    % make sure AnnLMsG inherits source position
-	    inherit_annotation((AnnLMG,AnnLMsG), AnnG, AnnNewG),
-            % like inherit_annotation(LMsG, AnnG, AnnLMsG) but no setting
+	    annotated_create((AnnLMG,AnnLMsG), AnnG, AnnNewG),
+            % like annotated_create(LMsG, AnnG, AnnLMsG) but no setting
             % of type for AnnLMsG, as LMsG not constructed yet
             (nonvar(AnnG) ->
                 AnnG = annotated_term(_,_,File,Line,From,To),
@@ -4632,8 +4705,8 @@ tr_goals_annotated(Goal, Ann, GC, AnnGC, D, M) :-
 	    tr_goals_annotated(LMG, AnnLMG, NewG, AnnNewG, D1, M) 
 	; 
 	    NewG = LM:G,
-	    inherit_annotation(AnnLM:AnnG, AnnG, AnnNewG),
-	    transformed_annotate(LM, AnnG, AnnLM)
+	    annotated_create(AnnLM:AnnG, AnnG, AnnNewG),
+	    term_to_annotated(LM, AnnG, AnnLM)
 	).
 
 
@@ -4809,7 +4882,7 @@ transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM0, ContextModule) :-
 	( Delayed = [] ->
             (var(AnnExpanded) ->
                 % TransGoal did not annotate AnnExpanded
-                transformed_annotate(Expanded, Ann, AnnExpanded)
+                term_to_annotated(Expanded, Ann, AnnExpanded)
             ;
                 good_annotation(Expanded, AnnExpanded)
             )
@@ -4817,39 +4890,6 @@ transform(Term, Ann, Expanded, AnnExpanded, TN/TA, TLM0, ContextModule) :-
 	    error(129, TLM:TransGoal, ContextModule)
 	).
 
-% Deeply annotate Term, inheriting all source positions from Template
-transformed_annotate(_Term, Template, _Ann) :-
-	transformed_annotate(_Term, Template, _Ann, true).
-
-% The same, but do not try to add variable names. This is useful to suppress
-% singleton warnings when the annotated term gets compiled.
-transformed_annotate_anon(_Term, Template, _Ann) :-
-	transformed_annotate(_Term, Template, _Ann, false).
-
-transformed_annotate(_Term, Template, _Ann, _UseVarNames) :-
-	var(Template), !.
-transformed_annotate(Term, Template, Ann, UseVarNames) :-
-	( compound(Term) ->
-	    functor(Term, F, A), 
-	    functor(TermAnn, F, A),
-	    inherit_annotation(TermAnn, Template, Ann, UseVarNames),
-	    transformed_annotate_args(1, A, Template, Term, TermAnn, UseVarNames)
-	;
-	    inherit_annotation(Term, Template, Ann, UseVarNames)
-	).
-
-    transformed_annotate_args(N, A, Template, Term, TermAnn, UseVarNames) :-
-	( N > A ->
-	    true
-	;
-	    arg(N, Term, Arg),
-	    arg(N, TermAnn, AnnArg),
-	    transformed_annotate(Arg, Template, AnnArg, UseVarNames),
-	    N1 is N + 1,
-	    transformed_annotate_args(N1, A, Template, Term, TermAnn, UseVarNames)
-	).
-
-	
 
 expand_clause_(Clause, ClauseExpanded, ContextModule) :-
 	expand_clause_annotated_(Clause, _, ClauseExpanded, _, ContextModule).
@@ -5430,7 +5470,7 @@ tr_with(Term, Struct, AnnTerm, AnnStruct, M) :-
 	functor(Struct, Functor, Arity),
 	(tr_and(Args, ProtoStruct, Struct, M) ->
 	    ( no_duplicates(Args) ->
-		 transformed_annotate(Struct, AnnFunctor, AnnStruct) 
+		 term_to_annotated(Struct, AnnFunctor, AnnStruct) 
 	    ;
 		 printf(warning_output,
 		    "WARNING: Duplicate struct field name in module %w in%n    %w%n", [M,Term]),
@@ -6423,18 +6463,18 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
 	length(Lasts, Arity),
         aux_pred_name(M, Arity, Name),
 	FirstCall =.. [Name|Firsts],		% make replacement goal
-        transformed_annotate(FirstCall, AnnDoLoop, AnnFirstCall),
-        transformed_annotate(PreGoals, AnnDoLoop, AnnPreGoals),
+        term_to_annotated(FirstCall, AnnDoLoop, AnnFirstCall),
+        term_to_annotated(PreGoals, AnnDoLoop, AnnPreGoals),
 	flatten_and_clean(PreGoals, FirstCall, AnnPreGoals, AnnFirstCall, 
                           NewGoal, AnnNewGoal),
 	BaseHead =.. [Name|Lasts],		% make auxiliary predicate
 	RecHead =.. [Name|RecHeadArgs],
 	RecCall =.. [Name|RecCallArgs],
-        transformed_annotate(AuxGoals, AnnDoLoop, AnnAuxGoals),
-        transformed_annotate(RecCall, AnnDoLoop, AnnRecCall),
-        transformed_annotate(RecHead, AnnDoLoop, AnnRecHead),
+        term_to_annotated(AuxGoals, AnnDoLoop, AnnAuxGoals),
+        term_to_annotated(RecCall, AnnDoLoop, AnnRecCall),
+        term_to_annotated(RecHead, AnnDoLoop, AnnRecHead),
         tr_goals_annotated(AuxGoals, AnnAuxGoals, AuxGoals1, AnnAuxGoals1, M),
-        inherit_annotation((AnnAuxGoals1,AnnLoopBody1), AnnDoLoop, AnnRecCall0),
+        annotated_create((AnnAuxGoals1,AnnLoopBody1), AnnDoLoop, AnnRecCall0),
         flatten_and_clean((AuxGoals1,LoopBody1), RecCall, AnnRecCall0,
                           AnnRecCall, BodyGoals, AnnBodyGoals), 
         BHClause = (BaseHead :- true, !),
@@ -6448,18 +6488,18 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
         
         (nonvar(AnnDoLoop) ->
 	    % Use anonymous variables in the base clause to avoid singleton warnings
-            transformed_annotate_anon(BHClause, AnnDoLoop, AnnBHClause),
-            transformed_annotate(Directive, AnnDoLoop, AnnDirective),
-            inherit_annotation((AnnRecHead :- AnnBodyGoals), AnnDoLoop, AnnRHClause),
+            term_to_annotated(BHClause, AnnDoLoop, AnnBHClause, false),
+            term_to_annotated(Directive, AnnDoLoop, AnnDirective),
+            annotated_create((AnnRecHead :- AnnBodyGoals), AnnDoLoop, AnnRHClause),
             /* create a annotated list of Code  [
                 AnnBHClause,
                 AnnRHClause,
                 AnnDirective
             ], */
-            inherit_annotation([AnnBHClause|AnnCode1], AnnDoLoop, AnnCode),
-            inherit_annotation([AnnRHClause|AnnCode2], AnnDoLoop, AnnCode1),
-            inherit_annotation([AnnDirective|AnnCode3], AnnDoLoop, AnnCode2),
-            inherit_annotation([], AnnDoLoop, AnnCode3)
+            annotated_create([AnnBHClause|AnnCode1], AnnDoLoop, AnnCode),
+            annotated_create([AnnRHClause|AnnCode2], AnnDoLoop, AnnCode1),
+            annotated_create([AnnDirective|AnnCode3], AnnDoLoop, AnnCode2),
+            annotated_create([], AnnDoLoop, AnnCode3)
         ;
             true
         ),
@@ -6495,7 +6535,7 @@ t_do(Illformed, _, _, _, M) :-
 
     :- mode flatten_and_clean(?, ?, ?, ?, -, -).
     flatten_and_clean(G, Gs, AG, AGs, (G,Gs), AFG) :- var(G), !,
-	inherit_annotation((AG,AGs), AG, AFG).
+	annotated_create((AG,AGs), AG, AFG).
     flatten_and_clean(true, Gs, _AG, AGs, Gs, AGs) :- !.
     flatten_and_clean((G1,G2), Gs0, AG, AGs0, Gs, AGs) :-
         !,
@@ -6503,7 +6543,7 @@ t_do(Illformed, _, _, _, M) :-
 	flatten_and_clean(G1, Gs1, AG1, AGs1, Gs, AGs),
 	flatten_and_clean(G2, Gs0, AG2, AGs0, Gs1, AGs1).
     flatten_and_clean(G, Gs, AG, AGs, (G,Gs), AFG) :-
-	inherit_annotation((AG,AGs), AG, AFG).
+	annotated_create((AG,AGs), AG, AFG).
 
 reset_name_ctr(Module) :-
 	store_set(name_ctr, Module, 0).
@@ -7276,170 +7316,6 @@ multifor_next([Idx0 | RevIdx0], RevFrom, RevTo, [Step | RevStep], RevIdx,
 
 
 %----------------------------------------------------------------------
-% Definite clause grammars (DCG)
-%----------------------------------------------------------------------
-
-
-:- inline('C'/3, tr_C/2).
-tr_C('C'(XXs,X,Xs), XXs=[X|Xs]).
-
-'C'([Token|Rest], Token, Rest).
-
-
-trdcg((Head --> Body), Clause, AnnDCG, AnnClause, Module) :-
-        check_head(Head),
-        same_annotation((AnnHead --> AnnBody), AnnDCG, 
-                        (AnnNewHead :- AnnNewBody), AnnClause0),
-        head(Head, NewHead, AnnHead, AnnNewHead, Pushback, AnnPushback, S0, _, S1, Module),
-	body(Body, NewBody, AnnBody, AnnNewBody0, S0, S1, Module),
-        (Pushback = true
-	    ->
-                Clause0 = (NewHead :- NewBody),
-                AnnNewBody = AnnNewBody0 
-	     ;	
-		Clause0 = (NewHead :- NewBody, Pushback),
-                inherit_annotation((AnnNewBody0,AnnPushback), AnnNewBody0, AnnNewBody)
-
-	),
-	% clause-expand resulting clause
-	expand_clause_annotated_(Clause0, AnnClause0, Clause, AnnClause, Module).
-
-check_head(H) :-
-	non_terminal(H, -126),
-	(H = (A, P)
-	    ->
-		non_terminal(A, -126),
-		error_if_not_list(P, -126)
-	     ;
-		true
-	).
-
-non_terminal(V, Where) :-
-	(var(V) ; number(V) ; string(V)),
-	!,
-	throw(Where).
-non_terminal(_, _).
-
-error_if_not_list(.(_,_), _) :-
-	!.
-error_if_not_list(_, Where) :-
-	throw(Where).
-
-:- mode head(+, -, ?, -, -, -, -, -, -, ++).
-head((Head , Pushbacklist), NewHead, AnnPHead, AnnNewHead, 
-     Pushback, AnnPushback, S0, S, S1, Module) :-
-	!,
-	goal(Head, NewHead, AnnHead, AnnNewHead, S0, S, _, Module),
-        annotated_match(AnnPHead, (AnnHead,AnnPushbacklist)), 
-	body(Pushbacklist, Pushback, AnnPushbacklist, AnnPushback, S, S1, Module).
-head(Head, NewHead, AnnHead, AnnNewHead, true, AnnTrue, S0, S, S, Module) :-
-        inherit_annotation(true, AnnHead, AnnTrue),
-        goal(Head, NewHead, AnnHead, AnnNewHead, S0, S, _, Module).
-
-body(X, Y, AnnX, AnnY, S0, S, Module) :-
-        body(X, Y0, AnnX, AnnY0, S0, S, Last, Module),
-        (Last == S0 ->			% nothing was added
-            app_eq(X, Y0, S0 = S, AnnY0, Y, AnnY)	% take care of -> (for ;)
-	;
-	    S = Last,
-	    Y = Y0,
-            AnnY = AnnY0
-	).
-
-body(X, Y, AnnX, AnnY, S0, S, Last, Module) :-
-	var(X),
-	!,
-	goal(X, Y, AnnX, AnnY, S0, S, Last, Module).
-body(( -?-> B), (-?-> NewB), AnnX, AnnY, S0, S1, Last, Module) :-
-	!,
-        same_annotation((-?-> AnnB), AnnX, (-?-> AnnNewB), AnnY),
-	body(B, NewB, AnnB, AnnNewB, S0, S1, Last, Module).
-body((B -> R), (NewB -> NewR), AnnX, AnnY, S0, S2, Last, Module) :-
-	!,
-        same_annotation((AnnB->AnnR), AnnX, (AnnNewB->AnnNewR), AnnY),
-	body(B, NewB, AnnB, AnnNewB, S0, S1, S1, Module),
-	body(R, NewR, AnnR, AnnNewR, S1, S2, Last, Module).
-body((B ; R), (NewB ; NewR), AnnX, AnnY, S0, S, S, Module) :-
-	!,
-        same_annotation((AnnB ; AnnR), AnnX, (AnnNewB ; AnnNewR), AnnY),
-	body(B, NewB, AnnB, AnnNewB, S0, S, Module),
-	body(R, NewR, AnnR, AnnNewR, S0, S, Module).
-body((B | R), (NewB ; NewR), AnnX, AnnY, S0, S, S, Module) :-
-	!,
-        same_annotation((AnnB | AnnR), AnnX, (AnnNewB ; AnnNewR), AnnY),
-	body(B, NewB, AnnB, AnnNewB, S0, S, Module),
-	body(R, NewR, AnnR, AnnNewR, S0, S, Module).
-body((B , R), Goal, AnnX, AnnGoal, S0, S, Last, Module) :-
-	!,
-        annotated_match(AnnX, (AnnB, AnnR)),
-	body(B, NewB, AnnB, AnnNewB, S0, S1, S1, Module),
-	body(R, NewR, AnnR, AnnNewR, S1, S, Last, Module),
-	app_goal(NewB, NewR, AnnNewB, AnnNewR, Goal, AnnGoal).
-body((Iter do Body), Goal, AnnDo, AnnGoal, S0, S, Last, Module) :-
-	!,
-	S = Last,
-	Goal = (fromto(S0, S1, S2, S),Iter do NewBody),
-        same_annotation((AnnIter do AnnBody), AnnDo, (AnnNewIter do AnnNewBody), AnnGoal), 
-        transformed_annotate(fromto(S0,S1,S2,S), AnnDo, AnnFromTo),
-        same_annotation(_IterAnn, AnnIter, (AnnFromTo,AnnIter), AnnNewIter),
-	body(Body, NewBody, AnnBody, AnnNewBody, S1, S2, Module).
-body(B, NewB, AnnB, AnnNewB, S0, S, Last, Module) :-
-        goal(B, NewB, AnnB, AnnNewB, S0, S, Last, Module).
-
-:- mode goal(?, -, ?, -, ?, ?, ?, ++).		% could be more precise?
-goal(X, phrase(X,S0,S), AnnX, AnnPhraseX, S0, S, S, _) :-
-	var(X),
-	!,
-        transformed_annotate(phrase(X,S0,S), AnnX, AnnPhraseX).
-goal({Goal}, Goal, AnnGoal, GoalAnn, S0, _, S0, _) :-
-	!, 
-        annotated_match(AnnGoal, {GoalAnn}).
-goal(!, (S0=S,!), AnnCut, AnnCutGoal, S0, S, S, _) :-
-	!,
-        transformed_annotate(S0=S, AnnCut, AnnEq),
-        inherit_annotation((AnnEq,AnnCut), AnnCut, AnnCutGoal).
-goal([], true, AnnNil, AnnTrue, S0, _, S0, _) :-
-	!,
-        transformed_annotate(true, AnnNil, AnnTrue).
-goal([H|T], Goal, AnnX, AnnGoal, S0, S, Last, Module) :-
-	!,
-        annotated_match(AnnX, [AnnH|AnnT]),
-	goal(T, IGoal, AnnT, AnnIGoal, S1, S, Last, Module),
-	( IGoal = (S1 = X) ->		% can be done at transformation time
-	    Goal = 'C'(S0,H,X),
-            transformed_annotate(Goal, AnnH, AnnGoal)
-	;
-            transformed_annotate('C'(S0,H,S1), AnnH, AnnC),
-            app_goal('C'(S0,H,S1), IGoal, AnnC, AnnIGoal, Goal, AnnGoal)
-	).
-goal(G, NewG, AnnG, AnnNewG, S0, S, S, _) :-
-	non_terminal(G, -127),
-	G =.. [F | L],
-	append(L, [S0, S], NL),
-	NewG =.. [F | NL],
-        transformed_annotate(NewG, AnnG, AnnNewG).
-
-app_goal(true, G, _, AnnG, Goal, AnnGoal) :- -?-> !, Goal = G, AnnGoal = AnnG.
-app_goal(G, true, AnnG, _, Goal, AnnGoal) :- -?-> !, Goal = G, AnnGoal = AnnG.
-app_goal(A, B, AnnA, AnnB, (A, B), AnnGoal) :-
-        inherit_annotation((AnnA,AnnB), AnnA, AnnGoal).
-
-%app_eq(Input, SoFar, Eq, AnnSoFar, Output, AnnOutput)
-app_eq((_->_), (A -> B), Eq, AnnSoFar, (A -> B1), AnnOut) :-
-	!,
-        annotated_match(AnnSoFar, (AnnA -> AnnB)),
-        transformed_annotate(Eq, AnnSoFar, AnnEq),
-	app_goal(B, Eq, AnnB, AnnEq, B1, AnnB1),
-        inherit_annotation((AnnA -> AnnB1), AnnSoFar, AnnOut).
-app_eq(_, (A -> B), Eq, AnnSoFar, ((A -> B), Eq), AnnOut) :- !,
-        transformed_annotate(Eq, AnnSoFar, AnnEq),
-        inherit_annotation((AnnSoFar,AnnEq), AnnSoFar, AnnOut).
-app_eq(_, Y, Eq, AnnY, Y1, AnnY1) :-
-        transformed_annotate(Eq, AnnY, AnnEq),
-	app_goal(Y, Eq, AnnY, AnnEq, Y1, AnnY1).
-:- define_macro((-->)/2, trdcg/5, [clause,global]).
-
-%----------------------------------------------------------------------
 % Singleton warnings
 %----------------------------------------------------------------------
 
@@ -7509,6 +7385,7 @@ warn(_, _).
 :- include("io.pl").
 :- include("setof.pl").
 :- include("tconv.pl").
+:- include("kernel_dcg.pl").
 :- include("kernel_bips.pl").
 :- include("tracer.pl").
 
