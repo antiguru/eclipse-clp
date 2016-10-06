@@ -24,7 +24,7 @@
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	Definite Clause Grammar implementation
 %		Part of module(sepia_kernel)
-% Version:	$Id: kernel_dcg.pl,v 1.1 2016/10/05 01:16:18 jschimpf Exp $
+% Version:	$Id: kernel_dcg.pl,v 1.2 2016/10/06 13:53:41 jschimpf Exp $
 %
 % Description:	DCG transformation and phrase/2,3 builtins.  This is a
 %		reimplementation replacing the code formerly in kernel.pl
@@ -32,37 +32,40 @@
 
 
 %:- export dcg_rule/4.
-dcg_rule((GrHeadTs --> GrBody), Clause, AnnRule, AnnClause) :-
+dcg_rule((GrHeadTs --> GrMBody), Clause, AnnRule, AnnClause) :-
 	valid_head(GrHeadTs),
+	Clause = (Head :- MBody),
+        same_annotation((AnnGrHeadTs-->AnnGrMBody), AnnRule, (AnnHead:-AnnMBody), AnnClause),
+	% If present, unwrap matching-prefix -?->
+	( nonvar(GrMBody), GrMBody = (-?->GrBody) ->
+	    MBody = (-?->Body),
+	    same_annotation((-?->AnnGrBody), AnnGrMBody, (-?->AnnBody), AnnMBody)
+	;
+	    GrBody=GrMBody, AnnGrBody=AnnGrMBody, Body=MBody, AnnBody=AnnMBody
+	),
 	( GrHeadTs = (GrHead,Ts) ->
 	    valid_head(GrHead),
-	    annotated_match(AnnRule, (AnnGrHeadTs-->AnnGrBody)),
 	    annotated_match(AnnGrHeadTs, (AnnGrHead,AnnTs)),
-	    Clause = (Head :- BodyEq),
-	    annotated_create((AnnHead:-AnnBodyEq), AnnRule, AnnClause),
-	    BodyEq = (Body, Eq),
-	    annotated_create((AnnBody,AnnEq), AnnTs, AnnBodyEq),
+	    Body = (Body1, Eq),
+	    annotated_create((AnnBody1,AnnEq), AnnTs, AnnBody),
 	    append_args(GrHead, [S0,S], Head),
 	    term_to_annotated(Head, AnnGrHead, AnnHead),	% TODO arguments
 	    dcg_terminals(Ts, Eq, AnnTs, AnnEq, S, S1),
-	    dcg_goal(GrBody, Body, AnnGrBody, AnnBody, S0, S1, _)
+	    dcg_goal(GrBody, Body1, AnnGrBody, AnnBody1, S0, S1, _)
 	;
-	    annotated_match(AnnRule, (AnnGrHeadTs-->AnnGrBody)),
-	    Clause = (Head :- Body),
-	    annotated_create((AnnHead:-AnnBody), AnnRule, AnnClause),
 	    append_args(GrHeadTs, [S0,S], Head),
 	    term_to_annotated(Head, AnnGrHeadTs, AnnHead),	% TODO arguments
 	    dcg_body(GrBody, Body, AnnGrBody, AnnBody, S0, S)
-	),
-	% Check whether annotated expansion is the same as unannotated
-	( nonvar(AnnClause) ->
-	    annotated_to_term(AnnClause, Clause1),
-	    ( Clause==Clause1 -> true ;
-		printf(error, "Transformation mismatch:%n%q%n%q%n", [Clause,Clause1]),
-		abort
-	    )
-	;
-	    true
+%	),
+%	% Check whether annotated expansion is the same as unannotated
+%	( nonvar(AnnClause) ->
+%	    annotated_to_term(AnnClause, Clause1),
+%	    ( Clause==Clause1 -> true ;
+%		printf(error, "Transformation mismatch:%n%q%n%q%n", [Clause,Clause1]),
+%		abort
+%	    )
+%	;
+%	    true
 	).
 
 
@@ -91,8 +94,15 @@ dcg_goal((L,R), Goal, AnnElem, AnnGoal, S0, S, Safety) :- !,
 	dcg_goal(R, RGoal, AnnR, AnnRGoal, S1, S, Safety),
 	conjoin(LGoal, RGoal, Goal, AnnLGoal, AnnRGoal, AnnGoal, AnnElem).
 dcg_goal((L;R), (LGoal;RGoal), AnnElem, AnnGoal, S0, S, safe) :- !,
-        same_annotation((AnnL;AnnR), AnnElem, (AnnLGoal;AnnRGoal), AnnGoal),
-	dcg_body(L, LGoal, AnnL, AnnLGoal, S0, S),
+	same_annotation((AnnL;AnnR), AnnElem, (AnnLGoal;AnnRGoal), AnnGoal),
+	( nonvar(L), L=(C->T) ->
+	    LGoal = (CGoal->TGoal),
+	    same_annotation((AnnC->AnnT), AnnL, (AnnCGoal->AnnTGoal), AnnLGoal),
+	    dcg_goal(C, CGoal, AnnC, AnnCGoal, S0, S1, _),
+	    dcg_body(T, TGoal, AnnT, AnnTGoal, S1, S)
+	;
+	    dcg_body(L, LGoal, AnnL, AnnLGoal, S0, S)
+	),
 	dcg_body(R, RGoal, AnnR, AnnRGoal, S0, S).
 dcg_goal((L->R), (LGoal->RGoal), AnnElem, AnnGoal, S0, S, Safety) :- !,
         same_annotation((AnnL->AnnR), AnnElem, (AnnLGoal->AnnRGoal), AnnGoal),
@@ -113,9 +123,6 @@ dcg_goal((L|R), (LGoalT;RGoal), AnnElem, AnnGoal, S0, S, safe) :- !,
 dcg_goal(\+L, \+LGoal, AnnElem, AnnGoal, S, S, unsafe) :- !,
         same_annotation(\+AnnL, AnnElem, \+AnnLGoal, AnnGoal),
 	dcg_goal(L, LGoal, AnnL, AnnLGoal, S, _, _).
-dcg_goal(-?->L, -?->LGoal, AnnElem, AnnGoal, S0, S, Safety) :- !,
-        same_annotation(-?->AnnL, AnnElem, -?->AnnLGoal, AnnGoal),
-	dcg_goal(L, LGoal, AnnL, AnnLGoal, S0, S, Safety).
 dcg_goal((Iter do Body), Goal, AnnElem, AnnGoal, S0, S, safe) :- !,
 	Goal = (fromto(S0,S1,S2,S),Iter do NewBody),
 	same_annotation((AnnIter do AnnBody), AnnElem, (AnnNewIter do AnnNewBody), AnnGoal),
@@ -175,11 +182,6 @@ dcg_terminals(X, _Goal, _AnnXs, _AnnGoal, _S0, _S) :-
 % 'unsafe' means the tail unification can not be propagated to the left
 :- mode terminate_body(+,+,-,?,-,?,-).
 terminate_body(safe, Goal, Goal, AnnGoal, AnnGoal, S, S).
-terminate_body(unsafe, (G1->G2), (G1->(G2,S0=S)), AnnCond, AnnGoal, S0, S) :- !,
-	annotated_match(AnnCond, (AnnG1->AnnG2)),
-	term_to_annotated((S0=S), AnnCond, AnnEq),
-	annotated_create((AnnG2,AnnEq), AnnCond, AnnG2Eq),
-        annotated_create((AnnG1->AnnG2Eq), AnnCond, AnnGoal).
 terminate_body(unsafe, Goal, (Goal,S0=S), AnnGoal, AnnGoalEq, S0, S) :-
 	term_to_annotated((S0=S), AnnGoal, AnnEq),
         annotated_create((AnnGoal,AnnEq), AnnGoal, AnnGoalEq).
