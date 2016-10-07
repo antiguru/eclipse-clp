@@ -728,20 +728,17 @@ Error:
 
 ",
 	amode:(get_chtab(+,-) is det),
-	desc:html("   Retrieves or checks the lexical class of a given character.
-
-<P>
+	desc:html("<P>
+   Retrieves or checks the lexical class of a given character.
+</P><P>
    Class is unified with the current lexical character class of Char.
-
-<P>
-   Char must be an integer in the range 0 to 255 (an escaped ASCII code is
-   also acceptable, eg 0'a = 98).
-
-<P>
-   The following table lists the character classes and the corresponding
-   default characters:
-
-<P>
+</P><P>
+   Char must be an integer character code, which would typically be
+   written in character-quote syntax, eg <code>0'a</code> instead of <code>98</code>.
+</P><P>
+   The following table lists the existing character classes and the default
+   set of characters in that class:
+</P><P>
 <PRE>
  Class          Default member characters
 ---------------------------------------------------------
@@ -753,7 +750,7 @@ Error:
  end_of_line    newline (NL)
  atom_quote     '
  string_quote   \"
- list_quote
+ list_quote	`
  chars_quote
  radix
  ascii
@@ -763,10 +760,18 @@ Error:
  escape         \\
  first_comment  /
  second_comment *
- symbol         # + - . : &lt; = &gt; ? @ ^ ` ~ &amp; $
+ symbol         # + - . : &lt; = &gt; ? @ ^ ~ &amp; $
  terminator
 </PRE>
-"),
+</P><P>
+   The table corresponds to the default eclipse_language settings.
+   Using other language dialects typically changes some of the assignments
+   on a module-local basis (e.g. for the iso dialect, the meaning of
+   single and double quotes is reversed).
+</P><P>
+   Note: the default class of the back-quote character ` was changed from
+   symbol to list_quote in ECLiPSe 7.0.
+</P>"),
 	args:["Char" : "Integer in the range 0 to 255.", "Class" : "Atom giving class name or variable."],
 	exceptions:[4 : "Char in not instantiated.", 5 : "Char is not an ASCII code.", 6 : "Char is not in the range 0 to 255."],
 	eg:"
@@ -796,27 +801,25 @@ Error
 	see_also:[set_chtab / 2, read_token / 2, read_token / 3]]).
 
 :- comment(set_chtab / 2, [
+	template:["local chtab(+Char, +Class)",
+		"export chtab(+Char, +Class)",
+		"set_chtab(+Char, +Class)"],
 	summary:"Sets the lexical class of character Char to class Class, this provides an
 interface to ECLiPSe 's lexical analyser.
 
 ",
 	index:["chtab"],
 	amode:(set_chtab(+,+) is det),
-	desc:html("   Changes the lexical class of a given character.  This is especially
-   useful for implementing compatibility packages.  The possible character
-   classes which a character may have been given are shown below.
-
-<P>
-Note
-   It is not recommended to change the class of the special characters,
-   since in some cases it might make it impossible to correctly parse
-   Prolog terms.
-
-<P>
-   The following table lists the character classes and the default
-   corresponding characters:
-
-<P>
+	desc:html("<P>
+   Changes the lexical class of a given character.  This is especially
+   useful for implementing compatibility packages.
+</P><P>
+   Char must be an integer character code, which would typically be
+   written in character-quote syntax, eg <code>0'a</code> instead of <code>98</code>.
+</P><P>
+   Class is the name of a character class.  The following table lists the
+   existing character classes and the default set of characters in that class:
+</P><P>
 <PRE>
  Class          Default member characters
 ---------------------------------------------------------
@@ -828,7 +831,7 @@ Note
  end_of_line    newline (NL)
  atom_quote     '
  string_quote   \"
- list_quote
+ list_quote	`
  chars_quote
  radix
  ascii
@@ -838,10 +841,22 @@ Note
  escape         \\
  first_comment  /
  second_comment *
- symbol         # + - . : &lt; = &gt; ? @ ^ ` ~ &amp; $
+ symbol         # + - . : &lt; = &gt; ? @ ^ ~ &amp; $
  terminator
 </PRE>
-"),
+</P><P>
+   The table corresponds to the default eclipse_language settings.
+   Using other language dialects typically changes some of the assignments
+   on a module-local basis (e.g. for the iso dialect, the meaning of
+   single and double quotes is reversed).
+</P><P>
+   It is not recommended to change the class of the special characters,
+   since in some cases it might make it impossible to correctly parse
+   Prolog terms.
+</P><P>
+   Note: the default class of the back-quote character ` was changed from
+   symbol to list_quote in ECLiPSe 7.0.
+</P>"),
 	args:["Char" : "Integer in range 0 to 255.", "Class" : "Atom indicating the character class."],
 	exceptions:[4 : "Char and/or Class are not instantiated.", 5 : "Char is not an integer in the range 0 to 255.", 6 : "Class is not a valid lexical class."],
 	eg:"
@@ -865,12 +880,8 @@ Success:
 Error:
    set_chtab(\"a\",symbol).       (Error 5)
    set_chtab(97,fred).          (Error 6)
-
-
-
-
 ",
-	see_also:[(local)/1, get_chtab / 2, read_token / 2, read_token / 3]]).
+    see_also:[(local)/1, (export)/1, get_chtab / 2, read_token / 2, read_token / 3]]).
 
 :- comment(erase_macro / 2, [
 	summary:"Erases the macro definition for TransTerm done in the current module
