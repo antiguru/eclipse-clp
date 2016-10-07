@@ -25,7 +25,7 @@
 :- comment(categories, ["Compatibility","Constraints"]).
 :- comment(summary, "lib(conjunto) compatibility wrapper for lib(fd_sets)").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2009/07/16 09:11:25 $").
+:- comment(date, "$Date: 2016/10/07 02:15:55 $").
 :- comment(copyright, "Cisco Systems, Inc.").
 
 :- comment(desc, html("<P>
@@ -80,6 +80,9 @@ tr_slists(no_macro_expansion({}(CommaSequence)), _Set) :-
     	comma_to_list(X2, List1, List0).
     comma_to_list(X1, [X1|List0], List0) :- nonvar(X1).
 
+
+:- export
+	chtab(0'`, symbol).	% needed in ECLiPSe>=7.0 (disables list-quote!)
 
 :- export
 	op(700, xfx, `<>),

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: sicstus.pl,v 1.3 2012/02/06 13:24:43 jschimpf Exp $
+% Version:	$Id: sicstus.pl,v 1.4 2016/10/07 02:13:06 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -46,7 +46,7 @@
 :- comment(summary, 'SICStus Prolog Compatibility Package').
 :- comment(author, 'Micha Meier, ECRC Munich').
 :- comment(copyright, 'Cisco Systems, Inc').
-:- comment(date, '$Date: 2012/02/06 13:24:43 $').
+:- comment(date, '$Date: 2016/10/07 02:13:06 $').
 :- comment(desc, html('
     ECLiPSe includes a SICStus Prolog compatibility package to ease
     the task of porting SICStus Prolog applications to ECLiPSe Prolog. 
@@ -104,7 +104,8 @@
 :- pragma(deprecated_warnings(not_reexports)).
 
 :- reexport quintus except
-	load/1.
+	load/1,
+	chtab(_,_).			% somwhat different, see below
 
 :- export
 	op(1150, fx, block).
@@ -122,7 +123,9 @@
 	when/2.
 	
 :- export
-        chtab(0'\,escape).  % character escapes are on by default in SICStus
+	chtab(0'\, escape),		% character escapes are on by default in SICStus
+	chtab(0'`, string_quote),	% not sure what it does in SICStus, but it's not a symbol
+	chtab(0'", list_quote).		% was string_quote
 
 :- local
 	op(1100,  xfy, (do)),

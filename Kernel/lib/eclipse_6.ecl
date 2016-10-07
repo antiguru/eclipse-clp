@@ -28,12 +28,33 @@
 :- comment(summary, "Compatibility definitions for ECLiPSe 6.X").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Joachim Schimpf, Coninfer Ltd").
-:- comment(date, "$Date: 2016/08/08 14:34:24 $").
+:- comment(date, "$Date: 2016/10/07 02:13:06 $").
+:- comment(desc, html("<P>
+    This library is meant to help with problems that might occur when
+    migrating an application from ECLiPSe 6.x to 7.x by reverting some
+    changes that were introduced.  It provides:
+<UL>
+    <LI>a version of term_variables/2 with the old behaviour</LI>
+    <LI>select/3 as an alias for stream_select/3</LI>
+    <LI>the old parser behaviour for bignums in radix notation</LI>
+    <LI>the right quote character as a symbol rather than a quote</LI>
+</UL>
+    The library can be loaded at the beginning of a source module using
+    <PRE>
+    :- lib(eclipse_6).
+    </PRE>
+    It should only be used as a temporary solution, please update your
+    application code, or copy the specific workaround from the source
+    of this library.
+</P>")).
 
 %----------------------------------------------------------------------
 
 % the default was changed in ECLiPSe 7.0
 :- export syntax_option(not based_bignums).
+
+% right quote is list_quote since ECLiPSe 7.0
+:- export chtab(0'`, symbol).
 
 % Returns variable list in reverse order
 :- export term_variables/2.

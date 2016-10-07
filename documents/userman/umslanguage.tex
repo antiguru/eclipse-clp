@@ -20,7 +20,7 @@
 %
 % END LICENSE BLOCK
 %
-% $Id: umslanguage.tex,v 1.6 2014/02/05 03:38:42 jschimpf Exp $
+% $Id: umslanguage.tex,v 1.7 2016/10/07 02:12:22 jschimpf Exp $
 %
 % AUTHOR        Joachim Schimpf, IC-Parc, Imperial College, London
 %
@@ -970,8 +970,9 @@ to have a special string data type.
 The main argument against strings is that everything that can be done
 with strings can as well be done with atoms or with lists, depending
 on the application.
-Nevertheless, in {\eclipse} it was decided to have the string data type, so that
-users that are aware of the advantages and disadvantages of the
+Nevertheless, in {\eclipse} it was decided to have the string data type.
+One reason is the easier interface to other programming languages.
+The other is that users who are aware of the advantages and disadvantages of the
 different data types can always choose the most appropriate one.
 The system provides efficient built-ins for converting from one data
 type to another.
@@ -1098,14 +1099,34 @@ Most {\eclipse} built-ins that deliver text objects (like
 \bipref{getcwd/1}{../bips/kernel/opsys/getcwd-1.html},
 \bipref{read_string/3,4,5}{../bips/kernel/iochar/read_string-5.html} and many
 others) return strings.
-Strings can be created and their contents may be read using the string
-stream feature (cf. section \ref{stringio}).
+
 By means of the built-ins
 \bipref{atom_string/2}{../bips/kernel/stratom/atom_string-2.html},
-\bipref{string_list/2}{../bips/kernel/stratom/string_list-2.html},
-\bipref{number_string/2}{../bips/kernel/stratom/number_string-2.html} and
+\bipref{string_list/2,3}{../bips/kernel/stratom/string_list-2.html},
+\bipref{string_chars/2}{../bips/kernel/stratom/string_chars-2.html},
+\bipref{number_string/2}{../bips/kernel/stratom/number_string-2.html},
 \bipref{term_string/2}{../bips/kernel/termmanip/term_string-2.html},
-strings can easily be converted to other data types.
+\bipref{text_to_string/2}{../bips/kernel/stratom/text_to_string-2.html},
+\bipref{atomics_to_string/2,3}{../bips/kernel/stratom/atomics_to_string-3.html},
+strings can easily be converted to and from other data types.
+
+String manipulation is provided by builtins like
+\bipref{string_concat/3}{../bips/kernel/stratom/string_concat-3.html},
+\bipref{string_code/3}{../bips/kernel/stratom/string_code-3.html},
+\bipref{string_codes/2}{../bips/kernel/stratom/string_codes-2.html},
+\bipref{string_char/3}{../bips/kernel/stratom/string_char-3.html},
+\bipref{string_chars/2}{../bips/kernel/stratom/string_chars-2.html},
+\bipref{split_string/4}{../bips/kernel/stratom/split_string-4.html}, and
+\bipref{substring/5}{../bips/kernel/stratom/substring-5.html}.
+The regular expression library
+\bipref{library(regex)}{../bips/lib/regex/index.html}
+also operates on strings.
+
+The string stream feature (cf. section \ref{stringio}) allows strings to
+be opened like I/O streams, thus providing another way of creating or
+analysing strings.
+
+
 
 \subsection{Quoted lists}
 

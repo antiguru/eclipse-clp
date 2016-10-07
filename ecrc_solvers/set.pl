@@ -26,6 +26,8 @@
 
 :- reexport(s_lists).
 
+:- export chtab(0'`, symbol).	% needed for ECLiPSe>=7.0
+
 :- export
 	op(700, xfx, `<>),
 	op(700, xfx, `=),

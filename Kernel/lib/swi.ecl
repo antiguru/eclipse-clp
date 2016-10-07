@@ -1,7 +1,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Copyright:	This file is in the public domain
-% Version:	$Id: swi.ecl,v 1.10 2016/07/24 19:34:44 jschimpf Exp $
+% Version:	$Id: swi.ecl,v 1.11 2016/10/07 02:13:06 jschimpf Exp $
 % Description:	SWI Prolog compatibility package
 % ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@
 :- comment(summary, 'SWI-Prolog compatibility package').
 :- comment(author, 'J Chamois').
 :- comment(copyright, 'This file is in the public domain').
-:- comment(date, '$Date: 2016/07/24 19:34:44 $').
+:- comment(date, '$Date: 2016/10/07 02:13:06 $').
 :- comment(desc, html('
     This library is incomplete, and intended to ease the task of
     porting SWI-Prolog programs to ECLiPSe Prolog, or to add modules
@@ -113,10 +113,7 @@
 	syntax_option(bar_is_no_atom),
 	syntax_option(no_attributes),
 	syntax_option(no_curly_arguments),
-	syntax_option(nl_in_quotes),
-
-	chtab(0'`, string_quote),
-	chtab(0'", list_quote).
+	syntax_option(nl_in_quotes).
 
 
 % Type tests
@@ -436,7 +433,7 @@ sformat(String, Format) :-
 
 :- export sformat/3.
 sformat(String, Format, Args) :-
-	open(string(``), write, S),
+	open(string(""), write, S),
 	format(S, Format, Args),
 	get_stream_info(S, name, String0),
 	close(S),
@@ -458,7 +455,7 @@ convert_time(Time, Year, Month, Day, Hour, Minute, Second, MilliSeconds) :-
 :- export convert_time/2.
 convert_time(Time, String) :-
 	Seconds is fix(Time),
-	local_time_string(Seconds, `%c`, String).
+	local_time_string(Seconds, "%c", String).
 
 
 % Modules

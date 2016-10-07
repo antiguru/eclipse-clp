@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.21 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.22 2016/10/07 02:13:58 jschimpf Exp $
  */
 
 /*
@@ -139,7 +139,7 @@ static syntax_desc	default_syntax_desc = {
 /*   P   Q   R   S   T   U   V   W   X   Y   Z   [   \  ]   ^   _ */
     UC, UC, UC, UC, UC, UC, UC, UC, UC, UC, UC, DS, ES, DS, SY, UL,
 /*   `   a   b   c   d   e   f   g   h   i   j   k   l   m   n   o */
-    SY, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC,
+    LQ, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC,
 /*   p   q   r   s   t   u   v   w   x   y   z   {   |   }   ~ del */
     LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, LC, DS, DS, DS, SY, DL,
 /*  80	                       Latin-1                          8f */

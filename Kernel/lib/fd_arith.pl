@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_arith.pl,v 1.4 2016/08/08 14:34:24 jschimpf Exp $
+% Version:	$Id: fd_arith.pl,v 1.5 2016/10/07 02:13:06 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -53,7 +53,7 @@
 :- export op(780, yfx, #=>).
 :- export op(790, yfx, #<=>).
 :- export op(800, xfx, isd).
-:- export op(400, yfx, *`).		% to print qeqsquarecheck
+%:- export op(400, yfx, *`).		% to print qeqsquarecheck
 
 % Export transformation routines.
 :- export

@@ -46,6 +46,8 @@
 :- comment(author, "Francisco Azevedo, CENTRIA").
 :- comment(status, evolving).
 
+:- export chtab(0'`, symbol).		% needed for ECLiPSe>=7.0
+
 :- export
 	op(650, xfx, `= ), `=  /2,
 	op(650, xfx, `/=), `/= /2,	%different/2
