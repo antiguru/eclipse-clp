@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.22 2016/10/07 02:13:58 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.23 2016/10/09 02:12:41 jschimpf Exp $
  */
 
 /*
@@ -627,18 +627,13 @@ _name_:
 	stop = pw + StreamLexSize(nst);
 	*pw++ = cc;
 	Get_Ch_Class(cc, ctype);
-	for(;;)
+	while (Alphanum(ctype))
 	{
-	    if (Alphanum(ctype))
-	    {
-		if (pw == stop) {
-		    Extend_Lex_Aux(nst, pw, stop);
-		}
-		*pw++ = cc;
-		Get_Ch_Class_And_Complete(cc, ctype);
-	    } else {
-	    	break;
+	    if (pw == stop) {
+		Extend_Lex_Aux(nst, pw, stop);
 	    }
+	    *pw++ = cc;
+	    Get_Ch_Class_And_Complete(cc, ctype);
 	}
 	Backup_(cc, 1);
 	*pw = 0;
@@ -656,20 +651,14 @@ _symbol_:
 	stop = pw + StreamLexSize(nst);
 	*pw++ = cc;
 	Get_Ch_Class(cc, ctype);
-	for(;;)
+	while(Symbol(ctype) && ctype != RE)
 	{
-	    if (Symbol(ctype) && ctype != RE)
-	    {
-		if (pw == stop) {
-		    Extend_Lex_Aux(nst, pw, stop);
-		}
-		*pw++ = cc;
-		Get_Ch_Class_And_Complete(cc, ctype);
-	    } else {
-	    	break;
+	    if (pw == stop) {
+		Extend_Lex_Aux(nst, pw, stop);
 	    }
+	    *pw++ = cc;
+	    Get_Ch_Class_And_Complete(cc, ctype);
 	}
-#ifdef ISO_FULLSTOP
 	Backup_(cc, 1);
 	if ((pw - StreamLexAux(nst)) == 1  &&  *StreamLexAux(nst) == '.'
 	    && (ctype == BS || ctype == NL || ctype == RE || ctype == CM))
@@ -681,27 +670,6 @@ _symbol_:
 	    Set_TokenString(StreamLexAux(nst), pw - StreamLexAux(nst));
 	    tok = IDENTIFIER;
 	}
-#else
-	if ((pw - StreamLexAux(nst)) == 1  &&  *StreamLexAux(nst) == '.'
-	    && (ctype == BS || ctype == NL || ctype == RE || ctype == CM))
-	{
-	    if (ctype == RE || ctype == CM)
-	    {
-		Backup_(cc, 1);
-	    }
-	    else if (ctype == NL)
-	    {
-		StreamLine(nst)++;
-	    }
-	    Make_Atom(&token->term, d_.eocl);
-	    tok = EOCL;				/* full stop */
-	} else {
-	    Backup_(cc, 1);
-	    *pw = 0;
-	    Set_TokenString(StreamLexAux(nst), pw - StreamLexAux(nst));
-	    tok = IDENTIFIER;
-	}
-#endif
 	break;
 
 
