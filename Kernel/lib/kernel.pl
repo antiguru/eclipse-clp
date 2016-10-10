@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: kernel.pl,v 1.64 2016/10/05 01:16:18 jschimpf Exp $
+% Version:	$Id: kernel.pl,v 1.65 2016/10/10 01:40:03 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -6459,7 +6459,7 @@ t_do((Specs do LoopBody), NewGoal, AnnDoLoop, AnnNewGoal, M) :-
         tr_goals_annotated(LoopBody, AnnLoopBody, LoopBody1, AnnLoopBody1, M),
 %	printf("Local vars: %w / %vw%n", [LocalVars, LocalVars]),
 %	printf("Loop body: %Vw%n", [LoopBody1]),
-        check_singletons(LoopBody1, LocalVars),
+        check_singletons(LoopBody1, LocalVars, AnnDoLoop),
 	length(Lasts, Arity),
         aux_pred_name(M, Arity, Name),
 	FirstCall =.. [Name|Firsts],		% make replacement goal
@@ -6907,7 +6907,7 @@ get_spec('>>'(Specs1, Specs2),
 	    tr_goals(Goals1, Goals11, Module),
 	    tr_goals(Pregoals2, Pregoals21, Module)
 	),
-	check_singletons(Firsts2 - Pregoals2, Locals1),
+	check_singletons(Firsts2 - Pregoals2, Locals1, _),
 	NextExtraGoal =
 		( Firsts2 = Lasts2 ->
 		    NextRecCall
@@ -7319,14 +7319,14 @@ multifor_next([Idx0 | RevIdx0], RevFrom, RevTo, [Step | RevStep], RevIdx,
 % Singleton warnings
 %----------------------------------------------------------------------
 
-check_singletons(Term, QuantifiedVars) :-
+check_singletons(Term, QuantifiedVars, LoopLocation) :-
 	get_flag(variable_names, check_singletons),
 	collect_variables(QuantifiedVars^Term, [], Vars),
 	sort(0, =<, Vars, SortedVars),
 	SortedVars = [_X|Xs],
-	check(_X, Xs, QuantifiedVars),
+	check(_X, Xs, QuantifiedVars, LoopLocation),
 	fail.
-check_singletons(_, _).
+check_singletons(_, _, _).
 
 :- mode collect_variables(?,?,-).
 collect_variables(_X, Xs, [_X|Xs]) :-
@@ -7340,35 +7340,35 @@ collect_variables(T, Xs0, Xs) :-
 	T =.. [_|L],
 	collect_variables(L, Xs0, Xs).
 
-check(_X, [], QV) :-
-	warn(_X, QV).
-check(_X, [_Y|Ys], QV) :-
+check(_X, [], QV, LL) :-
+	warn(_X, QV, LL).
+check(_X, [_Y|Ys], QV, LL) :-
 	( _X == _Y ->
-	     skip(_Y, Ys, QV)
+	     skip(_Y, Ys, QV, LL)
 	;
-	     warn(_X, QV),
-	     check(_Y,Ys, QV)
+	     warn(_X, QV, LL),
+	     check(_Y,Ys, QV, LL)
 	).
 
-skip(_, [], _).
-skip(_X, [_Y|Ys], QV) :-
+skip(_, [], _, _).
+skip(_X, [_Y|Ys], QV, LL) :-
 	( _X == _Y ->
-	     skip(_Y, Ys, QV)
+	     skip(_Y, Ys, QV, LL)
 	;
-	     check(_Y,Ys, QV)
+	     check(_Y,Ys, QV, LL)
 	).
 
-warn(_X, QuantifiedVars) :-
+warn(_X, QuantifiedVars, LoopLocation) :-
 	get_var_info(_X, name, Name),
 	atom_string(Name, S),
 	not substring(S, "_", 1),
 	!,
 	( occurs(_X, QuantifiedVars) ->
-	    error(138, quantified(Name))
+	    error(138, quantified(Name,LoopLocation))
 	;
-	    error(138, unquantified(Name))
+	    error(138, unquantified(Name,LoopLocation))
 	).
-warn(_, _).
+warn(_, _, _).
 
 
 %-----------------------------------------------------------------------

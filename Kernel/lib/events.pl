@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.36 2016/09/20 22:27:39 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.37 2016/10/10 01:40:03 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -555,19 +555,19 @@ short_stream_name(Device, Device, Stream, Name) :-	% tty,socket,pipe,null
 %-------------------------------------
 
 singleton_in_loop(N, Occurrence) :-
-	( Occurrence = quantified(Name) ->
+	( Occurrence = quantified(Name, Location) ->
 	    printf(warning_output,
 		"*** Warning: Singleton local variable %a in do-loop (not used in loop body)%n",
 		[Name])
-	; Occurrence = unquantified(Name) ->
+	; Occurrence = unquantified(Name, Location) ->
 	    printf(warning_output,
 		"*** Warning: Singleton local variable %a in do-loop, maybe param(%a) missing?%n",
 		[Name,Name])
 	;
 	    error_handler(N, Occurrence)
 	),
-	( compiled_file(File, Line) ->
-	    printf(warning_output, "\tbefore line %d in file %s%n", [Line, File])
+	( nonvar(Location), annotated_term{line:Line,file:File} = Location ->
+	    printf(warning_output, "in line %d in file %s%n", [Line, File])
 	;
 	    true
 	),
