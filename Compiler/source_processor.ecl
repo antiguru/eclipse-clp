@@ -22,14 +22,14 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: source_processor.ecl,v 1.16 2013/02/14 02:55:20 jschimpf Exp $
+% Version:	$Id: source_processor.ecl,v 1.17 2016/10/10 01:34:09 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(source_processor).
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Tools for processing ECLiPSe sources").
-:- comment(date, "$Date: 2013/02/14 02:55:20 $").
+:- comment(date, "$Date: 2016/10/10 01:34:09 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 
@@ -530,40 +530,17 @@ source_read(OldPos, NextPos, Kind, SourceTerm) :-
     read_next_term(In, _Term, _AnnTermOrEof, _Vars, _Error, Comment, options{keep_comments:true}, _Module) ?-
 	read_comment(In, Comment),	% may fail
 	!.
-    read_next_term(In, TermOrEof, AnnTermOrEof, Vars, _Error, _Comment, OptFlags, Module) :-
-	read_special(In, TermOrEof, AnnTermOrEof, Vars, OptFlags, Module),
-	!.
-    read_next_term(In, _TermOrEof, _AnnTermOrEof, [], error, _Comment, _OptFlags, _Module) :-
-	skip_to_fullstop(In).		% syntax error
-
-
-    % read one term, fail if syntax error
-    read_special(In, TermOrEof, AnnTermOrEof, Vars, options{with_annotations:WithAnn}, Module) ?- !,
+    read_next_term(In, TermOrEof, AnnTermOrEof, Vars, _Error, _Comment, options{with_annotations:WithAnn}, Module) ?-
+	% read one term, fail if syntax error
 	( WithAnn == true ->
 	    Vars = [],
 	    read_annotated(In, TermOrEof, AnnTermOrEof)@Module
 	;
 	    readvar(In, TermOrEof, Vars)@Module
 	),
-	% If the read consumed a layout char as part of the fullstop,
-	% put it back. Different cases (| indicates stream position):
-	%	term|<eof>	=> don't unget
-	%	term.|<eof>	=> don't unget
-	%	term. |<eof>	=> unget
-	%	term. |other	=> unget
-	%	term.|%comment	=> don't unget
-	% The point of doing this is so that pretty-printers don't lose
-	% any linefeeds etc that were present in the source.
-	( TermOrEof == end_of_file ->
-	    true
-	;
-	    unget(In), 
-	    get_cc(In, _C, Class),
-	    ( Class = blank_space -> unget(In)
-	    ; Class = end_of_line -> unget(In)
-	    ; true
-	    )
-	).
+	!.
+    read_next_term(In, _TermOrEof, _AnnTermOrEof, [], error, _Comment, _OptFlags, _Module) :-
+	skip_to_fullstop(In).		% syntax error
 
 
 apply_clause_expansion(Term, AnnTerm, TransTerm, AnnTransTerm,
