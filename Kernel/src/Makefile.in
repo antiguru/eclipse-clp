@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.23 2016/08/12 10:57:29 jschimpf Exp $
+# $Id: Makefile.in,v 1.24 2016/10/24 01:30:43 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -616,7 +616,7 @@ TCL_LIBRARIES =	menu.tcl
 
 KERNEL_PARTS =	kernel.pl events.pl meta.pl array.pl pdb.pl debug.pl \
 		dynamic.pl environment.pl io.pl setof.pl tconv.pl \
-		kernel_bips.pl tracer.pl
+		kernel_bips.pl kernel_dcg.pl tracer.pl
 
 COMPILER_MODULES = \
 		ecl_compiler \
