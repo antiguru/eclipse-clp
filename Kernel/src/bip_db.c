@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.20 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.21 2016/10/24 01:41:13 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1486,7 +1486,7 @@ p_define_macro(value vproc, type tproc, value vtrans, type ttrans, value vprop, 
 		Bip_Error(flag & TR_GLOBAL? GLOBAL_TR_EXISTS: TR_IN_MOD);
 	    }
 
-	    DidMacro(dp) = 1;	/*TODO: bitfield - atomic update */
+	    DidMacro(dp) = 1;
 	    md = (macro_desc *) hg_alloc(sizeof(macro_desc));
 	    prop->tag.kernel = TPTR;
 	    prop->val.ptr = (pword *) md;

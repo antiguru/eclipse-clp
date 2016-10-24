@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.20 2016/09/21 11:33:25 jschimpf Exp $
+ * $Id: types.h,v 1.21 2016/10/24 01:41:13 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -65,21 +65,21 @@
 
 struct dict_item
 {
-    word		arity;		/* functor arity		     */
-    struct s_pword	*string;	/* functor name string		     */
+    word		arity;		/* functor arity (r/o)		     */
+    struct s_pword	*string;	/* functor name string (r/o)	     */
 #ifndef EC_EXTERNAL
-    unsigned		macro:1;	/* maybe a macro		     */
-    unsigned		season:1;	/* season it was last accessible 0/1 */
-    unsigned		module:2;	/* module * locked * unlocked	     */
-    unsigned		eval:1;		/* unused			     */
-    unsigned		stability:2;	/* PERMANENT, CODE_REF or VOLATILE   */
-    unsigned		head:1;		/* head of the collision chain	     */
-    unsigned		bitfield:19;	/* bit mask for the var names	     */
-    unsigned		isop:3;		/* maybe an operator		     */
-    unsigned		fill:2;
-    struct pri		*procedure;	/* procedure chain		     */
-    struct property	*properties;	/* property chain		     */
+    struct pri		*procedure;	/* procedure chain (proc list lock)  */
+    struct property	*properties;	/* property chain (property lock)    */
     struct dict_item	*next;		/* next did with same hash value     */
+					/* (dictionary lock)		     */
+    uint32		bitfield;	/* bit mask for the var names (r/o)  */
+    char		season;		/* last access (atomic update)       */
+    char		dict_flags;	/* stability,head (dictionary lock)  */
+
+    unsigned		macro:1;	/* maybe a macro		     */
+    unsigned		module:2;	/* module * locked * unlocked	     */
+    unsigned		isop:3;		/* maybe an operator		     */
+					/* (all property lock)		     */
 #endif
 };
 

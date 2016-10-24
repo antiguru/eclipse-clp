@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.4 2016/09/20 22:26:35 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.5 2016/10/24 01:41:13 jschimpf Exp $
  *
  */
 
@@ -1099,6 +1099,7 @@ ecl_request(ec_eng_t *ec_eng, int request)
     if (EngIsDead(ec_eng))
     {
 	DbgPrintf("Ignoring request(%d) - engine dead!\n", request);
+	ec_eng->needs_dgc_marking = 0;
     	res = PEXITED;
     }
     else if (EngIsPaused(ec_eng))

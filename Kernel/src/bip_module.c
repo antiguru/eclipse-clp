@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.15 2016/09/17 19:15:42 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.16 2016/10/24 01:41:13 jschimpf Exp $
  */
 
 /*
@@ -355,7 +355,7 @@ p_pr(value v, type t, ec_eng_t *ec_eng)
     int		yes = 0;
     
     Get_Proc_Did(v, t, wdid);
-    proc = DidPtr(wdid)->procedure;
+    proc = wdid->procedure;
     
     while (proc)
     {
@@ -865,7 +865,7 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod, ec
 
 	(void) erase_global_property(module.did, MODULE_PROP);
 
-	DidPtr(module.did)->module = 0;
+	module.did->module = 0;
 
 	Succeed_;
 }

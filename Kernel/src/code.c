@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.21 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.22 2016/10/24 01:41:13 jschimpf Exp $
  */
 
 /********************************************************************
@@ -660,7 +660,7 @@ code_init(int flags)
     }
     Store_Var_Alloc(2, 1, 1);	/* 4 words */
     Store_3(MoveAML, ArgReg(2), Esize(2))
-    Store_3(CallfP, DidPtr(in_dict("instance_simple",2))->procedure, 0)
+    Store_3(CallfP, in_dict("instance_simple",2)->procedure, 0)
     Store_3(Get_valueLL, Esize(1), Esize(2))
     Store_i(Exit);
     Store_i(Code_end);
@@ -729,7 +729,7 @@ code_init(int flags)
 	Local_Kernel_Proc(did1, ARGFIXEDWAM, code);
 	call_query_proc = pd;
 	Store_3(Get_integerAM, ArgReg(3), 0);
-	Store_2(JmpdP, DidPtr(d_.call_body->procedure));
+	Store_2(JmpdP, d_.call_body->procedure);
 	Store_i(Code_end)
 
 	code = &query_code_[0];
@@ -784,7 +784,7 @@ code_init(int flags)
     Store_3(MoveAMAM, ArgReg(2), ArgReg(3))
     Store_3(Put_integerAM, ArgReg(2), 0)
     Store_2(Put_variableAM, ArgReg(4))
-    Store_3(CallP, DidPtr(in_dict("load_eco",4))->procedure, 0)
+    Store_3(CallP, in_dict("load_eco",4)->procedure, 0)
     Store_2(Exit_emulator, PSUCCEED)
     Store_i(Code_end);
 
@@ -956,7 +956,7 @@ code_init(int flags)
 	aux = code++;	/* alternative is ReFail */
     Store_2(Allocate, Esize(0))
     /* Trigger pending fail-events */
-    Store_3(CallP, DidPtr(d_.true0)->procedure, 0)
+    Store_3(CallP, d_.true0->procedure, 0)
 	*(vmcode**)aux = code;
     Store_i(Refail)
     Store_i(Code_end);
@@ -1212,7 +1212,7 @@ code_init(int flags)
     Store_3(CallP, pd, Esize(2));
 
     Store_3(Put_integerAM, ArgReg(1), -1);
-    Store_2(ChainP, DidPtr(in_dict("exit0", 1))->procedure);
+    Store_2(ChainP, in_dict("exit0", 1)->procedure);
     Store_i(Code_end);
 
 /*

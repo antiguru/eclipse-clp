@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.17 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.18 2016/10/24 01:41:13 jschimpf Exp $
  */
 
 /*
@@ -113,10 +113,10 @@
 #include	"os_support.h"
 
 
+/* Make sure all calls to this are outside dictionary-locked regions! */
 #define LogPrintf(s,...) { \
 	if (EclGblFlags & GC_VERBOSE) { \
-	    p_fprintf(log_output_, s, __VA_ARGS__); \
-	    ec_flush(log_output_); \
+	    p_fprintff(log_output_, s, __VA_ARGS__); \
 	} \
     }
 
@@ -124,8 +124,7 @@
 static dident	_in_dict_opt(char *name, int length, int hval, int arity, int options);
 static void	_std_did_init(void);
 static void	_constant_table_init(int);
-static int	_gc_dictionary(int);
-static void	_finish_gc(int);
+static void	_finish_gc();
 
 
 
@@ -276,6 +275,7 @@ static struct dictionary {
 	int	gc_interval;	/* allocations between triggering gc */
 	int	gc_number;	/* number of garbage collections so far (statistics only) */
 	word	gc_time;	/* and the time they took */
+	unsigned long total_collected;/* and the number of collected entries */
 	int	string_used;
 	int	string_free;
 } *dict;
@@ -313,6 +313,7 @@ dict_init(int flags)
 	dict->gc_countdown = 0;
 	dict->gc_number = 0;
 	dict->gc_time = 0;
+	dict->total_collected = 0;
 	dict->dgc_step_count = 0;
 	dict->current_season = 0;
 	mt_mutex_init(&dict->lock);
@@ -446,19 +447,13 @@ _alloc_dict_item(pword *dict_string, int arity)
     dip->season = dict->current_season;
     dip->module = 0;
     dip->isop = 0;
-    dip->head = 0;
-    dip->stability = 0;
+    dip->dict_flags = 0;
 
     dict->free_item_list = dip->next; /* unlink it from the free list */
     dict->items_free--;
 
     if (--dict->gc_countdown == 0)
-#define DICT_GC_VIA_SIGNAL
-#ifdef DICT_GC_VIA_SIGNAL
 	ec_signal_dict_gc();		/* trigger garbage collection */
-#else
-	_gc_dictionary(0);
-#endif
 
     return dip;
 }
@@ -600,7 +595,7 @@ _in_dict_opt(char *name,	/* might not be NUL-terminated! */
     else	/* the first entry in this hash slot */
     {
 	dip->next = dip;
-	dip->head = 1;
+	Set_Did_Head(dip);
 	dict->hash_table[hval] = dip;
 	dict->table_usage++;
     }
@@ -652,7 +647,7 @@ check_did(dident old_did, int new_arity)
 	    return dip;
 	}
 	dip = dip->next;
-    } while (dip != DidPtr(old_did));
+    } while (dip != old_did);
     mt_mutex_unlock(&dict->lock);
     return D_UNKNOWN;
 }
@@ -681,18 +676,17 @@ check_did(dident old_did, int new_arity)
  *	}
  */
 
-static int
-_next_functor(			/* returns 0 when dictionary exhausted	*/
+int
+next_functor(			/* returns 0 when dictionary exhausted	*/
     	int *pidx,		/* in/out: current dict index		*/
 	dident *pdid,		/* output: valid did			*/
-	int weak_access,	/* do not consider lookup as a "use"	*/
-	int not_locked		/* need dictionary locking */
+	int weak_access		/* do not consider lookup as a "use"	*/
 	)
 {
     dident dip;
     int idx = *pidx;
 
-    if (not_locked) mt_mutex_lock(&dict->lock);
+    mt_mutex_lock(&dict->lock);
     while (DidBlock(idx) < dict->dir_index)
     {
 	dip = dict->directory[DidBlock(idx)];
@@ -714,7 +708,7 @@ _next_functor(			/* returns 0 when dictionary exhausted	*/
 		    }
 		    *pdid = dip;
 		    *pidx = idx;
-		    if (not_locked) mt_mutex_unlock(&dict->lock);
+		    mt_mutex_unlock(&dict->lock);
 		    return 1;
 		}
 		dip++;
@@ -723,19 +717,8 @@ _next_functor(			/* returns 0 when dictionary exhausted	*/
 	else
 	    idx = (DidBlock(idx) + 1) * DICT_ITEM_BLOCK_SIZE;
     }
-    if (not_locked) mt_mutex_unlock(&dict->lock);
+    mt_mutex_unlock(&dict->lock);
     return 0;
-}
-
-
-int
-next_functor(			/* returns 0 when dictionary exhausted	*/
-    	int *pidx,		/* in/out: current dict index		*/
-	dident *pdid,		/* output: valid did			*/
-	int weak_access		/* do not consider lookup as a "use"	*/
-	)
-{
-    return _next_functor(pidx, pdid, weak_access, 1);
 }
 
 
@@ -748,7 +731,7 @@ next_functor(			/* returns 0 when dictionary exhausted	*/
  */
 
 #define Useful(d)	(  (d)->season == dict->current_season \
- 			|| (d)->stability > DICT_VOLATILE \
+ 			|| DidStability(d) > DICT_VOLATILE \
 			|| (d)->procedure || (d)->properties)
 
 #if 0
@@ -818,7 +801,7 @@ _tidy_dictionary0(void)
 			*/
 			aux->string = (pword *) 0;
 			aux->arity = -1;
-			if (aux->head)
+			if (DidIsHead(aux))
 			    head_removed = 1;
 		    }
 		} while (aux != dip);
@@ -831,7 +814,7 @@ _tidy_dictionary0(void)
 		    Hash(DidName(dip), hval, dummy2, dummy1);
 		    if (prev != dip)
 		    {
-			prev->head = 1;
+			Set_Did_Head(prev);
 			dict->hash_table[hval] = prev;
 		    }
 		    else	/* we removed all chain elements */
@@ -901,11 +884,11 @@ _tidy_dictionary(void)
 		    dict->free_item_list = dip;
 		    dict->items_free++;
 #endif
-		    if (dip->head)		/* removing the chain header */
+		    if (DidIsHead(dip))	/* removing the chain header */
 		    {
 			if (prev != dip)
 			{
-			    prev->head = 1;
+			    Set_Did_Head(prev);
 			    dict->hash_table[idx] = prev;
 			}
 			else	/* we removed all chain elements */
@@ -916,7 +899,7 @@ _tidy_dictionary(void)
 			}
 		    }
 		}
-	    } while (!dip->head);
+	    } while (!(DidIsHead(dip)));
 	}
     }
 }
@@ -1004,27 +987,21 @@ _mark_dids_from_procs(pri *proc)
  *	1	final gc phase (global marking + tidying)
  *	0	gc finished/no gc running
  *
- * If defined(DICT_GC_VIA_SIGNAL) and triggered by the countdown, the
- * initial call will be made from the signal engine.  But it may be
- * called explicitly from any engine via garbage_collect_dictionary/0.
+ * If triggered by the countdown, the initial call will be made from
+ * the signal engine.  But it may also be called explicitly from any
+ * engine via garbage_collect_dictionary/0.
  */
 
 int
-p_gc_dictionary(ec_eng_t *ec_eng)
-{
-    return _gc_dictionary(1);
-}
-
-int
-_gc_dictionary(int not_locked)
+p_gc_dictionary(ec_eng_t *unused)
 {
     ec_eng_t *eng;
     int engine_markings_required = 0;
 
-    if (not_locked) mt_mutex_lock(&dict->lock);
+    mt_mutex_lock(&dict->lock);
     if (dict->dgc_step_count > 0) {
 	/* If dictionary GC is currently under way, just succeed */
-	if (not_locked) mt_mutex_unlock(&dict->lock);
+	mt_mutex_unlock(&dict->lock);
 	Succeed_;
     }
     /* Incremening dgc_step_count from 0 is under lock.  For other
@@ -1038,7 +1015,10 @@ _gc_dictionary(int not_locked)
      */
     dict->current_season ^= 1;
     dict->gc_number++;
-    if (not_locked) mt_mutex_unlock(&dict->lock);
+    /* In case of manual triggering, pretend we triggered via countdown */
+    if (dict->gc_countdown > 0)
+	dict->gc_countdown = 0;
+    mt_mutex_unlock(&dict->lock);
 
     LogPrintf("DICTIONARY GC #%d start (season=%d)\n", dict->gc_number, dict->current_season);
 
@@ -1071,7 +1051,7 @@ _gc_dictionary(int not_locked)
      */
     assert(dict->dgc_step_count >= 2);
     if (atomic_add(&dict->dgc_step_count, -1) == 1)
-	_finish_gc(not_locked);
+	_finish_gc();
 
     Succeed_;
 }
@@ -1105,7 +1085,7 @@ ecl_mark_engine(ec_eng_t *ec_eng, word arity)
 	    dgc_step = atomic_add(&dict->dgc_step_count, -1);
 	    assert(dgc_step >= 1);
 	    if (dgc_step == 1)
-		return _finish_gc(1);
+		return _finish_gc();
 	}
     } while (eng = eng->parent_engine);
 }
@@ -1116,17 +1096,19 @@ ecl_mark_engine(ec_eng_t *ec_eng, word arity)
  * We mark from all the global items, then tidy the dictionary, and finish.
  */
 static void
-_finish_gc(int not_locked)
+_finish_gc()
 {
     int i = 0;
+    int new_countdown;
+    int gc_number = dict->gc_number;
     long usage_before, garbage;
     dident d;
 
     /* We just marked the last engine, now proceed to global marking */
 
-    LogPrintf("DICTIONARY GC #%d global marking\n", dict->gc_number);
+    LogPrintf("DICTIONARY GC #%d global marking\n", gc_number);
 
-    while (_next_functor(&i, &d, 1, not_locked))	/* mark from all the properties */
+    while (next_functor(&i, &d, 1))	/* mark from all the properties */
     {
 	if (DidProc(d))
 	    _mark_dids_from_procs(DidProc(d));
@@ -1143,20 +1125,36 @@ _finish_gc(int not_locked)
 
     mark_dids_from_streams();		/* mark from the stream descriptors */
 
-    LogPrintf("DICTIONARY GC #%d cleanup\n", dict->gc_number);
-    usage_before = dict->dir_index * DICT_ITEM_BLOCK_SIZE -
-			dict->items_free;
+    LogPrintf("DICTIONARY GC #%d cleanup\n", gc_number);
 
-    if (not_locked) mt_mutex_lock(&dict->lock);
+    /* Under lock, tidy up and reinitialize counts */
+    mt_mutex_lock(&dict->lock);
+    usage_before = dict->dir_index * DICT_ITEM_BLOCK_SIZE - dict->items_free;
     _tidy_dictionary();
-    garbage = usage_before - (dict->dir_index * DICT_ITEM_BLOCK_SIZE -
-				dict->items_free);
-    LogPrintf("DICTIONARY GC #%d done (%d-%d, %.1f%%)\n", dict->gc_number,
-    		usage_before, garbage, (100.0*garbage)/usage_before);
-    dict->gc_countdown = dict->gc_interval;
+    garbage = usage_before -
+		  (dict->dir_index * DICT_ITEM_BLOCK_SIZE - dict->items_free);
+    dict->total_collected += garbage;
+
+    /* Re-init countdown.  Subtract half the entries that were made since this
+     * gc started, assuming that on average that many came too late for this
+     * marking round.  If next collection is already due, trigger it now.
+     */
+    assert(dict->gc_countdown <= 0);
+    new_countdown = dict->gc_interval - (-dict->gc_countdown/2);
+    if (new_countdown > 0)
+	dict->gc_countdown = new_countdown;
+    else
+	dict->gc_countdown = 0;		/* re-trigger below */
+
     atomic_add(&dict->dgc_step_count, -1);
     assert(dict->dgc_step_count == 0);
-    if (not_locked) mt_mutex_unlock(&dict->lock);
+    mt_mutex_unlock(&dict->lock);
+
+    LogPrintf("DICTIONARY GC #%d done (%d-%d, %.1f%%, total=%ld)\n", gc_number,
+    		usage_before, garbage, (100.0*garbage)/usage_before, dict->total_collected);
+
+    if (new_countdown <= 0)
+	ec_signal_dict_gc();		/* re-trigger garbage collection */
 }
 
 
@@ -1239,7 +1237,7 @@ pr_functors(value v, type t)
 	    do {
 		len++;
 		dip = dip->next;
-	    } while (!dip->head);
+	    } while (!(DidIsHead(dip)));
 	    if (dip != dict->hash_table[index])
 		p_fprintf(current_output_,"BAD COLLISION LIST\n");
 	    if (len >= v.nint)
@@ -1249,7 +1247,7 @@ pr_functors(value v, type t)
 		    p_fprintf(current_output_," %s/%d",
 				DidName(dip), DidArity(dip));
 		    dip = dip->next;
-		} while (!dip->head);
+		} while (!(DidIsHead(dip)));
 		p_fprintf(current_output_,"\n");
 	    }
 	}
@@ -1296,11 +1294,11 @@ _pdict(dident entry)
     p_fprintf(current_err_, "macro=%d ", DidMacro(entry));
     p_fprintf(current_err_, "attainable=%d ", entry->season==dict->current_season);
     p_fprintf(current_err_, "stability=%d ", DidStability(entry));
-    p_fprintf(current_err_, "head=%d ", DidPtr(entry)->head);
+    p_fprintf(current_err_, "head=%d ", DidIsHead(entry)?1:0);
     p_fprintf(current_err_, "isop=%d", DidIsOp(entry));
-    p_fprintf(current_err_, "\n next=%x ", DidPtr(entry)->next);
+    p_fprintf(current_err_, "\n next=%x ", DidNext(entry));
     p_fprintf(current_err_, "properties=%x ", DidProperties(entry));
-    proc = DidPtr(entry)->procedure;
+    proc = entry->procedure;
     p_fprintf(current_err_, "\n proc=0x%x", proc);
     if (proc) {
 	p_fprintf(current_err_, "(code=0x%x", PriCode(proc));

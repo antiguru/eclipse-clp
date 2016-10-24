@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.8 2016/08/11 22:07:45 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.9 2016/10/24 01:41:13 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -45,11 +45,14 @@
 /* Dictionary Related Definitions */
 #define		D_UNKNOWN	0	/* unknown did */
 
-/* values for the stability field */
+/* values for the dict_flags field */
+#define		DICT_STABILITY	0x03	/* dict entry stability */
 #define		DICT_VOLATILE	0	/* has only stack & property references	*/
 #define		DICT_HEAP_REF	1	/* (unused)				*/
 #define		DICT_CODE_REF	2	/* may have code references		*/
 #define		DICT_PERMANENT	3	/* do never remove from dictionary	*/
+
+#define		DICT_HEAD	0x04	/* head of chain */
 
 /* In unused (e.g. garbage collected) dict_items, we set the arity
 ** field to this value in order to catch bugs */
@@ -58,19 +61,23 @@
 
 
 /* dictionary definitions */
-#define		DidPtr(D)	((dident) (D))
-#define		DidMacro(D)	DidPtr(D)->macro
-#define		DidModule(D)	DidPtr(D)->module
-#define		DidIsOp(D)	DidPtr(D)->isop
-#define		DidProc(D)	DidPtr(D)->procedure
-#define 	DidProperties(D) DidPtr(D)->properties
-#define 	DidBitField(D)	DidPtr(D)->bitfield
-#define 	DidStability(D)	DidPtr(D)->stability
-#define 	DidNext(D)	DidPtr(D)->next
+#define		DidMacro(D)	(D)->macro
+#define		DidModule(D)	(D)->module
+#define		DidIsOp(D)	(D)->isop
+#define		DidProc(D)	(D)->procedure
+#define 	DidProperties(D) (D)->properties
+#define 	DidBitField(D)	(D)->bitfield
+#define 	DidNext(D)	(D)->next
+#define 	DidStability(D)	((D)->dict_flags & DICT_STABILITY)
+#define 	DidIsHead(D)	((D)->dict_flags & DICT_HEAD)
 
-#define Set_Did_Stability(D, NewStability) \
-	{ if ((NewStability) > (int) DidPtr(D)->stability) \
-		DidPtr(D)->stability = (NewStability); }
+#define	Set_Did_Head(D) \
+	(D)->dict_flags |= DICT_HEAD
+
+#define Set_Did_Stability(D, NewStability) {\
+	if ((NewStability) > DidStability(D))\
+	    (D)->dict_flags = (D)->dict_flags & ~DICT_STABILITY | (NewStability);\
+	}
 
 /* marking for dictionary GC */
 #define	Mark_Did(D)	ec_mark_did(D)

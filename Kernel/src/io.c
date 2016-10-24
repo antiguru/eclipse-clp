@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.23 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.24 2016/10/24 01:41:13 jschimpf Exp $
  */
 
 /*
@@ -2397,6 +2397,33 @@ p_fprintf(stream_id nst, const char *fmt, ...)
 	res = BUFSIZE;			/* truncate */
     Lock_Stream(nst);
     res = ec_outf(nst, ibuf, res);
+    Unlock_Stream(nst);
+    return res;
+}
+
+int
+p_fprintff(stream_id nst, const char *fmt, ...)
+{
+    va_list	args;
+    char	ibuf[BUFSIZE];
+    int		res;
+
+    va_start(args, fmt);
+#ifdef HAVE_VSNPRINTF
+#ifdef _WIN32
+    res = _vsnprintf(ibuf, BUFSIZE, fmt, args);
+#else
+    res = vsnprintf(ibuf, BUFSIZE, fmt, args);
+#endif
+#else
+    res = vsprintf(ibuf, fmt, args);
+#endif
+    va_end(args);
+    if (res < 0 || res >= BUFSIZE)
+	res = BUFSIZE;			/* truncate */
+    Lock_Stream(nst);
+    res = ec_outf(nst, ibuf, res);
+    res = (res==PSUCCEED) ? ec_flush(nst) : res;
     Unlock_Stream(nst);
     return res;
 }

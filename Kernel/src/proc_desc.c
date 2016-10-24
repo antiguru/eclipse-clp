@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.8 2016/09/17 19:15:43 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.9 2016/10/24 01:41:13 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -183,8 +183,8 @@ _new_visible_pri(dident functor, dident module, module_item *module_property, in
     pd->flags |= VMCODE|ARGFIXEDWAM|visibility;
 
     /* insert it at the beginning of the functor list	     */
-    pd->nextproc = DidPtr(functor)->procedure;
-    DidPtr(functor)->procedure = pd;
+    pd->nextproc = functor->procedure;
+    functor->procedure = pd;
     
     /* insert it at the beginning of the module list	     */
     if (!module_property)
@@ -226,7 +226,7 @@ _current_visible(dident functor, dident module)
 {
     pri		*pd;
     
-    for(pd=DidPtr(functor)->procedure; IsVisibilityPri(pd); pd=pd->nextproc)
+    for(pd=functor->procedure; IsVisibilityPri(pd); pd=pd->nextproc)
     {
 	if (pd->module_def == module)
 	    return pd;
@@ -247,7 +247,7 @@ _find_export(dident functor, dident exporting_module, dident *last_module)
 /* Locks: requires ProcListLock. aquires nothing. */
 {
     pri *pd;
-    for(pd=DidPtr(functor)->procedure; IsVisibilityPri(pd); pd=pd->nextproc)
+    for(pd=functor->procedure; IsVisibilityPri(pd); pd=pd->nextproc)
     {
 	if (pd->module_def == exporting_module)
 	{
@@ -287,7 +287,7 @@ _deref_chains(pri *new_impexp)	/* a new IMPEXP maximally dereferenced */
 /* Locks: requires ProcListLock. aquires nothing. */
 {
     pri *pd;
-    for(pd=DidPtr(new_impexp->did)->procedure; pd; pd=pd->nextproc)
+    for(pd=new_impexp->did->procedure; pd; pd=pd->nextproc)
     {
 	if (PriIsProxy(pd) && pd->module_ref == new_impexp->module_def)
 	{
@@ -315,7 +315,7 @@ _procedure_referenced(pri *pd)
 
     a_mutex_lock(&ProcListLock);
     definition_module = pd->module_def;
-    for(pd = DidPtr(pd->did)->procedure; pd; pd = pd->nextproc)
+    for(pd = pd->did->procedure; pd; pd = pd->nextproc)
     {
 	if (pd->module_ref == definition_module  &&  PriReferenced(pd))
 	{
@@ -332,7 +332,7 @@ _procedure_referenced(pri *pd)
  * Add/delete a descriptor from a general-purpose descriptor chain
  */
 
-void
+static void
 add_proc_to_chain(pri *p, proc_duet **chain)
 /* Locks: requires ProcChainLock. aquires nothing. */
 {
@@ -344,7 +344,7 @@ add_proc_to_chain(pri *p, proc_duet **chain)
     *chain = gd;
 }
 
-void
+static void
 delete_proc_from_chain(pri *p, proc_duet **chain)
 /* Locks: requires ProcChainLock. aquires nothing. */
 {
@@ -648,7 +648,7 @@ _update_all_uses(pri *def) /* must be the definition module descriptor */
     if (!PriExported(def))
     	return;
 
-    for(use = DidPtr(PriDid(def))->procedure; use; use = use->nextproc)
+    for(use = PriDid(def)->procedure; use; use = use->nextproc)
     {
 	if (PriIsProxy(use) && use->module_ref == def->module_ref)
 	{
@@ -672,7 +672,7 @@ _remove_incompatible_uses(pri *def) /* must be the definition module descriptor 
     if (!PriExported(def))
     	return ;
 
-    for(use = DidPtr(PriDid(def))->procedure; use; use = use->nextproc)
+    for(use = PriDid(def)->procedure; use; use = use->nextproc)
     {
 	if (PriIsProxy(use) && use->module_ref == def->module_ref)
 	{
@@ -1461,8 +1461,8 @@ qualified_procedure(dident functor, dident lookup_module, dident ref_module, typ
      * later on)
      */
     a_mutex_lock(&ProcListLock);
-    qualified_chain = &DidPtr(functor)->procedure;
-    pd = DidPtr(functor)->procedure;
+    qualified_chain = &functor->procedure;
+    pd = functor->procedure;
     visible_pd = 0;
     while(IsVisibilityPri(pd))
     {
@@ -1711,7 +1711,7 @@ erase_module_procs(pri *procs_in_module)
 	procs_in_module = pd->next_in_mod;
 	(void) pri_abolish(pd);			/* abolish the procedure */
 	_pri_clear_code(pd);			/* free code field */
-	pf = &(DidPtr(pd->did)->procedure);	/* unlink from did-chain */
+	pf = &(pd->did->procedure);		/* unlink from did-chain */
 	while (*pf != pd)
 	    pf = &((*pf)->nextproc);
 	*pf = pd->nextproc;
@@ -1832,7 +1832,7 @@ pri *ec_code_procedure(vmcode *code)
     while (next_functor(&idx, &functor, 1))
     {
 	pri *pd;
-	for(pd=DidPtr(functor)->procedure; IsVisibilityPri(pd); pd=pd->nextproc)
+	for(pd=functor->procedure; IsVisibilityPri(pd); pd=pd->nextproc)
 	{
 	    if (pd->module_def == pd->module_ref
 	     && PriCodeType(pd) == VMCODE

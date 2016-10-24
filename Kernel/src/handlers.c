@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.13 2016/09/20 22:43:29 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.14 2016/10/24 01:41:13 jschimpf Exp $
  */
 
 /** @file
@@ -1350,7 +1350,7 @@ handlers_init(int flags)
 	DefaultErrorHandler =
 	    (pri **) hg_alloc(MAX_ERRORS * sizeof(pri *));
 	DefaultErrorHandler[0] = ErrorHandler[0] =
-	    DidPtr(in_dict("boot_error", 2))->procedure;
+	    in_dict("boot_error", 2)->procedure;
 	for(i = 1; i < MAX_ERRORS; i++)
 	{
 	    ErrorHandler[i] = (pri *) 0;
