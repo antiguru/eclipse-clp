@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.23 2016/10/09 02:12:41 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.24 2016/10/24 01:37:52 jschimpf Exp $
  */
 
 /*
@@ -1284,7 +1284,7 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
     token_desc	token;
     stream_id	nst;
     register word len;
-    syntax_desc	*sd = ModuleSyntax(vm.did);
+    syntax_desc	*sd;
     dident	tname;
     Prepare_Requests;
 
@@ -1294,6 +1294,7 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
     }
     Get_Locked_Stream(vs, ts, SREAD, nst);
     Check_Module_And_Access(vm, tm)
+    sd = ModuleSyntax(vm.did);
 
     if (StreamMode(nst) & REPROMPT_ONLY)
 	StreamMode(nst) |= DONT_PROMPT;

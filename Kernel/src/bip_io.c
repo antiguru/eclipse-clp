@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.26 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.27 2016/10/24 01:37:52 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -647,7 +647,12 @@ p_get_stream(value vi, type ti, value vs, type ts, ec_eng_t *ec_eng)
     int		res;
     int		err_or_copied;
 
-    Get_Locked_Stream(vi, ti, SRDWR, nst);
+    /* do not lock the stream to prevent unnecessary deadlocks */
+    nst = get_stream_id(vi, ti, SRDWR, 0, ec_eng, &err_or_copied);
+    if (nst == NO_STREAM)
+    {
+	Bip_Error(err_or_copied);
+    }
     if (IsRef(ts))
     {
 	pword hstream;
@@ -1412,12 +1417,17 @@ p_is_open_stream(value vc, type tc, ec_eng_t *ec_eng)
 static int
 p_stream_info_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *ec_eng)
 {
-    int		res;
+    int		res, err_or_copied;
     stream_id	nst;
     pword	result;
 
     Check_Integer(ti);
-    Get_Locked_Stream(vs, ts, SRDWR, nst);
+
+    /* do not lock the stream to prevent unnecessary deadlocks */
+    nst = get_stream_id(vs, ts, SRDWR, 0, ec_eng, &err_or_copied);
+    if (nst == NO_STREAM) {
+	Bip_Error(err_or_copied);
+    }
     /* CAUTION: may need to get SocketInputStream(nst) for SREAD */
 
     switch(vi.nint)
@@ -1426,7 +1436,9 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *
 	if (IsStringStream(nst) || IsQueueStream(nst))
 	{
 	    char	*buf;
-	    int inbuf = StreamMethods(nst).size(nst);
+	    int inbuf;
+	    Lock_Stream(nst);
+	    inbuf = StreamMethods(nst).size(nst);
 	    Make_Stack_String(inbuf, result.val, buf);
 	    if (StreamMethods(nst).content(nst, buf) != inbuf)
 	    {
@@ -1435,6 +1447,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *
 	    }
 	    buf[inbuf] = '\0';
 	    result.tag.kernel = TSTRG;
+	    Unlock_Stream(nst);
 	}
 	else
 	{
