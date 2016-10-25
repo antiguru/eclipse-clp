@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.13 2016/07/30 10:30:31 jschimpf Exp $
+ * $Id: embed.h,v 1.14 2016/10/25 22:27:59 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -349,6 +349,7 @@ Extern DLLEXP	int		ec_outfc ARGS((stream_id, int));
 Extern DLLEXP	int		ec_outfs ARGS((stream_id, const char*));
 Extern DLLEXP	int		ec_flush ARGS((stream_id));
 Extern DLLEXP	int		p_fprintf ARGS((stream_id nst, const char *fmt, ...));
+Extern DLLEXP	int		ec_printff ARGS((stream_id nst, const char *fmt, ...));
 Extern DLLEXP	int		ec_newline ARGS((stream_id));
 
 
