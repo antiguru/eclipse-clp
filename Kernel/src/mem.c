@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.6 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.7 2016/10/25 22:34:59 jschimpf Exp $
  */
 
 /*
@@ -1246,10 +1246,10 @@ mem_init(int flags)
 	mt_mutex_init_recursive(&SharedDataLock);
 	mt_mutex_init_recursive(&PropertyLock);
 	mt_mutex_init_recursive(&EngineListLock); /* must be recursive because of broadcast_exit/1 */
-	a_mutex_init(&ModuleLock);
-	a_mutex_init(&ProcedureLock);
-	a_mutex_init(&ProcListLock);
-	a_mutex_init(&ProcChainLock);
+	mt_mutex_init(&ModuleLock);
+	mt_mutex_init(&ProcedureLock);
+	mt_mutex_init(&ProcListLock);
+	mt_mutex_init(&ProcChainLock);
     }
 
 }

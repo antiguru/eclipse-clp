@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.5 2016/10/24 01:41:13 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.6 2016/10/25 22:34:59 jschimpf Exp $
  *
  */
 
@@ -51,7 +51,7 @@ extern char *	strcpy();
 #endif
 
 #if 0
-#define DbgPrintf(s,...) p_fprintf(current_err_,s,__VA_ARGS__);ec_flush(current_err_);
+#define DbgPrintf(s,...) ec_printff(current_err_,s,__VA_ARGS__);
 #else
 #define DbgPrintf(s,...)
 #endif
@@ -491,8 +491,7 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 
 	case PFAIL:		/* already owned by us */
 	    /* should have released before losing the reference! */
-	    p_fprintf(warning_output_, "\necl_free_engine(): losing last reference while owning engine %0x%x", ec_eng);
-	    ec_flush(warning_output_);
+	    ec_printff(warning_output_, "\necl_free_engine(): losing last reference while owning engine %0x%x", ec_eng);
 	    /* fall through */
 	case PSUCCEED:		/* successfully acquired */
 	    EngLogMsg(ec_eng, "forcing exit", 0);
@@ -510,8 +509,7 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 	    return ecl_free_engine(ec_eng, 0);
 
 	case ENGINE_BUSY:	/* could not acquire */
-	    p_fprintf(current_err_, "\necl_free_engine(): can't aquire engine %0x%x for exiting", ec_eng);
-	    ec_flush(current_err_);
+	    ec_printff(current_err_, "\necl_free_engine(): can't aquire engine %0x%x for exiting", ec_eng);
 	    return 1;
 
 	default:
@@ -1111,12 +1109,10 @@ ecl_request(ec_eng_t *ec_eng, int request)
 		ecl_mark_engine(ec_eng, EngPauseArity(ec_eng));
 		break;
 	    case TEST_REQUEST:
-		p_fprintf(log_output_, "Handling test_request directly (arity=%d)!\n",  EngPauseArity(ec_eng));
-		ec_flush(log_output_);
+		ec_printff(log_output_, "Handling test_request directly (arity=%d)!\n",  EngPauseArity(ec_eng));
 		break;
 	    default:
-		p_fprintf(current_err_, "Unrecognized engine request: %x\n", request);
-		ec_flush(current_err_);
+		ec_printff(current_err_, "Unrecognized engine request: %x\n", request);
 		break;
 	}
 	res = PSUCCEED;

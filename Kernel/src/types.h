@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.21 2016/10/24 01:41:13 jschimpf Exp $
+ * $Id: types.h,v 1.22 2016/10/25 22:34:59 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -49,14 +49,6 @@
 #ifndef EC_EXTERNAL
 #include "memman.h"
 #endif
-
-
-/* TEMPORARY: disable old locking primitives from parallel system */
-/*typedef int a_mutex_t;*/
-#define	a_mutex_init(m)			1
-#define	a_mutex_lock(m)			1
-#define	a_mutex_unlock(m)		1
-#define	a_mutex_t int
 
 
 /*---------------------------------------------------------------------------
@@ -688,18 +680,14 @@ typedef struct {
  *---------------------------------------------------------------------------*/
 
 struct shared_data_t {
-#if 0
-	a_mutex_t
-		mod_desc_lock,			/* module descriptor */
-		proc_desc_lock,			/* procedure descriptors */
-		    proc_list_lock,		/* functor procedure list */
-		    proc_chain_lock;		/* shared procedure chains */
-#else
 	ec_mutex_t
 		general_lock,
-		engine_list_lock,
+		engine_list_lock,		/* global engine list */
+		mod_desc_lock,			/* module descriptor */
+		proc_desc_lock,			/* procedure descriptor */
+		proc_list_lock,			/* procedure lists */
+		proc_chain_lock,		/* shared procedure chains */
 		prop_list_lock;			/* property access */
-#endif
 
 	int	global_flags,
 		print_depth,

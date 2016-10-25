@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: property.h,v 1.3 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: property.h,v 1.4 2016/10/25 22:34:59 jschimpf Exp $
  */
  
 /*************************************************************
@@ -93,7 +93,7 @@ Extern pword	global_property(dident functor, int property_name);
 
 Extern int	erase_global_property ARGS((dident, int));
 Extern int	erase_property ARGS((dident, int, dident, type, int));
-Extern void	erase_module_props ARGS((property*));
+Extern void	erase_module_props ARGS((module_item*));
 Extern void	erase_records ARGS((pword*));
-Extern void	mark_dids_from_properties ARGS((property*));
+Extern void	mark_dids_from_properties ARGS((dident));
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.21 2016/10/24 01:41:13 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.22 2016/10/25 22:34:59 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -366,10 +366,8 @@ p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type t
 	Check_Module_Access(vm, tm);
 	break;
     }
-    a_mutex_lock(&ProcedureLock);
-    a_mutex_lock(&ModuleLock);
+    mt_mutex_lock(&ProcedureLock);
     pd = ModuleItem(vm.did)->procedures;
-    a_mutex_unlock(&ModuleLock);
 
     for (; pd; pd = pd->next_in_mod)
     {
@@ -451,7 +449,7 @@ p_module_predicates(value vwhich, type twhich, value v, type t, value vm, type t
 	Make_Integer(&pw[2], DidArity(PriDid(pd)));
     }
     Make_Nil(list);
-    a_mutex_unlock(&ProcedureLock);
+    mt_mutex_unlock(&ProcedureLock);
     Return_Unify_Pw(v, t, result.val, result.tag);
 }
 
@@ -1867,34 +1865,34 @@ p_dynamic_create(value v1, type t1, value v2, type t2, value vm, type tm, ec_eng
     }
     ndebug = (EclGblFlags & DBGCOMP) ? 0 : DEBUG_DB;
 
-    a_mutex_lock(&ProcedureLock);
+    mt_mutex_lock(&ProcedureLock);
     proc = local_procedure(wdid, vm.did, tm, PRI_CREATE, &err);
     if (!proc)
     {
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Bip_Error(err);
     }
     /* we redefine a procedure defined in the module		*/
     if (DynamicProc(proc))
     {
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Bip_Error(ALREADY_DYNAMIC);
     }
     if (proc->flags & CODE_DEFINED)
     {
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Bip_Error(ALREADY_DEFINED);
     }
     err = pri_compatible_flags(proc, ARGPASSING|PROC_DYNAMIC|EXTERN|TOOL|PROC_PARALLEL|DEBUG_DB, ARGFIXEDWAM|PROC_DYNAMIC|ndebug);
     if (err != PSUCCEED)
     {
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Bip_Error(err);
     }
     pri_change_flags(proc, ARGPASSING|PROC_DYNAMIC|EXTERN|TOOL|PROC_PARALLEL|DEBUG_DB, ARGFIXEDWAM|PROC_DYNAMIC|ndebug);
     pricode.vmc = _init_dynamic1(proc, ec_record_create());
     pri_define_code(proc, VMCODE, pricode);
-    a_mutex_unlock(&ProcedureLock);
+    mt_mutex_unlock(&ProcedureLock);
     Succeed_;
 }
 
@@ -1976,15 +1974,15 @@ p_abolish(value n, type tn, value a, type ta, value vm, type tm, ec_eng_t *ec_en
     {
 	Bip_Error(NOENTRY);
     }
-    a_mutex_lock(&ProcedureLock);
+    mt_mutex_lock(&ProcedureLock);
     proc = local_procedure(d, vm.did, tm, 0, &err);
     if (!proc)
     {
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Bip_Error(err);
     }
     pri_abolish(proc);
-    a_mutex_unlock(&ProcedureLock);
+    mt_mutex_unlock(&ProcedureLock);
     Succeed_;
 }
 
@@ -2145,7 +2143,7 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	/*
 	 * Now get the procedure descriptor that needs to be changed
 	 */
-	a_mutex_lock(&ProcedureLock);
+	mt_mutex_lock(&ProcedureLock);
 	proc = visible_procedure(wdid, vm.did, tm, 0, &err);
 	if (!proc)
 	    goto _unlock_return_err_;
@@ -2257,11 +2255,11 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 	    goto _unlock_return_err_;
 	}
 
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Succeed_;
 
 _unlock_return_err_:
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Set_Bip_Error(err);
 	Fail_;
 }
@@ -2718,12 +2716,12 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
 	}
     }
 
-    a_mutex_lock(&ProcedureLock);
+    mt_mutex_lock(&ProcedureLock);
 
     proc = local_procedure(wdid, vm.did, tm, PRI_CREATE, &err);
     if (!proc)
     {
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Bip_Error(err);
     }
     /* Set ECO_FLAGS according to flags argument.
@@ -2734,13 +2732,13 @@ p_store_pred(value vproc, type tproc, value vcode, type tcode, value vsize, type
     err = pri_compatible_flags(proc, CODETYPE|TOOL|ECO_FLAGS, VMCODE|flags);
     if (err != PSUCCEED)
     {
-	a_mutex_unlock(&ProcedureLock);
+	mt_mutex_unlock(&ProcedureLock);
 	Bip_Error(err);
     }
     pri_change_flags(proc, TOOL|ECO_FLAGS, flags);
     pricode.vmc = base;
     pri_define_code(proc, VMCODE, pricode);
-    a_mutex_unlock(&ProcedureLock);
+    mt_mutex_unlock(&ProcedureLock);
 
     Succeed_;
 }

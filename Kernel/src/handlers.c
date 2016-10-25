@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.14 2016/10/24 01:41:13 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.15 2016/10/25 22:34:59 jschimpf Exp $
  */
 
 /** @file
@@ -330,6 +330,8 @@ static RETSIGTYPE
 _write_to_pipe(int signr)
 {
     char signr_byte = signr;
+    if (!signal_thread)
+    	return;				/* not initialised/already finalised */
 #ifdef MUST_RESET_HANDLER_ON_ENTRY
     signal(signr, _write_to_pipe);	/* restore signal disposition */
 #endif
@@ -487,13 +489,14 @@ _run_prolog_handler(ec_eng_t *ec_eng, int sig)
 
 
 /**
- * Main loop executed in signal_thread, reading from signal_pipe.
+ * Main loop executed in signal_thread, reading from signal_fd.
  * Positive numbers are signal handling requests.
  * Negative numbers are signal handler change requests.
+ * Function exits when signal_fd is at end-of-file.
  */
 
 static int
-_signal_thread_function(void* dummy)
+_signal_thread_function(int signal_fd)
 {
     for(;;)
     {
@@ -501,27 +504,30 @@ _signal_thread_function(void* dummy)
 
 	/* Read signal number from the pipe, and handle it.
 	 * Negative numbers indicate that the handler has changed. */
-	int n = read(signal_pipe[0], &signr, 1);
-	if (n < 0) {
+	int n = read(signal_fd, &signr, 1);
+	if (n <= 0) {
+	    if (n == 0) {		/* EOF: exit normally */
+		signal_thread = NULL;
+		close(signal_fd);
+		return 0;
+	    }
 	    if (errno == EINTR) {
 	        continue;
 	    }
 	    perror("read() in _signal_thread_function() - thread dying");
 	    return -1;
-	} else if (n == 0) {
-	    close(signal_pipe[0]);
-	    return -1;
 	}
-	
 	if (0 < -signr && -signr <= NSIG) {
 	    if (_install_signal_thread_handler(-signr, interrupt_handler_flags_[-signr]))
 		perror("Installing signal handler");
 	    continue;
-	} else if (signr == PSEUDO_SIG_DICT_GC) {
+	}
+	if (signr == PSEUDO_SIG_DICT_GC) {
 	    p_gc_dictionary(NULL);
 	    continue;
-	} else if (!(0 < signr && signr <= NSIG)) {
-	    fprintf(stderr, "Bad signal number on signal_pipe[0]: %d - ignored\n", signr);
+	}
+	if (!(0 < signr && signr <= NSIG)) {
+	    fprintf(stderr, "Bad signal number on signal_pipe: %d - ignored\n", signr);
 	    continue;
 	}
 
@@ -572,10 +578,7 @@ _setup_signal_thread()
 	    Set_Errno;
 	    return SYS_ERROR;
 	}
-	signal_thread = ec_make_thread();
-	if (!signal_thread)
-	    return SYS_ERROR;
-	if (!ec_start_thread(signal_thread, _signal_thread_function, NULL))
+	if (ec_thread_create(&signal_thread, (void*(*)(void*))_signal_thread_function, (void*)(word)signal_pipe[0]))
 	    return SYS_ERROR;
     }
     return PSUCCEED;
@@ -1323,6 +1326,10 @@ handlers_fini()
 #ifdef SIGPIPE
     (void) _install_int_handler(SIGPIPE, IH_IGNORE, NULL, NULL);
 #endif
+
+    close(signal_pipe[1]);	/* will cause signal thread to exit */
+    while (signal_thread)	/* wait for thread to die */
+    	ec_sleep(0.001);
 
     ecl_free_engine(&ec_.m_sig, 0);
 }

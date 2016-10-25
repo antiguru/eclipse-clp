@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.9 2016/10/24 01:41:13 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.10 2016/10/25 22:34:59 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -45,11 +45,10 @@
 /* Dictionary Related Definitions */
 #define		D_UNKNOWN	0	/* unknown did */
 
-/* values for the dict_flags field */
+/* values for the dict_flags field (bit-significant) */
 #define		DICT_STABILITY	0x03	/* dict entry stability */
 #define		DICT_VOLATILE	0	/* has only stack & property references	*/
-#define		DICT_HEAP_REF	1	/* (unused)				*/
-#define		DICT_CODE_REF	2	/* may have code references		*/
+#define		DICT_CODE_REF	1	/* may have code references		*/
 #define		DICT_PERMANENT	3	/* do never remove from dictionary	*/
 
 #define		DICT_HEAD	0x04	/* head of chain */
@@ -72,12 +71,10 @@
 #define 	DidIsHead(D)	((D)->dict_flags & DICT_HEAD)
 
 #define	Set_Did_Head(D) \
-	(D)->dict_flags |= DICT_HEAD
+	atomic_or(&(D)->dict_flags, DICT_HEAD)
 
-#define Set_Did_Stability(D, NewStability) {\
-	if ((NewStability) > DidStability(D))\
-	    (D)->dict_flags = (D)->dict_flags & ~DICT_STABILITY | (NewStability);\
-	}
+#define Set_Did_Stability(D, NewStability) \
+	atomic_or(&(D)->dict_flags, NewStability)
 
 /* marking for dictionary GC */
 #define	Mark_Did(D)	ec_mark_did(D)
@@ -435,8 +432,11 @@ typedef struct module_item
     syntax_desc		*syntax;	/* module syntax descriptor	     */
     char		*lock;		/* the module password		     */
     pri			*procedures;	/* list of procedures in this module */
+    					/* (PropertyLock) */
     property		*properties;	/* list of properties in this module */
+    					/* (ProcListLock) */
     didlist		*imports;	/* list of imported modules (import/1)*/
+    					/* (ModuleLock) */
 } module_item;
 
 
@@ -564,6 +564,7 @@ Extern pri	*global_procedure ARGS((dident,dident,type,int*));
 Extern pri	*import_procedure ARGS((dident,dident,type,dident,int*));
 Extern pri	*visible_procedure ARGS((dident,dident,type,int,int*));
 Extern pri	*qualified_procedure ARGS((dident,dident,dident,type,int*));
+Extern int	import_whole_module ARGS((dident,dident));
 Extern pri	*pri_home ARGS((pri*,int*));
 Extern int	pri_compatible_flags ARGS((pri*,uint32,uint32));
 Extern void	pri_change_flags ARGS((pri*,uint32,uint32));
@@ -573,6 +574,7 @@ Extern int	pri_change_trans_function ARGS((pri*,dident));
 Extern int	pri_change_mode ARGS((pri*,uint32));
 Extern int	pri_change_prio ARGS((pri*,int));
 Extern int	pri_change_run_prio ARGS((pri*,int));
+Extern void	erase_module_procs(module_item*);
 
 Extern pri *	built_in(dident did1, int (*func) (/* ??? */), word flags);
 Extern pri *	local_built_in(dident did1, int (*func) (/* ??? */), word flags);

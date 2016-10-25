@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: property.c,v 1.12 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: property.c,v 1.13 2016/10/25 22:34:59 jschimpf Exp $
  *
  * IDENTIFICATION:	property.c
  *
@@ -523,13 +523,16 @@ _unlock_return_:
  */
 
 void
-erase_module_props(property *prop_list)
+erase_module_props(module_item *module_prop)
 {
-    register property *p;
+    property *prop_list;
 
+    mt_mutex_lock(&PropertyLock);
+    prop_list = module_prop->properties;
+    module_prop->properties = NULL;
     while(prop_list)
     {
-	p = prop_list->next_mod;
+	property *p = prop_list->next_mod;
 
 	while (p->next_mod != prop_list)
 	    p = p->next_mod;
@@ -540,6 +543,7 @@ erase_module_props(property *prop_list)
 	free_prop_value((int) p->name, &p->property_value);
 	hg_free_size(p, sizeof(property));
     }
+    mt_mutex_unlock(&PropertyLock);
 }
 
 
@@ -615,8 +619,12 @@ free_prop_value(int prop_name, pword *prop_value)
  */
 
 void
-mark_dids_from_properties(property *prop_list)
+mark_dids_from_properties(dident functor)
 {
+    property *prop_list;
+
+    mt_mutex_lock(&PropertyLock);
+    prop_list = functor->properties;
     for (; prop_list; prop_list = prop_list->next_prop)
     {
 	register property *p = prop_list;
@@ -700,6 +708,7 @@ mark_dids_from_properties(property *prop_list)
 	    p = p->next_mod;
 	} while (p != prop_list);
     }
+    mt_mutex_unlock(&PropertyLock);
 }
 
 

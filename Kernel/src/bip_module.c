@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.16 2016/10/24 01:41:13 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.17 2016/10/25 22:34:59 jschimpf Exp $
  */
 
 /*
@@ -639,23 +639,6 @@ p_tool2(value vi, type ti, value vb, type tb, value vm, type tm, ec_eng_t *ec_en
 			V I S I B I L I T Y   C H A N G E
 **********************************************************************/
 
-/*
-  Add 'module' to the chain of module pointed to by '*scan'.
-  The module is added at the beginning of the chain.
-  A reference of '*scan' is passed (**scan) to be able to modify it.
-*/
-static void
-_add_module(dident module, didlist **start)
-{
-	didlist		*new_mod;
-
-	new_mod = (didlist *) hg_alloc_size(sizeof(didlist));
-	new_mod->name = module;
-	new_mod->next = *start;
-	*start = new_mod;
-}
-
-
 /* The following builtins use the global error variable ! */
 #undef Bip_Error
 #define Bip_Error(N) Bip_Error_Fail(N)
@@ -769,59 +752,11 @@ p_reexport_from(value vim, type tim, value v, type t, value vm, type tm, ec_eng_
 static int
 p_import(value library, type tlib, value import_mod, type tim, ec_eng_t *ec_eng)
 {
-    module_item	*export_prop, *import_prop;
-    pri		*pe, *pi;
-    didlist	*lib_scan;
-
     Check_Module_And_Access(import_mod, tim);
     Check_Module(tlib, library);
-
-    mt_mutex_lock(&SharedDataLock);
-
-    export_prop = ModuleItem(library.did);
-    import_prop = ModuleItem(import_mod.did);
-
-    /* check that the module is not already imported			*/
-    lib_scan = import_prop->imports;
-    while (lib_scan)
-    {
-	if (lib_scan->name == library.did)
-	{
-	    mt_mutex_unlock(&SharedDataLock);
-	    Succeed_; /* the library is already imported		*/
-	}
-	lib_scan = lib_scan->next;
-    }
-
-    /* add library to the lists of the mods imported by import_mod	*/
-    _add_module(library.did, &(import_prop->imports));
-
-    /* now perform the pending imports					*/
-    resolve_pending_imports(import_prop->procedures);
-
-    mt_mutex_unlock(&SharedDataLock);
-    Succeed_;
+    return import_whole_module(library.did, import_mod.did);
 }
 
-
-void
-delete_duet_from_chain(dident the_name, didlist **chain)
-{
-    didlist	*current_duet;
-
-    current_duet = *chain;
-    while(current_duet)
-    {
-	if (current_duet->name == the_name)
-	{
-	    *chain = current_duet->next;
-	    hg_free_size(current_duet, sizeof(didlist));
-	    break;
-	}
-	chain = &(current_duet->next);
-	current_duet = current_duet->next;
-    }
-}
 
 static int
 p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod, ec_eng_t *ec_eng)
@@ -844,28 +779,20 @@ p_erase_module(value module, type module_tag, value from_mod, type tfrom_mod, ec
 	    Bip_Error(LOCKED);
 	}
 
-	/*
-	 * This is a big mess with respect to locking. The erased module's
-	 * descriptor is unprotected. It should be first removed as property
-	 * and then cleaned up.
-	 */
-
 	pm = ModuleItem(module.did);
 
 	/* first, clean the procedures, we can reclaim the space	*/
-	erase_module_procs(pm->procedures);
-
-	hg_free_size(pm->syntax, sizeof(syntax_desc));
+	erase_module_procs(pm);
 
 	/* reclaim the properties					*/
-
-	erase_module_props(pm->properties);
+	erase_module_props(pm);
 
 	/* reclaim module descriptor */
-
-	(void) erase_global_property(module.did, MODULE_PROP);
-
+	mt_mutex_lock(&PropertyLock);
+	hg_free_size(pm->syntax, sizeof(syntax_desc));
 	module.did->module = 0;
+	(void) erase_global_property(module.did, MODULE_PROP);
+	mt_mutex_unlock(&PropertyLock);
 
 	Succeed_;
 }

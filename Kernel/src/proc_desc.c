@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.9 2016/10/24 01:41:13 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.10 2016/10/25 22:34:59 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -102,8 +102,7 @@
  * chains and the definition can always be found in one step. 
  * 
  * Parallel locks policy:
- *     ModuleLock - while a module_item is accessed
- *     ProcListLock - while a did's procedure list is traversed/modified
+ *     ProcListLock - while a did's or module's procedure list is traversed/modified
  *     ProcChainLock - while one of the procedure chains is traversed/modified
 */
 
@@ -120,6 +119,7 @@
 #include	"module.h"
 #include	"property.h"
 #include	"gencode.h"
+#include	"os_support.h"
 
 
 #define	ExportImmediately(pd)	\
@@ -173,7 +173,7 @@ _free_pri(pri *pd)
  * Create a new descriptor and insert it into the functor and
  * module lists as a visibility descriptor.
  * Make sure the code field gets set after calling this!
- * Shared memory locks: must be called with ProcListLock and ModuleLock
+ * Shared memory locks: must be called with ProcListLock
  */
 
 static pri*
@@ -220,7 +220,7 @@ pri_home(pri *pd, int *perr)
 
 /* Find the visibility descriptor for functor in module, if it exists */
 
-static pri *
+static inline pri *
 _current_visible(dident functor, dident module)
 /* Locks: requires ProcListLock. aquires nothing. */
 {
@@ -313,17 +313,17 @@ _procedure_referenced(pri *pd)
     if (!PriExported(pd))
     	return 0;
 
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     definition_module = pd->module_def;
     for(pd = pd->did->procedure; pd; pd = pd->nextproc)
     {
 	if (pd->module_ref == definition_module  &&  PriReferenced(pd))
 	{
-	    a_mutex_unlock(&ProcListLock);
+	    mt_mutex_unlock(&ProcListLock);
 	    return 1;
 	}
     }
-    a_mutex_unlock(&ProcListLock);
+    mt_mutex_unlock(&ProcListLock);
     return 0;
 }
 
@@ -929,7 +929,7 @@ pri_change_trans_function(pri *pd,		/* any descriptor */
  * Error
  *	IMPORT	-> error
  *
- * Shared memory locks: ProcListLock, ModuleLock
+ * Shared memory locks: ProcListLock
  *----------------------------------------------------------------------*/
 
 pri *
@@ -942,7 +942,7 @@ local_procedure(dident functor, dident module, type module_tag, int options, int
 	*perr = LOCKED;
 	return 0;
     }
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     pd = _current_visible(functor, module);
     if (pd)
     {
@@ -987,14 +987,12 @@ local_procedure(dident functor, dident module, type module_tag, int options, int
 		ec_flush(warning_output_);
 		break;
 	    case SYSTEM:
-		a_mutex_unlock(&ProcListLock);
+		mt_mutex_unlock(&ProcListLock);
 		*perr = BUILT_IN_REDEF;
 		return 0;
 	    }
 	}
-	a_mutex_lock(&ModuleLock);
 	pd = _new_visible_pri(functor, module, 0, LOCAL);
-	a_mutex_unlock(&ModuleLock);
 	_pri_init_vmcode(pd, 0);
 	pd->module_ref = module;
     }
@@ -1002,7 +1000,7 @@ local_procedure(dident functor, dident module, type module_tag, int options, int
     {
 	*perr = NOENTRY;
     }
-    a_mutex_unlock(&ProcListLock);
+    mt_mutex_unlock(&ProcListLock);
     return pd;
 }
 
@@ -1033,13 +1031,11 @@ export_procedure(dident functor, dident module, type module_tag, int *perr)
 	*perr = LOCKED;
 	return 0;
     }
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     pd = _current_visible(functor, module);
     if (!pd)
     {
-	a_mutex_lock(&ModuleLock);
 	pd = _new_visible_pri(functor, module, 0, DEFAULT);
-	a_mutex_unlock(&ModuleLock);
 	_pri_init_vmcode(pd, 0);
     }
     switch(PriScope(pd))
@@ -1074,7 +1070,7 @@ export_procedure(dident functor, dident module, type module_tag, int *perr)
     case EXPORT:
 	break;
     }
-    a_mutex_unlock(&ProcListLock);
+    mt_mutex_unlock(&ProcListLock);
     return pd;
 }
 
@@ -1099,12 +1095,11 @@ global_procedure(dident functor, dident module, type module_tag, int *perr)
 
 void
 check_def_use_module_interface(dident mod, type mod_tag)
-/* Locks: aquires ProcListLock, ModuleLock. */
+/* Locks: aquires ProcListLock. */
 {
     pri		*def;
 
-    a_mutex_lock(&ModuleLock);
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     for (def = ModuleItem(mod)->procedures; def; def = def->next_in_mod)
     {
 	if (PriScope(def) == LOCAL  &&  PriFlags(def) & TO_EXPORT)
@@ -1114,8 +1109,7 @@ check_def_use_module_interface(dident mod, type mod_tag)
 	    _update_all_uses(def);
 	}
     }
-    a_mutex_unlock(&ProcListLock);
-    a_mutex_unlock(&ModuleLock);
+    mt_mutex_unlock(&ProcListLock);
 }
 #endif
 
@@ -1146,13 +1140,11 @@ import_procedure(dident functor, dident module, type module_tag, dident exportin
 	*perr = LOCKED;
 	return 0;
     }
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     pd = _current_visible(functor, module);
     if (!pd)
     {
-	a_mutex_lock(&ModuleLock);
 	pd = _new_visible_pri(functor, module, 0, DEFAULT);
-	a_mutex_unlock(&ModuleLock);
 	_pri_init_vmcode(pd, 0);
     }
     exported_pd = _find_export(functor, exporting_module, &exporting_module);
@@ -1202,7 +1194,7 @@ import_procedure(dident functor, dident module, type module_tag, dident exportin
 	}
 	break;
     }
-    a_mutex_unlock(&ProcListLock);
+    mt_mutex_unlock(&ProcListLock);
     return pd;
 }
 
@@ -1236,13 +1228,11 @@ reexport_procedure(dident functor, dident module, type module_tag, dident from_m
 	*perr = LOCKED;
 	return 0;
     }
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     pd = _current_visible(functor, module);
     if (!pd)
     {
-	a_mutex_lock(&ModuleLock);
 	pd = _new_visible_pri(functor, module, 0, DEFAULT);
-	a_mutex_unlock(&ModuleLock);
 	_pri_init_vmcode(pd, 0);
     }
     exported_pd = _find_export(functor, from_module, &from_module);
@@ -1300,7 +1290,7 @@ reexport_procedure(dident functor, dident module, type module_tag, dident from_m
     case EXPORT :
 	*perr = EXPORT_EXISTS; pd = 0; break;
     }
-    a_mutex_unlock(&ProcListLock);
+    mt_mutex_unlock(&ProcListLock);
     return pd;
 }
 
@@ -1333,7 +1323,7 @@ reexport_procedure(dident functor, dident module, type module_tag, dident from_m
  *	LOCKED
  *	CONSISTENCY
  *
- * Shared memory locks: Acquires ProcListLock and possibly ModuleLock
+ * Shared memory locks: Acquires ProcListLock
  *----------------------------------------------------------------------*/
 
 #define UnauthorizedAccessOption(module, module_tag, exponly) \
@@ -1343,9 +1333,10 @@ pri *
 visible_procedure(dident functor, dident module, type module_tag, int options, int *perr)
 {
     int		res;
+    int		warn = 0;
     pri		*pd;
 
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     pd = _current_visible(functor, module);
     if (pd)
     {
@@ -1355,7 +1346,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options, i
 	case IMPORT:
 	    if (UnauthorizedAccessOption(module, module_tag, options & PRI_EXPORTEDONLY))
 	    {
-		a_mutex_unlock(&ProcListLock);
+		mt_mutex_unlock(&ProcListLock);
 		*perr = options & PRI_EXPORTEDONLY? NOENTRY: LOCKED;
 		return 0;
 	    }
@@ -1366,7 +1357,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options, i
 	    {
 		Pri_Set_Reference(pd);
 	    }
-	    a_mutex_unlock(&ProcListLock);
+	    mt_mutex_unlock(&ProcListLock);
 	    return pd;
 	case DEFAULT:
 	    break;	/* lazy import */
@@ -1393,15 +1384,14 @@ visible_procedure(dident functor, dident module, type module_tag, int options, i
 	    break;
 
 	case IMPORT_CLASH:
+	    mt_mutex_unlock(&ProcListLock);
 	    if (_report_error(IMPORT_CLASH_RESOLVE, functor, module, module_tag) == PSUCCEED)
 	    {
 		/* handler succeeded, try again */
 		return visible_procedure(functor, module, module_tag, options, perr);
 	    }
-	    if (!(options & PRI_DONTWARN))
-	    {
-		(void) _report_error(IMPORT_CLASH, functor, module, module_tag);
-	    }
+	    mt_mutex_lock(&ProcListLock);
+	    warn = !(options & PRI_DONTWARN);
 	    res = NOENTRY;
 	    /* fall through */
 
@@ -1410,9 +1400,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options, i
 	    {
 		if (!pd)
 		{
-		    a_mutex_lock(&ModuleLock);
 		    pd = _new_visible_pri(functor, module, 0, DEFAULT);
-		    a_mutex_unlock(&ModuleLock);
 		    _pri_init_vmcode(pd, 0);
 		}
 		break;
@@ -1429,7 +1417,10 @@ visible_procedure(dident functor, dident module, type module_tag, int options, i
 	    Pri_Set_Reference(pd);
 	}
     }
-    a_mutex_unlock(&ProcListLock);
+    mt_mutex_unlock(&ProcListLock);
+
+    if (warn)	/* after unlocking! */
+	(void) _report_error(IMPORT_CLASH, functor, module, module_tag);
     return pd;
 }
 
@@ -1442,7 +1433,7 @@ visible_procedure(dident functor, dident module, type module_tag, int options, i
 
 pri *
 qualified_procedure(dident functor, dident lookup_module, dident ref_module, type ref_mod_tag, int *perr)
-/* Locks: acquires ProcListLock, ModuleLock. */
+/* Locks: acquires ProcListLock. */
 {
     pri		*pd, *visible_pd, *home_pd;
     pri		**qualified_chain;
@@ -1460,7 +1451,7 @@ qualified_procedure(dident functor, dident lookup_module, dident ref_module, typ
      * (if any) and the start of qualified descriptor chain (for appending
      * later on)
      */
-    a_mutex_lock(&ProcListLock);
+    mt_mutex_lock(&ProcListLock);
     qualified_chain = &functor->procedure;
     pd = functor->procedure;
     visible_pd = 0;
@@ -1498,7 +1489,7 @@ qualified_procedure(dident functor, dident lookup_module, dident ref_module, typ
     {
 	if (pd->module_def == ref_module && pd->module_ref == home_module)
 	{
-	    a_mutex_unlock(&ProcListLock);
+	    mt_mutex_unlock(&ProcListLock);
 	    return pd;
 	}
 	pd = pd->nextproc;
@@ -1525,14 +1516,12 @@ qualified_procedure(dident functor, dident lookup_module, dident ref_module, typ
     /* insert it at the beginning of the qualified part of the list	*/
     pd->nextproc = *qualified_chain;
     *qualified_chain = pd;
-    a_mutex_unlock(&ProcListLock);
     
     /* insert it at the beginning of the module list */
-    a_mutex_lock(&ModuleLock);
     module_property = ModuleItem(ref_module);
     pd->next_in_mod = module_property->procedures;
     module_property->procedures = pd;	
-    a_mutex_unlock(&ModuleLock);
+    mt_mutex_unlock(&ProcListLock);
 
     return(pd);
 }
@@ -1560,8 +1549,8 @@ _resolve_import(dident functor, dident module, pri **pi)
 
     /* for all the modules imported in module, check whether
        functor is exported					     */
-    a_mutex_lock(&ModuleLock);
     module_property = ModuleItem(module);
+    mt_mutex_lock(&ModuleLock);
     imported_mod = module_property->imports;
     pe = 0;
     while(imported_mod)
@@ -1575,22 +1564,21 @@ _resolve_import(dident functor, dident module, pri **pi)
 	     */
 	    if (pe && pd->module_ref != pe->module_ref)	/* Ambiguity? */
 	    {
-		a_mutex_unlock(&ModuleLock);
+		mt_mutex_unlock(&ModuleLock);
 		return IMPORT_CLASH;
 	    }
 	    pe = pd;
 	}
 	imported_mod = imported_mod->next;
     }
+    mt_mutex_unlock(&ModuleLock);
     if (!pe)
     {
-	a_mutex_unlock(&ModuleLock);
     	return NOENTRY;
     }
 
     if (*pi)	/* DEFAULT descriptor already exists, check compatibility */
     {
-	a_mutex_unlock(&ModuleLock);
 	if (!_compatible_def_use(pe, *pi))
 	{
 	    return INCONSISTENCY;
@@ -1600,7 +1588,6 @@ _resolve_import(dident functor, dident module, pri **pi)
     else	/* no descriptor yet, create one */
     {
 	(*pi) = _new_visible_pri(functor, module, module_property, IMPORT);
-	a_mutex_unlock(&ModuleLock);
     }
 
     /* copy the definition */
@@ -1625,8 +1612,8 @@ _hiding_import(dident functor, dident module, dident *exporting_module)
     dident	found_module;
     int		found = 0;
 
-    a_mutex_lock(&ModuleLock);
     module_property = ModuleItem(module);
+    mt_mutex_lock(&ModuleLock);
     imported_mod = module_property->imports;
     while(imported_mod)
     {
@@ -1636,27 +1623,62 @@ _hiding_import(dident functor, dident module, dident *exporting_module)
 	    *exporting_module = found_module;
 	    if (pd->flags & SYSTEM)
 	    {
-		a_mutex_unlock(&ModuleLock);
+		mt_mutex_unlock(&ModuleLock);
 		return SYSTEM;
 	    }
 	    found = 1;
 	}
 	imported_mod = imported_mod->next;
     }
-    a_mutex_unlock(&ModuleLock);
+    mt_mutex_unlock(&ModuleLock);
     return found? IMPORT: 0;
 }
 
 
-void
-resolve_pending_imports(pri *procs_in_module)
+/*
+ * Import module 'exporter' into module 'importer', which both exist.
+ * Acquires ModuleLock and ProcListLock sequentially.
+ */
+int
+import_whole_module(dident exporter, dident importer)
 {
+    module_item *importing_mod;
+    didlist	*imp_elem;
     pri *pd;
-    for(pd = procs_in_module; pd; pd = pd->next_in_mod)
+
+    mt_mutex_lock(&ModuleLock);
+
+    importing_mod = ModuleItem(importer);
+
+    /* check that the module is not already imported			*/
+    imp_elem = importing_mod->imports;
+    while (imp_elem)
+    {
+	if (imp_elem->name == exporter)
+	{
+	    mt_mutex_unlock(&ModuleLock);
+	    return PSUCCEED;	/* the library is already imported */
+	}
+	imp_elem = imp_elem->next;
+    }
+
+    /* add library to the lists of the mods imported by import_mod	*/
+    imp_elem = hg_alloc_size(sizeof(*imp_elem));
+    imp_elem->name = exporter;
+    imp_elem->next = importing_mod->imports;
+    importing_mod->imports = imp_elem;
+
+    mt_mutex_unlock(&ModuleLock);
+
+    /* now perform the pending imports					*/
+    mt_mutex_lock(&ProcListLock);
+    for(pd = importing_mod->procedures; pd; pd = pd->next_in_mod)
     {
 	if (PriScope(pd) == DEFAULT)
 	    (void) _resolve_import(pd->did, pd->module_def, &pd);
     }
+    mt_mutex_unlock(&ProcListLock);
+    return PSUCCEED;
 }
 
 
@@ -1699,25 +1721,28 @@ pri_abolish(pri *pd)			/* a visibility descriptor */
  * procedure descriptors in this module.
  */
 void
-erase_module_procs(pri *procs_in_module)
+erase_module_procs(module_item *module_property)
 /* Locks: acquires ProcListLock. */
 {
-    pri *pd, **pf;
+    pri *pm;
 
-    a_mutex_lock(&ProcListLock);
-    while(procs_in_module)
+    mt_mutex_lock(&ProcListLock);
+    pm = module_property->procedures;
+    module_property->procedures = NULL;
+    while(pm)
     {
-	pd = procs_in_module;
-	procs_in_module = pd->next_in_mod;
+	pri **pf;
+	pri *pd = pm;
+	pm = pd->next_in_mod;
 	(void) pri_abolish(pd);			/* abolish the procedure */
 	_pri_clear_code(pd);			/* free code field */
-	pf = &(pd->did->procedure);		/* unlink from did-chain */
+	pf = &pd->did->procedure;		/* unlink from did-chain */
 	while (*pf != pd)
 	    pf = &((*pf)->nextproc);
 	*pf = pd->nextproc;
 	_free_pri(pd);				/* free descriptor */
     }
-    a_mutex_unlock(&ProcListLock);
+    mt_mutex_unlock(&ProcListLock);
 }
 
 
@@ -1736,9 +1761,9 @@ reclaim_procedure(vmcode *code)
 	next = (vmcode *) *code;
 	if (BlockType(code) == GROUND_TERM)
 	{
-	    a_mutex_lock(&ProcChainLock);
+	    mt_mutex_lock(&ProcChainLock);
 	    add_proc_to_chain((pri *) code, &CompiledStructures);
-	    a_mutex_unlock(&ProcChainLock);
+	    mt_mutex_unlock(&ProcChainLock);
 	}
 	else if (BlockType(code) == UNDEFINED_PROC)
 	    hg_free_size(code, sizeof(vmcode) * (UNDEF_CODE_SIZE + PROC_PREFIX_SIZE));
@@ -1762,7 +1787,7 @@ reclaim_abolished_procedures(void)
     proc_duet	*p_duet;
     vmcode	*code;
  
-    a_mutex_lock(&ProcChainLock);
+    mt_mutex_lock(&ProcChainLock);
     for(;;)
     {
 	p_duet = AbolishedProcedures;
@@ -1781,7 +1806,7 @@ reclaim_abolished_procedures(void)
 	reclaim_ground_structure(code);
 	delete_proc_from_chain((pri *) code, &CompiledStructures);
     }    
-    a_mutex_unlock(&ProcChainLock);
+    mt_mutex_unlock(&ProcChainLock);
     return;
 }
 
@@ -1810,9 +1835,9 @@ remove_procedure(pri *proc)
 	}
 	else
 	{
-	    a_mutex_lock(&ProcChainLock);
+	    mt_mutex_lock(&ProcChainLock);
 	    add_proc_to_chain((pri *) code, &AbolishedProcedures);
-	    a_mutex_unlock(&ProcChainLock);
+	    mt_mutex_unlock(&ProcChainLock);
 	}
     }
     PriCode(proc) = (vmcode *) 0;	/* just to catch bugs */

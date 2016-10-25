@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.18 2016/10/24 01:41:13 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.19 2016/10/25 22:34:59 jschimpf Exp $
  */
 
 /*
@@ -115,9 +115,8 @@
 
 /* Make sure all calls to this are outside dictionary-locked regions! */
 #define LogPrintf(s,...) { \
-	if (EclGblFlags & GC_VERBOSE) { \
-	    p_fprintff(log_output_, s, __VA_ARGS__); \
-	} \
+	if (EclGblFlags & GC_VERBOSE) \
+	    ec_printff(log_output_, s, __VA_ARGS__); \
     }
 
 
@@ -1113,14 +1112,14 @@ _finish_gc()
 	if (DidProc(d))
 	    _mark_dids_from_procs(DidProc(d));
 	if (DidProperties(d))
-	    mark_dids_from_properties(DidProperties(d));
+	    mark_dids_from_properties(d);
     }
 
     for (i=0; i < NANONYMOUS; i++)	/* mark from the anonymous DIDs */
     {
 	d = &dict->anonymous_did[i];
 	if (DidProperties(d))
-	    mark_dids_from_properties(DidProperties(d));
+	    mark_dids_from_properties(d);
     }
 
     mark_dids_from_streams();		/* mark from the stream descriptors */
@@ -1136,8 +1135,8 @@ _finish_gc()
     dict->total_collected += garbage;
 
     /* Re-init countdown.  Subtract half the entries that were made since this
-     * gc started, assuming that on average that many came too late for this
-     * marking round.  If next collection is already due, trigger it now.
+     * gc started, assuming that (on average) so many came too late for this
+     * marking round.  If next collection is already due, trigger it below.
      */
     assert(dict->gc_countdown <= 0);
     new_countdown = dict->gc_interval - (-dict->gc_countdown/2);
@@ -1153,8 +1152,9 @@ _finish_gc()
     LogPrintf("DICTIONARY GC #%d done (%d-%d, %.1f%%, total=%ld)\n", gc_number,
     		usage_before, garbage, (100.0*garbage)/usage_before, dict->total_collected);
 
-    if (new_countdown <= 0)
-	ec_signal_dict_gc();		/* re-trigger garbage collection */
+    /* After unlocking, if new interval-triggered gc is already due, do it */
+    if (new_countdown <= 0 && dict->gc_interval > 0)
+	ec_signal_dict_gc();
 }
 
 
