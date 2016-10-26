@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.15 2016/09/21 11:33:25 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.16 2016/10/26 18:16:08 jschimpf Exp $
  */
 
 /*
@@ -1317,6 +1317,30 @@ trim_dynamic_event_queue(ec_eng_t *ec_eng)
     }
 }
 
+/**
+ * Mark dictionary items in the queue.
+ * CAUTION: this uses knowledge about the conventions for queue entries.
+ */
+void
+mark_dids_dynamic_event_queue(ec_eng_t *ec_eng)
+{
+    mt_mutex_lock(&ec_eng->lock);
+    if (!IsEmptyDynamicEventQueue()) 
+    {
+	dyn_event_q_slot_t *slot = ec_eng->dyn_event_q.prehead;
+	do {
+	    slot = slot->next;
+	    if (slot->urgent) {
+		mark_dids_from_heapterm(&slot->event_data);
+	    } else if (IsTag(slot->event_data.tag.kernel, TPTR)) {
+		heap_event_tid.mark_dids((t_ext_ptr)slot->event_data.val.wptr);
+	    } else {
+		mark_dids_from_pwords(&slot->event_data, &slot->event_data+1);
+	    }
+	} while(slot != ec_eng->dyn_event_q.tail);
+    }
+    mt_mutex_unlock(&ec_eng->lock);
+}
 
 void
 ec_fini_dynamic_event_queue(ec_eng_t *ec_eng)

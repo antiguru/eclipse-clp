@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.17 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.18 2016/10/26 18:16:08 jschimpf Exp $
  */
 
 /*
@@ -1709,6 +1709,7 @@ Extern	int	ec_occurs ARGS((value vs, type ts, value vterm, type tterm));
 Extern	void	ec_init_dynamic_event_queue ARGS((ec_eng_t*));
 Extern	void	trim_dynamic_event_queue ARGS((ec_eng_t*));
 Extern	void	purge_disabled_dynamic_events ARGS((ec_eng_t*, t_heap_event *event));
+Extern	void	mark_dids_dynamic_event_queue(ec_eng_t*);
 Extern	DLLEXP	int p_merge_suspension_lists ARGS((value, type, value, type, value, type, value, type, ec_eng_t*));
 Extern	DLLEXP	int p_set_suspension_priority ARGS((value, type, value, type, ec_eng_t*));
 

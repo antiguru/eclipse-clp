@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.10 2016/09/21 11:33:25 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.11 2016/10/26 18:16:08 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -2514,9 +2514,31 @@ mark_local_conservative(/*noengine*/ pword *from, pword *to)
 }
 
 
+/**
+ * Mark dictionary items that are referenced from the given engine,
+ * i.e. stacks and other engine-related list and fields.
+ * There is NO need to mark:
+ * - source_pos fields in the debug information (these are DICT_CODE_REF)
+ * 
+ */
 void
 mark_dids_from_stacks(ec_eng_t *ec_eng, word arity)
 {
+
+    globalref *gref;
+
+    /* Various engine fields and lists */
+    Mark_Did(ec_eng->default_module);
+    mark_dids_dynamic_event_queue(ec_eng);
+    for (gref=ec_eng->references; gref; gref=gref->next) {
+	Mark_Did(gref->name);
+	Mark_Did(gref->module);
+	/* ignore gref->ptr, as it always points into the global stack */
+    }
+    
+
+    /* auxiliary choicepoint to take care of the active arguments */
+
     make_choicepoint(ec_eng, arity);
 
     /* global */
