@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: term_copy.c,v 1.5 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: term_copy.c,v 1.6 2016/10/26 18:14:39 jschimpf Exp $
  *
  * IDENTIFICATION:	term_copy.c (was part of property.c)
  *
@@ -107,10 +107,15 @@
  *   ec_compare_terms().
  * ---------------------------------------------------------*/
 
+/* This condition means:
+ * - root->ptr points to a memory block with proper header
+ * - this block can be freed
+ */
 #define IsNonpersistentHeaptermRoot(root) \
  		(ISPointer((root)->tag.kernel) \
  		&& !IsSelfRef(root) \
-		&& !IsPersistent((root)->tag))
+		&& !IsPersistent((root)->tag)\
+		&& !(IsString((root)->tag) && StringInDictionary((root)->val)))
 
 #define HeaptermHeader(pw)	((pw)-1)
 
@@ -349,8 +354,11 @@ _copy_simple_:
 	    dest->tag.all = t.all;
 	    return top;
 
-	case TIVL:
 	case TSTRG:
+	    if (StringInDictionary(v))
+		goto _copy_simple_;
+	    /* fall through */
+	case TIVL:
 #ifndef UNBOXED_DOUBLES
 	case TDBL:
 #endif
@@ -618,8 +626,11 @@ _copy_size(value v, type t, word size, word *num_handles, int *perr)
 #endif
 	    return size;
 
-	case TIVL:
 	case TSTRG:
+	    if (StringInDictionary(v))
+		return size;
+	    /* fall through */
+	case TIVL:
 #ifndef UNBOXED_DOUBLES
 	case TDBL:
 #endif
@@ -811,8 +822,17 @@ make_heapterm_persistent(pword *root)
 		Assert(!IsRef(pw->tag));	/* no variables */
 		if (!IsPersistent(pw->tag))
 		{
-		    /* no pointers to non-persistent other heapterms */
-		    Assert(start <= pw->val.ptr  &&  pw->val.ptr < end);
+		    if (IsString(pw->tag) && StringInDictionary(pw->val))
+		    {
+			dident a = check_did_n(StringStart(pw->val), StringLength(pw->val), 0);
+			Assert(a != D_UNKNOWN);
+			Set_Did_Stability(a, DICT_PERMANENT);
+		    }
+		    else
+		    {
+			/* no pointers to non-persistent other heapterms */
+			Assert(start <= pw->val.ptr  &&  pw->val.ptr < end);
+		    }
 		    /* mark pointer to subterm as persistent */
 		    pw->tag.kernel |= PERSISTENT;
 		}
@@ -827,13 +847,6 @@ make_heapterm_persistent(pword *root)
 		Set_Did_Stability(pw->val.did, DICT_PERMANENT);
 		pw++;
 	    }
-	    else if (IsString(pw->tag) && StringInDictionary(pw->val))
-	    {
-		dident a = check_did_n(StringStart(pw->val), StringLength(pw->val), 0);
-		Assert(a != D_UNKNOWN);
-		Set_Did_Stability(a, DICT_PERMANENT);
-		pw++;
-	    }
 	    else if (IsTag(pw->tag.kernel, TPTR))
 		pw++;
 	    else if (IsTag(pw->tag.kernel, TEXTERN))
@@ -844,6 +857,16 @@ make_heapterm_persistent(pword *root)
 		pw++;
 	    }
 	}
+    }
+    else if (IsAtom(root->tag))
+    {
+	Set_Did_Stability(root->val.did, DICT_PERMANENT);
+    }
+    else if (IsString(root->tag) && StringInDictionary(root->val))
+    {
+	dident a = check_did_n(StringStart(root->val), StringLength(root->val), 0);
+	Assert(a != D_UNKNOWN);
+	Set_Did_Stability(a, DICT_PERMANENT);
     }
 }
 
@@ -1482,28 +1505,22 @@ void
 get_heapterm(ec_eng_t *ec_eng, pword *root, pword *result)
 {
 
-    if (ISPointer(root->tag.kernel))
+    if (IsNonpersistentHeaptermRoot(root))
     {
-	if (IsSelfRef(root))
-	    result->val.ptr = result;		/* if free var on heap	*/
-	else if (IsPersistent(root->tag))
-	    result->val.all = root->val.all;
-	else	/* copy back to the stack */
-	{
-	    pword *orig = root->val.ptr;
-	    pword *dest;
-	    word size = HeaptermSize(orig);
+	pword *orig = root->val.ptr;
+	pword *dest;
+	word size = HeaptermSize(orig);
 
-	    result->val.ptr = dest = TG;	/* push complex term	*/
-	    TG += size/sizeof(pword);
-	    Check_Gc;
-	    _copy_block(ec_eng, orig, dest, size);
-	}
+	result->val.ptr = dest = TG;	/* push complex term	*/
+	TG += size/sizeof(pword);
+	Check_Gc;
+	_copy_block(ec_eng, orig, dest, size);
     }
+    else if (IsSelfRef(root))
+	result->val.ptr = result;	/* if free var on heap	*/
     else
-    {
-	result->val.all = root->val.all;
-    }
+	result->val.all = root->val.all;	/* treat like simple */
+
     result->tag.all = root->tag.all;
 }
 

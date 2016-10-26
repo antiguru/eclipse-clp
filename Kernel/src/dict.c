@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.19 2016/10/25 22:34:59 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.20 2016/10/26 18:14:39 jschimpf Exp $
  */
 
 /*
@@ -1734,6 +1734,9 @@ ec_constant_table_enter(ec_eng_t *ec_eng, value v, type t, pword *presult)
     {
 	presult->val.all = v.all;
 	presult->tag.all = t.all;
+	if (IsAtom(t)) {
+	    Set_Did_Stability(v.did, DICT_PERMANENT);
+	}
 	return PSUCCEED;
     }
 
