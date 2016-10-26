@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.39 2016/09/28 04:06:52 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.40 2016/10/26 18:11:18 jschimpf Exp $
  */
 
 /*
@@ -5634,6 +5634,9 @@ _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 			    /* we abuse the DEBUG_SP bit to init creep/leap mode */
 			    TRACEMODE |= (PriFlags(proc) & DEBUG_SP) ?
 					    TR_TRACING : TR_LEAPING;
+			    /* lazy allocation of auxiliary tracer array */
+			    if (!FTRACE)
+				FTRACE = hg_alloc_size(MAX_FAILTRACE * sizeof(fail_data_t));
 			}
 			if (AnyPortWanted) {
 			    goto _metacall_port_;	/* (procDBG_XXX) */
@@ -6213,6 +6216,9 @@ _end_external_:
 			/* we abuse the DEBUG_SP bit to init creep/leap mode */
 			TRACEMODE |= (PriFlags(PP[0].proc_entry) & DEBUG_SP) ?
 					    TR_TRACING : TR_LEAPING;
+			/* lazy allocation of auxiliary tracer array */
+			if (!FTRACE)
+			    FTRACE = hg_alloc_size(MAX_FAILTRACE * sizeof(fail_data_t));
 		    }
 		    if (AnyPortWanted) {
 			DBG_PRI = PP[0].proc_entry;

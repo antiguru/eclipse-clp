@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.12 2016/09/21 11:33:25 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.13 2016/10/26 18:11:18 jschimpf Exp $
  */
 
 /*
@@ -57,8 +57,6 @@
 #define DbgPrintf(s,...)
 #endif
 
-
-fail_data_t	fail_trace_[MAX_FAILTRACE];
 
 #ifdef AS_EMU
 
@@ -281,7 +279,7 @@ emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
     Init_Cleanup();
 
     Make_Integer(&TAGGED_TD, 0);
-    FTRACE = fail_trace_;
+    FTRACE = NULL;	/* lazily allocated in debug_reset */
     FCULPRIT = -1;
     DBG_PRI = (pri *) 0;
 
@@ -355,7 +353,10 @@ ec_emu_fini(ec_eng_t *ec_eng)
     assert(!ec_eng->references);
     assert(ec_eng->allrefs.next == &ec_eng->allrefs
     	&& ec_eng->allrefs.prev == &ec_eng->allrefs);
-
+    if (FTRACE) {
+	hg_free_size(FTRACE, MAX_FAILTRACE * sizeof(fail_data_t));
+	FTRACE = NULL;
+    }
     EngLogMsg(ec_eng, "exited", 0);
 }
 
