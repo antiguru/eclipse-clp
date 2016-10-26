@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.14 2016/09/17 19:15:43 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.15 2016/10/26 02:36:45 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -322,6 +322,7 @@ static int
 #define ZINC_SUBSCRIPTABLE	0x20	/* subscripts after almost everything */
 #define ATTRIBUTABLE            0x40	/* term can be followed by attributes */
 #define ARGOFOP			0x80	/* argument of an operator */
+#define OPCANTFOLLOW		0x100	/* (infix/postfix) operator can't follow (iso) */
 
 
 /*
@@ -1160,9 +1161,13 @@ _treat_as_functor_:
 	}
 
 	/* ISO does not allow operators as arguments of operators */
-	if (context_flags & ARGOFOP  &&  pd->sd->options & ISO_RESTRICTIONS
-	    &&  DidIsOp(did0) &&  is_visible_op(did0, pd->module, pd->module_tag))
-	    return BRACKET;
+	if (pd->sd->options & ISO_RESTRICTIONS
+	    && DidIsOp(did0) && is_visible_op(did0, pd->module, pd->module_tag))
+	{
+	    if (context_flags & ARGOFOP)
+		return BRACKET;
+	    context_flags |= OPCANTFOLLOW;
+	}
 	/* treat as a simple atom */
 	Build_Atom_Or_Nil(&term, did0, pos);
 	*result = term;
@@ -1368,16 +1373,14 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		if (lterm_prec > lprec)
 		    return context_flags & PREBINFIRST ? PSUCCEED : BRACKET;
 		/* ISO does not allow operators as arguments of operators */
-		if (context_flags & FZINC_SUBSCRIPTABLE && pd->sd->options & ISO_RESTRICTIONS
-			&&  DidIsOp(result->val.did)
-			&&  is_visible_op(result->val.did, pd->module, pd->module_tag))
+		if (context_flags & OPCANTFOLLOW)
 		    return BRACKET;
 		Build_Struct_Or_List(&term, pw, OpiDid(in_op), pd->token.pos);
 		/* Use Move_Pword() to move possible self-refs in result
 		 * (because we are going to reuse result!) */
 		Move_Pword(result, pw+1);
 		Next_Token(pd);
-		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE);
+		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE|OPCANTFOLLOW);
 		status = _read_next_term(pd, rprec, context_flags|ARGOFOP, &pw[2]);
 		Return_If_Error(status);
 		/*return _read_after_term(pd, context_prec, context_flags, oprec, result);*/
@@ -1395,16 +1398,14 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		if (lterm_prec > lprec)
 		    return context_flags & PREBINFIRST ? PSUCCEED : BRACKET;
 		/* ISO does not allow operators as arguments of operators */
-		if (context_flags & FZINC_SUBSCRIPTABLE && pd->sd->options & ISO_RESTRICTIONS
-			&&  DidIsOp(result->val.did)
-			&&  is_visible_op(result->val.did, pd->module, pd->module_tag))
+		if (context_flags & OPCANTFOLLOW)
 		    return BRACKET;
 		Build_Struct(&term, pw, OpiDid(post_op), pd->token.pos);
 		/* Use Move_Pword() to move possible self-refs in result
 		 * (because we are going to reuse result!) */
 		Move_Pword(result, pw+1);
 		Next_Token(pd);
-		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE);
+		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|ZINC_SUBSCRIPTABLE|OPCANTFOLLOW);
 		/*return _read_after_term(pd, context_prec, context_flags, oprec, result);*/
 		*result = term; lterm_prec = oprec;
 		break;	/* tail recursion */
@@ -1446,7 +1447,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		Next_Token(pd);
 		status = _read_sequence_until(pd, &pw[2], ']');
 		Return_If_Error(status);
-		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE);
+		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|OPCANTFOLLOW);
 		/*return _read_after_term(pd, context_prec, context_flags, 0, result);*/
 		*result = term; lterm_prec = 0;
 		break;	/* tail recursion */
@@ -1461,6 +1462,7 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		Next_Token(pd);
 		status = _read_sequence_until(pd, &pw[2], '}');
 		Return_If_Error(status);
+		context_flags &= ~(OPCANTFOLLOW);
 		/*return _read_after_term(pd, context_prec, context_flags, 0, result);*/
 		*result = term; lterm_prec = 0;
 		break;	/* tail recursion */
