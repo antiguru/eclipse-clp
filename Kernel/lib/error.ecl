@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: error.ecl,v 1.1 2016/08/12 10:57:29 jschimpf Exp $
+% Version:	$Id: error.ecl,v 1.2 2016/10/28 22:48:38 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 
@@ -32,7 +32,7 @@
 :- comment(summary, "Utilities for argument type testing and error generation").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Coninfer Ltd").
-:- comment(date, '$Date: 2016/08/12 10:57:29 $').
+:- comment(date, '$Date: 2016/10/28 22:48:38 $').
 :- comment(desc, html("<P>
     This library is modelled after SWI-Prolog's library(error) and provides
     facilities to simplify the raising of ISO-Prolog conforming exceptions,
@@ -262,6 +262,15 @@ resource_error(Resource) :-
     </DL>
     A domain error is used instead of a type error when a number is
     outside an expected range, or an atom is not in the expected set.
+    </P><P>
+    If Type is not one of the recognized types, it is assumed that the type
+    test failed, and one of the following error terms is thrown:
+    <DL>
+    <DT>error(instantiation_error, _)</DT><DD>
+    	if Term was a variable</DD>
+    <DT>error(type_error(Type,Term), _)</DT><DD>
+    	otherwise</DD>
+    </DL>
     </P>")
 ]).
 :- export must_be/2.
