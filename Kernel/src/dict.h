@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.10 2016/10/25 22:34:59 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.11 2016/10/28 22:24:51 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -72,6 +72,9 @@
 
 #define	Set_Did_Head(D) \
 	atomic_or(&(D)->dict_flags, DICT_HEAD)
+
+#define	Clr_Did_Head(D) \
+	atomic_and(&(D)->dict_flags, ~DICT_HEAD)
 
 #define Set_Did_Stability(D, NewStability) \
 	atomic_or(&(D)->dict_flags, NewStability)

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.19 2016/09/21 11:33:25 jschimpf Exp $
+ * $Id: sepia.h,v 1.20 2016/10/28 22:24:51 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -186,9 +186,9 @@
 #define HIDE_ATTR	(SIGN_BIT >> 3)
 
 /*
- * Variable names are stored as 19-bit field in variable tags
+ * Variable names are stored as 20-bit field in variable tags
  */
-#define TAG_NAME_MASK 0x07ffff00
+#define TAG_NAME_MASK 0x0fffff00
 
 
 /*****************************************************************/

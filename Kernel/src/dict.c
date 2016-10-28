@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: dict.c,v 1.20 2016/10/26 18:14:39 jschimpf Exp $
+ * VERSION	$Id: dict.c,v 1.21 2016/10/28 22:24:51 jschimpf Exp $
  */
 
 /*
@@ -86,7 +86,7 @@
  *
  *	dident	bitfield_did(int bitfield)
  *
- *		convert a 19-bit bitfield representation of a DID (as used in
+ *		convert a 20-bit bitfield representation of a DID (as used in
  *		the variable names) to a standard 32-bit DID.
  *
  *	int	next_functor(int *index, dident *did)
@@ -120,7 +120,7 @@
     }
 
 
-static dident	_in_dict_opt(char *name, int length, int hval, int arity, int options);
+static dident	_in_dict_opt(char *name, int length, unsigned int hval, int arity, int options);
 static void	_std_did_init(void);
 static void	_constant_table_init(int);
 static void	_finish_gc();
@@ -174,8 +174,9 @@ marks the corresponding atom whenever a persistent string is encountered.
 
 -----------------------------------------------------------------------------*/
 
-#define DICT_DIRECTORY_SIZE	512
+#define DICT_DIRECTORY_SIZE	1024
 #define DICT_ITEM_BLOCK_SIZE	1024
+#define DICT_MAX_ENTRIES	(DICT_DIRECTORY_SIZE*DICT_ITEM_BLOCK_SIZE)
 
 #define DidBlock(i) ((i) >> 10)
 #define DidOffset(i) ((i) & 0x3ff)
@@ -217,7 +218,7 @@ marks the corresponding atom whenever a persistent string is encountered.
 	    Combine_(hash, *(unsigned char *)str);			\
 	}								\
 	Finish_(hash);							\
-        hash &= DICT_HASH_TABLE_SIZE-1;					\
+        hash %= dict->hash_table_size;					\
 }
 
 /* compute hash value of a string of given length */
@@ -228,7 +229,7 @@ marks the corresponding atom whenever a persistent string is encountered.
 	    Combine_(hash, *(unsigned char *)str);			\
 	}								\
 	Finish_(hash);							\
-        hash &= DICT_HASH_TABLE_SIZE-1;					\
+        hash %= dict->hash_table_size;					\
 }
 
 
@@ -258,10 +259,9 @@ marks the corresponding atom whenever a persistent string is encountered.
  * TYPEDEFS and GLOBAL VARIABLES
  */
 
-static struct dictionary {
-	dident	hash_table[DICT_HASH_TABLE_SIZE];
-	dident	directory[DICT_DIRECTORY_SIZE];	/* table of dict_item blocks */
-	struct dict_item anonymous_did[NANONYMOUS];/* to hold anon. properties */
+#define dict ((struct dictionary*)shared_data->dictionary)
+
+struct dictionary {
 	ec_mutex_t lock;	/* lock for hash table */
 	int	current_season;	/* 0/1, changes on every garbage collection */
 	int	dgc_step_count;	/* >0 if dict gc under way */
@@ -277,7 +277,12 @@ static struct dictionary {
 	unsigned long total_collected;/* and the number of collected entries */
 	int	string_used;
 	int	string_free;
-} *dict;
+
+	int	hash_table_size;
+	dident	*hash_table;
+	struct dict_item anonymous_did[NANONYMOUS];/* to hold anon. properties */
+	dident	directory[DICT_DIRECTORY_SIZE];	/* table of dict_item blocks */
+};
 
 
 void
@@ -286,8 +291,9 @@ dict_init(int flags)
     if (flags & INIT_SHARED)
     {
 	int i;
-	dict = (struct dictionary *) hg_alloc_size(sizeof(struct dictionary));
-	shared_data->dictionary = dict;
+	shared_data->dictionary = hg_alloc_size(sizeof(struct dictionary));
+	dict->hash_table_size = DICT_HASH_TABLE_SIZE;
+	dict->hash_table = hg_alloc_size(DICT_HASH_TABLE_SIZE*sizeof(dident));
 	for (i=0; i< DICT_HASH_TABLE_SIZE; i++)
 	    dict->hash_table[i] = D_UNKNOWN;
 	for (i=0; i< DICT_DIRECTORY_SIZE; i++)
@@ -321,7 +327,6 @@ dict_init(int flags)
     {
 	int i;
 
-	dict = (struct dictionary *) shared_data->dictionary;
 	_std_did_init();
 
 	/* Tag descriptor array (more settings in bip_emu_init()) */
@@ -419,8 +424,10 @@ _alloc_dict_item(pword *dict_string, int arity)
     if (!dip)				/* free list empty, allocate a new block */
     {
 	int i;
-	if (dict->dir_index == DICT_DIRECTORY_SIZE)
+	if (dict->dir_index == DICT_DIRECTORY_SIZE) {
+	    mt_mutex_unlock(&dict->lock);
 	    ec_panic("dictionary overflow", "atom/functor creation");
+	}
 	dip =
 	dict->free_item_list =
 	dict->directory[dict->dir_index] =
@@ -461,7 +468,8 @@ _alloc_dict_item(pword *dict_string, int arity)
 dident
 in_dict(char *name, int arity)
 {
-    int hval, len;
+    unsigned int hval;
+    int len;
     dident dip;
     Hash(name, hval, len);
     dip = _in_dict_opt(name, len, hval, arity, IN_DICT_ENTER);
@@ -472,7 +480,8 @@ in_dict(char *name, int arity)
 dident Winapi
 ec_did(const char *name, const int arity)
 {
-    int hval, len;
+    unsigned int hval;
+    int len;
     dident dip;
     Hash((char *)name, hval, len);
     dip = _in_dict_opt((char *) name, len, hval, arity, IN_DICT_ENTER);
@@ -483,7 +492,8 @@ ec_did(const char *name, const int arity)
 dident
 enter_dict(char *name, int arity)
 {
-    int hval, len;
+    unsigned int hval;
+    int len;
     Hash(name, hval, len);
     return _in_dict_opt(name, len, hval, arity, IN_DICT_ENTER);
 }
@@ -491,7 +501,7 @@ enter_dict(char *name, int arity)
 dident
 enter_dict_n(char *name, word len, int arity)
 {
-    int hval;
+    unsigned int hval;
     Hashl(name, hval, len);
     return _in_dict_opt(name, (int) len, hval, arity, IN_DICT_ENTER);
 }
@@ -499,7 +509,7 @@ enter_dict_n(char *name, word len, int arity)
 dident
 check_did_n(char *name, word len, int arity)
 {
-    int hval;
+    unsigned int hval;
     Hashl(name, hval, len);
     return _in_dict_opt(name, (int) len, hval, arity, IN_DICT_CHECK);
 }
@@ -507,7 +517,7 @@ check_did_n(char *name, word len, int arity)
 pword *
 enter_string_n(char *name, word len, int stability)
 {
-    int hval;
+    unsigned int hval;
     dident dip;
     Hashl(name, hval, len);
     dip = _in_dict_opt(name, (int) len, hval, 0, IN_DICT_ENTER);
@@ -532,7 +542,7 @@ bitfield_did(word bf)
 static dident
 _in_dict_opt(char *name,	/* might not be NUL-terminated! */
 	int length,
-	int hval,
+	unsigned int hval,
 	int arity,
 	int options)
 {
@@ -733,6 +743,162 @@ next_functor(			/* returns 0 when dictionary exhausted	*/
  			|| DidStability(d) > DICT_VOLATILE \
 			|| (d)->procedure || (d)->properties)
 
+
+/**
+ * Resize dict's hash table (grow or shrink).
+ * To be called under lock.
+ */
+static void
+_resize_hash_table(void)
+{
+    unsigned i;
+    dident *new_hash_table, *old_hash_table;
+
+    /* compute new table size */
+    unsigned num_hashed_entries = dict->table_usage+dict->collisions;
+    unsigned old_table_size = dict->hash_table_size;
+    unsigned new_table_size = DICT_HASH_TABLE_SIZE;
+    while (new_table_size < 2*num_hashed_entries && new_table_size < DICT_MAX_ENTRIES)
+    	new_table_size <<= 1;
+    if (new_table_size == old_table_size)
+    	return;
+
+    LogPrintf("DICTIONARY table resize %d->%d\n", old_table_size, new_table_size);
+
+    /* init new table */
+    new_hash_table = hg_alloc_size(new_table_size*sizeof(dident));
+    for (i = 0; i < new_table_size; i++)
+    	new_hash_table[i] = NULL;
+    old_hash_table = dict->hash_table;
+    dict->hash_table = new_hash_table;
+    dict->hash_table_size = new_table_size;	/* needed for Hashl macro! */
+    dict->table_usage = 0;
+    dict->collisions = 0;
+
+    /* transfer entries from old_hash_table[] */
+    for (i = 0; i < old_table_size; i++)
+    {
+	while(old_hash_table[i])
+	{
+	    unsigned hval;
+	    dident dip, *rem_tail;
+	    dident new_chain, *new_tail;
+	    pword *dict_string;
+
+	    rem_tail = &old_hash_table[i];
+	    new_chain = *rem_tail;
+	    *rem_tail = NULL;
+	    new_tail = &new_chain->next;
+	    dict_string = DidString(new_chain);
+
+	    /* extract all items with same name string as new_chain */
+	    for(dip=new_chain->next; dip!=new_chain; dip=dip->next)
+	    {
+	        if (DidString(dip) == dict_string) {
+		    *new_tail = dip;
+		    new_tail = &dip->next;
+		} else {
+		    *rem_tail = dip;
+		    rem_tail = &dip->next;
+		}
+	    }
+	    *rem_tail = old_hash_table[i];	/* (re-)close the loop */
+
+	    /* insert new_chain..new_tail into new table */
+	    Hashl(DidName(new_chain), hval, DidLength(new_chain));
+
+	    if (dict->hash_table[hval]) {
+		Clr_Did_Head(new_chain);	/* might be set from before */
+		*new_tail = dict->hash_table[hval]->next; /* insert after head */
+		dict->hash_table[hval]->next = new_chain;
+		++dict->collisions;
+	    } else {
+		Set_Did_Head(new_chain);	/* might already be set */
+		*new_tail = new_chain;		/* close the loop */
+		dict->hash_table[hval] = new_chain; /* insert in new slot */
+		++dict->table_usage;
+	    }
+	}
+    }
+
+    hg_free_size(old_hash_table, old_table_size*sizeof(dident));
+
+#if 0
+    unsigned i;
+    dident *new_hash_table;
+
+    /* compute new table size */
+    unsigned num_hashed_entries = dict->table_usage+dict->collisions;
+    unsigned old_table_size = dict->hash_table_size;
+    unsigned new_table_size = DICT_HASH_TABLE_SIZE;
+    while (new_table_size < 2*num_hashed_entries && new_table_size < DICT_MAX_ENTRIES)
+    	new_table_size <<= 1;
+    if (new_table_size == old_table_size)
+    	return;
+
+    LogPrintf("DICTIONARY table resize %d->%d\n", old_table_size, new_table_size);
+
+    /* init new table */
+    new_hash_table = hg_alloc_size(new_table_size*sizeof(dident));
+    for (i = 0; i < new_table_size; i++)
+    	new_hash_table[i] = NULL;
+    dict->hash_table_size = new_table_size;	/* needed for Hashl macro! */
+    dict->table_usage = 0;
+    dict->collisions = 0;
+
+    /* transfer entries */
+    for (i = 0; i < old_table_size; i++)
+    {
+	while(dict->hash_table[i])
+	{
+	    unsigned hval;
+	    dident dip, *rem_tail;
+	    dident new_chain, *new_tail;
+	    pword *dict_string;
+
+	    rem_tail = &dict->hash_table[i];
+	    new_chain = *rem_tail;
+	    *rem_tail = NULL;
+	    new_tail = &new_chain->next;
+	    dict_string = DidString(new_chain);
+
+	    /* extract all items with same name string as new_chain */
+	    for(dip=new_chain->next; dip!=new_chain; dip=dip->next)
+	    {
+	        if (DidString(dip) == dict_string) {
+		    *new_tail = dip;
+		    new_tail = &dip->next;
+		} else {
+		    *rem_tail = dip;
+		    rem_tail = &dip->next;
+		}
+	    }
+	    *rem_tail = dict->hash_table[i];	/* (re-)close the loop */
+
+	    /* insert new_chain..new_tail into new table */
+	    Hashl(DidName(new_chain), hval, DidLength(new_chain));
+
+	    if (new_hash_table[hval]) {
+		Clr_Did_Head(new_chain);	/* might be set from before */
+		*new_tail = new_hash_table[hval]->next; /* insert after head */
+		new_hash_table[hval]->next = new_chain;
+		++dict->collisions;
+	    } else {
+		Set_Did_Head(new_chain);	/* might already be set */
+		*new_tail = new_chain;		/* close the loop */
+		new_hash_table[hval] = new_chain; /* insert in new slot */
+		++dict->table_usage;
+	    }
+	}
+    }
+
+    /* replace the table */
+    hg_free_size(dict->hash_table, old_table_size*sizeof(dident));
+    dict->hash_table = new_hash_table;
+#endif
+}
+
+
 #if 0
 
 /*
@@ -809,7 +975,7 @@ _tidy_dictionary0(void)
 		{
 		    char *dummy1;
 		    int dummy2;
-		    hval;
+		    unsigned int hval;
 		    Hash(DidName(dip), hval, dummy2, dummy1);
 		    if (prev != dip)
 		    {
@@ -835,6 +1001,7 @@ _tidy_dictionary0(void)
 
 /*
  * alternatively, scan through the hash table
+ * To be called under lock.
  */
 
 static void
@@ -844,7 +1011,7 @@ _tidy_dictionary(void)
     dident dip;
     dident prev;
 
-    for (idx = 0; idx < DICT_HASH_TABLE_SIZE; idx++)
+    for (idx = 0; idx < dict->hash_table_size; idx++)
     {
 	prev = dict->hash_table[idx];
 	if (prev)
@@ -901,6 +1068,10 @@ _tidy_dictionary(void)
 	    } while (!(DidIsHead(dip)));
 	}
     }
+
+    /* If hash table is still quite full, resize it.  We could also shrink. */
+    if (dict->table_usage > dict->hash_table_size/2)
+        _resize_hash_table();
 }
 
 
@@ -1179,7 +1350,7 @@ p_dict_param(value vwhat, type twhat, value vval, type tval, ec_eng_t *ec_eng)
 	result.val.nint = dict->items_free;
 	break;
     case 2:	/* hash table size */
-	result.val.nint = DICT_HASH_TABLE_SIZE;
+	result.val.nint = dict->hash_table_size;
 	break;
     case 3:	/* hash table usage */
 	result.val.nint = dict->table_usage;
@@ -1208,6 +1379,9 @@ p_dict_param(value vwhat, type twhat, value vval, type tval, ec_eng_t *ec_eng)
     case 9:	/* remaining steps in current GC (0 = no GC running) */
 	result.val.nint = dict->dgc_step_count;
 	break;
+    case 10:	/* total entries collected */
+	result.val.nint = dict->total_collected;
+	break;
     default:
 	Fail_;
     }
@@ -1228,7 +1402,7 @@ pr_functors(value v, type t)
     int index, len;
 
     Check_Integer(t);
-    for (index = 0; index < DICT_HASH_TABLE_SIZE; index++)
+    for (index = 0; index < dict->hash_table_size; index++)
     {
 	dip = dict->hash_table[index];
 	if (dip)
@@ -1263,9 +1437,9 @@ pr_dict(void)
     p_fprintf(current_output_, "items free = %d\n", dict->items_free);
     p_fprintf(current_output_, "string_used = %d\n", dict->string_used);
     p_fprintf(current_output_, "table_usage = %d/%d\n",
-				dict->table_usage, DICT_HASH_TABLE_SIZE);
+				dict->table_usage, dict->hash_table_size);
     p_fprintf(current_output_, "table_usage ratio = %.1f%%\n",
-				100.0*dict->table_usage/DICT_HASH_TABLE_SIZE);
+				100.0*dict->table_usage/dict->hash_table_size);
     p_fprintf(current_output_, "collisions = %d\n", dict->collisions);
     p_fprintf(current_output_, "collision ratio = %.1f%%\n",
 				100.0*dict->collisions/dict->table_usage);
@@ -1275,6 +1449,7 @@ pr_dict(void)
 				(float)dict->gc_time/clock_hz);
     p_fprintf(current_output_, "season = %d\n", dict->current_season);
     p_fprintf(current_output_, "pending gc steps = %d\n", dict->dgc_step_count);
+    ec_flush(current_output_);
     Succeed_;
 }
 
@@ -1625,6 +1800,7 @@ _std_did_init(void)
 #define CONSTANT_TABLE_MAX_SIZE		1048576
 #define CONSTANT_TABLE_EXPAND_FACTOR	2
 
+#define ec_const_table ((struct constant_table *)shared_data->constant_table)
 
 typedef struct constant_entry {			/* one table entry */
     	pword			value;
@@ -1632,12 +1808,12 @@ typedef struct constant_entry {			/* one table entry */
     	struct constant_entry	*next;
 } t_constant_entry;
 
-static struct constant_table {			/* the whole table */
+struct constant_table {			/* the whole table */
 	uword			size;
 	uword			nentries;
 	uword			nreuse;
 	t_constant_entry	**htable;
-} *constant_table;
+};
 
 
 /*
@@ -1650,19 +1826,14 @@ _constant_table_init(int flags)
     if (flags & INIT_SHARED)
     {
 	uword i;
-	constant_table = (struct constant_table *) hg_alloc_size(sizeof(struct constant_table));
-	shared_data->constant_table = constant_table;
-	constant_table->size = CONSTANT_TABLE_MIN_SIZE;
-	constant_table->nentries = 0;
-	constant_table->nreuse = 0;
-	constant_table->htable = (t_constant_entry **)
-		hg_alloc_size(constant_table->size * sizeof(t_constant_entry *));
-	for (i=0; i< constant_table->size; i++)
-	    constant_table->htable[i] = NULL;
-    }
-    if (flags & INIT_PRIVATE)
-    {
-	constant_table = (struct constant_table *) shared_data->constant_table;
+	shared_data->constant_table = hg_alloc_size(sizeof(struct constant_table));
+	ec_const_table->size = CONSTANT_TABLE_MIN_SIZE;
+	ec_const_table->nentries = 0;
+	ec_const_table->nreuse = 0;
+	ec_const_table->htable = (t_constant_entry **)
+		hg_alloc_size(ec_const_table->size * sizeof(t_constant_entry *));
+	for (i=0; i< ec_const_table->size; i++)
+	    ec_const_table->htable[i] = NULL;
     }
 }
 
@@ -1759,7 +1930,7 @@ ec_constant_table_enter(ec_eng_t *ec_eng, value v, type t, pword *presult)
     }
 
     /* lookup the entry */
-    pslot = &constant_table->htable[hash % constant_table->size];
+    pslot = &ec_const_table->htable[hash % ec_const_table->size];
     for(pelem = *pslot; pelem; pslot = &pelem->next, pelem = *pslot)
     {
 	if (pelem->hash == hash
@@ -1790,19 +1961,19 @@ ec_constant_table_enter(ec_eng_t *ec_eng, value v, type t, pword *presult)
 	pelem->hash = hash;
 	pelem->next = *pslot;
 	*pslot = pelem;
-	++constant_table->nentries;
+	++ec_const_table->nentries;
 
 	/* expand table if too full */
-	if (constant_table->nentries > constant_table->size
-	 && constant_table->size < CONSTANT_TABLE_MAX_SIZE)
+	if (ec_const_table->nentries > ec_const_table->size
+	 && ec_const_table->size < CONSTANT_TABLE_MAX_SIZE)
 	{
-	    _constant_table_expand(constant_table);
+	    _constant_table_expand(ec_const_table);
 	}
 
     }
     else
     {
-	++constant_table->nreuse;
+	++ec_const_table->nreuse;
     }
 
     *presult = pelem->value;
@@ -1818,10 +1989,10 @@ pr_constant_table(void)
     uword used_slots = 0;
     uword i;
 
-    for(i = 0; i < constant_table->size; ++i)
+    for(i = 0; i < ec_const_table->size; ++i)
     {
 	uword chain_length = 0;
-	t_constant_entry *pelem = constant_table->htable[i];
+	t_constant_entry *pelem = ec_const_table->htable[i];
 	if (pelem)
 	    ++used_slots;
 	for(; pelem; pelem = pelem->next)
@@ -1835,12 +2006,12 @@ pr_constant_table(void)
     }
 
     p_fprintf(current_output_, "GROUND CONSTANT TABLE\n");
-    p_fprintf(current_output_, "size      = %d\n", constant_table->size);
-    p_fprintf(current_output_, "entries   = %d\n", constant_table->nentries);
-    p_fprintf(current_output_, "reuse     = %d\n", constant_table->nreuse);
+    p_fprintf(current_output_, "size      = %d\n", ec_const_table->size);
+    p_fprintf(current_output_, "entries   = %d\n", ec_const_table->nentries);
+    p_fprintf(current_output_, "reuse     = %d\n", ec_const_table->nreuse);
     p_fprintf(current_output_, "max chain = %d\n", max_chain);
     p_fprintf(current_output_, "avg chain = %f\n", ((double) entry_count)/used_slots);
-    if (entry_count != constant_table->nentries)
+    if (entry_count != ec_const_table->nentries)
 	p_fprintf(current_output_, "!!! Deviating entry count %d\n", entry_count);
     Succeed_;
 }

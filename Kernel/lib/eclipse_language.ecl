@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.22 2016/09/20 22:27:38 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.23 2016/10/28 22:23:58 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -286,6 +286,7 @@
 :- reexport free / 1 from sepia_kernel.
 :- reexport functor / 3 from sepia_kernel.
 :- reexport garbage_collect / 0 from sepia_kernel.
+:- reexport garbage_collect_dictionary / 0 from sepia_kernel.
 :- reexport gcd / 3 from sepia_kernel.
 :- reexport gcd / 5 from sepia_kernel.
 :- reexport get / 1 from sepia_kernel.

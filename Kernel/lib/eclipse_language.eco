@@ -256,6 +256,7 @@
 :-(reexport(from(/(free,1),sepia_kernel))).
 :-(reexport(from(/(functor,3),sepia_kernel))).
 :-(reexport(from(/(garbage_collect,0),sepia_kernel))).
+:-(reexport(from(/(garbage_collect_dictionary,0),sepia_kernel))).
 :-(reexport(from(/(gcd,3),sepia_kernel))).
 :-(reexport(from(/(gcd,5),sepia_kernel))).
 :-(reexport(from(/(get,1),sepia_kernel))).

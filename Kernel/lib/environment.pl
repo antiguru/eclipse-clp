@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.19 2016/09/21 22:22:52 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.20 2016/10/28 22:23:58 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -702,7 +702,8 @@ get_stat(gc_ratio, X, '%', sepia) :-		gc_stat(3, X).
 get_stat(gc_time, X, seconds, sepia) :-		gc_stat(4, X).
 get_stat(dictionary_entries, X, '', sepia) :-	dict_param(0, X).
 get_stat(dict_hash_usage, U/T, '', sepia) :-	dict_param(3, U), dict_param(2, T).
-get_stat(dict_hash_collisions, C/U, '', sepia) :- dict_param(4, C), dict_param(3, U).
+get_stat(dict_hash_collisions, C/N, '', sepia) :- dict_param(4, C), dict_param(3, U), N is C+U.
+get_stat(dict_collected, X, '', sepia) :-	dict_param(10, X).
 get_stat(dict_gc_number, X, '', sepia) :-	dict_param(5, X).
 get_stat(dict_gc_countdown, X, '', sepia) :-	dict_param(8, X).
 get_stat(dict_gc_running, X, '', sepia) :-	dict_param(9, Steps),
