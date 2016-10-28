@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_general.h,v 1.4 2016/09/28 04:06:52 jschimpf Exp $
+ * $Id: ec_general.h,v 1.5 2016/10/28 22:44:33 jschimpf Exp $
  *
  * General types and macros used in ECLiPSe-related C source.
  * Do not include ECLiPSe-specific definitions here.
@@ -97,18 +97,12 @@ typedef pthread_cond_t ec_cond_t;
 #if defined(__cplusplus)
 #  define Dots	...
 #  define Extern extern "C"
-#  define ARGS(x) x
 #  ifdef const
 #    undef const
 #  endif
 #else
 #  define Dots
 #  define Extern extern
-#  ifdef __STDC__
-#    define ARGS(x) x
-#  else
-#    define ARGS(x) ()
-#  endif
 #endif
 
 

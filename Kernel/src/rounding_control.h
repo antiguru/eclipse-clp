@@ -23,7 +23,7 @@
 /*
 ** ECLiPSe include file
 **
-** $Id: rounding_control.h,v 1.14 2016/09/21 23:04:27 kish_shen Exp $
+** $Id: rounding_control.h,v 1.15 2016/10/28 22:44:33 jschimpf Exp $
 **
 ** This file contains macro definitions and variable declarations used for
 ** controlling the rounding modes of the FPUs on various systems, as well as
@@ -450,6 +450,6 @@
 #define Down(x)		ec_ieee_down(x)
 #endif
 
-extern double ec_ieee_up ARGS((double));
-extern double ec_ieee_down ARGS((double));
+extern double ec_ieee_up(double);
+extern double ec_ieee_down(double);
 

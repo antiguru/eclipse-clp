@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.27 2016/10/24 01:37:52 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.28 2016/10/28 22:44:33 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -3329,7 +3329,7 @@ ec_setup_stream_sigio_thread(stream_id nst)
     {
 	return PSUCCEED;
     }
-    if (!ec_start_thread(nst->signal_thread, (int(*) ARGS((void*)))_sigio_thread_function, nst))
+    if (!ec_start_thread(nst->signal_thread, (int(*)(void*))_sigio_thread_function, nst))
 	return SYS_ERROR;
     return PSUCCEED;
 }
@@ -3384,7 +3384,7 @@ ec_reenable_sigio(stream_id nst, int bytes_wanted, int bytes_read)
     /* nothing to read, reenable SIGIO thread */
     if (ec_thread_stopped(nst->signal_thread, &res))
     {
-	if (!ec_start_thread(nst->signal_thread, (int(*) ARGS((void*)))_sigio_thread_function, nst))
+	if (!ec_start_thread(nst->signal_thread, (int(*)(void*))_sigio_thread_function, nst))
 	    return SYS_ERROR;
     }
     return PSUCCEED;

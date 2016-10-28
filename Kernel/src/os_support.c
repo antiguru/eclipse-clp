@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.20 2016/09/21 22:20:50 jschimpf Exp $
+ * $Id: os_support.c,v 1.21 2016/10/28 22:44:33 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -1512,7 +1512,7 @@ ec_thread_cancel_and_join(void *thread_id)
 {
     DWORD res;
 
-    HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, (DWORD) thread_id);
+    HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, (DWORD)(DWORD_PTR) thread_id);
     if (!thread)
     	return (int)GetLastError();
 

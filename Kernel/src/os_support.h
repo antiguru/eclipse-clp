@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.8 2016/09/21 22:20:50 jschimpf Exp $
+ * $Id: os_support.h,v 1.9 2016/10/28 22:44:33 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -147,12 +147,6 @@
 #endif
 #endif
 
-#ifdef __STDC__
-#  define ARGS(x) x
-#else
-#  define ARGS(x) ()
-#endif
-
 #ifdef _WIN32
 #ifndef __GNUC__
 #define S_IFMT	_S_IFMT
@@ -173,22 +167,22 @@ Extern int	ec_use_own_cwd;
 Extern int      ec_sigalrm;
 Extern int      ec_sigio;
 
-void	ec_os_init ARGS((void));
-void	ec_os_fini ARGS((void));
-char *	expand_filename ARGS((char *in, char *out, int option));
-char *	os_filename ARGS((char *in, char *out));
-char *	canonical_filename ARGS((char *in, char *out));
-long	user_time ARGS((void));	/* ticks */
-int	all_times ARGS((double *user, double *system, double *elapsed));
-long	ec_unix_time ARGS((void)); /* seconds */
+void	ec_os_init(void);
+void	ec_os_fini(void);
+char *	expand_filename(char *in, char *out, int option);
+char *	os_filename(char *in, char *out);
+char *	canonical_filename(char *in, char *out);
+long	user_time(void);	/* ticks */
+int	all_times(double *user, double *system, double *elapsed);
+long	ec_unix_time(void); /* seconds */
 int	ec_thread_cputime(double*);
-char *	ec_date_string ARGS((char *buf));
-int	ec_gethostname ARGS((char *buf, int size));
-int	ec_gethostid ARGS((char *buf, int size));
-int	get_cwd ARGS((char *buf, int size));
-int	ec_rename ARGS((char *, char *));
-char *	ec_os_err_string ARGS((int err,int grp,char *buf,int size));
-char *	ec_env_lookup ARGS((char*, char*, int*));
+char *	ec_date_string(char *buf);
+int	ec_gethostname(char *buf, int size);
+int	ec_gethostid(char *buf, int size);
+int	get_cwd(char *buf, int size);
+int	ec_rename(char *, char *);
+char *	ec_os_err_string(int err,int grp,char *buf,int size);
+char *	ec_env_lookup(char*, char*, int*);
 
 #ifdef HAVE_GETHOSTID
 #ifdef GETHOSTID_UNDEF
@@ -203,28 +197,28 @@ Extern long	gethostid();
 #endif
 
 #ifndef HAVE_STRERROR
-char	*strerror ARGS((int));
+char	*strerror(int);
 #endif
 
 #ifdef _WIN32
 #ifndef __GNUC__
 #define bzero(p,n) ZeroMemory(p,n)
-int	putenv ARGS((char *));
-int	lseek ARGS((int, long, int));
-int	fstat ARGS((int handle, struct_stat *buf));
-int	ec_truncate ARGS((int));
+int	putenv(char *);
+int	lseek(int, long, int);
+int	fstat(int handle, struct_stat *buf);
+int	ec_truncate(int);
 #endif
-int	getpid ARGS((void));
-int	isatty ARGS((int));
-int	close ARGS((int));
-int	read ARGS((int, void *, unsigned int));
-int	write ARGS((int, const void *, unsigned int));
-int	pipe ARGS((int *));
-int	dup ARGS((int));
-int	dup2 ARGS((int, int));
-int	getpagesize ARGS((void));
-int	ec_getch_raw ARGS((int));
-int	ec_putch_raw ARGS((int));
+int	getpid(void);
+int	isatty(int);
+int	close(int);
+int	read(int, void *, unsigned int);
+int	write(int, const void *, unsigned int);
+int	pipe(int *);
+int	dup(int);
+int	dup2(int, int);
+int	getpagesize(void);
+int	ec_getch_raw(int);
+int	ec_putch_raw(int);
 #endif
 
 /* Use sigsetjmp if possible */
@@ -291,12 +285,12 @@ int ec_cond_wait(pthread_cond_t*, pthread_mutex_t*, int timeout_ms);
 #define ec_cond_wait(c,m,t)	0
 #endif
 
-int	ec_set_alarm ARGS((double, double, void (*) ARGS((long)), long, double*, double*));
-void *	ec_make_thread ARGS((void));
-int	ec_start_thread ARGS((void* thread, int (*) ARGS((void*)), void* data));
-int	ec_thread_stopped ARGS((void* thread, int* result));
-int	ec_thread_wait ARGS((void* thread, int* result, int timeout));
-int	ec_thread_terminate ARGS((void* thread, int timeout));
+int	ec_set_alarm(double, double, void (*)(long), long, double*, double*);
+void *	ec_make_thread(void);
+int	ec_start_thread(void* thread, int (*)(void*), void* data);
+int	ec_thread_stopped(void* thread, int* result);
+int	ec_thread_wait(void* thread, int* result, int timeout);
+int	ec_thread_terminate(void* thread, int timeout);
 
 int	ec_thread_create(void** os_thread, void*(*fun)(void*), void* arg);
 int	ec_thread_detach(void* os_thread);
@@ -306,21 +300,21 @@ int	ec_thread_cancel_and_join(void* os_thread);
 /* DLLEXP, because these are used in main() */
 Extern	DLLEXP	void *	ec_thread_self();
 Extern	DLLEXP	void	ec_thread_exit(void*);
-Extern	DLLEXP	void	ec_sleep ARGS((double));
-Extern	DLLEXP	void	ec_bad_exit ARGS((char *));
+Extern	DLLEXP	void	ec_sleep(double);
+Extern	DLLEXP	void	ec_bad_exit(char *);
 
 
 /*
  * Functions that take filename arguments in ECLiPSe pathname syntax
  */
 #ifdef _WIN32
-int	ec_chdir ARGS((char *));
-int	ec_access ARGS((char *name, int amode));
-int	ec_stat ARGS((char *name, struct_stat *buf));
-int	ec_rmdir ARGS((char *name));
-int	ec_mkdir ARGS((char *name, int));
-int	ec_unlink ARGS((char *name));
-int	ec_open ARGS((const char *, int, int));
+int	ec_chdir(char *);
+int	ec_access(char *name, int amode);
+int	ec_stat(char *name, struct_stat *buf);
+int	ec_rmdir(char *name);
+int	ec_mkdir(char *name, int);
+int	ec_unlink(char *name);
+int	ec_open(const char *, int, int);
 #else
 #define	ec_chdir(A) chdir(A)
 #define	ec_access(A,B) access(A,B)

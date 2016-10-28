@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.18 2016/10/26 18:16:08 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.19 2016/10/28 22:44:33 jschimpf Exp $
  */
 
 /*
@@ -193,8 +193,8 @@ extern vmcode
  * Overflow checks and garbage collection
  *---------------------------------------------------------------------------*/
 
-extern int	control_ov ARGS((ec_eng_t*)),
-		local_ov ARGS((ec_eng_t*));
+extern int	control_ov(ec_eng_t*),
+		local_ov(ec_eng_t*);
 
 #ifdef IN_C_EMULATOR
 #undef Check_Trail_Ov
@@ -427,8 +427,8 @@ Trailed type macros not defined correctly!!!
  */
 
 #define Trail_Undo(pw, function) \
-	TT = (pword **) ((void (**)ARGS((pword *))) TT - 1);\
-	* (void (**)ARGS((pword *))) TT = (void (*)ARGS((pword *))) (function);\
+	TT = (pword **) ((void (**)(pword *)) TT - 1);\
+	* (void (**)(pword *)) TT = (void (*)(pword *)) (function);\
 	*--TT = (pword *) (pw);\
 	*--TT = (pword *) ( TrailedEsizeField(TRAIL_UNDO_SIMPLE_HEADER_SIZE)\
 		| TrailedEtypeField(TRAIL_UNDO) | TRAIL_EXT);\
@@ -589,8 +589,7 @@ extern pword	*spmax_;
 	atomic_store(&TG_SL, NULL)
 
 /* The following must only be called when we are about to handle
- * FakedOverflow conditions anyway, or in interrupt protected regions,
- * since we may miss an Interrupt_Fake_Overflow when overwriting TG_SL!
+ * FakedOverflow conditions.
  */
 #define Reset_Faked_Overflow			\
 	atomic_store(&TG_SL, TG_SLS)
@@ -1362,7 +1361,7 @@ extern char *read_node();
  *---------------------------------------------------------------------------*/
 
 #define TransfDid(t)	transf_did((word) t)
-extern dident transf_did ARGS((word));
+extern dident transf_did(word);
 
 
 /*---------------------------------------------------------------------------
@@ -1650,71 +1649,71 @@ extern dident transf_did ARGS((word));
  * Prototypes
  *---------------------------------------------------------------------------*/
 
-Extern	void	ec_exit ARGS((int));
-Extern	void	re_fake_overflow ARGS((ec_eng_t*));
-Extern	int	sub_emulc_opt ARGS((ec_eng_t*, value, type, value, type, int));
-Extern	int	ecl_subgoal ARGS((ec_eng_t*, pword, pword, int));
-Extern	int	boot_emulc ARGS((ec_eng_t*, value, type, value, type));
-Extern	int	slave_emulc ARGS((ec_eng_t*));
-Extern	int	resume_emulc ARGS((ec_eng_t*));
+Extern	void	ec_exit(int);
+Extern	void	re_fake_overflow(ec_eng_t*);
+Extern	int	sub_emulc_opt(ec_eng_t*, value, type, value, type, int);
+Extern	int	ecl_subgoal(ec_eng_t*, pword, pword, int);
+Extern	int	boot_emulc(ec_eng_t*, value, type, value, type);
+Extern	int	slave_emulc(ec_eng_t*);
+Extern	int	resume_emulc(ec_eng_t*);
 Extern	DLLEXP	int ecl_engine_init(ec_eng_t *parent_eng, ec_eng_t *new_eng);
 Extern	DLLEXP	int ecl_engines_init(t_eclipse_options*, ec_eng_t **);
 Extern	int	ecl_init_aux(t_eclipse_options *, ec_eng_t *, int);
-Extern	void	ecl_engine_exit ARGS((ec_eng_t*, int));
+Extern	void	ecl_engine_exit(ec_eng_t*, int);
 Extern	int	ecl_housekeeping(ec_eng_t*, word valid_args, int allow_exit);
 Extern	void	ecl_pause_engine(ec_eng_t *ec_eng, int arity, int allow_exit);
 Extern	void	ecl_unpause_engine(ec_eng_t *ec_eng);
 Extern	int	ecl_do_requested_action(ec_eng_t*,int event_flags,int jump);
-Extern	void	delayed_exit ARGS((ec_eng_t*));
+Extern	void	delayed_exit(ec_eng_t*);
 Extern	int	next_posted_item(ec_eng_t*, pword*, int);
-Extern	int	next_urgent_event ARGS((ec_eng_t*));
-Extern	int	deep_suspend ARGS((ec_eng_t*, value, type, int, pword*, int));
-Extern	DLLEXP	pword *	add_attribute ARGS((ec_eng_t*, word, pword*, word, int));
-Extern	DLLEXP	int	insert_suspension ARGS((ec_eng_t*, pword*, int, pword*, int));
+Extern	int	next_urgent_event(ec_eng_t*);
+Extern	int	deep_suspend(ec_eng_t*, value, type, int, pword*, int);
+Extern	DLLEXP	pword *	add_attribute(ec_eng_t*, word, pword*, word, int);
+Extern	DLLEXP	int	insert_suspension(ec_eng_t*, pword*, int, pword*, int);
 
 #define	notify_constrained(p) ecl_notify_constrained(ec_eng,p)
-Extern	DLLEXP	int	ecl_notify_constrained ARGS((ec_eng_t*,pword*));
+Extern	DLLEXP	int	ecl_notify_constrained(ec_eng_t*,pword*);
 
-Extern	pword *	first_woken ARGS((ec_eng_t*, int));
-Extern	pword *	wl_init ARGS((ec_eng_t*));
-Extern	DLLEXP	int 	bind_c ARGS((ec_eng_t*, pword*, pword*, pword**));
-Extern	int 	meta_bind ARGS((ec_eng_t*, pword*, value, type));
+Extern	pword *	first_woken(ec_eng_t*, int);
+Extern	pword *	wl_init(ec_eng_t*);
+Extern	DLLEXP	int 	bind_c(ec_eng_t*, pword*, pword*, pword**);
+Extern	int 	meta_bind(ec_eng_t*, pword*, value, type);
 
 #define ec_schedule_susps(p) ecl_schedule_susps(ec_eng,p)
-Extern	DLLEXP	int 	ecl_schedule_susps ARGS((ec_eng_t*,pword*));
+Extern	DLLEXP	int 	ecl_schedule_susps(ec_eng_t*,pword*);
 
 #define ec_double_to_int_or_bignum(d,p) ecl_double_to_int_or_bignum(ec_eng,d,p)
-Extern	DLLEXP	int ecl_double_to_int_or_bignum ARGS((ec_eng_t*, double, pword *));
+Extern	DLLEXP	int ecl_double_to_int_or_bignum(ec_eng_t*, double, pword *);
 
 #define ec_keysort(l,vk,tk,r,d,n,e) ecl_keysort(ec_eng,l,vk,tk,r,d,n,e)
-Extern	pword *	ecl_keysort ARGS((ec_eng_t*, value, value, type, int, int, int, int *));
+Extern	pword *	ecl_keysort(ec_eng_t*, value, value, type, int, int, int, int *);
 
-Extern	pword *	ec_nonground ARGS((value, type));
+Extern	pword *	ec_nonground(value, type);
 
-Extern	void	untrail_ext ARGS((ec_eng_t*,pword**,int));
-Extern	void	do_cut_action ARGS((ec_eng_t*));
+Extern	void	untrail_ext(ec_eng_t*,pword**,int);
+Extern	void	do_cut_action(ec_eng_t*);
 
 #define	schedule_cut_fail_action(f,v,t) ecl_schedule_cut_fail_action(ec_eng, (void(*)(value,type,ec_eng_t*))f, v, t)
-Extern	DLLEXP	void	ecl_schedule_cut_fail_action ARGS((ec_eng_t*, void (*)(value,type,ec_eng_t*), value, type));
+Extern	DLLEXP	void	ecl_schedule_cut_fail_action(ec_eng_t*, void (*)(value,type,ec_eng_t*), value, type);
 
-Extern	dident	meta_name ARGS((int));
-Extern	DLLEXP	int	meta_index ARGS((dident));
-Extern	int	p_schedule_woken ARGS((value, type, ec_eng_t*));
-Extern	DLLEXP	int	p_schedule_postponed ARGS((value, type, ec_eng_t*));
-Extern	int	ec_compare_terms ARGS((value, type, value, type));
-Extern	int	trim_global_trail ARGS((ec_eng_t*,uword));
-Extern	int	trim_control_local ARGS((ec_eng_t*));
-Extern	void	mark_dids_from_pwords ARGS((pword *from, register pword *to));
-Extern	int	ec_occurs ARGS((value vs, type ts, value vterm, type tterm));
-Extern	void	ec_init_dynamic_event_queue ARGS((ec_eng_t*));
-Extern	void	trim_dynamic_event_queue ARGS((ec_eng_t*));
-Extern	void	purge_disabled_dynamic_events ARGS((ec_eng_t*, t_heap_event *event));
+Extern	dident	meta_name(int);
+Extern	DLLEXP	int	meta_index(dident);
+Extern	int	p_schedule_woken(value, type, ec_eng_t*);
+Extern	DLLEXP	int	p_schedule_postponed(value, type, ec_eng_t*);
+Extern	int	ec_compare_terms(value, type, value, type);
+Extern	int	trim_global_trail(ec_eng_t*,uword);
+Extern	int	trim_control_local(ec_eng_t*);
+Extern	void	mark_dids_from_pwords(pword *from, register pword *to);
+Extern	int	ec_occurs(value vs, type ts, value vterm, type tterm);
+Extern	void	ec_init_dynamic_event_queue(ec_eng_t*);
+Extern	void	trim_dynamic_event_queue(ec_eng_t*);
+Extern	void	purge_disabled_dynamic_events(ec_eng_t*, t_heap_event *event);
 Extern	void	mark_dids_dynamic_event_queue(ec_eng_t*);
-Extern	DLLEXP	int p_merge_suspension_lists ARGS((value, type, value, type, value, type, value, type, ec_eng_t*));
-Extern	DLLEXP	int p_set_suspension_priority ARGS((value, type, value, type, ec_eng_t*));
+Extern	DLLEXP	int p_merge_suspension_lists(value, type, value, type, value, type, value, type, ec_eng_t*);
+Extern	DLLEXP	int p_set_suspension_priority(value, type, value, type, ec_eng_t*);
 
 #define ec_enter_suspension(t,s) ecl_enter_suspension(ec_eng,t,s)
-Extern	DLLEXP	int ecl_enter_suspension ARGS((ec_eng_t*,pword *, pword *));
+Extern	DLLEXP	int ecl_enter_suspension(ec_eng_t*,pword *, pword *);
 
 /* from handlers.c */
 Extern	int	ec_sigio;
@@ -1724,25 +1723,25 @@ Extern	void	ec_send_signal(int);
 Extern	void	ec_signal_dict_gc(void);
 
 /* from bip_arith.c */
-Extern	DLLEXP	int unary_arith_op ARGS((value,type,value,type,ec_eng_t*,int,int));
-Extern	int	binary_arith_op ARGS((value,type,value,type,value,type,ec_eng_t*,int));
-Extern	int	un_arith_op ARGS((value,type,pword *,ec_eng_t*,int,int));
-Extern	int	bin_arith_op ARGS((value,type,value,type,pword *,ec_eng_t*,int));
+Extern	DLLEXP	int unary_arith_op(value,type,value,type,ec_eng_t*,int,int);
+Extern	int	binary_arith_op(value,type,value,type,value,type,ec_eng_t*,int);
+Extern	int	un_arith_op(value,type,pword *,ec_eng_t*,int,int);
+Extern	int	bin_arith_op(value,type,value,type,pword *,ec_eng_t*,int);
 Extern	int	arith_compare(ec_eng_t*, value v1, type t1, value v2, type t2, int *res);
 
 /* from bip_tconv.c */
-Extern	pword * ec_chase_arg ARGS((value vn, type tn, value vt, type tt, int *perr));
-Extern	uword	ec_term_hash ARGS((value vterm, type tterm, uword maxdepth, int *pres));
+Extern	pword * ec_chase_arg(value vn, type tn, value vt, type tt, int *perr);
+Extern	uword	ec_term_hash(value vterm, type tterm, uword maxdepth, int *pres);
 
 /* from bigrat.c */
-Extern	int	ec_array_to_big ARGS((ec_eng_t *ec_eng, const void *p, int count, int order, int size, int endian, unsigned nails, pword *result));
-Extern	int	ec_big_to_chunks ARGS((ec_eng_t *ec_eng, pword *pw1, uword chunksize, pword *result));
+Extern	int	ec_array_to_big(ec_eng_t *ec_eng, const void *p, int count, int order, int size, int endian, unsigned nails, pword *result);
+Extern	int	ec_big_to_chunks(ec_eng_t *ec_eng, pword *pw1, uword chunksize, pword *result);
 
 /* from bip_array.c */
-Extern	int	make_kernel_array ARGS((ec_eng_t *ec_eng, dident adid, int length, dident atype, dident avisib));
-Extern	pword *	get_kernel_array ARGS((dident adid));
-Extern	uword *	get_elt_address ARGS((value v, type t, uword *kind, dident mod_did, type mod_tag, int *perr));
-Extern	word	get_first_elt ARGS((pword *p, pword *q, uword *kind, uword *size, dident vmod_did, type mod_tag));
+Extern	int	make_kernel_array(ec_eng_t *ec_eng, dident adid, int length, dident atype, dident avisib);
+Extern	pword *	get_kernel_array(dident adid);
+Extern	uword *	get_elt_address(value v, type t, uword *kind, dident mod_did, type mod_tag, int *perr);
+Extern	word	get_first_elt(pword *p, pword *q, uword *kind, uword *size, dident vmod_did, type mod_tag);
 
 /* from init.c */
 Extern	int	eclipse_global_init(int init_flags);

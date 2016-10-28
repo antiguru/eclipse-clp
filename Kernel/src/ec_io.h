@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.8 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.9 2016/10/28 22:44:33 jschimpf Exp $
  */
 
 /*
@@ -292,19 +292,19 @@ typedef struct {
     int		io_type;
     int		mode_defaults;
     int		buf_size_hint;
-    int		(*close) ARGS((int));
-    int		(*ready) ARGS(());
-    int		(*read) ARGS((int,char*,int));
-    int		(*write) ARGS((int,char*,int));
-    int		(*at) ARGS((stream_id nst, long int*));
-    int		(*at_eof) ARGS((stream_id));
-    int		(*buffer_nonempty) ARGS((stream_id));
-    int		(*truncate) ARGS(());
-    int		(*seek) ARGS((stream_id,long,int));
-    int		(*flush) ARGS((stream_id));
-    int		(*size) ARGS((stream_id));
-    int		(*content) ARGS((stream_id,char*));
-    int		(*outf) ARGS((stream_id,char*,int));
+    int		(*close)(int);
+    int		(*ready)();
+    int		(*read)(int,char*,int);
+    int		(*write)(int,char*,int);
+    int		(*at)(stream_id nst, long int*);
+    int		(*at_eof)(stream_id);
+    int		(*buffer_nonempty)(stream_id);
+    int		(*truncate)();
+    int		(*seek)(stream_id,long,int);
+    int		(*flush)(stream_id);
+    int		(*size)(stream_id);
+    int		(*content)(stream_id,char*);
+    int		(*outf)(stream_id,char*,int);
 } io_channel_t;
 
 
@@ -315,35 +315,35 @@ typedef struct {
 Extern int		own_pid;
 Extern void		my_io_aport();
 
-Extern	int	ec_pwrite ARGS((ec_eng_t*,int,int,stream_id,value,type,int,int,dident,type));
-Extern	int	ec_tty_in ARGS((stream_id));
-Extern	int	ec_tty_out ARGS((stream_id, int));
-Extern	int	ec_tty_outs ARGS((stream_id, char*, int));
-Extern	int	ec_seek_stream ARGS((stream_id,long,int));
-Extern	int	ec_stream_at ARGS((stream_id,long*));
-Extern	int	ec_close_stream ARGS((stream_id, int));
-Extern	int	ec_outfw ARGS((stream_id, word));
-Extern	int	ec_outfc ARGS((stream_id, int));
-Extern	int	ec_getch ARGS((stream_id));
-Extern	int	ec_ungetch ARGS((stream_id));
+Extern	int	ec_pwrite(ec_eng_t*,int,int,stream_id,value,type,int,int,dident,type);
+Extern	int	ec_tty_in(stream_id);
+Extern	int	ec_tty_out(stream_id, int);
+Extern	int	ec_tty_outs(stream_id, char*, int);
+Extern	int	ec_seek_stream(stream_id,long,int);
+Extern	int	ec_stream_at(stream_id,long*);
+Extern	int	ec_close_stream(stream_id, int);
+Extern	int	ec_outfw(stream_id, word);
+Extern	int	ec_outfc(stream_id, int);
+Extern	int	ec_getch(stream_id);
+Extern	int	ec_ungetch(stream_id);
 
-Extern	int	fill_buffer ARGS((stream_id));
-Extern	int	io_flush_out ARGS((stream_id));
-Extern	int	set_sigio ARGS((int));
-Extern	int	reset_sigio ARGS((int));
-Extern	int	ec_stream_set_sigio ARGS((stream_id));
-Extern	int	ec_stream_reset_sigio ARGS((stream_id));
-Extern	int	ec_setup_stream_sigio_thread ARGS((stream_id));
-Extern	int	ec_teardown_stream_sigio_thread ARGS((stream_id,int));
-Extern	int	ec_reenable_sigio ARGS((stream_id, int, int));
-Extern	void	mark_dids_from_streams ARGS((void));
-Extern stream_id find_free_stream ARGS((void));
-Extern stream_id alloc_slave_stream ARGS((void));
-Extern void	init_stream ARGS((stream_id,int unit,int mode,dident name,
-			stream_id pstream, int size));
-Extern stream_id ec_open_file ARGS((char*,int,int*));
-Extern stream_id get_stream_id ARGS((value,type,int,int,ec_eng_t*,int*));
-Extern char	*ec_getstring ARGS((stream_id,word,word*));
+Extern	int	fill_buffer(stream_id);
+Extern	int	io_flush_out(stream_id);
+Extern	int	set_sigio(int);
+Extern	int	reset_sigio(int);
+Extern	int	ec_stream_set_sigio(stream_id);
+Extern	int	ec_stream_reset_sigio(stream_id);
+Extern	int	ec_setup_stream_sigio_thread(stream_id);
+Extern	int	ec_teardown_stream_sigio_thread(stream_id,int);
+Extern	int	ec_reenable_sigio(stream_id, int, int);
+Extern	void	mark_dids_from_streams(void);
+Extern stream_id find_free_stream(void);
+Extern stream_id alloc_slave_stream(void);
+Extern void	init_stream(stream_id,int unit,int mode,dident name,
+			stream_id pstream, int size);
+Extern stream_id ec_open_file(char*,int,int*);
+Extern stream_id get_stream_id(value,type,int,int,ec_eng_t*,int*);
+Extern char	*ec_getstring(stream_id,word,word*);
 Extern 	int	set_stream(dident, stream_id);
 
 Extern t_ext_type stream_tid;

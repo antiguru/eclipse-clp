@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: property.h,v 1.4 2016/10/25 22:34:59 jschimpf Exp $
+ * VERSION	$Id: property.h,v 1.5 2016/10/28 22:44:33 jschimpf Exp $
  */
  
 /*************************************************************
@@ -79,21 +79,21 @@
 #define IsGlobalPrologRef(p) SameTypeC((p)->tag, GlobalPrologRefTag)
 
 
-Extern int	get_property_ref ARGS((dident, int, dident, type, int, pword**));
-Extern int	swap_property ARGS((dident, int, dident, type, int, pword*, pword*));
+Extern int	get_property_ref(dident, int, dident, type, int, pword**);
+Extern int	swap_property(dident, int, dident, type, int, pword*, pword*);
 
 Extern int	get_visible_property(dident functor, int property_name, dident module, type mod_tag, pword *result);
 Extern int	get_visible_property_handle(dident functor, int property_name, dident module, type mod_tag, const t_ext_type *class, t_ext_ptr *result);
 Extern pword	visible_property(dident functor, int property_name, dident module, type mod_tag, int *res);
 
-Extern int	get_global_property ARGS((dident, int, pword*));
-Extern int	set_global_property ARGS((dident, int, pword*));
-Extern int	swap_global_property ARGS((dident, int, pword*, pword*));
+Extern int	get_global_property(dident, int, pword*);
+Extern int	set_global_property(dident, int, pword*);
+Extern int	swap_global_property(dident, int, pword*, pword*);
 Extern pword	global_property(dident functor, int property_name);
 
-Extern int	erase_global_property ARGS((dident, int));
-Extern int	erase_property ARGS((dident, int, dident, type, int));
-Extern void	erase_module_props ARGS((module_item*));
-Extern void	erase_records ARGS((pword*));
-Extern void	mark_dids_from_properties ARGS((dident));
+Extern int	erase_global_property(dident, int);
+Extern int	erase_property(dident, int, dident, type, int);
+Extern void	erase_module_props(module_item*);
+Extern void	erase_records(pword*);
+Extern void	mark_dids_from_properties(dident);
 

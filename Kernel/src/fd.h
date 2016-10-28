@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: fd.h,v 1.3 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: fd.h,v 1.4 2016/10/28 22:44:33 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -124,7 +124,7 @@
  */
 extern int	domain_slot;
 
-extern int	dom_range ARGS((pword*,word*,word*));
-extern int	dom_check_in ARGS((word,type,pword*));
-extern int	dom_remove_element ARGS((ec_eng_t*,pword*,word,word,pword*));
+extern int	dom_range(pword*,word*,word*);
+extern int	dom_check_in(word,type,pword*);
+extern int	dom_remove_element(ec_eng_t*,pword*,word,word,pword*);
 

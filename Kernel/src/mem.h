@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: mem.h,v 1.3 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: mem.h,v 1.4 2016/10/28 22:44:33 jschimpf Exp $
  *
  * IDENTIFICATION	mem.h
  *
@@ -79,11 +79,11 @@ typedef struct stack_header {
 } *unbounded_stack;
 
 
-extern void stack_create ARGS((struct stack_header **pstack, uword words_needed));
-extern void stack_pop_to ARGS((struct stack_header **pstack, uword *old_top));
-extern void stack_push ARGS((struct stack_header **pstack, uword words_needed));
-extern void stack_pop ARGS((struct stack_header **pstack, uword word_offset));
-extern void stack_destroy ARGS((struct stack_header **pstack));
+extern void stack_create(struct stack_header **pstack, uword words_needed);
+extern void stack_pop_to(struct stack_header **pstack, uword *old_top);
+extern void stack_push(struct stack_header **pstack, uword words_needed);
+extern void stack_pop(struct stack_header **pstack, uword word_offset);
+extern void stack_destroy(struct stack_header **pstack);
 
 /*---------------------------------------------------------------------
  * Abstract data type "Temporary Memory" (description see mem.c)
@@ -111,10 +111,10 @@ typedef struct temp_header {
 } *temp_area;
 
 
-extern void	temp_create ARGS((struct temp_header **ptemp, uword bytes_needed));
-extern void	temp_align ARGS((struct temp_header **ptemp, uword size));
-extern void	temp_destroy ARGS((struct temp_header **ptemp));
-extern char	*temp_alloc ARGS((struct temp_header **ptemp, uword bytes_needed));
+extern void	temp_create(struct temp_header **ptemp, uword bytes_needed);
+extern void	temp_align(struct temp_header **ptemp, uword size);
+extern void	temp_destroy(struct temp_header **ptemp);
+extern char	*temp_alloc(struct temp_header **ptemp, uword bytes_needed);
 
 /*---------------------------------------------------------------------
  * Abstract data type "Unbounded Buffer"
@@ -181,15 +181,15 @@ struct buffer_block_header {
 };
 
 
-extern void	buffer_create ARGS((unbounded_buffer *bd, uword minwords));
-extern void	buffer_reinit ARGS((unbounded_buffer *bd));
-extern void	buffer_setread ARGS((unbounded_buffer *bd, uword *ptr));
-extern void	buffer_destroy ARGS((unbounded_buffer *bd));
+extern void	buffer_create(unbounded_buffer *bd, uword minwords);
+extern void	buffer_reinit(unbounded_buffer *bd);
+extern void	buffer_setread(unbounded_buffer *bd, uword *ptr);
+extern void	buffer_destroy(unbounded_buffer *bd);
 
-extern uword	buffer_pos ARGS((unbounded_buffer *bd, uword *ptr));
+extern uword	buffer_pos(unbounded_buffer *bd, uword *ptr);
 
-extern uword	*buffer_alloc ARGS((unbounded_buffer *bd, uword *ptr, uword words));
-extern uword	*buffer_next ARGS((unbounded_buffer *bd, uword *ptr));
+extern uword	*buffer_alloc(unbounded_buffer *bd, uword *ptr, uword words);
+extern uword	*buffer_next(unbounded_buffer *bd, uword *ptr);
 
 
 /*---------------------------------------------------------------------

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.22 2016/10/25 22:34:59 jschimpf Exp $
+ * $Id: types.h,v 1.23 2016/10/28 22:44:33 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -262,22 +262,22 @@ typedef void *t_ext_ptr;
 
 /* Method table */
 typedef struct {
-    void	(*free)ARGS((t_ext_ptr));
-    t_ext_ptr 	(*copy)ARGS((t_ext_ptr));
-    void	(*mark_dids)ARGS((t_ext_ptr));
-    int		(*string_size)ARGS((t_ext_ptr obj, int quoted_or_radix));
-    int		(*to_string)ARGS((t_ext_ptr obj, char *buf, int quoted_or_radix));
-    int 	(*equal)ARGS((t_ext_ptr, t_ext_ptr));
-    t_ext_ptr 	(*remote_copy)ARGS((t_ext_ptr));
-    pword 	(*get)ARGS((t_ext_ptr, int, struct ec_eng_s*));
-    /*int 	(*get)ARGS((t_ext_ptr, int, pword*, struct ec_eng_s*));*/
-    int 	(*set)ARGS((t_ext_ptr, int, pword, struct ec_eng_s*));
-    dident	(*kind)ARGS((void));
-    int		(*lock)ARGS((t_ext_ptr));
-    int		(*trylock)ARGS((t_ext_ptr));
-    int		(*unlock)ARGS((t_ext_ptr));
-    int		(*signal)ARGS((t_ext_ptr,int));
-    int		(*wait)ARGS((t_ext_ptr,int));
+    void	(*free)(t_ext_ptr);
+    t_ext_ptr 	(*copy)(t_ext_ptr);
+    void	(*mark_dids)(t_ext_ptr);
+    int		(*string_size)(t_ext_ptr obj, int quoted_or_radix);
+    int		(*to_string)(t_ext_ptr obj, char *buf, int quoted_or_radix);
+    int 	(*equal)(t_ext_ptr, t_ext_ptr);
+    t_ext_ptr 	(*remote_copy)(t_ext_ptr);
+    pword 	(*get)(t_ext_ptr, int, struct ec_eng_s*);
+    /*int 	(*get)(t_ext_ptr, int, pword*, struct ec_eng_s*);*/
+    int 	(*set)(t_ext_ptr, int, pword, struct ec_eng_s*);
+    dident	(*kind)(void);
+    int		(*lock)(t_ext_ptr);
+    int		(*trylock)(t_ext_ptr);
+    int		(*unlock)(t_ext_ptr);
+    int		(*signal)(t_ext_ptr,int);
+    int		(*wait)(t_ext_ptr,int);
 } t_ext_type;
 
 
@@ -493,7 +493,7 @@ typedef struct
     uword	sharedsize;
 
     /* panic callback */
-    void	(*user_panic)ARGS((const char*,const char *));
+    void	(*user_panic)(const char*,const char *);
 
     int		allocation; 
 
@@ -646,18 +646,18 @@ struct tag_descriptor {
 	dident			type_name;	/* did */
 	int			numeric;	/* numeric type and order  */
 	int			order;		/* standard term order */
-	int	(* write)ARGS((int,stream_id,value,type));
-	int	(* string_size)ARGS((value,type,int));
-	int	(* to_string)ARGS((value,type,char*,int));
-	int	(* from_string)ARGS((ec_eng_t*,char *,pword*,int));
-	int	(* equal)ARGS((pword*,pword*));
-	int	(* compare)ARGS((value,value));
-	int	(* arith_compare)ARGS((value,value,int*));
-	int	(* copy_size)ARGS((value,type));
-	pword * (* copy_to_heap)ARGS((value,type,pword*,pword*));
-	pword * (* copy_to_stack)ARGS((void));
-	int	(* arith_op[ARITH_OPERATIONS])ARGS((Dots));
-	int	(* coerce_to[NTYPES+1])ARGS((ec_eng_t*,value,value*));
+	int	(* write)(int,stream_id,value,type);
+	int	(* string_size)(value,type,int);
+	int	(* to_string)(value,type,char*,int);
+	int	(* from_string)(ec_eng_t*,char *,pword*,int);
+	int	(* equal)(pword*,pword*);
+	int	(* compare)(value,value);
+	int	(* arith_compare)(value,value,int*);
+	int	(* copy_size)(value,type);
+	pword * (* copy_to_heap)(value,type,pword*,pword*);
+	pword * (* copy_to_stack)(void);
+	int	(* arith_op[ARITH_OPERATIONS])(Dots);
+	int	(* coerce_to[NTYPES+1])(ec_eng_t*,value,value*);
 };
 
 

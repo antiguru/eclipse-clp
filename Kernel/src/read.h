@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: read.h,v 1.2 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: read.h,v 1.3 2016/10/28 22:44:33 jschimpf Exp $
  */
 
 /*
@@ -46,8 +46,8 @@
 #define LAYOUT_PLEASE	2
 
 
-Extern int ec_read_term ARGS((ec_eng_t *ec_eng, stream_id nst, int options, pword *result,
-			pword *varlist, int *has_macro, value vm, type tm));
+Extern int ec_read_term(ec_eng_t *ec_eng, stream_id nst, int options, pword *result,
+			pword *varlist, int *has_macro, value vm, type tm);
 
 Extern pword *transf_meta_in(ec_eng_t*, pword *pw, dident mod, int *err);
 Extern pword *transf_meta_out(ec_eng_t*, value val, type tag, pword *top,

@@ -85,7 +85,7 @@
 void sincos(double,double*,double*);
 #endif
 
-Extern DLLEXP void ec_i_add ARGS((double,double,double,double,double*,double*));
-Extern DLLEXP void ec_i_sub ARGS((double,double,double,double,double*,double*));
-Extern DLLEXP void ec_i_mul ARGS((double,double,double,double,double*,double*));
-Extern DLLEXP void ec_i_div ARGS((double,double,double,double,double*,double*));
+Extern DLLEXP void ec_i_add(double,double,double,double,double*,double*);
+Extern DLLEXP void ec_i_sub(double,double,double,double,double*,double*);
+Extern DLLEXP void ec_i_mul(double,double,double,double,double*,double*);
+Extern DLLEXP void ec_i_div(double,double,double,double,double*,double*);

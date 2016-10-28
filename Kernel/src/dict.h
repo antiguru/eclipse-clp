@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.11 2016/10/28 22:24:51 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.12 2016/10/28 22:44:33 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -539,51 +539,51 @@ typedef pword opi;
 /*-------------------- function declarations --------------------*/
 
 /* dictionary */
-Extern dident	in_dict ARGS((char*,int));
-Extern dident	enter_dict ARGS((char*,int));
-Extern dident	enter_dict_n ARGS((char*,word,int));
-Extern dident	add_dict ARGS((dident,int));
-Extern dident	check_did ARGS((dident,int));
-Extern dident	check_did_n ARGS((char*,word,int));
-Extern dident	bitfield_did ARGS((word));
-Extern void	ec_mark_did ARGS((dident));
-Extern void	ec_mark_did_conservative ARGS((void*));
-Extern void	ec_mark_string_conservative ARGS((void*));
-Extern void	ecl_mark_engine ARGS((ec_eng_t*,word));
+Extern dident	in_dict(char*,int);
+Extern dident	enter_dict(char*,int);
+Extern dident	enter_dict_n(char*,word,int);
+Extern dident	add_dict(dident,int);
+Extern dident	check_did(dident,int);
+Extern dident	check_did_n(char*,word,int);
+Extern dident	bitfield_did(word);
+Extern void	ec_mark_did(dident);
+Extern void	ec_mark_did_conservative(void*);
+Extern void	ec_mark_string_conservative(void*);
+Extern void	ecl_mark_engine(ec_eng_t*,word);
 
-Extern int	next_functor ARGS((int *index, dident *did, int weak));
-Extern int	p_gc_dictionary ARGS((ec_eng_t*));
-Extern int	p_dict_param ARGS((value,type,value,type,ec_eng_t*));
+Extern int	next_functor(int *index, dident *did, int weak);
+Extern int	p_gc_dictionary(ec_eng_t*);
+Extern int	p_dict_param(value,type,value,type,ec_eng_t*);
 
-Extern pword	*enter_string_n ARGS((char*,word,int));
+Extern pword	*enter_string_n(char*,word,int);
 
-Extern int	ec_constant_table_enter ARGS((ec_eng_t*,value,type,pword*));
+Extern int	ec_constant_table_enter(ec_eng_t*,value,type,pword*);
 
 /* procedure descriptor handling */
-Extern pri	*local_procedure ARGS((dident,dident,type,int,int*));
-Extern pri	*export_procedure ARGS((dident,dident,type,int*));
-Extern pri	*reexport_procedure ARGS((dident,dident,type,dident,int*));
-Extern pri	*global_procedure ARGS((dident,dident,type,int*));
-Extern pri	*import_procedure ARGS((dident,dident,type,dident,int*));
-Extern pri	*visible_procedure ARGS((dident,dident,type,int,int*));
-Extern pri	*qualified_procedure ARGS((dident,dident,dident,type,int*));
-Extern int	import_whole_module ARGS((dident,dident));
-Extern pri	*pri_home ARGS((pri*,int*));
-Extern int	pri_compatible_flags ARGS((pri*,uint32,uint32));
-Extern void	pri_change_flags ARGS((pri*,uint32,uint32));
-Extern void	pri_init_code ARGS((pri*,int));
-Extern void	pri_define_code ARGS((pri*,int,pri_code_t));
-Extern int	pri_change_trans_function ARGS((pri*,dident));
-Extern int	pri_change_mode ARGS((pri*,uint32));
-Extern int	pri_change_prio ARGS((pri*,int));
-Extern int	pri_change_run_prio ARGS((pri*,int));
+Extern pri	*local_procedure(dident,dident,type,int,int*);
+Extern pri	*export_procedure(dident,dident,type,int*);
+Extern pri	*reexport_procedure(dident,dident,type,dident,int*);
+Extern pri	*global_procedure(dident,dident,type,int*);
+Extern pri	*import_procedure(dident,dident,type,dident,int*);
+Extern pri	*visible_procedure(dident,dident,type,int,int*);
+Extern pri	*qualified_procedure(dident,dident,dident,type,int*);
+Extern int	import_whole_module(dident,dident);
+Extern pri	*pri_home(pri*,int*);
+Extern int	pri_compatible_flags(pri*,uint32,uint32);
+Extern void	pri_change_flags(pri*,uint32,uint32);
+Extern void	pri_init_code(pri*,int);
+Extern void	pri_define_code(pri*,int,pri_code_t);
+Extern int	pri_change_trans_function(pri*,dident);
+Extern int	pri_change_mode(pri*,uint32);
+Extern int	pri_change_prio(pri*,int);
+Extern int	pri_change_run_prio(pri*,int);
 Extern void	erase_module_procs(module_item*);
 
 Extern pri *	built_in(dident did1, int (*func) (/* ??? */), word flags);
 Extern pri *	local_built_in(dident did1, int (*func) (/* ??? */), word flags);
 Extern pri *	exported_built_in(dident did1, int (*func) (/* ??? */), word flags);
 Extern pri *	b_built_in(dident did1, int (*func) (/* ??? */), dident module);
-Extern word	ec_getaddress ARGS((char*));
+Extern word	ec_getaddress(char*);
 
 /*
  * Pointers to some compiler-expanded builtin descriptors (in particular
@@ -628,10 +628,10 @@ Extern pri
 	*make_suspension_proc_;
 
 /* operator lookup */
-Extern opi	visible_op ARGS((dident atom, dident module, type mod_tag, int *res));
-Extern opi	visible_prefix_op ARGS((dident atom, dident module, type mod_tag, int *res));
-Extern opi	visible_infix_op ARGS((dident atom, dident module, type mod_tag, int *res));
-Extern opi	visible_postfix_op ARGS((dident atom, dident module, type mod_tag, int *res));
+Extern opi	visible_op(dident atom, dident module, type mod_tag, int *res);
+Extern opi	visible_prefix_op(dident atom, dident module, type mod_tag, int *res);
+Extern opi	visible_infix_op(dident atom, dident module, type mod_tag, int *res);
+Extern opi	visible_postfix_op(dident atom, dident module, type mod_tag, int *res);
 Extern int	is_visible_op(dident atom, dident module, type mod_tag);
 Extern int	visible_operator(dident atom, dident module, type mod_tag);
 
@@ -658,9 +658,9 @@ typedef struct {
 
 /*-------------------- function declarations --------------------*/
 
-Extern t_heap_htable	*htable_new ARGS((int)); 
-Extern void		htable_free ARGS((t_heap_htable *));
-Extern int		store_set ARGS((t_heap_htable*,value,type,pword*));
-Extern int		store_get ARGS((t_heap_htable*,value,type,pword*));
-Extern int		store_get_else_set ARGS((t_heap_htable*,value,type,pword*));
+Extern t_heap_htable	*htable_new(int); 
+Extern void		htable_free(t_heap_htable *);
+Extern int		store_set(t_heap_htable*,value,type,pword*);
+Extern int		store_get(t_heap_htable*,value,type,pword*);
+Extern int		store_get_else_set(t_heap_htable*,value,type,pword*);
 
