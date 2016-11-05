@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.19 2016/10/28 22:44:33 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.20 2016/11/05 01:31:18 jschimpf Exp $
  */
 
 /*
@@ -1557,17 +1557,16 @@ extern dident transf_did(word);
 #define EngPrintId(eng)	((word)eng/0x1000)
 #define EngLogMsg(eng,msg,...) {\
     if ((eng)->vm_flags & ENG_VERBOSE) {\
- 	p_fprintf(log_output_, "Engine %x: " msg "\n", EngPrintId(eng), __VA_ARGS__);\
-	ec_flush(log_output_);\
+ 	ec_printff(log_output_, "Engine %x: " msg "\n", EngPrintId(eng), __VA_ARGS__);\
     }\
 }
 
 /*---------------------------------------------------------------------------
  * Cleanup mechanism
  * We have a stack, implemented as a doubly linked list of elements.
- * The elements contain a function pointer and an object pointer.
+ * The elements contain a function pointer f and an object pointer p.
  * Require_Cleanup(f,p) pushes an element onto the stack.
- * Do_Cleanup() calls the cleanup functions for all elements in
+ * Do_Cleanup() calls the cleanup functions f(p) for all elements in
  * reverse order, with the object pointer as argument.
  * There is always one unused list element, pointed to by ec_eng->cleanup.
  * New elements are allocated when needed, but only deallocated finally.
@@ -1767,6 +1766,8 @@ Extern	int	ec_copy_term_across(ec_eng_t *from_eng, ec_eng_t *ec_eng, value v, ty
 Extern	int	unreference_embedded_handle(t_ext_ptr handle, pword *root);
 Extern	void	get_heapterm(ec_eng_t*,pword*, pword*);
 Extern	int	create_heapterm(ec_eng_t*, pword*, value, type);
+Extern	int	create_heapterm_simple(pword*, pword);
+Extern	int	create_heapterm_for_handle(pword*, t_ext_type*, t_ext_ptr);
 Extern	void	free_heapterm(pword*);
 Extern	void	move_heapterm(pword*, pword*);
 Extern	void	make_heapterm_persistent(pword*);
@@ -1789,6 +1790,7 @@ Extern	t_ext_ptr ec_new_heap_event(value vgoal, type tgoal, value vm, type tm, i
 /* from bip_record.c */
 Extern t_ext_type heap_rec_header_tid;
 Extern t_ext_ptr ec_record_create(void);
+Extern int	 ec_record_append(t_ext_ptr, t_ext_type*, t_ext_ptr);
 
 /* from bip_shelf.c */
 Extern t_ext_type heap_array_tid;

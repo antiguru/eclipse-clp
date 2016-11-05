@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Kernel Module
  *
- * $Id: handle.c,v 1.4 2016/08/04 09:41:41 jschimpf Exp $
+ * $Id: handle.c,v 1.5 2016/11/05 01:31:18 jschimpf Exp $
  *
  * Author:	Stefano Novello, IC-Parc
  *		Joachim Schimpf, IC-Parc
@@ -394,7 +394,10 @@ p_condition_wait(value v, type t, value vtimeout, type ttimeout, ec_eng_t *ec_en
 }
 
 
-
+/**
+ * is_handle(?Thing, -HandleType)
+ * This fails for variables (like is_handle/1), non-handles, and stale handles.
+ */
 static int
 p_is_handle(value v, type t, value vk, type tk, ec_eng_t *ec_eng)
 {
@@ -402,7 +405,9 @@ p_is_handle(value v, type t, value vk, type tk, ec_eng_t *ec_eng)
     if (!IsTag(t.kernel, THANDLE)) {
 	Fail_;	/* like is_handle/1 type test, fail even for variables */
     }
-    if (!ExternalClass(v.ptr)->kind)
+    if (!ExternalData(v.ptr))
+    	kind = d_.nil;
+    else if (!ExternalClass(v.ptr)->kind)
     	kind = d_.question;
     else
     	kind = ExternalClass(v.ptr)->kind();

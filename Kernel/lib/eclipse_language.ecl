@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: eclipse_language.ecl,v 1.23 2016/10/28 22:23:58 jschimpf Exp $
+% Version:	$Id: eclipse_language.ecl,v 1.24 2016/11/05 01:34:18 jschimpf Exp $
 % Author/s:	Joachim Schimpf, IC-Parc
 % ----------------------------------------------------------------------
 
@@ -219,7 +219,6 @@
 :- reexport (do) / 2 from sepia_kernel.
 :- reexport (dynamic) / 1 from sepia_kernel.
 :- reexport engine_create / 2 from sepia_kernel.
-:- reexport engine_exit / 2 from sepia_kernel.
 :- reexport engine_resume / 3 from sepia_kernel.
 :- reexport engine_resume_thread / 2 from sepia_kernel.
 :- reexport engine_join / 2 from sepia_kernel.

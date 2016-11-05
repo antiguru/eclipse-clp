@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.21 2016/10/28 22:44:33 jschimpf Exp $
+ * $Id: os_support.c,v 1.22 2016/11/05 01:31:18 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -1507,19 +1507,10 @@ ec_thread_exit(void* retval)
     ExitThread((DWORD)(DWORD_PTR)retval);
 }
 
-int
-ec_thread_cancel_and_join(void *thread_id)
+static int
+_thread_join(HANDLE thread)
 {
-    DWORD res;
-
-    HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, (DWORD)(DWORD_PTR) thread_id);
-    if (!thread)
-    	return (int)GetLastError();
-
-    if (!TerminateThread(thread, 99))
-    	return (int)GetLastError();
-
-    res = WaitForSingleObject(thread, 10000/*ms*/);
+    DWORD res = WaitForSingleObject(thread, 10000/*ms*/);
     switch(res)
     {
     case WAIT_OBJECT_0:	/* termination was signalled */
@@ -1537,6 +1528,30 @@ ec_thread_cancel_and_join(void *thread_id)
     if (!CloseHandle(thread))
 	res = res ? res : GetLastError();
     return (int) res;
+}
+
+int
+ec_thread_join(void *thread_id)
+{
+    HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, (DWORD)(DWORD_PTR) thread_id);
+    if (!thread)
+    	return (int)GetLastError();
+    
+    return _thread_join(thread);
+}
+
+int
+ec_thread_cancel_and_join(void *thread_id)
+{
+    HANDLE thread = OpenThread(THREAD_ALL_ACCESS, FALSE, (DWORD)(DWORD_PTR) thread_id);
+    if (!thread)
+    	return (int)GetLastError();
+
+    if (!TerminateThread(thread, 99)) {
+	CloseHandle(thread);
+    	return (int)GetLastError();
+    }
+    return _thread_join(thread);
 }
 
 
@@ -1646,15 +1661,18 @@ ec_thread_exit(void* retval)
 }
 
 int
+ec_thread_join(void *os_thread)
+{
+    return pthread_join((pthread_t) os_thread, NULL);
+}
+
+int
 ec_thread_cancel_and_join(void *os_thread)
 {
-    int err;
-
-    err = pthread_cancel((pthread_t) os_thread);
+    int err = pthread_cancel((pthread_t) os_thread);
     if (err) return err;
 
-    err = pthread_join((pthread_t) os_thread, NULL);
-    return err;
+    return pthread_join((pthread_t) os_thread, NULL);
 }
 
 

@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.23 2016/10/28 22:44:33 jschimpf Exp $
+ * $Id: types.h,v 1.24 2016/11/05 01:31:18 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -588,6 +588,8 @@ typedef struct ec_eng_s
     void	*it_buf;	/* for throw via longjmp */
 
     pword	posted;		/* posted goals */
+    void	*storage;	/* a per-engine hash table (store/1), or NULL */
+    void	*report_to;	/* a record-queue for reporting readiness, or NULL */
 
     struct eclipse_ref_ allrefs; /* list of ec_refs (externals) */
     globalref *	references;	/* list of "named references" */

@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.13 2016/10/26 18:11:18 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.14 2016/11/05 01:31:18 jschimpf Exp $
  */
 
 /*
@@ -271,6 +271,8 @@ emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
     ec_eng->own_thread = NULL;
     ec_eng->owner_thread = ec_thread_self();
     ec_eng->paused = 0;
+    ec_eng->storage = NULL;
+    ec_eng->report_to = NULL;
     VM_FLAGS = ec_eng->options.vm_options;
     EVENT_FLAGS = 0;
 
@@ -332,6 +334,16 @@ ec_emu_fini(ec_eng_t *ec_eng)
     /* TODO: move this to exit? */
     Do_Cleanup();
     Fini_Cleanup();
+
+    /* shut down the engine's thread, if any (unless it is ourselves) */
+    if (ec_eng->own_thread  &&  ec_eng->own_thread != ec_eng->owner_thread) {
+	void *engine_thread = ec_eng->own_thread;
+	mt_mutex_lock(&ec_eng->lock);	/* not absolutely necessary */
+	ec_eng->own_thread = NULL;	/* indicates finalization request */
+	ec_cond_signal(&ec_eng->cond, 0);
+	mt_mutex_unlock(&ec_eng->lock);	/* not absolutely necessary */
+	ec_thread_join(engine_thread);	/* make sure it's gone and does not reference ec_eng anymore */
+    }
 
 #ifdef UNCHAIN_ENGINES_WHEN_DEAD
     /* unchain engine, unless it is the header */

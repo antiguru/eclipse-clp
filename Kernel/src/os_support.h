@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.9 2016/10/28 22:44:33 jschimpf Exp $
+ * $Id: os_support.h,v 1.10 2016/11/05 01:31:18 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -294,6 +294,7 @@ int	ec_thread_terminate(void* thread, int timeout);
 
 int	ec_thread_create(void** os_thread, void*(*fun)(void*), void* arg);
 int	ec_thread_detach(void* os_thread);
+int	ec_thread_join(void* os_thread);
 int	ec_thread_cancel_and_join(void* os_thread);
 
 

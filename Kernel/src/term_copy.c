@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: term_copy.c,v 1.6 2016/10/26 18:14:39 jschimpf Exp $
+ * VERSION	$Id: term_copy.c,v 1.7 2016/11/05 01:31:18 jschimpf Exp $
  *
  * IDENTIFICATION:	term_copy.c (was part of property.c)
  *
@@ -1460,6 +1460,38 @@ create_heapterm_simple(pword *root, pword simple)
     if (!IsSimple(simple.tag))
     	return TYPE_ERROR;
     *root = simple;
+    return PSUCCEED;
+}
+
+
+/*
+ * Like create_heapterm(), but creates a heap handle directly from the
+ * object pointer, without the need of a handle with stack anchor.
+ * CAUTION: data is not copied here, must be done by caller!
+ */
+int
+create_heapterm_for_handle(pword *root, t_ext_type *class, t_ext_ptr data)
+{
+    word size;
+    pword *pw;
+
+    if (!class->copy)
+	return TYPE_ERROR;
+
+    size = HANDLE_ANCHOR_SIZE*sizeof(pword);
+    pw = hg_alloc_size(size + sizeof(pword) + sizeof(pword*));
+    pw++;
+    HeaptermSize(pw) = size;
+    HeaptermNumHandles(pw) = 1;
+    HeaptermHandleTable(pw)->ptr = pw;
+
+    pw[0].tag.kernel = TEXTERN;
+    pw[0].val.vptr = class;
+    pw[1].tag.kernel = TPTR;
+    pw[1].val.vptr = data;
+
+    root->tag.kernel = THANDLE;
+    root->val.ptr = pw;
     return PSUCCEED;
 }
 

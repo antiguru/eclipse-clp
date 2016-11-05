@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.7 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.8 2016/11/05 01:31:18 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -139,8 +139,7 @@ _rec_free_elem(t_heap_rec *this)
     {
 	assert(rem==0);
 #ifdef DEBUG_RECORDS
-	p_fprintf(current_err_, "\n_rec_free_elem(0x%x)", this);
-	ec_flush(current_err_);
+	ec_printff(current_err_, "\n_rec_free_elem(0x%x)", this);
 #endif
 	free_heapterm(&this->term);
 	hg_free_size(this, sizeof(t_heap_rec));
@@ -176,8 +175,7 @@ _rec_free_all(t_heap_rec_hdr *header)
     if (rem <= 0)
     {
 #ifdef DEBUG_RECORDS
-	p_fprintf(current_err_, "\n_rec_free_all(0x%x)", header);
-	ec_flush(current_err_);
+	ec_printff(current_err_, "\n_rec_free_all(0x%x)", header);
 #endif
 	_rec_free_elems(header); /* last ref, no lock needed */
 	mt_mutex_destroy(&header->lock);
@@ -592,6 +590,29 @@ p_recordz_body(value vrec, type trec, value vterm, type tterm, value vmod, type 
     header->prev->next = obj;
     header->prev = obj;
     header->count++;
+    mt_mutex_unlock(&header->lock);
+    Succeed_;
+}
+
+
+/**
+ * Specialized version of record_wait_append/4:  append a handle
+ * (represented by call+data) to the record, and signal waiters.
+ * CAUTION: data is not copied here, the reference is moved to the heap.
+ */
+int
+ec_record_append(t_ext_ptr rec, t_ext_type *class, t_ext_ptr data)
+{
+    t_heap_rec_hdr *header = (t_heap_rec_hdr *) rec;
+    t_heap_rec *obj = _rec_create_elem(header);
+    create_heapterm_for_handle(&obj->term, class, data);
+    mt_mutex_lock(&header->lock);
+    obj->next = (t_heap_rec*) header;
+    obj->prev = header->prev;
+    header->prev->next = obj;
+    header->prev = obj;
+    header->count++;
+    _rec_signal(header, 1);
     mt_mutex_unlock(&header->lock);
     Succeed_;
 }

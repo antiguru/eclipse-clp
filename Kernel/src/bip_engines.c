@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.6 2016/09/21 11:33:24 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.7 2016/11/05 01:31:18 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -74,11 +74,13 @@ static dident
 	d_detached1_,
 	d_engine_,
 	d_exception1_,
+	d_exit1_,
 	d_exited1_,
 	d_flushio1_,
-	d_references1_,
-	d_running_,
 	d_paused_,
+	d_references1_,
+	d_report_to1_,
+	d_running_,
 	d_status1_,
 	d_verbose_,
 	d_waitio1_,
@@ -173,8 +175,9 @@ t_ext_type engine_tid = {
  */
 
 static int
-_options_from_list(value v, type t, t_eclipse_options *eng_opts)
+_options_from_list(value v, type t, t_eclipse_options *eng_opts, t_ext_ptr *report_to)
 {
+    *report_to = NULL;
     Check_List(t);
     if (IsList(t)) {
 	pword *car = v.ptr;
@@ -233,6 +236,11 @@ _options_from_list(value v, type t, t_eclipse_options *eng_opts)
 			eng_opts->vm_options &= ~ENG_DETACHED;
 		    else return RANGE_ERROR;
 
+		} else if (d == d_report_to1_) {
+		    t_ext_ptr queue;
+		    Get_Typed_Object(arg->val, arg->tag, &heap_rec_header_tid, queue);
+		    *report_to = heap_rec_header_tid.copy(queue);
+
 		} else {
 		    return RANGE_ERROR;
 		}
@@ -258,16 +266,18 @@ p_engine_create(value v, type t, value vopt, type topt, ec_eng_t *ec_eng)
 {
     int res;
     t_eclipse_options opts = ec_eng->options;	/* inherit */
+    t_ext_ptr report_to;
     ec_eng_t *new_eng;
     pword handle;
 
     /* decode the options argument */
-    res = _options_from_list(vopt, topt, &opts);
+    res = _options_from_list(vopt, topt, &opts, &report_to);
     Return_If_Not_Success(res);
 
     /* create and return engine */
     res = ecl_engine_create(&opts, ec_eng, &new_eng);
     Return_If_Not_Success(res);
+    new_eng->report_to = report_to;
     ecl_relinquish_engine(new_eng);
     handle = ecl_handle(ec_eng, &engine_tid, (t_ext_ptr) new_eng);
     Return_Unify_Pw(v, t, handle.val, handle.tag);
@@ -508,7 +518,6 @@ p_engine_join(value v, type t, value vto, type tto, value vs, type ts, ec_eng_t 
 
 /**
  * engine_self(-Engine) for get_flag(engine, -Engine).
- * Not so useful, because this engine is not in a yielded state.
  * TODO: there is no need to make a full copy the engine reference here,
  * as it is a weak reference (this handle should not keep the engine alive).
  */
@@ -542,6 +551,14 @@ p_engine_post(value v, type t, value vevent, type tevent, value vmod, type tmod,
 	pword *pball = &vevent.ptr[1];
 	Dereference_(pball);
 	res = ecl_post_throw(ec_eng, eng, *pball);
+
+    } else if (IsStructure(tevent) && vevent.ptr->val.did == d_exit1_) {
+	/* Treat exit/1 separately, because it can be handled in more
+	 * situations than general events.
+	 */
+	pword *pexitcode = &vevent.ptr[1];
+	Dereference_(pexitcode);
+	res = ecl_request_exit(eng, (int)pexitcode->val.nint);
 
     } else if (IsStructure(tevent) && vevent.ptr->val.did == d_event1_) {
 	/* atom-event */
@@ -596,8 +613,6 @@ p_engine_hang(ec_eng_t *ec_eng)
 	Longjmp_On_Request()
     }
 }
-#endif
-
 
 static int
 p_engine_exit(value v, type t, value vcode, type tcode, ec_eng_t *ec_eng)
@@ -610,6 +625,7 @@ p_engine_exit(value v, type t, value vcode, type tcode, ec_eng_t *ec_eng)
     assert(res==PRUNNING || res==PEXITED);
     Succeed_;
 }
+#endif
 
 
 static int
@@ -712,6 +728,11 @@ p_engine_properties(value v, type t, value vprops, type tprops, ec_eng_t *ec_eng
     Make_Elem(pw, d_detached1_);
     Make_Atom(&pw[1], eng->options.vm_options & ENG_DETACHED ? d_.true0 : d_.false0);
 
+    if (eng->report_to) {
+	Make_Elem(pw, d_report_to1_);
+	pw[1] = ecl_handle(ec_eng, &heap_rec_header_tid, heap_rec_header_tid.copy(eng->report_to));
+    }
+
     Make_Elem(pw, d_.local);
     Make_Integer(&pw[1], eng->options.localsize/1024);
 
@@ -720,6 +741,38 @@ p_engine_properties(value v, type t, value vprops, type tprops, ec_eng_t *ec_eng
 
     Make_Nil(plist);
     Return_Unify_Pw(vprops, tprops, result.val, result.tag);
+}
+
+
+/**
+ * Get the store associated to the current engine (create if necessary).
+ */
+static int
+p_engine_store(value vhtable, type thtable, ec_eng_t *ec_eng)
+{
+    pword htable;
+    if (!ec_eng->storage)
+	ec_eng->storage = htable_new(0);
+    htable = ecl_handle(ec_eng, &heap_htable_tid,
+    			heap_htable_tid.copy((t_ext_ptr)ec_eng->storage));
+    Return_Unify_Pw(vhtable, thtable, htable.val, htable.tag);
+}
+
+
+/**
+ * Get the store associated to the given engine (create if necessary).
+ */
+static int
+p_engine_store2(value ve, type te, value vhtable, type thtable, ec_eng_t *ec_eng)
+{
+    pword htable;
+    ec_eng_t *eng;
+    Get_Typed_Object(ve, te, &engine_tid, eng);
+    if (!eng->storage)
+	eng->storage = htable_new(0);
+    htable = ecl_handle(ec_eng, &heap_htable_tid,
+    			heap_htable_tid.copy((t_ext_ptr)eng->storage));
+    Return_Unify_Pw(vhtable, thtable, htable.val, htable.tag);
 }
 
 
@@ -739,10 +792,12 @@ bip_engines_init(int flags)
     d_detached1_ = in_dict("detached",1);
     d_engine_ = in_dict("engine",0);
     d_exception1_ = in_dict("exception",1);
+    d_exit1_ = in_dict("exit",1);
     d_exited1_ = in_dict("exited",1);
     d_flushio1_ = in_dict("flushio",1);
-    d_references1_ = in_dict("references",1);
     d_paused_ = in_dict("paused",0);
+    d_references1_ = in_dict("references",1);
+    d_report_to1_ = in_dict("report_to",1);
     d_running_ = in_dict("running",0);
     d_status1_ = in_dict("status",1);
     d_verbose_ = in_dict("verbose",0);
@@ -763,11 +818,13 @@ bip_engines_init(int flags)
 	(void) built_in(in_dict("engine_post_", 3), p_engine_post, B_SAFE);
 	(void) built_in(in_dict("engine_properties", 2), p_engine_properties, B_SAFE);
 	(void) built_in(in_dict("current_engines", 1), p_current_engines, B_SAFE);
+	(void) built_in(in_dict("engine_store", 1), p_engine_store, B_SAFE);
+	(void) built_in(in_dict("engine_store", 2), p_engine_store2, B_SAFE);
 
 	(void) built_in(in_dict("broadcast_exit", 1), p_broadcast_exit, B_SAFE);
-	(void) built_in(in_dict("engine_exit", 2), p_engine_exit, B_SAFE);
 
 #if 0
+	(void) built_in(in_dict("engine_exit", 2), p_engine_exit, B_SAFE);
 	(void) built_in(in_dict("engine_request", 2), p_engine_request, B_SAFE);
 	(void) built_in(in_dict("engine_hang", 0), p_engine_hang, B_SAFE);
 #endif

@@ -189,7 +189,6 @@
 :-(reexport(from(/(do,2),sepia_kernel))).
 :-(reexport(from(/(dynamic,1),sepia_kernel))).
 :-(reexport(from(/(engine_create,2),sepia_kernel))).
-:-(reexport(from(/(engine_exit,2),sepia_kernel))).
 :-(reexport(from(/(engine_resume,3),sepia_kernel))).
 :-(reexport(from(/(engine_resume_thread,2),sepia_kernel))).
 :-(reexport(from(/(engine_join,2),sepia_kernel))).

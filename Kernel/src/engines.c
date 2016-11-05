@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.6 2016/10/25 22:34:59 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.7 2016/11/05 01:31:18 jschimpf Exp $
  *
  */
 
@@ -179,6 +179,13 @@ ec_embed_fini(void)
  * Making engines
  *----------------------------------------------------------------------*/
 
+/**
+ * This is the function executed by an engine's thread.
+ * It waits for handover of engine ownership, then runs the emulator.
+ * Together with the engine ownership, a strong reference is transferred.
+ * While waiting, this thread only holds a weak reference to the engine.
+ */
+
 void *
 _engine_run_thread(ec_eng_t *ec_eng)
 {
@@ -197,6 +204,12 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	while (!EngIsOurs(ec_eng)) {
 	    res = ec_cond_wait(&ec_eng->cond, &ec_eng->lock, -1);
 	    assert(!res);
+	    /* check for termination request first */
+	    if (!ec_eng->own_thread) {
+		ec_mutex_unlock(&ec_eng->lock);
+		EngLogMsg(ec_eng, "thread terminating", 0);
+		return NULL;		/* don't detach, join expected */
+	    }
 	}
 	ec_mutex_unlock(&ec_eng->lock);
 	assert(!EngIsDead(ec_eng));
@@ -205,7 +218,7 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	/* we now have a strong reference and engine ownership */
 	res = resume_emulc(ec_eng);
 
-	/* If engine was detached, destroy the engine and return
+	/* If engine was detached, exit+finalize the engine and return
 	 * PEXITED(<actual return status as integer>)
 	 */
 	if ((res != PEXITED) && (ec_eng->options.vm_options & ENG_DETACHED)) {
@@ -216,12 +229,35 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	DbgPrintf("Async release 0x%x\n", ec_eng);
 
 	if (res == PEXITED) {
+	    t_ext_ptr report_to;
+
 	    ec_mutex_lock(&ec_eng->lock);
-	    ec_eng->owner_thread = NULL;	/* release */
-	    if (!ecl_free_engine(ec_eng, 1)) {	/* drop strong reference */
-		ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
-		ec_mutex_unlock(&ec_eng->lock);
+	    ec_eng->owner_thread = NULL;	/* relinquish ownership */
+
+	    /* remove the queue reference to break circular ref chain */
+	    report_to = ec_eng->report_to;
+	    ec_eng->report_to = NULL;
+#ifdef REPORT_EXITS_TO_QUEUE
+	    /* the problem with reporting exits is that we don't know
+	     * whether they were explict or implicitly generated
+	     */
+	    if (report_to && !(ec_eng->options.vm_options & ENG_DETACHED)) {
+		/* transfer our strong engine reference to the report_to-queue */
+		ec_record_append(report_to, &engine_tid, ec_eng);
+	    } else
+#endif
+	    if (ecl_free_engine(ec_eng, 1)) {	/* drop strong reference */
+		break;			/* engine gone and nobody waiting */
 	    }
+
+	    ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
+	    ec_mutex_unlock(&ec_eng->lock);
+
+	    /* this must be done at the very end, because freeing
+	     * the queue may recursively lead to engine destruction!
+	     */
+	    if (report_to)
+		heap_rec_header_tid.free(report_to);
 	    break;				/* end thread */
 	}
 	
@@ -229,27 +265,34 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	ec_eng->paused = PauseType(YIELD_ARITY, PAUSE_EXITABLE_VIA_JOIN);
 	_poll_requests(ec_eng, 1);
 
-	ec_eng->owner_thread = NULL;	/* release */
+	ec_eng->owner_thread = NULL;	/* relinquish ownership */
 
 	DbgPrintf("Async free 0x%x\n", ec_eng);
-	if (ecl_free_engine(ec_eng, 1/*islocked*/))	/* after releasing */
-	    break;			/* engine deallocated, end thread */
+	if (ec_eng->report_to) {
+	    /* Report engine-stop by entering an engine handle into the
+	     * report_to queue. No copy, the strong reference is transferred. */
+	    ec_record_append(ec_eng->report_to, &engine_tid, ec_eng);
 
-	/* We have freed our strong reference, but as long as we hold
+	} else if (ecl_free_engine(ec_eng, 1/*islocked*/)) {
+	    break;			/* engine deallocated, end thread */
+	}
+	/* Now we have lost our strong reference, but as long as we hold
 	 * the lock, the engine cannot be acquired for exiting/destruction
 	 * by another thread, even if the ref count goes to zero.
 	 * So lock and cond are still usable.
 	 */
-	DbgPrintf("Async go to sleep 0x%x\n", ec_eng);
 	ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
+
+	DbgPrintf("Async go to sleep 0x%x\n", ec_eng);
     }
-    ec_thread_detach(ec_thread_self());
-    EngLogMsg(ec_eng, "thread terminated", 0);
+    ec_thread_detach(ec_thread_self());		/* no join expected */
+    EngLogMsg(ec_eng, "thread detached and terminating", 0);
     return NULL;
 }
 
 
 /*
+ * Create and attach an OS thread to the given engine.
  * The lock, cond and owner fields of ec_eng must be initialized already!
  */
 
@@ -459,8 +502,10 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
     }
 
     /* We now have exclusive access to the engine, although it may have
-     * a weak reference from the global chain (but as the reference count
-     * is now 0, it cannot be resurrected via the weak reference any longer).
+     * weak references from the global chain and from its engine-thread.
+     * But as the reference count is now 0, it cannot be resurrected
+     * via the weak references any longer. Nevertheless, we have to get
+     * rid of the weak references before we can deallocate the engine.
      */
 
     if (locked)
@@ -480,6 +525,10 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 	    ec_eng->prev->next = ec_eng->next;
 	    mt_mutex_unlock(&EngineListLock);
 #endif
+	    if (ec_eng->storage)
+		heap_array_tid.free(ec_eng->storage);
+	    if (ec_eng->report_to)
+		heap_rec_header_tid.free(ec_eng->report_to);
 	    ec_cond_destroy(&ec_eng->cond);
 	    mt_mutex_destroy(&ec_eng->lock);
 	    /* free the structure, unless it is one of the static engines */
@@ -499,13 +548,8 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 	    /* now further resurrections are possible again, but the
 	     * engine is already acquired and will certainly exit
 	     */
-	    if (ec_eng->own_thread && ec_eng->own_thread != ec_thread_self()) {
-		/* all the rest done by the engine's own thread! */
-		ecl_exit_async(ec_eng, 0);
-	    } else {
-		ecl_engine_exit(ec_eng, 0);	/* now PEXITED */
-		ecl_relinquish_engine(ec_eng);
-	    }
+	    ecl_engine_exit(ec_eng, 0);		/* now PEXITED */
+	    ecl_relinquish_engine(ec_eng);
 	    return ecl_free_engine(ec_eng, 0);
 
 	case ENGINE_BUSY:	/* could not acquire */
@@ -864,6 +908,7 @@ ecl_resume_async1(ec_eng_t *ec_eng, const pword from_c, const pword module)
 
 /*
  * Copies the term from from_eng to ec_eng, and resumes ec_eng.
+ * - engine must be owned
  */
 
 int
@@ -897,18 +942,6 @@ ecl_copy_resume_async(ec_eng_t *from_eng, ec_eng_t *ec_eng, const pword term, co
     ec_cond_signal(&ec_eng->cond, 0);
     mt_mutex_unlock(&ec_eng->lock);
     return PSUCCEED;
-}
-
-
-int
-ecl_exit_async(ec_eng_t *ec_eng, int exit_code)
-{
-    pword goal;
-    assert(EngIsOurs(ec_eng));
-    Make_Struct(&goal, TG);
-    Push_Struct_Frame(in_dict("exit",1));
-    Make_Integer(&goal.val.ptr[1], (word) exit_code);
-    return ecl_resume_async1(ec_eng, goal, ec_nil());
 }
 
 
@@ -1133,7 +1166,7 @@ ecl_request(ec_eng_t *ec_eng, int request)
 
 /**
  * Exit the given engine immediately if possible, otherwise
- * set its EXIT_REQUEST flag.
+ * set its EXIT_REQUEST flag, or initiate exit via engine's own thread.
  * @param exit_code	integer returned as engine exit code
  * @return
  *	PEXITED		if engine has already exited
@@ -1152,35 +1185,30 @@ ecl_request_exit(ec_eng_t *ec_eng, int exit_code)
 	res = PEXITED;
 
     } else if (EngIsFree(ec_eng)) {
-	if (ec_eng->own_thread) {
-	    DbgPrintf("ecl_request_exit(%x): exit via own thread\n", ec_eng);
-	    ec_eng->owner_thread = ec_thread_self();	/* acquire */
-	    ec_eng->paused = 0;
-	    mt_mutex_unlock(&ec_eng->lock);
-	    res = ecl_exit_async(ec_eng, exit_code);
-	    res = (res==PSUCCEED) ? PEXITED : res;
-
-	} else {
-	    DbgPrintf("ecl_request_exit(%x): acquiring and exiting\n", ec_eng);
-	    ec_eng->owner_thread = ec_thread_self();	/* acquire */
-	    ec_eng->paused = 0;
-	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
-	    res = PEXITED;
-	}
+	DbgPrintf("ecl_request_exit(%x): acquiring and exiting\n", ec_eng);
+	ec_eng->owner_thread = ec_thread_self();	/* acquire */
+	ec_eng->paused = 0;
+	mt_mutex_unlock(&ec_eng->lock);
+	ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
+	return PEXITED;				/* already unlocked */
 
     } else if (EngPauseExitable(ec_eng)) {
 	if (ec_eng->owner_thread == ec_thread_self()) {
 	    /* shouldn't happen */
 	    DbgPrintf("ecl_request_exit(%x): exiting from pause\n", ec_eng);
+	    mt_mutex_unlock(&ec_eng->lock);
 	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
-	    res = PEXITED;
+	    return PEXITED;			/* already unlocked */
+
 	} else if (ec_eng->owner_thread == ec_eng->own_thread) {
 	    DbgPrintf("ecl_request_exit(%x): cancel/acquire/exiting from pause\n", ec_eng);
 	    ec_thread_cancel_and_join(ec_eng->owner_thread);
 	    ec_eng->owner_thread = ec_eng->own_thread = ec_thread_self();
 	    ec_eng->paused = 0;
+	    mt_mutex_unlock(&ec_eng->lock);
 	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
-	    res = PEXITED;
+	    return PEXITED;			/* already unlocked */
+
 	} else {
 	    /* owned by random thread, just post */
 	    DbgPrintf("ecl_request_exit(%x): posting request\n", ec_eng);
