@@ -669,6 +669,9 @@ Fail:
     <DT>stream</DT><DD>
         A stream object, as created by open/3,4, socket/3, etc.
     </DD>
+    <DT>[]</DT><DD>
+        A stale handle, no longer referring to any object.
+    </DD>
 </DL>
 <P>
    Handles can be also be created by external predicates using the

@@ -189,9 +189,8 @@ An engine can be in one of the following states:
        resume is ignored.</DD>
 
     <DT><B>exited(ExitCode)</B></DT><DD>
-       Engine has stopped following an exit(ExitCode) or
-       engine_exit(E,ExitCode), where ExitCode is an integer.
-       The engine cannot be resumed.</DD>
+       Engine has stopped following an exit(ExitCode) where
+       ExitCode is an integer.  The engine cannot be resumed.</DD>
 </DL>
 The status can also be obtained by engine_properties/2.
 </P>
@@ -403,8 +402,50 @@ until a particular continuation condition arises:
     <DT>engine_join(Engine,Timeout,Status)</DT><DD>
         puts the current thread to sleep until Engine stops running.
     </DD>
+    <DT>record_wait_remove(+Queue,?Value,+Timeout)</DT><DD>
+        puts the current thread to sleep until entry Value appears in
+	Queue, then removes this entry.
+    </DD>
+    <DT>record_wait_append(+Queue,+Value,+Timeout,+Max)</DT><DD>
+        puts the current thread to sleep until Queue has less than Max
+	entries, then enters Value into Queue.
+    </DD>
+    <DT>condition_wait(Handle,Timeout)</DT><DD>
+	general lower-level operation for synchronizing access to shared
+	data structures: puts the current thread to sleep until Handle is
+	signalled via condition_signal/2.
+    </DD>
 </DL>
 </P>
+
+
+<H3>Communication via Record-Queues</H3>
+<P>
+The synchronized operations record_wait_append/4 and record_wait_remove/3
+can be used to implement bounded queues for thread communication.
+On the receiving side, record_wait_remove/3 waits for entries to appear
+in the queue.  On the sending side, record_wait_append/4 waits for the
+queue to have space for new entries.  Arbitrary terms can be transferred.
+<PRE>
+    produce_consume(N) :-
+	record_create(Q),
+	engine_create(E, []),
+	engine_resume_thread(E, consume(Q)),
+	produce(Q, N).
+
+    produce(Q, N) :-
+	( for(I,1,N), param(Q) do
+	    writeln(producing(I)),
+	    record_wait_append(Q, I, block, 20)
+	).
+
+    consume(Q) :-
+	record_wait_remove(Q, Msg, block),
+	writeln(consuming(Msg)),
+	consume(Q).
+</PRE>
+</P>
+
 
 
 <H3>Interrupting Running Engines</H3>
@@ -763,7 +804,7 @@ Yes (3.00s cpu)
        resume is ignored.</DD>
 
     <DT><B>exited(Term)</B></DT><DD>
-       Engine has stopped following an exit(Term) or engine_exit(E,Term).
+       Engine has stopped following an exit(Term).
        Term is a copy of the exit argument.
        The engine cannot be resumed.</DD>
 </DL>
@@ -966,29 +1007,109 @@ Yes (3.00s cpu)
     of EventGoal will be executed on Engine), or as an event handle, as
     created with event_create/3.
 </P><P>
-    The event goal should either succeed or throw an exception (throw/1).
-    It makes little sense for the handler to fail, because it is inserted
-    in an unknown position during execution and the scope of the failure is
-    not known.  The considerations are similar to those for after-events.
+    The event goal should either succeed, throw an exception (throw/1),
+    or exit the engine (exit/1).  It makes little sense for the goal to fail,
+    because it is inserted in an unknown position during execution and the
+    scope of the failure is not known.  These considerations are similar to
+    those for after-events.
 </P><P>
     The most likely use for this mechanism is to abort an asynchronously
     running engine.  But one could also cause the engine to initiate an
     exchange of information (via yield/2, streams or shared storage objects).
+</P><P>
+    The following special EventGoals are handled more urgently than
+    general ones:
+    <DL>
+    <DT><B>throw(Ball)</B></DT><DD>
+        will abort running code at synchronous points in execution, and
+	additionally during certain built-in operations like long-running
+	unifications.
+    </DD>
+    <DT><B>exit(Code)</B></DT><DD>
+        will exit running code at synchronous points in execution and
+	during long-running built-ins.  It will also immediately exit
+	a stopped engine and free its resources.
+    </DD>
+    <DT><B>abort</B></DT><DD>
+	equivalent to throw(abort)
+    </DD>
+    </DL>
 </P>
     "),
     eg:"
+    % aborting an asynchronously running engine:
     ?- engine_create(E, [thread]),
        engine_resume_thread(E, (repeat,fail)),   % run forever
-       sleep(3),
+       sleep(1),
        engine_post(E, abort),
        engine_join(E, block, Status).
 
     E = 'ENGINE'(16'315bd10f)
     Status = exception(abort)
-    Yes (3.00s cpu)
+    Yes (0.00s cpu)
+
+
+    % exiting an asynchronously running engine:
+    ?- engine_create(E, [thread]),
+       engine_resume_thread(E, (repeat,fail)),   % run forever
+       sleep(1),
+       engine_post(E, exit(7)),
+       engine_join(E, block, Status).
+    E = 'ENGINE'(16'f78a9bad)
+    Status = exited(7)
+    Yes (0.00s cpu)
+
+
+    % exiting a stopped engine:
+    ?- engine_create(E, []),
+       engine_status(E, S1),
+       engine_post(E, exit(7)),
+       engine_status(E, S2).
+    E = 'ENGINE'(16'f78a9bad)
+    S1 = false
+    S2 = exited(7)
+    Yes (0.00s cpu)
 ",
     see_also:[event/1,event_after/2,event_create/3,engine_create/2,engine_resume_thread/2,engine_join/3]]).
 
+/*
+:- comment( engine_exit/2, [
+    amode:(engine_exit(+,+) is det),
+    args:["Engine":"An engine handle",
+          "ExitCode" :"A small integer"
+    ],
+    summary:"Force an engine to exit",
+    desc:html("<P>\
+    This sends a request to the given engine to exit as soon as possible.
+    The receiving engine can be in any state.  If the receiving engine is
+    running, the exit request will be detected at certain trigger points,
+    and executed.  If the receiving engine is in a stopped state, the exit
+    will be performed immediately.
+</P>
+    "),
+    eg:"
+    % exiting a stopped engine:
+    ?- engine_create(E, []),
+       engine_status(E, S1),
+       engine_exit(E, 7),
+       engine_status(E, S2).
+    E = 'ENGINE'(16'f78a9bad)
+    S1 = true
+    S2 = exited(7)
+    Yes (0.00s cpu)
+
+    % exiting an asynchronously running engine:
+    ?- engine_create(E, [thread]),
+       engine_resume_thread(E, (repeat,fail)),   % run forever
+       sleep(1),
+       engine_exit(E, 7),
+       engine_join(E, block, Status).
+    E = 'ENGINE'(16'f78a9bad)
+    Status = exited(7)
+    Yes (0.00s cpu)
+",
+    see_also:[exit/1,engine_resume/3,engine_resume_thread/2,engine_join/3]]).
+*/
 
 :- comment( engine_properties/2, [
     amode:(engine_properties(+,-) is det),
@@ -1361,7 +1482,7 @@ Yes (3.00s cpu)
     condition_signal/2 on Handle is invoked by another thread.
 </P><P>
     See condition_signal/2 for usage pattern, examples, and a list of
-    handel types that support this operation.
+    handle types that support this operation.
 </DL>
     This predicate must always be exeuted in a context where the Handle
     has been locked, i.e. inside with_mutex/2.

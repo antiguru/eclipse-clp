@@ -1156,26 +1156,50 @@ operating system.
 
 ",
 	amode:(exit(+) is erroneous),
-	desc:html("   Used to exit from the Prolog session.  If user_end/0 is defined and
-   global, it is called.  All buffers are flushed, streams are closed and
-   ECLiPSe exits.  The specified status code is returned to the operating
-   system.  exit(0) is identical with halt.
-
-<P>
-"),
-	args:["Status" : "Integer"],
-	exceptions:[4 : "Status is not instantiated.", 5 : "Status is instantiated to a non-integer."],
+	desc:html("<P>
+   This predicate neither succeeds nor fails nor throws an exception.
+   It terminates and finalizes the ECLiPSe engine on which it is executed,
+   and leaves it in the exited(Status) state.
+</P><P>
+   If the engine was started by an engine_resume/3 in another engine,
+   the resume will return the exited(Status) state.
+</P><P>
+   If the engine was started by an engine_resume_thread/2 and is being
+   waited for by engine_join/3, this will return the exited(Status) state.
+</P><P>
+   If the engine is embedded in a host program, control returns to the
+   host program, indicating that the engine has exited with given status.
+</P><P>
+   In a development system, control will normally return to the operating
+   system with the given status code.
+</P><P>
+   Exit mechanism: exiting reliably frees all engine resources (apart from
+   a small skeleton which disappears once all references are lost).  This
+   includes all resources referred to by handles that the engine owned.
+   But note that no throw/1 operation is involved, so any recovery
+   procedures in pending catch/3 invocations will not be executed.
+</P>"),
+	args:["Status" : "A small integer"],
+	exceptions:[4 : "Status is not instantiated.",
+		5 : "Status is instantiated to a non-integer."],
 	eg:"
 Success:
-      [eclipse]: exit(5).
-      csh% echo $status
+      % Returning to a UNIX shell:
+      ECLiPSe Constraint Logic Programming System [kernel]
+      ...
+      ?- exit(5).
+      % echo $?
       5
-      csh%
 
 
-
+      % Exiting from an auxiliary engine:
+      ?- engine_create(E, []),
+         engine_resume(E, exit(7), Status).
+      E = 'ENGINE'(16'f78a9bad)
+      Status = exited(7)
+      Yes (0.00s cpu)
 ",
-	see_also:[halt / 0, break / 0, pause / 0]]).
+	see_also:[engine_resume/3, engine_resume_thread/2, halt/0]]).
 
 :- comment(get_file_info / 3, [
 	summary:"Succeeds if the file File (with absolute or relative pathname) exists and

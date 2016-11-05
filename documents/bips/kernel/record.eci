@@ -729,6 +729,8 @@ Error:
 	desc:html("<P>
    Unifies Count with the number of terms that are currently recorded
    under the key Key.
+</P><P>
+   This is a constant-time operation.
 </P>"),
     exceptions:[
 	4 : "Key is not instantiated.",
@@ -770,9 +772,8 @@ Error:
    (in another thread) reduces the queue length to below Max.  If
    this does not happen within Timeout seconds, the predicate fails.
 </P><P>
-   Conversely, when the queue is empty, adding a new entry with
-   this predicate unblocks all currently blocking invocations of
-   record_wait_remove/3 on the same Key.
+   Conversely, adding a new entry with this predicate unblocks all
+   currently blocking invocations of record_wait_remove/3 on the same Key.
 <P>
 "),
 	exceptions:[
@@ -826,10 +827,10 @@ Error:
    implements a bounded queue with synchronisation between concurrent
    threads.
 </P><P>
-   If there are no recorded terms for Key, the predicate blocks until
-   an invocation of record_wait_append/4 (in another thread) creates
-   such a recorded term.  If this does not happen within Timeout seconds,
-   the predicate fails.
+   If there are no unifiable recorded terms for Key, the predicate blocks
+   until an invocation of record_wait_append/4 (in another thread) records
+   another term, and then attempts the removal again.  If not new term is
+   added within Timeout seconds, the predicate fails.
 </P><P>
    Conversely, when the removal of an element sufficiently reduces the
    queue length, this predicate unblocks all currently blocking
