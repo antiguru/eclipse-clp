@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.11 2016/10/26 18:16:08 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.12 2016/11/06 03:18:56 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -2535,6 +2535,10 @@ mark_dids_from_stacks(ec_eng_t *ec_eng, word arity)
 	Mark_Did(gref->module);
 	/* ignore gref->ptr, as it always points into the global stack */
     }
+    if (ec_eng->storage)
+	heap_htable_tid.mark_dids(ec_eng->storage);
+    if (ec_eng->report_to)
+	heap_rec_header_tid.mark_dids(ec_eng->report_to);
     
 
     /* auxiliary choicepoint to take care of the active arguments */

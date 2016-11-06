@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.14 2016/11/05 01:31:18 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.15 2016/11/06 03:18:56 jschimpf Exp $
  */
 
 /*
@@ -370,6 +370,12 @@ ec_emu_fini(ec_eng_t *ec_eng)
 	FTRACE = NULL;
     }
     EngLogMsg(ec_eng, "exited", 0);
+
+    if (ec_eng->report_to) {
+	t_ext_ptr report_to = ec_eng->report_to;
+	ec_eng->report_to = NULL;
+	heap_rec_header_tid.free(report_to);	/* may recursively destroy engine */
+    }
 }
 
 

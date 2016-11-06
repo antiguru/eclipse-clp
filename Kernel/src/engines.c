@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.7 2016/11/05 01:31:18 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.8 2016/11/06 03:18:56 jschimpf Exp $
  *
  */
 
@@ -246,13 +246,11 @@ _engine_run_thread(ec_eng_t *ec_eng)
 		ec_record_append(report_to, &engine_tid, ec_eng);
 	    } else
 #endif
-	    if (ecl_free_engine(ec_eng, 1)) {	/* drop strong reference */
-		break;			/* engine gone and nobody waiting */
+	    if (!ecl_free_engine(ec_eng, 1)) {	/* drop strong reference */
+		/* engine not destroyed yet */
+		ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
+		ec_mutex_unlock(&ec_eng->lock);
 	    }
-
-	    ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
-	    ec_mutex_unlock(&ec_eng->lock);
-
 	    /* this must be done at the very end, because freeing
 	     * the queue may recursively lead to engine destruction!
 	     */
@@ -514,6 +512,7 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
     switch (ecl_acquire_engine(ec_eng)) {
 
 	case ENGINE_DEAD:
+	    assert(!ec_eng->report_to);
 #ifdef UNCHAIN_ENGINES_WHEN_DEAD
 	    /* engine is dead, this implies it is not in the global
 	     * chain either, so it can be destroyed completely
@@ -527,8 +526,6 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 #endif
 	    if (ec_eng->storage)
 		heap_array_tid.free(ec_eng->storage);
-	    if (ec_eng->report_to)
-		heap_rec_header_tid.free(ec_eng->report_to);
 	    ec_cond_destroy(&ec_eng->cond);
 	    mt_mutex_destroy(&ec_eng->lock);
 	    /* free the structure, unless it is one of the static engines */
@@ -1182,53 +1179,49 @@ ecl_request_exit(ec_eng_t *ec_eng, int exit_code)
     if (EngIsDead(ec_eng)) {
 	DbgPrintf("ecl_request_exit(%x): already dead\n", ec_eng);
 	assert(A[1].val.nint == PEXITED);
-	res = PEXITED;
-
-    } else if (EngIsFree(ec_eng)) {
+	mt_mutex_unlock(&ec_eng->lock);
+	return PEXITED;
+    }
+    if (EngIsFree(ec_eng)) {
 	DbgPrintf("ecl_request_exit(%x): acquiring and exiting\n", ec_eng);
 	ec_eng->owner_thread = ec_thread_self();	/* acquire */
 	ec_eng->paused = 0;
 	mt_mutex_unlock(&ec_eng->lock);
 	ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
 	return PEXITED;				/* already unlocked */
-
-    } else if (EngPauseExitable(ec_eng)) {
+    }
+    if (EngPauseExitable(ec_eng)) {
 	if (ec_eng->owner_thread == ec_thread_self()) {
 	    /* shouldn't happen */
 	    DbgPrintf("ecl_request_exit(%x): exiting from pause\n", ec_eng);
 	    mt_mutex_unlock(&ec_eng->lock);
 	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
 	    return PEXITED;			/* already unlocked */
-
-	} else if (ec_eng->owner_thread == ec_eng->own_thread) {
+	}
+#undef USE_THREAD_CANCELLATION
+#ifdef USE_THREAD_CANCELLATION
+	if (ec_eng->owner_thread == ec_eng->own_thread) {
+	    /*TODO: review and test */
 	    DbgPrintf("ecl_request_exit(%x): cancel/acquire/exiting from pause\n", ec_eng);
 	    ec_thread_cancel_and_join(ec_eng->owner_thread);
 	    ec_eng->owner_thread = ec_eng->own_thread = ec_thread_self();
 	    ec_eng->paused = 0;
 	    mt_mutex_unlock(&ec_eng->lock);
 	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
+	    ecl_free_engine(ec_eng, 0);		/* for the cancelled thread */
 	    return PEXITED;			/* already unlocked */
-
-	} else {
-	    /* owned by random thread, just post */
-	    DbgPrintf("ecl_request_exit(%x): posting request\n", ec_eng);
-	    /* Note: no guarantee that the engine will handle the request! */
-	    ec_eng->requested_exit_code = exit_code;
-	    atomic_or(&EVENT_FLAGS, EXIT_REQUEST);
-	    Fake_Overflow;
-	    res = PRUNNING;
 	}
-
-    } else {
-	DbgPrintf("ecl_request_exit(%x): posting request\n", ec_eng);
-	/* Note: no guarantee that the engine will handle the request! */
-	ec_eng->requested_exit_code = exit_code;
-	atomic_or(&EVENT_FLAGS, EXIT_REQUEST);
-	Fake_Overflow;
-	res = PRUNNING;
+#endif
+	/* else owned by random thread, just post */
     }
+
+    DbgPrintf("ecl_request_exit(%x): posting request\n", ec_eng);
+    /* Note: no guarantee that the engine will handle the request! */
+    ec_eng->requested_exit_code = exit_code;
+    atomic_or(&EVENT_FLAGS, EXIT_REQUEST);
+    Fake_Overflow;
     mt_mutex_unlock(&ec_eng->lock);
-    return res;
+    return PRUNNING;
 }
 
 

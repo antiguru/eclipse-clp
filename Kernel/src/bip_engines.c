@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.7 2016/11/05 01:31:18 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.8 2016/11/06 03:18:56 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -645,8 +645,10 @@ p_broadcast_exit(value v, type t, ec_eng_t *ec_eng)
 	} else if (!(eng->vm_flags & ENG_HIDDEN)) {
 	    /* Caution: this may unlink eng from the global list! */
 	    ec_eng_t *eng_copy = ecl_resurrect_engine(eng);
-	    (void) ecl_request_exit(eng_copy, (int)v.nint);
-	    ecl_free_engine(eng_copy, 0);
+	    if (eng_copy) {
+		(void) ecl_request_exit(eng_copy, (int)v.nint);
+		ecl_free_engine(eng_copy, 0);
+	    }
 	}
 	eng = next;
     } while(eng != eng_chain_header);
