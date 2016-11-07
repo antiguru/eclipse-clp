@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.22 2016/10/25 22:34:59 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.23 2016/11/07 01:55:49 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -190,8 +190,6 @@ p_load_eco(value vfile, type tfile, value vopt, type topt, value vmod, type tmod
 
 #ifndef NOALS
 
-extern vmcode *print_am(register vmcode *code, vmcode **label, int *res, int option);
-
 /*
 	als_(Name/Arity, Module)
 		It prints on the current ouput stream the abstract
@@ -239,6 +237,7 @@ p_als(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
     }
     if (code)
     {
+	vmcode *start = code;
 #ifdef PRINTAM
 	p_fprintf(current_output_, " (0x%" W_MOD "x):", code);
 #else
@@ -246,7 +245,7 @@ p_als(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 #endif
 	(void) ec_newline(current_output_);
 	do
-	    code = print_am(code, &label, &res, 1);
+	    code = print_am(code, &label, start, &res, 1);
 	while (code || (code = label));
 	if (res == PFAIL)
 	    {Fail_}
@@ -262,11 +261,11 @@ p_als(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 int
 als(vmcode *code)	/* for use with dbx */
 {
-    vmcode	*save_code = code;
+    vmcode	*start = code;
     vmcode	*label = 0;
     int		res;
     do
-        code = print_am(code, &label, &res, 3);
+        code = print_am(code, &label, start, &res, 3);
     while (code || (code = label));
     if (res == PFAIL)
         {Fail_}
@@ -2942,11 +2941,7 @@ p_decode_code(value vcode, type tcode, value v, type t, ec_eng_t *ec_eng)
     {
 	Return_Unify_Integer(v, t, pw1->val.nint / (word) sizeof(word));
     }
-    else if (d == d_a1)		/* a(Word) -> Number */
-    {
-	Return_Unify_Integer(v, t, pw1->val.nint);
-    }
-    else if (d == d_y1 || d == d_t1 || d == d_pw1) /* y/t/pw(Word) -> Number */
+    else if (d == d_a1 || d == d_y1 || d == d_t1 || d == d_pw1) /* a/y/t/pw(Off) -> Number */
     {
 	Return_Unify_Integer(v, t, pw1->val.nint / (word) sizeof(pword));
     }

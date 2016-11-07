@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.40 2016/10/26 18:11:18 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.41 2016/11/07 01:55:49 jschimpf Exp $
  */
 
 /*
@@ -273,8 +273,6 @@ extern void
 		get_job(),
 		sch_load_report(),
 		end_of_oracle();
-
-extern vmcode	*print_am(register vmcode *code, vmcode **label, int *res, int option);
 
 extern vmcode	
 		*bip_error_code_,

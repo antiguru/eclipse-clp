@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.20 2016/11/05 01:31:18 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.21 2016/11/07 01:55:49 jschimpf Exp $
  */
 
 /*
@@ -1780,7 +1780,7 @@ Extern	void	set_string_n(pword*, char*, int);
 Extern	void	ec_frand_init(int32 *pstate);
 
 /* from printam.c */
-Extern	vmcode * print_am(vmcode *, vmcode **, int *, int);
+Extern	vmcode * print_am(vmcode *, vmcode **, vmcode *, int *, int);
 Extern	void	print_instr(vmcode *, int);
 
 /* from bip_heapevents.c */

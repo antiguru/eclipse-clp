@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.13 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.14 2016/11/07 01:55:49 jschimpf Exp $
  */
 
 /*
@@ -57,14 +57,14 @@
 
 extern vmcode	fail_code_[];
 void		print_port(stream_id nst, int port);
-static void	_print_label(vmcode **ptr);
+static void	_print_label(vmcode **ptr, vmcode *start);
 static vmcode	*_print_init_mask(vmcode *code, int name);
 static void	_print_edesc(uword);
 
 /* this one should also check >= brk(0) */
 #define InvalidAddress(ptr)	((ptr) == NULL || (uword) (ptr) & 0x3)
 #define H_did(start)	*((start) - 1)
-#define Arg(addr)	(addr)
+#define Arg(offset)	((offset)/sizeof(pword))
 #define Atom		{p_fprintf(current_output_,"%s ", DidName(*code)); code++;}
 #define VarOffset	p_fprintf(current_output_,"%d ", (int)(*code++)/(word)sizeof(pword))
 #define Integer		p_fprintf(current_output_,"%d ", (int)(*code++))
@@ -80,22 +80,22 @@ static void	_print_edesc(uword);
 		 p_fprintf(current_output_, "%d ", DidArity(*code)); code++;}
 #define Code_Label		\
 	if (*(vmcode **) code == FailCode)			\
-		(void) ec_outfs(current_output_,"Fail ");		\
+		(void) ec_outfs(current_output_,"Fail ");	\
 	else 							\
-		_print_label((vmcode **) code);			\
+		_print_label((vmcode **) code, start);		\
 	code++;
 #define Save_Label		\
 	if (*(vmcode **) code == FailCode)			\
-		(void) ec_outfs(current_output_,"Fail ");		\
+		(void) ec_outfs(current_output_,"Fail ");	\
 	else {							\
 		*label = (vmcode *)(*code);			\
-		_print_label((vmcode **) code);}		\
+		_print_label((vmcode **) code, start);}		\
 	code++;
 #define Print_Label(p)		\
 	if (*(vmcode**)(p) == FailCode)			\
-		(void) ec_outfs(current_output_,"Fail ");		\
+		(void) ec_outfs(current_output_,"Fail ");	\
 	else 							\
-		_print_label((vmcode**)(p));
+		_print_label((vmcode**)(p), start);
 #ifdef PRINTAM
 #define Consttag \
 	if (TagTypeC((word)(*code)) < 0 || TagTypeC((word)(*code)) > NTYPES) \
@@ -164,22 +164,22 @@ static void	_print_edesc(uword);
 				"\n\t\t\t%s:\t",		\
 				DidName((dident)*ptr));		\
 			ptr++;					\
-			_print_label((vmcode **) ptr);		\
+			_print_label((vmcode **) ptr, start);	\
 			ptr++;					\
 		} while (ptr < end);				\
-		(void) ec_outfs(current_output_, "\n\t\t\tdefault:");\
+		(void) ec_outfs(current_output_, "\n\t\t\tdefault:\t");\
 	}
 
 #define Integer_Range_Table					\
 	{							\
 		uword		*ptr = (uword *) *code++;	\
 	       	uword		*end;				\
-							\
+								\
 		p_fprintf(current_output_, " %d", *code);	\
 		p_fprintf(current_output_, "\n\t\t\t< %d:\t", (int) *ptr);\
-		_print_label((vmcode **) (ptr + 1));		\
+		_print_label((vmcode **) (ptr + 1), start);	\
 		p_fprintf(current_output_, "\n\t\t\t> %d:\t", (int) *(ptr+2));\
-		_print_label((vmcode **) (ptr + 3));		\
+		_print_label((vmcode **) (ptr + 3), start);	\
 		ptr += 4;					\
 		end = (uword *) ((pword *) ptr + *code++);	\
 		while (ptr < end)				\
@@ -193,7 +193,7 @@ static void	_print_edesc(uword);
 		}						\
 		(void) ec_outfs(current_output_, "\n\t\t\telse:\t");\
 		Code_Label					\
-		(void) ec_outfs(current_output_, "\n\t\t\tdefault:");\
+		(void) ec_outfs(current_output_, "\n\t\t\tdefault:\t");\
 		Code_Label					\
 	}
 
@@ -209,10 +209,10 @@ static void	_print_edesc(uword);
 				"\n\t\t\t%d:\t",		\
 				(int) (*ptr));			\
 			ptr++;					\
-			_print_label((vmcode **) ptr);		\
+			_print_label((vmcode **) ptr, start);	\
 			ptr++;					\
 		} while (ptr < end);				\
-		(void) ec_outfs(current_output_, "\n\t\t\tdefault:");\
+		(void) ec_outfs(current_output_, "\n\t\t\tdefault:\t");\
 	}
 
 #define Functor_Table2						\
@@ -228,10 +228,10 @@ static void	_print_edesc(uword);
 				DidName((dident) *ptr),		\
 				DidArity((dident) *ptr));	\
 			ptr++;					\
-			_print_label((vmcode **) ptr);		\
+			_print_label((vmcode **) ptr, start);	\
 			ptr++;					\
 		} while (ptr < end);				\
-		(void) ec_outfs(current_output_, "\n\t\t\tdefault:");\
+		(void) ec_outfs(current_output_, "\n\t\t\tdefault:\t");\
 	}
 
 #define EnvDesc _print_edesc(*code++);
@@ -263,8 +263,9 @@ static char  *ec_debug_ports[] =
 #define PROCLAB	2	/* print a symbolic address with each instruction */
 
 vmcode *
-print_am(vmcode *code,
+print_am(vmcode *code,		/* pointer to instruction */
 	vmcode **label,		/* next code block */
+	vmcode *start,		/* base address to subtract from printed code addresses */
 	int *res,
 	int option)		/* ALS|PROCLAB */
 {
@@ -305,7 +306,7 @@ print_am(vmcode *code,
 			code - PriCode(pd) - 1);
 	}
 #endif
-	p_fprintf(current_output_, "\t%s\t", inst_name[inst]);
+	p_fprintf(current_output_, "\t%-24s\t", inst_name[inst]);
 	switch (inst)
 
 	{
@@ -1157,7 +1158,7 @@ print_am(vmcode *code,
 			do
 			{
 			    p_fprintf(current_output_, "\n\t\t\t\t");
-			    _print_label((vmcode **) ptr);
+			    _print_label((vmcode **) ptr, start);
 			    ptr++;
 			} while (nalt--);
 		    }
@@ -1560,31 +1561,24 @@ print_instr(vmcode *code, int option)
 {
     vmcode	*dummy_l = NULL;
     int		dummy_r;
-    print_am(code, &dummy_l, &dummy_r, option);
+    print_am(code, &dummy_l, NULL, &dummy_r, option);
 }
 
 static void
-_print_label(vmcode **ptr)
+_print_label(vmcode **ptr, vmcode *start)
 {
-    char	*instr;
-    int		inst;
+    char	*instr = "BAD_ADDRESS";
 
-	p_fprintf(current_output_,"%d(", (word) (*ptr)
-#ifndef PRINTAM
-						    & 0xfff
-#endif
-							    );
-    if (InvalidAddress(*ptr))
-	ec_outfs(current_output_, "BAD ADDRESS");
-    else {
-	inst = Get_Int_Opcode(*ptr);
+    if (!InvalidAddress(*ptr)) {
+	int inst = Get_Int_Opcode(*ptr);
 	if (inst < 0 || inst > NUMBER_OP)
 	    inst = Inst_Error;
 	instr = inst_name[inst];
-	while (*instr != ' ')
-	    (void) ec_outfc(current_output_, *instr++);
     }
-    (void) ec_outfc(current_output_, ')');
+    if (start)
+	p_fprintf(current_output_,"@%"W_MOD"d(%s)", (word)(*ptr-start), instr);
+    else
+	p_fprintf(current_output_,"%"W_MOD"x(%s)", (word)(*ptr), instr);
 }
 
 static vmcode *
