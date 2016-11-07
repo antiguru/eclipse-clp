@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.8 2016/11/06 03:18:56 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.9 2016/11/07 01:07:51 jschimpf Exp $
  *
  */
 
@@ -525,7 +525,7 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 	    mt_mutex_unlock(&EngineListLock);
 #endif
 	    if (ec_eng->storage)
-		heap_array_tid.free(ec_eng->storage);
+		heap_htable_tid.free(ec_eng->storage);
 	    ec_cond_destroy(&ec_eng->cond);
 	    mt_mutex_destroy(&ec_eng->lock);
 	    /* free the structure, unless it is one of the static engines */
