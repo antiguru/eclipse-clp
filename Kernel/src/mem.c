@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.7 2016/10/25 22:34:59 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.8 2016/11/09 14:38:16 jschimpf Exp $
  */
 
 /*
@@ -96,7 +96,8 @@ extern char	*sbrk();
 #define DEBUG_HEAP
 #endif
 
-#define STACK_PAGESIZE	(32 * system_pagesize)
+/* choose an arbitrary multiple of system_pagesize */
+#define STACK_PAGESIZE	(sizeof(word) * system_pagesize)
 
 #define UWORDS_PER_PAGE	(BYTES_PER_PAGE/sizeof(uword))
 
@@ -302,13 +303,12 @@ adjust_stacks(struct stack_struct *descr, uword *lower_max, uword *upper_max, uw
 {
     register uword diff;
 
-    
-    if (diff = (uword) lower_max % STACK_PAGESIZE)
+    /* round up to STACK_PAGESIZE */
+    if ((diff = ((uword)lower_max-(uword)descr[0].start) % STACK_PAGESIZE))
 	lower_max += (STACK_PAGESIZE - diff)/sizeof(uword);
-	/* lower_max could wrap to 0 here! */
-    upper_max -=
-	((uword) upper_max % STACK_PAGESIZE)/sizeof(uword);
-    
+    if ((diff = ((uword)descr[1].start-(uword)upper_max) % STACK_PAGESIZE))
+	upper_max -= (STACK_PAGESIZE - diff)/sizeof(uword);
+
     if (lower_max > upper_max)
 	return 0;			/* stacks clash */
 
