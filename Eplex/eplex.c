@@ -25,7 +25,7 @@
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Joachim Schimpf, IC-Parc
  *              Kish Shen,       IC-Parc
- * Version:	$Id: eplex.c,v 1.19 2016/07/28 03:34:35 jschimpf Exp $
+ * Version:	$Id: eplex.c,v 1.20 2016/11/09 13:16:21 jschimpf Exp $
  *
  */
 
@@ -439,9 +439,9 @@ static CPXCHANNELptr	cpxerror = (CPXCHANNELptr) 0;
 static CPXCHANNELptr	cpxlog = (CPXCHANNELptr) 0;
 
 # if CPLEX >= 8
-static void CPXPUBLIC eclipse_out ARGS((void *nst, const char*msg));
+static void CPXPUBLIC eclipse_out(void *nst, const char*msg);
 # else
-static void CPXPUBLIC eclipse_out ARGS((void *nst, char*msg));
+static void CPXPUBLIC eclipse_out(void *nst, char*msg);
 # endif
 #endif /* CPLEX */
 
@@ -454,7 +454,7 @@ static void CPXPUBLIC eclipse_out ARGS((void *nst, char*msg));
 #define XP_OEM_YES	1
 static int oem_xpress = XP_OEM_UNKNOWN;
 
-static void XPRS_CC eclipse_out ARGS((XPRSprob prob, void *obj, const char *msg, int len, int msgtype));
+static void XPRS_CC eclipse_out(XPRSprob prob, void *obj, const char *msg, int len, int msgtype);
 
 #endif	/* XPRESS */
 
@@ -2095,9 +2095,9 @@ p_cpx_set_problem_type(value vlp, type tlp, value vtype, type ttype,
 }
 
 
-static void _cpx_restore_bounds ARGS((pword*,word*,int,int,ec_eng_t*));
+static void _cpx_restore_bounds(pword*,word*,int,int,ec_eng_t*);
 
-static void _cpx_reset_col_type ARGS((pword*,word*,int,int,ec_eng_t*));
+static void _cpx_reset_col_type(pword*,word*,int,int,ec_eng_t*);
 
 int
 p_cpx_change_col_type(value vhandle, type thandle, 
