@@ -934,15 +934,29 @@ Yes (3.00s cpu)
     If the engine is already stopped at the time of the join, it succeeds
     immediately.
 </P><P>
-    It is an error if the engine is running, but was not asynchronously
-    resumed (e.g. it was resumed using engine_resume/3 by another thread).
-    Moreover, an engine cannot join itself.
+    It is an error if the engine is running, but was not resumed in its
+    own thread (e.g. it was resumed using engine_resume/3 by another thread).
+    Moreover, one cannot join an engine that is running in the same thread
+    as the caller of engine_join/3.
 </P><P>
     If multiple joins are waiting for the same engine, they will all
     succeed when the engine stops.
 </P><P>
     If Timeout is the atom 'block', no timeout is used, the operation
     can block indefinitely, and never fails.
+</P><P>
+    NOTE:  While blocked in engine_join/3, a thread does not respond to
+    posted event goals (e.g. from engine_post/2 or event_after/2).
+    In order to keep the thread responsive, one can replace
+    <PRE>
+        engine_join(E, block, S)
+    </PRE>
+    by a functionally equivalent construct such as
+    <PRE>
+        once (repeat, engine_join(E, 1, S))
+    </PRE>
+    This lets engine_join/3 time out and restart every second, thus
+    creating opportunities for the handling of posted events.
 </P>"),
     fail_if:"Fails if timeout occurs before engine stops",
     exceptions:[
@@ -981,11 +995,11 @@ Yes (3.00s cpu)
     ?- engine_create(E, [thread]),
        engine_resume_thread(E, (repeat,fail)),
        ( engine_join(E, 5, S) -> writeln(status=S) ; writeln(timeout) ).
-   timeout
+    timeout
 
-   E = 'ENGINE'(16'6c98d3f2)
-   S = S
-   Yes (5.00s cpu)
+    E = 'ENGINE'(16'6c98d3f2)
+    S = S
+    Yes (5.00s cpu)
 ",
     see_also:[engine_create/2,engine_resume_thread/2,engine_status/2]]).
 
@@ -1328,7 +1342,13 @@ Yes (3.00s cpu)
    object can be used for this purpose.  
 </P><P>
    Mutexes are recursive, i.e. nested calls to with_mutex/2 within a
-   thread are allowed.
+   thread are allowed.  Mutexes are automatically unlocked when the control
+   flow leaves the with_mutex/2 predicate, whether via success, failure,
+   throw/1 or exit/1.
+</P><P>
+   The standard precaution for working with mutexes apply: they should be
+   held as briefly as possible to avoid unnecessary blocking of other threads.
+   Also, nesting of (explicit or implicit) mutexes can lead to deadlocks.
 <P>
 "),
     fail_if:"Fails if Goal fails",
@@ -1397,10 +1417,11 @@ Yes (3.00s cpu)
     <LI>bag handle</LI>
     <LI>record handle</LI>
 </UL>
-    Typically, condition_signal/2 is exeuted in a context where the
-    Handle has been locked, i.e. inside with_mutex/2.  This is for grouping
-    operations on Handle and signaling on Handle into an atomic action
-    (see produce_message/2 in the example).
+    Typically, condition_signal/2 is executed in a context where the
+    Handle has been locked, i.e. inside with_mutex/2.  This allows grouping
+    operations on Handle and signaling on Handle into one atomic action
+    (see produce_message/2 in the example).  While condition_wait/2 waits,
+    the Handle mutex is unlocked.
 <P>
 "),
     exceptions:[
@@ -1483,9 +1504,12 @@ Yes (3.00s cpu)
 </P><P>
     See condition_signal/2 for usage pattern, examples, and a list of
     handle types that support this operation.
-</DL>
-    This predicate must always be exeuted in a context where the Handle
+</P><P>
+    This predicate must always be executed in a context where the Handle
     has been locked, i.e. inside with_mutex/2.
+</P><P>
+    NOTE: the predicate will also be unblocked (and succeed) when the
+    engine receives a throw/exit request via engine_post/2.
 <P>
 "),
     exceptions:[
