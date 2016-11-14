@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.16 2016/10/26 18:16:08 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.17 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /*
@@ -695,8 +695,8 @@ void
 ecl_engine_exit(ec_eng_t *ec_eng, int exit_code)
 {
     int res;
-    assert(EngIsOurs(ec_eng));
     assert(!EngIsDead(ec_eng));
+    assert(EngIsOurs(ec_eng));
     PP = &engine_exit_code_[0];
     Make_Integer(&A[1], exit_code);
     res = emulc(ec_eng);
@@ -707,34 +707,6 @@ ecl_engine_exit(ec_eng_t *ec_eng, int exit_code)
     Make_Integer(&A[1], PEXITED);
     A[0].val.nint = PYIELD;
     ec_emu_fini(ec_eng);
-}
-
-
-/*
- * Check, and perform if necessary, any asynchronously requested
- * "housekeeping" operations on the given engine, such as dictionary marking.
- * These should leave the engine in the same state as before, with
- * the exception of the exit-request.
- * The caller must own the engine (and have a ref-count on it).
- * A[1..2] are valid.
- * Returns PEXITED if engine was exited.
- */
-
-int
-ecl_housekeeping(ec_eng_t *ec_eng, word valid_args, int allow_exit)
-{
-    int event_flags = atomic_load(&EVENT_FLAGS);
-    if (allow_exit  &&  (event_flags & EXIT_REQUEST)) {
-	atomic_and(&EVENT_FLAGS, ~EXIT_REQUEST);
-	ecl_engine_exit(ec_eng, ec_eng->requested_exit_code);
-	return PEXITED;
-    }
-
-    if (event_flags & DICT_GC_REQUEST) {
-	atomic_and(&EVENT_FLAGS, ~DICT_GC_REQUEST);
-	ecl_mark_engine(ec_eng, valid_args);
-    }
-    return PSUCCEED;
 }
 
 
@@ -950,6 +922,10 @@ _post_item(ec_eng_t *ec_eng, pword item, int no_duplicates, int urgent)
     }
     atomic_or(&EVENT_FLAGS, EVENT_POSTED|(urgent?URGENT_EVENT_POSTED:0));
     Fake_Overflow;
+
+    /* attempt to expediate urgent request handling */
+    if (urgent && EngIsPaused(ec_eng))
+	ecl_interrupt_pause(ec_eng);
 
 _unlock_return_:
     mt_mutex_unlock(&ec_eng->lock);

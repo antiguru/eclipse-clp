@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.28 2016/10/28 22:44:33 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.29 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -3574,7 +3574,7 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout, ec
 	    to.tv_usec = 0;
 	    pto = &to;
 	}
-	ecl_pause_engine(ec_eng, ARITY_SELECT, PAUSE_EXITABLE_VIA_LONGJMP);
+	ecl_pause_engine(ec_eng, ARITY_SELECT, PAUSE_SELECT, NULL, NULL);
 	res = select(max + 1, &dread, &dwrite, (fd_set *) 0, pto);
 	ecl_unpause_engine(ec_eng);
 	if (res < 0)

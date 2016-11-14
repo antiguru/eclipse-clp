@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.15 2016/11/06 03:18:56 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.16 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /*
@@ -324,9 +324,13 @@ emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
 void
 ec_emu_fini(ec_eng_t *ec_eng)
 {
+    void *engine_thread = NULL;
+
     extern void dealloc_stack_pairs(struct stack_struct *, struct stack_struct *);
 
     assert(!EngIsDead(ec_eng));
+    assert(EngIsOurs(ec_eng));
+    assert(!EngIsPaused(ec_eng));
 
     DbgPrintf("Finalizing engine %x\n", ec_eng);
 
@@ -335,15 +339,31 @@ ec_emu_fini(ec_eng_t *ec_eng)
     Do_Cleanup();
     Fini_Cleanup();
 
+    mt_mutex_lock(&ec_eng->lock);	/* prevent new requests being posted */
+
+    /* Handle remaining requests, such as DGC, but ignore exit/throw requests. */
+    (void) ecl_housekeeping(ec_eng, 2);
+
     /* shut down the engine's thread, if any (unless it is ourselves) */
     if (ec_eng->own_thread  &&  ec_eng->own_thread != ec_eng->owner_thread) {
-	void *engine_thread = ec_eng->own_thread;
-	mt_mutex_lock(&ec_eng->lock);	/* not absolutely necessary */
+	engine_thread = ec_eng->own_thread;
 	ec_eng->own_thread = NULL;	/* indicates finalization request */
 	ec_cond_signal(&ec_eng->cond, 0);
-	mt_mutex_unlock(&ec_eng->lock);	/* not absolutely necessary */
-	ec_thread_join(engine_thread);	/* make sure it's gone and does not reference ec_eng anymore */
+	/* ec_thread_join(engine_thread);	done below for concurrency */
     }
+
+    ec_eng->tg = NULL;			/* indicates engine is now dead */
+    ec_eng->owner_thread = NULL;	/* final relinquish of ownership */
+
+    mt_mutex_unlock(&ec_eng->lock);	/* lock no longer necessary */
+
+    /* Now the engine is flagged as dead.  It also has no ownership, but
+     * since it is dead it cannot be acquired by anyone else.  Other threads
+     * can still do read-only accesses to A[1..2] and locking/unlocking,
+     * but none of this interferes with the cleanup below.  We still own
+     * a strong reference here, and the final destruction operations in
+     * ecl_free_engine() will only happen once the last reference disappears.
+     */
 
 #ifdef UNCHAIN_ENGINES_WHEN_DEAD
     /* unchain engine, unless it is the header */
@@ -356,12 +376,11 @@ ec_emu_fini(ec_eng_t *ec_eng)
 
     }
 #endif
-    ec_eng->tg = NULL;	/* indicates engine is dead */
     dealloc_stack_pairs(ec_eng->global_trail, ec_eng->control_local);
 
     /* make sure other attached memory is gone */
     destroy_parser_env(ec_eng);
-    ec_fini_dynamic_event_queue(ec_eng);
+    ec_fini_dynamic_event_queue(ec_eng);	/* after disabling requests */
     assert(!ec_eng->references);
     assert(ec_eng->allrefs.next == &ec_eng->allrefs
     	&& ec_eng->allrefs.prev == &ec_eng->allrefs);
@@ -369,13 +388,15 @@ ec_emu_fini(ec_eng_t *ec_eng)
 	hg_free_size(FTRACE, MAX_FAILTRACE * sizeof(fail_data_t));
 	FTRACE = NULL;
     }
-    EngLogMsg(ec_eng, "exited", 0);
-
     if (ec_eng->report_to) {
 	t_ext_ptr report_to = ec_eng->report_to;
 	ec_eng->report_to = NULL;
-	heap_rec_header_tid.free(report_to);	/* may recursively destroy engine */
+	heap_rec_header_tid.free(report_to);
     }
+    if (engine_thread)
+	ec_thread_join(engine_thread);	/* make sure it's gone and does not reference ec_eng anymore */
+
+    EngLogMsg(ec_eng, "exited", 0);
 }
 
 

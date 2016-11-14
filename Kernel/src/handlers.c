@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.15 2016/10/25 22:34:59 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.16 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /** @file
@@ -474,7 +474,7 @@ _run_prolog_handler(ec_eng_t *ec_eng, int sig)
 	    case PFAIL:
 	    case PTHROW:
 	    case PEXITED:
-		ecl_relinquish_engine(ec_eng);
+		ecl_relinquish_engine_opt(ec_eng, 1);
 		return;
 
 	    case PSUCCEED:

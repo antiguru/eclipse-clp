@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.21 2016/11/07 01:55:49 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.22 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /*
@@ -1542,17 +1542,18 @@ extern dident transf_did(word);
 
 #define YIELD_ARITY	4	/* valid arguments when engine yielded */
 
-#define PAUSE_NOT_EXITABLE		0
-#define PAUSE_EXITABLE_VIA_LONGJMP	1
-#define PAUSE_EXITABLE_VIA_JOIN		2
+#define PAUSE_GENERAL		0
+#define PAUSE_CONDITION_WAIT	1
+#define PAUSE_SELECT		2
+#define PAUSE_SLEEP		3
 
 #define EngIsDead(eng) 			(!((eng)->tg))	/* no stacks */
 #define EngIsFree(eng)			(!(eng)->owner_thread)
 #define EngIsOurs(eng)			((eng)->owner_thread == ec_thread_self())
 #define EngIsPaused(eng)		((eng)->paused)
 #define EngPauseArity(eng)		((eng)->paused>>3)
-#define EngPauseExitable(eng)		((eng)->paused & 0x3)
-#define PauseType(arity,exitability)	(((arity)<<3)|0x4|exitability)
+#define EngPauseKind(eng)		((eng)->paused & 0x3)
+#define PauseType(arity,kind)		(((arity)<<3)|0x4|kind)
 
 #define EngPrintId(eng)	((word)eng/0x1000)
 #define EngLogMsg(eng,msg,...) {\
@@ -1659,9 +1660,10 @@ Extern	DLLEXP	int ecl_engine_init(ec_eng_t *parent_eng, ec_eng_t *new_eng);
 Extern	DLLEXP	int ecl_engines_init(t_eclipse_options*, ec_eng_t **);
 Extern	int	ecl_init_aux(t_eclipse_options *, ec_eng_t *, int);
 Extern	void	ecl_engine_exit(ec_eng_t*, int);
-Extern	int	ecl_housekeeping(ec_eng_t*, word valid_args, int allow_exit);
-Extern	void	ecl_pause_engine(ec_eng_t *ec_eng, int arity, int allow_exit);
+Extern	int	ecl_pause_engine(ec_eng_t *ec_eng, int arity, int kind, void*, void*);
+Extern	void	ecl_interrupt_pause(ec_eng_t *ec_eng);
 Extern	void	ecl_unpause_engine(ec_eng_t *ec_eng);
+Extern	int	ecl_housekeeping(ec_eng_t*, word valid_args);
 Extern	int	ecl_do_requested_action(ec_eng_t*,int event_flags,int jump);
 Extern	void	delayed_exit(ec_eng_t*);
 Extern	int	next_posted_item(ec_eng_t*, pword*, int);

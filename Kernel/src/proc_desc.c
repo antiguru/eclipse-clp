@@ -25,7 +25,7 @@
  *
  * System:	ECLiPSe Constraint Logic Programming System
  * Author/s:	Rewrite 1/2000 by Joachim Schimpf, IC-Parc
- * Version:	$Id: proc_desc.c,v 1.10 2016/10/25 22:34:59 jschimpf Exp $
+ * Version:	$Id: proc_desc.c,v 1.11 2016/11/14 15:09:59 jschimpf Exp $
  *
  * Contains functions to create/access/modify/remove procedure descriptors
  *
@@ -392,7 +392,7 @@ _report_error(int err,
 			ec_atom(add_dict(arg1,0)), ec_long(DidArity(arg1))),
 		mod, mod);
     res = ecl_resume_goal(ec_eng, goal, ec_nil(), NULL, GOAL_NOTNOT);
-    if (acquired == PSUCCEED) ecl_relinquish_engine(ec_eng);
+    if (acquired == PSUCCEED) ecl_relinquish_engine_opt(ec_eng, 1);
     return res;
 }
 

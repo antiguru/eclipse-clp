@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.9 2016/11/07 01:07:51 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.10 2016/11/14 15:09:58 jschimpf Exp $
  *
  */
 
@@ -56,8 +56,6 @@ extern char *	strcpy();
 #define DbgPrintf(s,...)
 #endif
 
-
-static int _poll_requests(ec_eng_t *ec_eng, int allow_exit);
 
 /*
  * Global state
@@ -144,7 +142,9 @@ ecl_engines_init(t_eclipse_options *opts, ec_eng_t **eng)
     ecl_free_engine(&ec_.m_timer, 0);	/* live while thread lives */
 
     /* If requested, create a working engine and start its main loop */
-    if (eng) {
+    if (!eng) {
+	ec_.m.ref_ctr = 0;
+    } else if (eng) {
 	ec_eng = &ec_.m;
 	ec_eng->options = *opts;
 	res = ecl_engine_init(NULL, ec_eng);
@@ -189,18 +189,19 @@ ec_embed_fini(void)
 void *
 _engine_run_thread(ec_eng_t *ec_eng)
 {
-    /* assert(ec_eng->own_thread == ec_thread_self());	can't test: race! */
-
     /* thread-local initializations */
     ec_thread_reinstall_handlers(NULL);
 
-    /* resume the engine whenever we get the ownership */
     ec_mutex_lock(&ec_eng->lock);
+    ec_eng->own_thread = ec_thread_self();	/* indicate thread readiness */
     for(;;)
     {
 	int res;
 
+	ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
+
 	/* wait for ownership */
+	DbgPrintf("Async go to sleep 0x%x\n", ec_eng);
 	while (!EngIsOurs(ec_eng)) {
 	    res = ec_cond_wait(&ec_eng->cond, &ec_eng->lock, -1);
 	    assert(!res);
@@ -218,6 +219,8 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	/* we now have a strong reference and engine ownership */
 	res = resume_emulc(ec_eng);
 
+	DbgPrintf("Async release 0x%x\n", ec_eng);
+
 	/* If engine was detached, exit+finalize the engine and return
 	 * PEXITED(<actual return status as integer>)
 	 */
@@ -226,13 +229,19 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	    res = PEXITED;
 	}
 
-	DbgPrintf("Async release 0x%x\n", ec_eng);
+	/* the lock must enclose ecl_housekeeping and owner_thread=NULL */
+	mt_mutex_lock(&ec_eng->lock);
+
+	/* Before relinquishing ownership, check for pending requests */
+	if ((res != PEXITED) && (ecl_housekeeping(ec_eng, YIELD_ARITY) & EXIT_REQUEST)) {
+	    ecl_engine_exit(ec_eng, A[1].val.nint);	/* now PEXITED */
+	    res = PEXITED;
+	}
 
 	if (res == PEXITED) {
 	    t_ext_ptr report_to;
 
-	    ec_mutex_lock(&ec_eng->lock);
-	    ec_eng->owner_thread = NULL;	/* relinquish ownership */
+	    assert(EngIsFree(ec_eng));
 
 	    /* remove the queue reference to break circular ref chain */
 	    report_to = ec_eng->report_to;
@@ -259,10 +268,8 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	    break;				/* end thread */
 	}
 	
-	ec_mutex_lock(&ec_eng->lock);
-	ec_eng->paused = PauseType(YIELD_ARITY, PAUSE_EXITABLE_VIA_JOIN);
-	_poll_requests(ec_eng, 1);
-
+	ec_eng->paused = PauseType(YIELD_ARITY, PAUSE_GENERAL);
+	ec_eng->pause_par1 = ec_eng->pause_par2 = NULL;
 	ec_eng->owner_thread = NULL;	/* relinquish ownership */
 
 	DbgPrintf("Async free 0x%x\n", ec_eng);
@@ -279,9 +286,6 @@ _engine_run_thread(ec_eng_t *ec_eng)
 	 * by another thread, even if the ref count goes to zero.
 	 * So lock and cond are still usable.
 	 */
-	ec_cond_signal(&ec_eng->cond, 1);	/* wake all joiners */
-
-	DbgPrintf("Async go to sleep 0x%x\n", ec_eng);
     }
     ec_thread_detach(ec_thread_self());		/* no join expected */
     EngLogMsg(ec_eng, "thread detached and terminating", 0);
@@ -289,21 +293,28 @@ _engine_run_thread(ec_eng_t *ec_eng)
 }
 
 
-/*
+/**
  * Create and attach an OS thread to the given engine.
  * The lock, cond and owner fields of ec_eng must be initialized already!
+ * @return PSUCCEED or error
  */
 
 static int
 _engine_thread_create(ec_eng_t *ec_eng)
 {
-    int err = ec_thread_create(&ec_eng->own_thread,
+    void *dummy;
+    int err = ec_thread_create(&dummy,
 		(void*(*)(void*)) _engine_run_thread,
 		(void*) ec_eng);
     if (err) {
 	Set_Sys_Errno(err, ERRNO_OS);
 	return SYS_ERROR;
     }
+    /* wait until the thread is ready and has set ec_eng->own_thread */
+    ec_mutex_lock(&ec_eng->lock);
+    while (!ec_eng->own_thread)
+	ec_cond_wait(&ec_eng->cond, &ec_eng->lock, -1);
+    ec_mutex_unlock(&ec_eng->lock);
     EngLogMsg(ec_eng, "thread created", 0);
     return PSUCCEED;
 }
@@ -438,6 +449,7 @@ ecl_acquire_engine(ec_eng_t *ec_eng)
     } else if (!ec_eng->owner_thread) {
 	ec_eng->owner_thread = ec_thread_self();
 	ec_eng->paused = 0;
+	ec_eng->pause_par1 = ec_eng->pause_par2 = NULL;
         res = PSUCCEED;
     } else if (ec_eng->owner_thread == ec_thread_self()) {
         res = PFAIL;
@@ -452,31 +464,49 @@ ecl_acquire_engine(ec_eng_t *ec_eng)
 /**
  * Give up the right to modify the engine from the current thread.
  *
- * We handle requests that might be left over from the previous phase,
- * and then leave the engine in a free and 'paused' (or dead) state.
+ * We handle transient requests that might be left over from the
+ * previous phase, and then leave the engine in a free and 'paused' state.
+ * Exit requests are optionally handled.
+ * @return PSUCCEED, or PEXITED if engine exited (or was already exited)
  */
-
-void Winapi
-ecl_relinquish_engine(ec_eng_t *ec_eng)
+int Winapi
+ecl_relinquish_engine_opt(ec_eng_t *ec_eng, int allow_exit)
 {
+    if (EngIsDead(ec_eng)) {
+	assert(EngIsFree(ec_eng));
+	return PEXITED;
+    }
     assert(EngIsOurs(ec_eng));
     assert(!EngIsPaused(ec_eng));
 
     mt_mutex_lock(&ec_eng->lock);
-    if (!EngIsDead(ec_eng)) {
-	/* Before relinquishing ownership, we have to check for pending requests */
-	if (FakedOverflow) {
-	    if (ecl_housekeeping(ec_eng, YIELD_ARITY, 1) == PEXITED) {
-		assert(EngIsDead(ec_eng));
-		ec_eng->owner_thread = NULL;
-		mt_mutex_unlock(&ec_eng->lock);
-		return;
-	    }
-	}
-	ec_eng->paused = PauseType(YIELD_ARITY, PAUSE_NOT_EXITABLE);
+    /* Before relinquishing ownership, we have to check for pending requests */
+    if ((ecl_housekeeping(ec_eng, YIELD_ARITY) & EXIT_REQUEST) && allow_exit)
+    {
+	mt_mutex_unlock(&ec_eng->lock);
+	ecl_engine_exit(ec_eng, ec_eng->requested_exit_code); /* now PEXITED */
+	return PEXITED;
     }
+    ec_eng->paused = PauseType(YIELD_ARITY, PAUSE_GENERAL);
+    ec_eng->pause_par1 = ec_eng->pause_par2 = NULL;
     ec_eng->owner_thread = NULL;
     mt_mutex_unlock(&ec_eng->lock);
+    return PSUCCEED;
+}
+
+
+/**
+ * Give up the right to modify the engine from the current thread.
+ *
+ * We handle transient requests that might be left over from the
+ * previous phase, and then leave the engine in a free and 'paused' state.
+ * Exit/throw requests are not handled.
+ * If engine was already exited, this does nothing.
+ */
+void Winapi
+ecl_relinquish_engine(ec_eng_t *ec_eng)
+{
+    (void) ecl_relinquish_engine_opt(ec_eng, 0);
 }
 
 
@@ -498,6 +528,7 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 	EngLogMsg(ec_eng, "refs %d->%d", rem+1, rem);
 	return 0;
     }
+    assert(rem==0);
 
     /* We now have exclusive access to the engine, although it may have
      * weak references from the global chain and from its engine-thread.
@@ -546,7 +577,6 @@ ecl_free_engine(ec_eng_t *ec_eng, int locked)	/* ec_eng != NULL */
 	     * engine is already acquired and will certainly exit
 	     */
 	    ecl_engine_exit(ec_eng, 0);		/* now PEXITED */
-	    ecl_relinquish_engine(ec_eng);
 	    return ecl_free_engine(ec_eng, 0);
 
 	case ENGINE_BUSY:	/* could not acquire */
@@ -904,8 +934,10 @@ ecl_resume_async1(ec_eng_t *ec_eng, const pword from_c, const pword module)
 
 
 /*
- * Copies the term from from_eng to ec_eng, and resumes ec_eng.
- * - engine must be owned
+ * Copies the term from from_eng to ec_eng, and resumes ec_eng in its own thread.
+ * The engine must be owned.  On successful return the engine has been
+ * handed over to its own thread.
+ * @return PSUCCEED or error
  */
 
 int
@@ -953,8 +985,9 @@ ecl_copy_resume_async(ec_eng_t *from_eng, ec_eng_t *ec_eng, const pword term, co
  * @param timeout	in milliseconds, -1 means no timeout
  * @return
  *	- PSUCCEED	engine stopped and acquired for result retrieval
+ *	- PEXITED	engine already dead (not acquired)
  *	- ENGINE_NOT_ASYNC	engine not joinable (self or not async running)
- *	- PRUNNING	timeout, engine still running
+ *	- PRUNNING	timeout, engine still running (not acquired)
  *	- SYS_ERROR	error from ec_cond_wait()
  */
 int Winapi
@@ -962,8 +995,12 @@ ecl_join_acquire(ec_eng_t *ec_eng, int timeout)
 {
     int res = PSUCCEED;
 
+    if (EngIsDead(ec_eng))
+	return PEXITED;
+
+    /* We can't join an engine that is already owned by us */
     if (EngIsOurs(ec_eng))
-	return ENGINE_NOT_ASYNC;	/* can't wait for myself (shortcut) */
+	return ENGINE_NOT_ASYNC;
 
     ec_mutex_lock(&ec_eng->lock);
 
@@ -986,8 +1023,11 @@ ecl_join_acquire(ec_eng_t *ec_eng, int timeout)
 	}
     }
 
-    ec_eng->owner_thread = ec_thread_self();	/* acquire */
-    ec_eng->paused = 0;
+    if (!EngIsDead(ec_eng)) {
+	ec_eng->owner_thread = ec_thread_self();	/* acquire */
+	ec_eng->paused = 0;
+	ec_eng->pause_par1 = ec_eng->pause_par2 = NULL;
+    }
     res = PSUCCEED;
 
 _unlock_return_:
@@ -1186,53 +1226,48 @@ ecl_request_exit(ec_eng_t *ec_eng, int exit_code)
 	DbgPrintf("ecl_request_exit(%x): acquiring and exiting\n", ec_eng);
 	ec_eng->owner_thread = ec_thread_self();	/* acquire */
 	ec_eng->paused = 0;
+	ec_eng->pause_par1 = ec_eng->pause_par2 = NULL;
 	mt_mutex_unlock(&ec_eng->lock);
 	ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
 	return PEXITED;				/* already unlocked */
     }
-    if (EngPauseExitable(ec_eng)) {
-	if (ec_eng->owner_thread == ec_thread_self()) {
-	    /* shouldn't happen */
-	    DbgPrintf("ecl_request_exit(%x): exiting from pause\n", ec_eng);
-	    mt_mutex_unlock(&ec_eng->lock);
-	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
-	    return PEXITED;			/* already unlocked */
-	}
-#undef USE_THREAD_CANCELLATION
-#ifdef USE_THREAD_CANCELLATION
-	if (ec_eng->owner_thread == ec_eng->own_thread) {
-	    /*TODO: review and test */
-	    DbgPrintf("ecl_request_exit(%x): cancel/acquire/exiting from pause\n", ec_eng);
-	    ec_thread_cancel_and_join(ec_eng->owner_thread);
-	    ec_eng->owner_thread = ec_eng->own_thread = ec_thread_self();
-	    ec_eng->paused = 0;
-	    mt_mutex_unlock(&ec_eng->lock);
-	    ecl_engine_exit(ec_eng, exit_code);	/* now PEXITED */
-	    ecl_free_engine(ec_eng, 0);		/* for the cancelled thread */
-	    return PEXITED;			/* already unlocked */
-	}
-#endif
-	/* else owned by random thread, just post */
-    }
 
+    /* Engine running or paused */
     DbgPrintf("ecl_request_exit(%x): posting request\n", ec_eng);
     /* Note: no guarantee that the engine will handle the request! */
     ec_eng->requested_exit_code = exit_code;
     atomic_or(&EVENT_FLAGS, EXIT_REQUEST);
     Fake_Overflow;
+    ecl_interrupt_pause(ec_eng);	/* if pausing, try to preempt */
+
     mt_mutex_unlock(&ec_eng->lock);
     return PRUNNING;
 }
 
 
-static int
-_poll_requests(ec_eng_t *ec_eng, int allow_exit)
+/*
+ * Check, and perform if necessary, any asynchronously requested
+ * "housekeeping" operations on the given engine, such as dictionary marking.
+ * These should leave the engine in the same state as before.
+ * Also check for urgent requests (throw and exit).
+ * The caller must own the engine (and have a ref-count on it).
+ * @return event flags EXIT_REQUEST and/or URGENT_EVENT_POSTED if pending.
+ * Engine is expected to be locked.
+ */
+
+int
+ecl_housekeeping(ec_eng_t *ec_eng, word valid_args)
 {
-    if (FakedOverflow) {
-	/* return PSUCCEED or PEXITED */
-	return ecl_housekeeping(ec_eng, YIELD_ARITY, allow_exit);
+    int event_flags = atomic_load(&EVENT_FLAGS);
+
+    if (event_flags & (EXIT_REQUEST|URGENT_EVENT_POSTED))
+	return event_flags;
+
+    if (event_flags & DICT_GC_REQUEST) {
+	atomic_and(&EVENT_FLAGS, ~DICT_GC_REQUEST);
+	ecl_mark_engine(ec_eng, valid_args);
     }
-    return PSUCCEED;
+    return 0;
 }
 
 
@@ -1242,49 +1277,76 @@ _poll_requests(ec_eng_t *ec_eng, int allow_exit)
  * be performed by a thread other than the engine's owner (under lock).
  * Pausing can only be initiated by the current owner.
  * @param arity the number of valid engine argument registers
- * @param exitability whether the engine may be exited during the pause
- * CAUTION: if exitability is given, the engine may be dead after return.
+ * @param kind the kind of pause, needed for interrupting it
+ * @param par1 parameter needed for interrupting the pause
+ * @param par2 parameter needed for interrupting the pause
+ * @return
+ *	1	pause state was successfully entered
+ *	0	urgent request pending, not paused
  */
-void
-ecl_pause_engine(ec_eng_t *ec_eng, int arity, int exitability)
+int
+ecl_pause_engine(ec_eng_t *ec_eng, int arity, int kind, void* par1, void* par2)
 {
-    assert(EngIsOurs(ec_eng));
     assert(!EngIsDead(ec_eng));
+    assert(EngIsOurs(ec_eng));
     assert(!EngIsPaused(ec_eng));
     /* can be joinable or not */
     /* engine owned by us */
 
     mt_mutex_lock(&ec_eng->lock);
-    ec_eng->paused = PauseType(arity, exitability);
-    /* From now on, new requests are handled directly (as soon as unlocked) */
-    /* Before continuing, we have to check for pending requests */
-    _poll_requests(ec_eng, exitability);
+    /* Check for pending requests just before switching */
+    if (ecl_housekeeping(ec_eng, arity)) {
+	mt_mutex_unlock(&ec_eng->lock);
+	return 0;	/* urgent request pending, don't switch */
+    }
+    ec_eng->paused = PauseType(arity, kind);
+    ec_eng->pause_par1 = par1;
+    ec_eng->pause_par2 = par2;
     mt_mutex_unlock(&ec_eng->lock);
+    /* From now on, new requests are handled directly */
+    return 1;		/* successfully switched to pause-state */
 }
+
 
 /**
  * Take the engine out of Paused-state.
  * Can only be called by the current owner.
- * We expect the engine to be Paused.
- * We have to lock to disable request handling before
- * the phase is switched, because
- * we can't switch during request handling
+ * We expect the engine to be Paused, but allow it not to be (e.g.
+ * as a result of ecl_pause_engine() having been unsuccessful earlier).
+ * We have to lock to disable request handling before the phase
+ * is switched, because we can't switch during request handling.
  */
 void
 ecl_unpause_engine(ec_eng_t *ec_eng)
 {
-    assert(EngIsOurs(ec_eng));
-    /* can be dead */
-    /* can be joinable or not */
-    /* engine owned by us */
-
-    /* lock because housekeeping may be ongoing */
-    mt_mutex_lock(&ec_eng->lock);
-    if (!EngIsDead(ec_eng))
-    {
-	assert(EngIsPaused(ec_eng));
-	ec_eng->paused = 0;
+    if (!EngIsDead(ec_eng)) {
+	/* lock because housekeeping may be ongoing */
+	mt_mutex_lock(&ec_eng->lock);
+	assert(EngIsOurs(ec_eng));
+	ec_eng->paused = 0;		/* possibly redundant */
+	ec_eng->pause_par1 = ec_eng->pause_par2 = NULL;
+	mt_mutex_unlock(&ec_eng->lock);
     }
-    mt_mutex_unlock(&ec_eng->lock);
+}
+
+
+/**
+ * If possible, prematurely interrupt the paused engine.
+ * Engine is expected to be locked, owned and paused.
+ */
+void
+ecl_interrupt_pause(ec_eng_t *ec_eng)
+{
+    switch(EngPauseKind(ec_eng))
+    {
+	case PAUSE_CONDITION_WAIT:
+	    ((t_ext_type*)ec_eng->pause_par1)->signal(ec_eng->pause_par2, 1);
+	    break;
+
+	/* other PAUSE_xxx interrupts not currently implemented */
+
+	default:
+	    break;
+    }
 }
 

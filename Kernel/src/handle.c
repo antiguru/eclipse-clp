@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Kernel Module
  *
- * $Id: handle.c,v 1.5 2016/11/05 01:31:18 jschimpf Exp $
+ * $Id: handle.c,v 1.6 2016/11/14 15:09:58 jschimpf Exp $
  *
  * Author:	Stefano Novello, IC-Parc
  *		Joachim Schimpf, IC-Parc
@@ -383,7 +383,10 @@ p_condition_wait(value v, type t, value vtimeout, type ttimeout, ec_eng_t *ec_en
 	if (timeout_ms < 0) { Bip_Error(RANGE_ERROR); }
     }
 
-    ecl_pause_engine(ec_eng, 2L, PAUSE_NOT_EXITABLE);	/* TODO: preliminary */
+    /* Allow the wait to be preempted via ecl_interrupt_pause() */
+    if (!ecl_pause_engine(ec_eng, 2L, PAUSE_CONDITION_WAIT, ExternalClass(v.ptr), ExternalData(v.ptr))) {
+	Succeed_;	/* urgent request detected, return */
+    }
     err = ExternalClass(v.ptr)->wait(ExternalData(v.ptr), timeout_ms);
     ecl_unpause_engine(ec_eng);
     if (err > 0) {

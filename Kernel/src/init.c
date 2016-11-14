@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.12 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.13 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -506,10 +506,10 @@ ec_cleanup(void)
     pword goal;
 
     /* For backward compatibility with single-engine ECLiPSe: */
-    if (EngIsOurs(default_eng)) {
-	ecl_relinquish_engine(default_eng);
+    if (EngIsOurs(default_eng))
+	ecl_relinquish_engine_opt(default_eng, 1);
+    if (default_eng->ref_ctr)
 	ecl_free_engine(default_eng, 0);
-    }
 
     /* Do Prolog-level cleanup code: call cleanup_before_exit/0 */
     res = ecl_acquire_engine(aux_eng);
@@ -521,7 +521,7 @@ ec_cleanup(void)
 	char msg[] = "ECLiPSe: problem in cleanup_before_exit\n";
 	if (write(2, msg, strlen(msg))) /*ignore*/;
     }
-    ecl_relinquish_engine(aux_eng);
+    ecl_relinquish_engine_opt(aux_eng, 1);
     ecl_free_engine(aux_eng, 0);
 
     return ec_cleanup1(0);

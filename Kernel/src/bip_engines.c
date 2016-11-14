@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.8 2016/11/06 03:18:56 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.9 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -77,7 +77,9 @@ static dident
 	d_exit1_,
 	d_exited1_,
 	d_flushio1_,
+#ifdef SHOW_PAUSED_STATE
 	d_paused_,
+#endif
 	d_references1_,
 	d_report_to1_,
 	d_running_,
@@ -285,11 +287,10 @@ p_engine_create(value v, type t, value vopt, type topt, ec_eng_t *ec_eng)
 
 
 /*
- * Get the status of engine eng
- * The engine must either be owned or free and locked.
- *
- * This can be called with phase==ENG_LOADING, but only when the
- * caller knows that A[1..2] contain a valid status (set status_known=1).
+ * Get the status of engine eng.
+ * The engine must either be owned, free+locked, or dead+locked.
+ * If the engine is owned, it must be guaranteed that A[1..2] contain
+ * valid status information (as is the case at the end of a resume).
  */
 
 static int
@@ -297,16 +298,6 @@ _encode_result(ec_eng_t *ec_eng, ec_eng_t *eng, int status_known, pword *pw)
 {
     int res;
     pword *parg;
-
-#if 0
-    if (!status_known) {
-	if (!EngIsFree(eng) && !EngIsOurs(eng))
-	{
-	    Make_Atom(pw, EngIsPaused(eng)? d_paused_ : d_running_);
-		return PRUNNING;
-	}
-    }
-#endif
 
     /* get the actual status code from the Prolog level */
     parg = &eng->a[1];
@@ -406,8 +397,7 @@ p_engine_handle_events(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
     res = ecl_handle_events(ec_eng);
     Return_If_Error(res);
     res = _encode_result(ec_eng, eng, 1, &result);
-    if (res != PEXITED)
-	ecl_relinquish_engine(eng);
+    ecl_relinquish_engine(eng);
     Return_If_Error(res)
     Return_Unify_Pw(vs, ts, result.val, result.tag);
 }
@@ -434,7 +424,7 @@ p_engine_resume_thread(value v, type t, value vin, type tin, value vm, type tm, 
     Return_If_Error(res==PFAIL?ENGINE_BUSY:res);
     res = ecl_copy_resume_async(ec_eng, eng, term, module);
     if (res != PSUCCEED)
-	ecl_relinquish_engine(ec_eng);
+	ecl_relinquish_engine(eng);
     /* else engine has been handed over to its own thread */
     return res;
 }
@@ -450,10 +440,14 @@ _engine_status(ec_eng_t *ec_eng, ec_eng_t *eng, pword *result)
 {
     int res = PSUCCEED;
     mt_mutex_lock(&eng->lock);
-    if (EngIsFree(eng) || EngIsDead(eng)) {
+    if (EngIsDead(eng) || EngIsFree(eng)) {
 	res = _encode_result(ec_eng, eng, 1, result);
     } else {
+#ifdef SHOW_PAUSED_STATE
 	Make_Atom(result, EngIsPaused(eng)? d_paused_ : d_running_);
+#else
+	Make_Atom(result, d_running_);
+#endif
     }
     mt_mutex_unlock(&eng->lock);
     return res;
@@ -501,16 +495,12 @@ p_engine_join(value v, type t, value vto, type tto, value vs, type ts, ec_eng_t 
 
     Get_Typed_Object(v, t, &engine_tid, eng);
     res = ecl_join_acquire(eng, timeout_ms);
-    if (res != PSUCCEED) {
-	if (res == PRUNNING) {
-	    Fail_;	/* for timeout */
-	}
-	Bip_Error(res);
+    Return_If_Error(res)
+    if (res == PRUNNING) {
+	Fail_;	/* for timeout */
     }
-    assert(EngIsOurs(eng));
     res = _encode_result(ec_eng, eng, 1, &result);
-    if (res != PEXITED)
-	ecl_relinquish_engine(eng);
+    ecl_relinquish_engine(eng);
     Return_If_Error(res)
     Return_Unify_Pw(vs, ts, result.val, result.tag);
 }
@@ -797,7 +787,9 @@ bip_engines_init(int flags)
     d_exit1_ = in_dict("exit",1);
     d_exited1_ = in_dict("exited",1);
     d_flushio1_ = in_dict("flushio",1);
+#ifdef SHOW_PAUSED_STATE
     d_paused_ = in_dict("paused",0);
+#endif
     d_references1_ = in_dict("references",1);
     d_report_to1_ = in_dict("report_to",1);
     d_running_ = in_dict("running",0);

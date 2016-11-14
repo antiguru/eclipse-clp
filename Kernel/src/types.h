@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.24 2016/11/05 01:31:18 jschimpf Exp $
+ * $Id: types.h,v 1.25 2016/11/14 15:09:59 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -611,6 +611,8 @@ typedef struct ec_eng_s
 	int volatile ref_ctr;	/* number of references to this engine */
 	void *owner_thread;	/* OS thread currently owning this engine */
 	int volatile paused;	/* engine is paused (encoded field) */
+	void *pause_par1;	/* object responsible for the pause */
+	void *pause_par2;
 	dyn_event_q_t dyn_event_q; /* Dynamic synchronous event queue */
 
     int	requested_exit_code;	/* if (EVENT_FLAGS & EXIT_REQUEST) */

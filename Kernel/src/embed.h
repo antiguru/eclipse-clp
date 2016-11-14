@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.15 2016/10/28 22:44:33 jschimpf Exp $
+ * $Id: embed.h,v 1.16 2016/11/14 15:09:58 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -90,6 +90,7 @@ Extern DLLEXP int	Winapi	ec_cleanup(void);
 Extern DLLEXP int	Winapi	ecl_engine_create(t_eclipse_options*,ec_eng_t*,ec_eng_t**);
 Extern DLLEXP int	Winapi	ecl_acquire_engine(ec_eng_t*);
 Extern DLLEXP void	Winapi	ecl_relinquish_engine(ec_eng_t*);
+Extern DLLEXP int	Winapi	ecl_relinquish_engine_opt(ec_eng_t*, int allow_exit);
 Extern DLLEXP int	Winapi	ecl_request_exit(ec_eng_t*,int);
 Extern DLLEXP int	Winapi	ecl_request_throw(ec_eng_t*,pword);
 

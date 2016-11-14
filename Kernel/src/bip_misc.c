@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.12 2016/09/21 22:20:50 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.13 2016/11/14 15:09:58 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -574,9 +574,10 @@ p_sleep(value v, type t, ec_eng_t *ec_eng)
     else
 	{ Bip_Error(TYPE_ERROR); }
 
-    ecl_pause_engine(ec_eng, 1, PAUSE_EXITABLE_VIA_LONGJMP);
-    (void) ec_sleep(seconds);
-    ecl_unpause_engine(ec_eng);
+    if (ecl_pause_engine(ec_eng, 1, PAUSE_SLEEP, NULL, NULL)) {
+	(void) ec_sleep(seconds);
+	ecl_unpause_engine(ec_eng);
+    }
     return(PSUCCEED);
 }
 
