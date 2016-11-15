@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.10 2016/11/14 15:09:58 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.11 2016/11/15 00:03:14 jschimpf Exp $
  *
  */
 
@@ -325,7 +325,7 @@ _engine_thread_create(ec_eng_t *ec_eng)
  * Initialize an engine whose descriptor is already allocated.
  * - options are set in the descriptor's options
  * - parent_eng only used to inherit settings (may be NULL)
- * - returns an acquired engine
+ * - returns an acquired engine with a ref-count of 1
  * TODO: merge with emu_init()
  */
 
@@ -369,6 +369,9 @@ ecl_engine_init(ec_eng_t *parent_eng, ec_eng_t *new_eng)
     return PSUCCEED;
 
 _return_error_:
+    /* make engine look exited, to enable proper cleanup */
+    Make_Integer(&new_eng->a[1], PEXITED);
+    new_eng->a[0].val.nint = PYIELD;
     ec_emu_fini(new_eng);
     return res;
 }
@@ -408,7 +411,7 @@ ecl_engine_create(t_eclipse_options *opts, ec_eng_t *parent_eng, ec_eng_t **eng)
     new_eng->options = *opts;
     res = ecl_engine_init(parent_eng, new_eng);
     if (res != PSUCCEED) {
-	hg_free(new_eng);
+	ecl_free_engine(new_eng, 0);
 	return res;
     }
 
