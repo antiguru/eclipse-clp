@@ -23,7 +23,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_peephole.ecl,v 1.28 2015/05/27 16:48:51 jschimpf Exp $
+% Version:	$Id: compiler_peephole.ecl,v 1.29 2016/11/20 18:04:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_peephole).
@@ -31,7 +31,7 @@
 :- comment(summary, "ECLiPSe III compiler - peephole optimizer").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf, Kish Shen").
-:- comment(date, "$Date: 2015/05/27 16:48:51 $").
+:- comment(date, "$Date: 2016/11/20 18:04:46 $").
 
 :- comment(desc, ascii("
     This pass does simple code improvements like:
@@ -1322,9 +1322,9 @@ find_reg_chain(S0, S0Info, [RegPair|Regs1], [RPairInfo|RInfos1], UnmovedSs0, Unm
                                UnmovedDs0, RegsOut, RInfosOut, Chained1, CInfo1)
             ;
                 % intervening moves prevent S1>D1 to be part of the chain,
-                % stop now
-                RegsOut = [],
-                RInfosOut = [],
+                % stop now, and return remaining moves
+                RegsOut = [RegPair|Regs1],
+                RInfosOut = [RPairInfo|RInfos1],
                 Chained = [a(S0)],
                 CInfo = [S0Info]
                 

@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.27 2016/08/11 22:09:40 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.28 2016/11/20 18:04:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -117,6 +117,50 @@ ctest :-
 	close(warning_output),
 	close(output),
 	result.
+
+
+% A dedicated test for register moves and their optimizations
+% Generate random clauses such as
+% p(A, B, C, D) :- q(B, D, B, B, D, A).
+% and check whether q receives the expected arguments.
+
+move_test(NRuns) :-
+	N=4,	% head arity
+	M=6,	% subgoal arity
+	functor(Call, p, N),
+	( foreacharg(I,Call,I) do true ),
+	functor(Head, p, N),
+	functor(Body, q, M),
+	functor(QHead, q, M),
+	functor(Expected, q, M),
+	compile_term((QHead :- setval(received,QHead))),
+	between(1, NRuns, 1, _Run),
+	    ( for(I,1,M), param(Head,Body,Call,Expected,N) do
+		K is random mod N + 1,
+		arg(K, Head, A),
+		arg(I, Body, A),
+		arg(K, Call, AA),
+		arg(I, Expected, AA)
+	    ),
+	    Clause = (Head:-Body),
+	    compile_term(Clause),
+
+	    ( call(Call) ->
+		getval(received,RHead),
+		( RHead==Expected ->
+		    % numbervars:numbervars(Clause, 0, _),
+		    % writeln(output, _Run:Clause->RHead),
+		    true
+		;
+		    writeln(error, Clause->RHead),
+		    abort
+		)
+	    ;
+		writeln(error, Clause->failed),
+		abort
+	    ),
+	fail.
+move_rtest(_).
 
 
 %----------------------------------------------------------------------
@@ -1481,6 +1525,18 @@ testclause(bugzilla(774), [
 	(p1 :- ( X=X ; true), writeln(X))
      ]).
 
+testclause(nikos(1), [
+	(p(A, B, C, D, E, F) :- q(A, C, D, B, E, B, F, B))
+     ]).
+
+testclause(nikos(2), [
+	(p(List, Start, All1, All2, All3, All4, All5, All6, AllProb1, AllProb2, Total) :-
+	 q(List,0,All1,0,All2,Start,All3,Start,All4,Start,All5,Start,All6,Start,AllProb1,Start,AllProb2,0,Total))
+     ]).
+
+testclause(nikos(3), [
+	(p(A, B,_C, D) :- q(B, D, B, B, D, A))
+     ]).
 
 
 %----------------------------------------------------------------------

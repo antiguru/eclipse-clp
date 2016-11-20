@@ -13120,6 +13120,43 @@ label(4):
 	put_global_variable      y(1) 
 	branch                   ref(5) 
 
+------ Test nikos(1) -------
+p(A, B, C, D, E, F) :-
+	q(A, C, D, B, E, B, F, B).
+
+p / 6:
+label(1):
+	shift                    a(8)     a(2)     a(3)     a(4)     a(8) 
+	shift                    a(7)     a(6)     a(4) 
+	jmp                      q / 8 
+
+------ Test nikos(2) -------
+p(A, B, C, D, E, F, G, H, I, J, K) :-
+	q(A, 0, C, 0, D, B, E, B, F, B, G, B, H, B, I, B, J, 0, K).
+
+p / 11:
+label(1):
+	move                     a(2)     a(12) 
+	put_integer              a(2)     0 
+	shift                    a(19)     a(11)     a(7)     a(5)     a(4) 
+	put_integer              a(4)     0 
+	put_integer              a(18)     0 
+	shift                    a(15)     a(9)     a(6)     a(12) 
+	shift                    a(13)     a(8)     a(6) 
+	shift                    a(17)     a(10)     a(8) 
+	move                     a(10)     a(14)     a(14)     a(16) 
+	jmp                      q / 19 
+
+------ Test nikos(3) -------
+p(A, B, C, D) :-
+	q(B, D, B, B, D, A).
+
+p / 4:
+label(1):
+	shift                    a(6)     a(1)     a(2)     a(4) 
+	move                     a(1)     a(3)     a(3)     a(4)     a(2)     a(5) 
+	jmp                      q / 6 
+
 ------ Test at1 -------
 at1 :-
 	var(f(A)),

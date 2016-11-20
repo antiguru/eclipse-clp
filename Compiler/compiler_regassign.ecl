@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_regassign.ecl,v 1.8 2010/07/25 13:29:04 jschimpf Exp $
+% Version:	$Id: compiler_regassign.ecl,v 1.9 2016/11/20 18:04:46 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(compiler_regassign).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III Compiler - register allocator").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2010/07/25 13:29:04 $").
+:- comment(date, "$Date: 2016/11/20 18:04:46 $").
 
 :- lib(hash).
 :- use_module(compiler_common).
@@ -208,7 +208,7 @@ assign_am_registers(AnnotatedCodeList, ACL0, Code, Code0) :-
 			% value in y(_): find a register now and reload from environment
 			% Cannot use a register that is already committed for the current instruction
 			find_any_register_for(VarId, Locations, Contains, Desirables, Committed1, [], Code2, Code5, Reg),
-			Code5 = [code{instr:move(RegOrSlot,Reg),comment:load(VarId)}|Code6]
+			Code5 = [code{instr:move(RegOrSlot,Reg),regs:[r(VarId,Reg,def,_)],comment:load(VarId)}|Code6]
 		    )
 
 		; Type = use ->
@@ -263,13 +263,17 @@ assign_am_registers(AnnotatedCodeList, ACL0, Code, Code0) :-
 			    verify false
 			    */
 			),
-			remove_current_location(Locations, VarId, RegOrSlot),
-			clear_current_content(Contains, RegOrSlot),
+			( remove_unless_desirable(Locations, Contains, VarId, RegOrSlot) ->
+			    clear_current_content(Contains, RegOrSlot),
+			    Comment = transfer, LastUse=last
+			;
+			    Comment = copy
+			),
 			set_current_content(Contains, Reg, VarId),
 			add_current_location(Locations, VarId, Reg),
 			% Note: we add regs information for peephole stage
-			Code5 = [code{instr:move(RegOrSlot,Reg),comment:transfer,
-					regs:[r(VarId,RegOrSlot,use_a,last),r(VarId,Reg,def,_)]}|Code6]
+			Code5 = [code{instr:move(RegOrSlot,Reg),comment:Comment,
+					regs:[r(VarId,RegOrSlot,use_a,LastUse),r(VarId,Reg,def,_)]}|Code6]
 		    ;
 			% first occurrence
 			verify false
@@ -379,7 +383,7 @@ vacate_register(Reg, Locations, Contains, Desirables, DontFree, Code, Code0) :-
 	; find_good_register_for(OldVarId, Locations, Contains, Desirables, [Reg|DontFree], [], Code, Code1, AltReg) ->
 	    verify AltReg \== Reg,
 	    % Note: we add regs information for the peephole stage
-	    Code1 = [code{instr:move(Reg,AltReg),regs:[r(OldVarId,Reg,use_a,last),r(OldVarId,AltReg,def,_)],comment:transfer}|Code0],
+	    Code1 = [code{instr:move(Reg,AltReg),regs:[r(OldVarId,Reg,use_a,last),r(OldVarId,AltReg,def,_)],comment:vacate}|Code0],
 	    add_current_location(Locations, OldVarId, AltReg),
 	    set_current_content(Contains, AltReg, OldVarId)
 	;
@@ -464,6 +468,15 @@ remove_current_location(Locations, VarId, Reg) :-
 	),
 	hash_set(Locations, VarId, NewEntry).
 
+% Remove VarId from Reg, unless it is desirable in that position
+remove_unless_desirable(Locations, Contains, VarId, Reg) :-
+	certainly_once hash_update(Locations, VarId, Entry, NewEntry),
+	location{current:Current,desirable:Desirable} = Entry,
+	nonmember(Reg, Desirable),	% else fail
+	once delete(Reg, Current, Current1),
+	update_struct(location, current:Current1, Entry, NewEntry),
+	clear_current_content(Contains, Reg).
+
 
 current_locations(Locations, VarId, Currents) :-
 	hash_get(Locations, VarId, Entry),
@@ -531,10 +544,12 @@ Input format:
 
 	r(+VarId, ?Reg, +Type, -LastFlag)
 
-	r(33, a(2), orig, _)
+	r(33, a(2), orig, L)
 		says that variable 33 is in register 2 from the beginning
 		of the chunk.
 		This occurs in a pseudo-instruction for the chunk head.
+		L is valid, but only flags the absolutely last occurrence
+		of VarId 33, not the last occurrence of a(2) with VarId 33.
 
 	r(33, a(2), dest, _)
 		instruction expects variable 33 in register 2 and that
@@ -544,6 +559,8 @@ Input format:
 		This may be followed only by more occurrences of the 'dest'
 		type for this variable.
 		This occurs in call-instruction at the end of the chunk.
+		LastFlag may be set, but is meaningless, as lifetime of VarId
+		extends until the end of chunk.
 
 	r(33, R, def, L)
 		instruction puts variable 33 in register R.
@@ -554,6 +571,7 @@ Input format:
 		instruction expects variable 33 in register R.
 		value for R can be chosen by the register allocator.
 		This can be a middle/last occurrence of variable 33 in the chunk.
+		See below for LastFlag.
 
 	r(33, RY, use, L)
 		instruction expects variable 33 in register or env slot RY.
@@ -564,6 +582,7 @@ Input format:
 		temporary variable, which is usually in one or more a(_),
 		but can be spilled into a y(_). We never hold permanent
 		variables only in a register.
+		See below for LastFlag.
 
 	r(33, y(Y), perm, L)
 		not actually a register descriptor. It is used to inform the
@@ -573,6 +592,15 @@ Input format:
 		slots are guaranteed not to lose their content until the
 		and of chunk. We allow several variables to be aliased to
 		the same y(_)!
+
+    The LastFlag in {use_a,use}: before register allocation, there is exactly
+    one 'last' for every occurring VarId, i.e. the flag marks the last occurrence
+    if the VarId in the chunk.  During register allocation, we insert new move-
+    instructions, and for those we set 'last' for the last access to a Variable
+    via a particular register, i.e. afterwards the register can be assumed to
+    be empty.  For subsequent passes, this means:
+	- the flag should be read as 'last occurrence of R with this VarId'
+	- but not all such last occurrences are reliably marked
  
     Within an instruction, the RegDescs list must be ordered such that
     used regs are first, defined ones later (if they can be reused), reflecting
