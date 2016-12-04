@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: concurrency.ecl,v 1.1 2016/12/04 01:28:55 jschimpf Exp $
+% Version:	$Id: concurrency.ecl,v 1.2 2016/12/04 02:40:31 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 
@@ -32,7 +32,7 @@
 :- comment(summary, "Engine utilities and higher-level threading functionality").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Coninfer Ltd").
-:- comment(date, '$Date: 2016/12/04 01:28:55 $').
+:- comment(date, '$Date: 2016/12/04 02:40:31 $').
 :- comment(desc, html("<P>
 </P>
 ")).
@@ -133,10 +133,10 @@ concurrent_(MaxThreads, Goals, Options, Module) :-
 	% No more goals. Collect results of finished engines and forget them.
 	( for(_,1,NThreads), param(Ready,Resultz,Es) do
 	    process_result(Ready, Resultz, Es, E),
-	    handle_abolish(E)	% don't wait for GC
+	    handle_close(E)	% don't wait for GC
 	),
 	Goalz = Resultz,	% unify results
-	handle_abolish(Ready).	% don't wait for GC
+	handle_close(Ready).	% don't wait for GC
 
     run(I, Goal, Module) :-
 	once(Goal)@Module,
@@ -166,7 +166,7 @@ concurrent_(MaxThreads, Goals, Options, Module) :-
     	( foreach(E,Es) do engine_post(E, exit(0)) ).
 
     handles_abolish(Es) :-
-    	( foreach(E,Es) do handle_abolish(E) ).
+    	( foreach(E,Es) do handle_close(E) ).
 
 
 % ----------------------------------------------------------------------
@@ -233,7 +233,7 @@ concurrent_or_(MaxThreads, Goals, Options, Module) :-
 	    ( Status==false ->
 		I is I0+1,
 	        ( I > arity(Goalz) ->
-		    handle_abolish(E),
+		    handle_close(E),
 		    R1 is R-1
 		;
 		    arg(I, Goalz, Goal),
@@ -256,6 +256,6 @@ concurrent_or_(MaxThreads, Goals, Options, Module) :-
 		throw(unexpected_engine_status(Status))
 	    )
 	),
-	handle_abolish(Ready).	% don't wait for GC
+	handle_close(Ready).	% don't wait for GC
 
 

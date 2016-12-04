@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Kernel Module
  *
- * $Id: handle.c,v 1.6 2016/11/14 15:09:58 jschimpf Exp $
+ * $Id: handle.c,v 1.7 2016/12/04 02:41:09 jschimpf Exp $
  *
  * Author:	Stefano Novello, IC-Parc
  *		Joachim Schimpf, IC-Parc
@@ -460,6 +460,7 @@ bip_handles_init(int flags)
     {
 	(void) built_in(in_dict("is_handle", 2), p_is_handle, B_SAFE);
 	(void) built_in(in_dict("name_to_handle_", 4), p_name_to_handle, B_SAFE);
+	(void) built_in(in_dict("handle_close", 1), p_handle_free, B_SAFE);
 #if 0
 	(void) built_in(in_dict("handle_lock", 1), p_handle_lock, B_SAFE);
 	(void) built_in(in_dict("handle_trylock", 1), p_handle_trylock, B_SAFE);
@@ -467,7 +468,6 @@ bip_handles_init(int flags)
 #endif
 	(void) built_in(in_dict("handle_lock_trailed", 2), p_handle_lock_trailed, B_SAFE);
 	(void) built_in(in_dict("handle_unlock_free", 1), p_handle_unlock_free, B_SAFE);
-	(void) built_in(in_dict("handle_abolish", 1), p_handle_free, B_SAFE);
 	(void) built_in(in_dict("condition_signal", 2), p_condition_signal, B_SAFE);
 	(void) built_in(in_dict("condition_wait", 2), p_condition_wait, B_SAFE);
     }

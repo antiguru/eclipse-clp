@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: threads.ecl,v 1.1 2016/12/04 01:28:56 jschimpf Exp $
+% Version:	$Id: threads.ecl,v 1.2 2016/12/04 02:40:31 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 % Semantic differences
@@ -42,7 +42,7 @@
 :- comment(summary, "Prolog thread API (ISO/IEC Draft TR 13211-5:2007)").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Coninfer Ltd").
-:- comment(date, '$Date: 2016/12/04 01:28:56 $').
+:- comment(date, '$Date: 2016/12/04 02:40:31 $').
 :- comment(desc, html("<P>
     This library implements most of the functionality described in
     the Draft Technical Recommendation ISO/IEC DTR 13211-5:2007
@@ -595,5 +595,5 @@ delete_item(Alias, Handle) :-
 % not using this (assuming only one alias)
 %	stored_keys_and_values(thread_aliases, KVs),
 %	( member(Alias-Handle, KVs), store_delete(thread_aliases, Alias), fail ; true ),
-	handle_abolish(Handle).
+	handle_close(Handle).
 	
