@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: util.pl,v 1.4 2016/09/21 22:22:53 jschimpf Exp $
+% Version:	$Id: util.pl,v 1.5 2016/12/04 02:47:03 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -43,7 +43,7 @@
 :- comment(categories, ["Programming Utilities"]).
 :- comment(author, "Various, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2016/09/21 22:22:53 $").
+:- comment(date, "$Date: 2016/12/04 02:47:03 $").
 :- comment(add_path/1, [template:"add_path(+Directory)",
     summary:"The directory will be added at the beginning of the library path."
     ]).
@@ -172,12 +172,11 @@ between(From, To, I) :-
 	between(From, To, 1, I).
 
 
-% time(+Goal) - like call(Goal), but print cputime used
-
-:- comment(time/1, [template:"time(Goal)",
+:- comment(time/1, [
+    args:["Goal":"A callable term"],
     amode:(time(+) is semidet),
     summary:"Run Goal to first solution, and print timings",
-    desc:http("<P>
+    desc:html("<P>
     Call the goal Goal (as with once/1), and print the timings after
     the goal has succeeded or failed.  The four times printed are:
 <PRE>
@@ -213,7 +212,7 @@ time_body(Goal, Module) :-
 	U is U1-U0,
 	S is S1-S0,
 	R is R1-R0,
-	printf("%n%s, times: %fs thread, %f+%fs process, %.2fs real%n%n",
+	printf("%n%s, times: %.6fs thread, %.3f+%.3fs process, %.3fs real%n%n",
 		[Msg,T,U,S,R]),
 	Result.
 
