@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.25 2016/10/25 22:34:59 jschimpf Exp $
+# $Id: Makefile.in,v 1.26 2016/12/04 01:29:38 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -548,6 +548,7 @@ PL_LIBRARIES =	version.pl
 
 ECL_ECO_LIBRARIES =	constraint_pools.ecl document.ecl fcompile.ecl \
 		best_first_search.ecl dynamic_attributes.ecl error.ecl \
+		concurrency.ecl threads.ecl \
 		eclipse_6.ecl format.ecl lazy_io.ecl csv.ecl \
 		multifile.ecl notify_ports.ecl port_profiler.ecl \
 		swi.ecl time_log.ecl timeout.ecl timeout_simple.ecl var_name.ecl \
@@ -590,6 +591,7 @@ BOOT_ECO_MODULES = \
 
 ECI_ECL_LIBRARIES =	hash.ecl document.ecl format.ecl lazy_io.ecl csv.ecl \
 		best_first_search.ecl dynamic_attributes.ecl error.ecl \
+		concurrency.ecl threads.ecl \
 		eclipse_6.ecl var_name.ecl time_log.ecl module_options.ecl \
 		notify_ports.ecl constraint_pools.ecl port_profiler.ecl \
 		swi.ecl timeout.ecl timeout_simple.ecl fcompile.ecl multifile.ecl \
