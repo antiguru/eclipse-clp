@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: t_all.pl,v 1.7 2016/07/28 03:34:35 jschimpf Exp $
+% Version:	$Id: t_all.pl,v 1.8 2016/12/04 02:38:53 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %-----------------------------------------------------------------------
@@ -135,7 +135,7 @@ write_error.
 	set_default_error_handler(133,true/0),
 	set_default_error_handler(139,true/0),
 %	set_default_error_handler(143,ab_query_fail/0),
-	set_default_error_handler(151, user_start/0),
+%	set_default_error_handler(151, user_start/0),
 	reset_error_handlers.
 
 :- export ab_big/1, ab_loop/0.
