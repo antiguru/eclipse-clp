@@ -30,6 +30,7 @@ lib/compiler_normalise.eco
 lib/compiler_peephole.eco
 lib/compiler_regassign.eco
 lib/compiler_varclass.eco
+lib/concurrency.eco
 lib/constraint_pools.eco
 lib/cumulative.eco
 lib/dbi.eco
@@ -115,6 +116,7 @@ lib/tentative.eco
 lib/tentative_constraints.eco
 lib/timeout.eco
 lib/timeout_simple.eco
+lib/threads.eco
 lib/var_name.eco
 lib/version.pl
 legal/lgpl.txt
