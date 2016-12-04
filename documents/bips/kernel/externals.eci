@@ -1032,4 +1032,31 @@ remote_connect(_Address, Peer, set_event_handler(Control, disconnect/0)).
 ]).
 
 
+:- comment(handle_close/1, [
+   summary: "Eagerly close any kind of handle object",
+   amode:(handle_close(+) is det),
+   desc: html("<P>
+   Handles are references to anonymous ECLiPSe objects (such as streams,
+   engines, bags, records, shelves, stores) or to objects created via the
+   foreign language interfaces.
+</P><P>
+   Handles are important for memory management: an object can be freed
+   as soon as it is no longer referenced.  Normally, handles disappear
+   automatically when they are no longer in use, typically on failure or
+   on garbage collection.  However, garbage collection may happen with
+   some delay, during which more memory remains in use than necessary.
+</P><P>
+   handle_close/1 explicitly closes a handle, making it no longer refer
+   to its target object.  The target object may thus become unreferenced,
+   destroyed and deallocated sooner than would otherwise have been the case.
+</P><P>
+   The closed handle can no longer be used and is classified as 'stale' ([])
+   by is_handle/2.  Closing a handle is NOT undone by backtracking.
+</P>"),
+   see_also: [name_to_handle/3, is_handle/1, is_handle/2,
+   	bag_create/1, record_create/1, shelf_create/2, shelf_create/3,
+	store_create/1, engine_create/2, open/3, open/4]
+]).
+
+
 

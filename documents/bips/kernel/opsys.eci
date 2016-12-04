@@ -1151,10 +1151,7 @@ Error:
 	see_also:[existing_file/4, get_file_info / 3, sh / 1, system / 1, delete / 1, mkdir / 1]]).
 
 :- comment(exit / 1, [
-	summary:"The Prolog session is ended and the specified status returned to the
-operating system.
-
-",
+	summary:"Exits and finalizes the executing ECLiPSe engine",
 	amode:(exit(+) is erroneous),
 	desc:html("<P>
    This predicate neither succeeds nor fails nor throws an exception.
@@ -1170,7 +1167,7 @@ operating system.
    If the engine is embedded in a host program, control returns to the
    host program, indicating that the engine has exited with given status.
 </P><P>
-   In a development system, control will normally return to the operating
+   In a standalone executable, control will normally return to the operating
    system with the given status code.
 </P><P>
    Exit mechanism: exiting reliably frees all engine resources (apart from

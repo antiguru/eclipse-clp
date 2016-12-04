@@ -2541,7 +2541,7 @@ Fail:
     amode:(name_to_handle(+,+,-) is semidet),
     args:[
     	"Type" : "One of the atoms 'record', 'shelf', 'store' or 'stream'",
-    	"Name" : "The name of a objects (atom or compound)",
+    	"Name" : "The name of an object (atom or compound)",
     	"Handle" : "A variable that will be unified with a handle"],
     fail_if:"Fails if there is no visible object of type Type with name Name",
     desc:html("<P>\

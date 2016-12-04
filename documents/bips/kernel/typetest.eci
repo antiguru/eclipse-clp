@@ -612,16 +612,14 @@ Fail:
 	see_also:[atom/1,callable/1,compound/1,is_list/1,ground/1]]).
 
 :- comment(is_handle / 1, [
-	summary:"Succeeds if Term is an external data handle.
-
-",
-	amode:(is_handle(?) is semidet),
-	desc:html("   Used to test whether Term is a handle for external data.
-   Such handles can be created by external predicates using the
-   ECLiPSe C or C++ API.
-
-<P>
-"),
+    summary:"Succeeds if Term is an object handle",
+    amode:(is_handle(?) is semidet),
+    desc:html("<P>
+   Used to test whether Term is a handle.
+   Handles are references to anonymous ECLiPSe objects (such as streams,
+   engines, bags, records, shelves, stores) or to external data created
+   via the foreign language interfaces.
+</P>"),
 	args:["Term" : "Prolog term."],
 	fail_if:"Fails if Term is not an external data handle",
 	eg:"
@@ -637,14 +635,16 @@ Fail:
     No (0.00s cpu)
 
 ",
-	see_also:[is_handle/2,is_event/1,type_of/2,xget/3,xset/3]]).
+    see_also:[is_handle/2,is_event/1,type_of/2,xget/3,xset/3]]).
 
 :- comment(is_handle / 2, [
 	summary:"Succeeds if Term is an object handle of kind Kind",
 	amode:(is_handle(?,-) is semidet),
 	desc:html("\
    Used to test whether Term is an object handle, and of what kind.
-   Object handles are anonymous and are distinct from from the regular
+   Handles are references to anonymous ECLiPSe objects or to external
+   data created via the foreign language interfaces.
+   Handles are anonymous and are distinct from from the regular
    Prolog-style data types (number, atom, compound).  They support
    only a limited number of operations, and are mostly used in
    relation to ECLiPSe's non-logical features.
@@ -670,7 +670,8 @@ Fail:
         A stream object, as created by open/3,4, socket/3, etc.
     </DD>
     <DT>[]</DT><DD>
-        A stale handle, no longer referring to any object.
+        A stale handle, no longer referring to any object,
+	e.g. after handle_close/1, close/1, bag_dissolve/1.
     </DD>
 </DL>
 <P>
@@ -705,7 +706,7 @@ Fail:
     ?- is_handle(output).
     No (0.00s cpu)
 ",
-	see_also:[is_handle/1,type_of/2,xget/3,xset/3]]).
+	see_also:[is_handle/1,handle_close/1,type_of/2,xget/3,xset/3]]).
 
 
 :- comment(is_event / 1, [

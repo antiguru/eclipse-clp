@@ -413,7 +413,7 @@ until a particular continuation condition arises:
     <DT>condition_wait(Handle,Timeout)</DT><DD>
 	general lower-level operation for synchronizing access to shared
 	data structures: puts the current thread to sleep until Handle is
-	signalled via condition_signal/2.
+	signaled via condition_signal/2.
     </DD>
 </DL>
 </P>
@@ -1346,7 +1346,7 @@ Yes (3.00s cpu)
    flow leaves the with_mutex/2 predicate, whether via success, failure,
    throw/1 or exit/1.
 </P><P>
-   The standard precaution for working with mutexes apply: they should be
+   The standard precautions for working with mutexes apply: they should be
    held as briefly as possible to avoid unnecessary blocking of other threads.
    Also, nesting of (explicit or implicit) mutexes can lead to deadlocks.
 <P>
@@ -1380,7 +1380,7 @@ Yes (3.00s cpu)
         "Mode" : "One of the atoms 'all' or 'one'"],
     desc:html("<P>
     This is a low-level primitive that, together with condition_wait/2
-    and with_mutex/2, can be used to implement synchronisation between
+    and with_mutex/2, can be used to implement synchronization between
     concurrent threads.
 </P><P>
     The predicate unblocks one (or all) currently waiting invocations of
@@ -1496,7 +1496,7 @@ Yes (3.00s cpu)
         "Timeout":"Timeout in seconds (integer or float), or the atom 'block'"],
     desc:html("<P>
     This is a low-level primitive that, together with condition_signal/2
-    and with_mutex/2, can be used to implement synchronisation between
+    and with_mutex/2, can be used to implement synchronization between
     concurrent threads.
 </P><P>
     The predicate blocks the current thread's execution until

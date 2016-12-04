@@ -829,7 +829,7 @@ Error:
 </P><P>
    If there are no unifiable recorded terms for Key, the predicate blocks
    until an invocation of record_wait_append/4 (in another thread) records
-   another term, and then attempts the removal again.  If not new term is
+   another term, and then attempts the removal again.  If no new term is
    added within Timeout seconds, the predicate fails.
 </P><P>
    Conversely, when the removal of an element sufficiently reduces the
@@ -843,6 +843,6 @@ Error:
         5 : "Timeout is neither integer, float, nor the atom 'block'",
         6 : "Timeout is a negative number",
 	45: "Key does is not a declared record name"],
-    eg:"see record_wait_remove/3",
+    eg:"see record_wait_append/4",
 	see_also:[record_create/1, recordz/2, record_wait_append/4]]).
 

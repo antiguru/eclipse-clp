@@ -41,7 +41,7 @@ in related documentation.
 % -------------------------------------------------------------------
 \item[\Index{+X}]
 This denotes an input argument. Such an argument must be instantiated before
-a built-in is called.
+a predicate is called.
 
 % -------------------------------------------------------------------
 \item[\Index{++X}]
@@ -50,13 +50,24 @@ but must be fully instantiated, i.e., not contain any variables.
 
 % -------------------------------------------------------------------
 \item[\Index{--X}]
-This denotes an output argument. Such an argument must be not
-instantiated before a built-in is called.
+This denotes an output argument.  Such an argument is allowed to be
+uninstantiated at call time.  When this mode is used in the description
+of a built-in or library predicate, it is only \emph{descriptive}.  This means
+that the predicate can be called with an instantated argument, but it will
+behave as if were called with an uninstantiated variable which is then
+unified with the actual argument after returning from the call (e.g.
+\notation{atom_length(abc,3)} behaves the same as \notation{atom_length(abc,L),L=3}).
+If this mode is used in a 
+\bipref{mode/1}{../bips/kernel/compiler/mode-1.html}
+declaration, it is \emph{prescriptive}, i.e. it is taken as a promise that
+the predicate will always be called with an uninstantiated variable, and
+that the compiler is allowed to make corresponding optimizations.
+Violating this promise will lead to unexpected failures.
 
 % -------------------------------------------------------------------
 \item[\Index{?X}]
 This denotes an input or an output argument. Such an argument may be either
-instantiated or not  when a built-in is called.
+instantiated or not when the predicate is called.
 
 % -------------------------------------------------------------------
 %\item[Array]
