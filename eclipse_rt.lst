@@ -14,6 +14,7 @@ lib/anti_unify.eco
 lib/apply.eco
 lib/apply_macros.eco
 lib/asm.eco
+lib/best_first_search.eco
 lib/bfs.eco
 lib/bin_info.eco
 lib/branch_and_bound.eco
@@ -42,6 +43,7 @@ lib/eclipse_language.eco
 lib/edge_finder.eco
 lib/edge_finder3.eco
 lib/empty_language.eco
+lib/error.eco
 lib/fd.eco
 lib/fd_arith.eco
 lib/fd_chip.eco
