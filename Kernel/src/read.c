@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.15 2016/10/26 02:36:45 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.16 2016/12/08 12:55:57 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -687,11 +687,10 @@ _delimiter_follows(parse_desc *pd)
  
 #define IsDelimiter(class) (\
 	(class)==EOI || (class)==EOCL || (class)==COMMA || (class)==BAR \
-	|| (class)==CLOSING_SOLO)\
+	|| (class)==CLOSING_SOLO)
 
 static int
-_cant_follow_prefix(parse_desc *pd, int context_flags,
-	int oprec, int rprec, int prefix_arity)
+_cant_follow_prefix(parse_desc *pd, int context_flags, int rprec, int prefix_arity)
 {
     ec_eng_t *ec_eng = pd->engine;
     opi pre_op, follow_op;
@@ -767,18 +766,18 @@ _check_precedence_:			/* (did0,class) */
 	     *	fy9  yfx10 3	->	(fy9) yfx10 3
 	     *	fy9  yfx10 foo	->	(fy9) yfx10 foo
 	     *	fy9  yfx9  3	->	(fy9) yfx9 3
-	     *	fy9  yfx9  foo	->	(fy9) yfx9 foo	i.e. prefer infix
+	     *	fy9  yfx9  foo	->	error because of conservative CantFollowTerm()
 	     *	fy10 yfx9  3	->	(fy10) yfx9 3
-	     *	fy10 yfx9  foo	->	fy10 (yfx9) foo
+	     *	fy10 yfx9  foo	->	error because of conservative CantFollowTerm()
 	     *	fy9  yf10	->	(fy9) yf10
 	     *	fy9  yf9	->	fy9 (yf9)	i.e. prefer prefix
 	     *	fy10 yf9	->	fy10 (yf9)
 	     */
 	    if ((OpiPreced(follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
-		    && (oprec <= InfixLeftPrecedence(follow_op)
+		    && (rprec < InfixLeftPrecedence(follow_op)
 			    || CantFollowTerm(pd->token.class)))
 	     || (OpiPreced(follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
-		    && oprec < PostfixLeftPrecedence(follow_op))
+		    && rprec < PostfixLeftPrecedence(follow_op))
 	       )
 	    {
 		Prev_Token(pd);
@@ -803,9 +802,9 @@ _check_precedence_:			/* (did0,class) */
 	     * (analogous to prefix/infix and prefix/postfix disambiguation).
 	     */
 	    if ((OpiPreced(follow_op = visible_infix_op(did0, pd->module, pd->module_tag, &status))
-		    /* && (oprec <= InfixLeftPrecedence(follow_op)) */ )
+		    /* && (rprec < InfixLeftPrecedence(follow_op)) */ )
 	     || (OpiPreced(follow_op = visible_postfix_op(did0, pd->module, pd->module_tag, &status))
-		    && (oprec < PostfixLeftPrecedence(follow_op)
+		    && (rprec < PostfixLeftPrecedence(follow_op)
 			|| IsDelimiter(pd->token.class)))
 	       )
 	    {
@@ -1121,7 +1120,7 @@ _treat_as_functor_:
 		int oprec, rprec;
 		Get_Prefix_Prec(pre_op, oprec, rprec);
 		if (oprec <= context_prec
-		    && !_cant_follow_prefix(pd, context_flags, oprec, rprec, 1))
+		    && !_cant_follow_prefix(pd, context_flags, rprec, 1))
 		{
 		    /* treat as prefix operator */
 		    pword *pw;
@@ -1137,7 +1136,7 @@ _treat_as_functor_:
 		int oprec, lprec, rprec;
 		Get_Prefix2_Prec(pre_op, oprec, lprec, rprec);
 		if (oprec <= context_prec
-		    && !_cant_follow_prefix(pd, context_flags, oprec, lprec, 2))
+		    && !_cant_follow_prefix(pd, context_flags, lprec, 2))
 		{
 		    /* treat as binary prefix operator */
 		    pword *pw;
