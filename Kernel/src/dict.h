@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: dict.h,v 1.12 2016/10/28 22:44:33 jschimpf Exp $
+ * VERSION	$Id: dict.h,v 1.13 2016/12/12 02:16:40 jschimpf Exp $
  *
  * IDENTIFICATION:	dict.h
  *
@@ -507,6 +507,7 @@ typedef pword opi;
 
 #define IsPrefix2(op)		(OpiAssoc(op) >= FXX)
 #define IsPostfixAss(ass)	((ass) == XF || (ass) == YF)
+#define IsInfixOrPostfix(ass)	(XF <= (ass) && (ass) <= YFX)
 
 /* Get precedences */
 

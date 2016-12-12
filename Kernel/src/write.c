@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.20 2016/08/05 10:15:09 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.21 2016/12/12 02:16:40 jschimpf Exp $
  */
 
 /*
@@ -83,9 +83,24 @@
  * DEFINES
  */
 
-#define 	ATOM		0
-#define		OPERATOR	1
+/* Context of the term being written */
+#define ARGTERM		0x00000001	/* argument of canonical term */
+#define ARGLIST		0x00000002	/* argument of list notation */
+#define ARGOP		0x00000004	/* argument of operator */
+#define ARGYF		0x00000008	/* parent is yf[x] */
+#define ARGLAST		0x00000010	/* last subterm of its parent operator*/
+#define FOLLOWOP	0x00000020	/* textually follows an operator */
+#define FOLLOWPRE	0x00000040	/* textually follows a prefix */
+#define FOLLOWSIGN	0x00000080	/* textually follows a sign */
 
+#define CONTEXTMASK	(ARGOP|ARGYF|ARGLIST|ARGTERM|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
+
+/* Role of an atom */
+#define	ATOM		0
+#define	OPERATOR	1
+#define	FUNCTOR		2
+
+/* Conbinations of write options */
 #define WRITE_OPTIONS_WRITE	(OUT_DOLLAR_VAR)
 #define WRITE_OPTIONS_PRINT	(OUT_DOLLAR_VAR|PRINT_CALL)
 #define WRITE_OPTIONS_DISPLAY	(CANONICAL|DOTLIST)
@@ -131,9 +146,8 @@ static int
 		_is_proper_list(pword *list),
 		_write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng),
 		_write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth),
-		_write_infix(int idwrite, stream_id out, dident d, int flags, dident module, type mod_tag, syntax_desc *sd, pword *right, int depth),
 		_write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth),
-		_write_string(int idwrite, stream_id out, char *start, word length, int depth),
+		_write_string(int idwrite, stream_id out, char *start, word length,  syntax_desc *sd, int depth),
 		_portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag, ec_eng_t*);
 
 static void	_output_mode_string(char *s, int mask);
@@ -177,18 +191,20 @@ visible_d_procedure(dident functor, dident module, type module_tag)
 
 
 #define	Write_Infix(ww, s, d, flags, mod, mt, sd, arg, narg)		\
-	status = _write_infix(ww, s, d, flags, mod, mt, sd, narg, depth);\
-	if (status < 0)							\
-	   return(status);
+	if (!(idwrite & WRITE_COMPACT) && d != d_.comma) { Write_Char(out, ' ') }\
+	if((status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0)\
+	    return(status);\
+	if (!(idwrite & WRITE_COMPACT)) { Write_Char(out, ' ') }
 
 #define	Write_Postfix(ww, s, d, flags, mod, mt, sd)			\
-	if((status = ec_outfc( s, ' ')) < 0 || 				\
-	(status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0)	\
-	return(status);
+	if (!(idwrite & WRITE_COMPACT)) { Write_Char(out, ' ') }\
+	if((status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0)\
+	    return(status);
 
 #define	Write_Prefix(ww, s, d, flags, mod, mt, sd)			\
-	if((status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0 || \
-	(status = ec_outfc( s, ' ')) < 0) return(status);
+	if((status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0)\
+	    return(status);\
+	if (!(idwrite & WRITE_COMPACT)) { Write_Char(out, ' ') }
 
 #define	Write_Atom(ww, s, d, what, flags, mod, mt, sd)			\
     if((status = _write_atom(ww, s, d, what, flags, mod, mt, sd, depth)) < 0)	\
@@ -205,6 +221,15 @@ visible_d_procedure(dident functor, dident module, type module_tag)
 #define Write_Comma(s) \
 	Write_Char(s, ','); \
 	if (!(idwrite & WRITE_COMPACT)) { Write_Char(s, ' '); }
+
+#define Space_If_Needed(flags,next_char) {\
+	if (_need_space(out, flags, sd, next_char) && (status = ec_outfc(out,' ')) < 0)\
+	    return status;\
+    }
+
+#define StreamLastCharClass(s) ( StreamLastWritten(s) < 0 ? BS : \
+    	sd->char_class[(unsigned char)StreamLastWritten(s)])
+
 
 #define Next_Element(element, list, Return)			\
 	{							\
@@ -268,11 +293,7 @@ p_writeq(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
     int		res;
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    if (IsAtom(tag) && val.did == d_.eocl)
-	res = ec_outf(current_output_, "'.'", 3);
-    else
-	res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ,
-		    current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -284,17 +305,11 @@ p_writeq(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 static int
 p_writeq3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
-    int		res;
     stream_id	out;
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    if (IsAtom(tag) && val.did == d_.eocl)
-     	res = ec_outf(out, "'.'", 3);
-    else
-	res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ,
-		    out, val, tag, 1200, 0, vm.did, tm);
-    return res;
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, out, val, tag, 1200, 0, vm.did, tm);
 }
 
 /*
@@ -306,11 +321,7 @@ p_write_canonical(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
     int		res;
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    if (IsAtom(tag) && val.did == d_.eocl)
-	res = ec_outf(current_output_, "'.'", 3);
-    else
-	res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON,
-		    current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON, current_output_, val, tag, 1200, 0, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -325,10 +336,7 @@ p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    if (IsAtom(tag) && val.did == d_.eocl)
-        return ec_outf(out, "'.'", 3);
-    else
-	return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON,
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON,
 		    out, val, tag, 1200, 0, vm.did, tm);
 }
 
@@ -342,7 +350,6 @@ p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm
 static int
 p_write3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 {
-    int		res;
     stream_id out;
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
@@ -433,7 +440,7 @@ _terminate_term(stream_id nst, int options, syntax_desc *sd)
     if (options & TERM_FULLSTOP)
     {
 	/* write a space if last character was a symbol */
-	if (Symbol(sd->char_class[(unsigned char)StreamLastWritten(nst)]))
+	if (Symbol(StreamLastCharClass(nst)))
 	{
 	    Write_Char(nst, ' ');
 	}
@@ -469,6 +476,7 @@ ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val
     syntax_desc *		sd = ModuleSyntax(module);
     int				idwrite;
     int				result;
+    int				last_char;
 
     /* Catch null stream here because some code within _pwrite1()
      * assumes the presence of a stream buffer! */
@@ -478,21 +486,20 @@ ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val
     if (!IsTextStream(out))
 	return STREAM_MODE;
 
+    /* Ugly: modify default options based on per-module syntax_options */
+    idwrite = StreamOutputMode(out);
+    if (sd->options & ISO_RESTRICTIONS)	/* Default for ISO is minimal spacing */
+	idwrite |= WRITE_COMPACT;
+    if (sd->options & DENSE_OUTPUT)	/* backward compatibility */
+    	idwrite |= WRITE_COMPACT;
+    if (sd->options & DOLLAR_VAR)	/* backward compatibility */
+    	idwrite |= OUT_DOLLAR_VAR;
+
     /*
      * Merge the stream's default output mode settings with the modes
      * for this particular call
      */
-    idwrite = _merge_output_modes(StreamOutputMode(out), mode_clr, mode_set);
-
-    /*
-     * For backward compatibility, map obsolete syntax options to output modes
-     */
-    if (sd->options & DOLLAR_VAR)
-    	idwrite |= OUT_DOLLAR_VAR;
-    /* not fully compatible:
-    if (sd->options & DENSE_OUTPUT)
-    	idwrite |= WRITE_COMPACT;
-    */
+    idwrite = _merge_output_modes(idwrite, mode_clr, mode_set);
 
     /*
      * If 0, inherit print depth from stream or from global setting
@@ -527,12 +534,20 @@ ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val
 	    idwrite |= PORTRAY1;
     }
 
+    /* init StreamLastWritten to mark start of term */
+    last_char = StreamLastWritten(out);
+    StreamLastWritten(out) = -1;
+
     result = _pwrite1(idwrite, out, val, tag, maxprec, depth,
 			module, mod_tag, sd, ARGLAST, ec_eng);
     
     /* terminate the term, if requested */
     if (result == PSUCCEED)
 	result = _terminate_term(out, idwrite, sd);
+
+    /* reset StreamLastWritten if nothing was written */
+    if (StreamLastWritten(out) == -1)
+	StreamLastWritten(out) = last_char;
 
     /*
      * Pop stuff that may have been left by write macros and
@@ -594,12 +609,14 @@ _is_signed_number(value v, type t)
  *			bars that occur as atoms or operators
  *	ARGTERM		inside a structure argument, used to handle
  *			commas that are not argument separators
- *	ARGSIGN		term _textually_ follows a -/1 or +/1
+ *	FOLLOWOP	term _textually_ follows an operator
+ *	FOLLOWPRE	term _textually_ follows a prefix
+ *	FOLLOWSIGN	term _textually_ follows a -/1 or +/1
  * maxprec: the maximum precedence that may be printed without brackets
  */
 
 #define UnsignedNumberNeedsBrackets \
-    ((idwrite & QUOTED) && (flags & ARGSIGN))
+    (flags & FOLLOWSIGN && sd->options & ISO_RESTRICTIONS)
 
 static int
 _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng)
@@ -611,8 +628,10 @@ _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth
     int			res;
 
 _pwrite_:
-    if (UseDepth(idwrite) && depth <= 0)
+    if (UseDepth(idwrite) && depth <= 0) {
+	Space_If_Needed(0, '.')
 	return (ec_outf(out, "...", 3));
+    }
 
     if (IsRef(tag))
 	if ((idwrite & (PORTRAY2|PORTRAY1))
@@ -648,10 +667,10 @@ _pwrite_:
 
     case TINT:
 	Handle_Type_Macro(TINT)
-	if (UnsignedNumberNeedsBrackets && (val.nint >= 0))
-	    return (p_fprintf(out, "(%" W_MOD "d)", val.nint));
-	else
-	    return (p_fprintf(out, "%" W_MOD "d", val.nint));
+	if (UnsignedNumberNeedsBrackets && val.nint >= 0)
+	    return p_fprintf(out, " (%" W_MOD "d)", val.nint);
+	Space_If_Needed(flags, val.nint < 0 ? '-' : '0')
+	return (p_fprintf(out, "%" W_MOD "d", val.nint));
 
     case TDBL:
 	Handle_Type_Macro(TDBL)
@@ -660,14 +679,17 @@ _pwrite_:
 	    int size = _float_to_string_opt(val, tag, fbuf, idwrite & QUOTED, sd->options);
 	    if (UnsignedNumberNeedsBrackets && fbuf[0] != '-')
 	    {
-		if ((status = ec_outfc(out, '(')) < 0 ||
+		if ((status = ec_outfc(out, ' ')) < 0 ||
+		    (status = ec_outfc(out, '(')) < 0 ||
 		    (status = ec_outf(out, fbuf, size)) < 0 ||
 		    (status = ec_outfc(out, ')')) < 0)
 			return status;
 		return status;
 	    }
-	    else
+	    else {
+		Space_If_Needed(flags, fbuf[0])
 		return ec_outf(out, fbuf, size);
+	    }
 	}
 
     case TSTRG:
@@ -676,10 +698,11 @@ _pwrite_:
 		_write_quoted(idwrite, out, StringStart(val), StringLength(val),
 					(char) sd->current_sq_char, sd, depth) :
 		_write_string(idwrite, out, StringStart(val),
-				StringLength(val), depth);
+				StringLength(val), sd, depth);
 
     case TNIL:
 	Handle_Type_Macro(TDICT)
+	Space_If_Needed(flags, '[')
 	return (ec_outf(out, "[]", 2));
 
     case TEXTERN:	/* shouldn't occur */
@@ -690,6 +713,7 @@ _pwrite_:
 
     case TSUSP:
 	Handle_Type_Macro(TSUSP)
+	Space_If_Needed(flags, '\'')
 	if (!val.ptr)
 	    return p_fprintf(out, "'SUSP-0-dead'");
 	res = SuspDebugInvoc(val.ptr);
@@ -715,12 +739,14 @@ _pwrite_:
 	    int bufsize = 1 + (ExternalClass(val.ptr)->string_size)(ExternalData(val.ptr), idwrite&QUOTED?1:0);
 	    New_Array(char, buf, bufsize);
 	    int len = (ExternalClass(val.ptr)->to_string)(ExternalData(val.ptr), buf, idwrite&QUOTED?1:0);
+	    Space_If_Needed(flags, buf[0])
 	    status = ec_outf(out, buf, len);
 	    Delete_Array(char, buf, bufsize);
 	    return status;
 	}
 	else
 	{
+	    Space_If_Needed(flags, '\'')
 	    return p_fprintf(out, "'HANDLE'(16'%08x)", ExternalData(val.ptr));
 	}
 
@@ -749,12 +775,14 @@ _write_structure_:			/* (d, arg) */
 	    pword *narg = arg;
 	    Dereference_(narg);
 	    if (IsInteger(narg->tag) && narg->val.nint >= 0) {
+		Space_If_Needed(flags, 'A')
 		if ((status = ec_outfc(out, 'A' + (char)(narg->val.nint % 26))) < 0)
 		    return (status);
 		if (narg->val.nint / 26)
 		    return p_fprintf(out, "%" W_MOD "d", narg->val.nint / 26);
 		return PSUCCEED;
 	    } else if (!(sd->options & ISO_RESTRICTIONS)) {
+		Space_If_Needed(flags, 'A')
 		switch (TagType(narg->tag)) {
 		case TSTRG:
 		    return ec_outf(out, StringStart(narg->val),
@@ -798,11 +826,12 @@ _write_structure_:			/* (d, arg) */
 	     */
 	    if (d == d_.nilcurbr1)	/* special case {}/1 */
 	    {
+		Space_If_Needed(flags, '{')
 		if ((status = ec_outfc(out, '{')) < 0)
 		    return (status);
 		Dereference_(arg);
 		status = _pwrite1(idwrite, out, arg->val, arg->tag, MAXPREC, 
-				 depth-1, module, mod_tag, sd, 0, ec_eng);
+				 depth-1, module, mod_tag, sd, ARGLAST, ec_eng);
 		if (status < 0 || (status = ec_outfc(out, '}')) < 0)
 		    return (status);
 		return (PSUCCEED);
@@ -866,7 +895,7 @@ _write_structure_:			/* (d, arg) */
  		Dereference_(arg2);
 		if (IsAtom(arg1->tag) && (IsNil(arg2->tag) || _is_proper_list(arg2)))
 		{
-		    Write_Atom(idwrite, out, arg1->val.did, ATOM, flags & ARGLIST, module, mod_tag, sd);
+		    Write_Atom(idwrite, out, arg1->val.did, FUNCTOR, flags & ARGLIST, module, mod_tag, sd);
 		    Write_Char(out, '{');
 		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags, ec_eng);
 		    if (status < 0) return status;
@@ -899,12 +928,15 @@ _write_structure_:			/* (d, arg) */
 		}
 		if (  prec > maxprec 
 		    || d == d_.comma && (flags & ARGTERM)
+		    || d == d_.bar && (flags & ARGLIST)
 		    || flags & ARGYF && prec == maxprec &&
 			(assoc == FY || assoc == XFY || assoc == FXY)
 		    || OpiPreced(post_infix) && !(flags & ARGLAST)
+		    || flags & FOLLOWSIGN && IsInfixOrPostfix(assoc) && sd->options & ISO_RESTRICTIONS	/* ISO */
 		   )
 		{
-		    flags = flags  & ~(ARGTERM | ARGLIST | ARGSIGN) | ARGLAST;
+		    Space_If_Needed(flags, '(')
+		    flags = flags  & ~CONTEXTMASK | ARGLAST;
 		    openpar = 1;
 		    Write_Char(out, '(');
 		}
@@ -916,39 +948,21 @@ _write_structure_:			/* (d, arg) */
 		    case FX:
 			prec -= 1;
 		    case FY:
-			if ( !(sd->options & BLANK_AFTER_SIGN) && (
-			     d == d_.minus1 ||
-                             d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN)))
-			{
-			    /* ignore operators to avoid confusion
-			     * with signed numbers	*/
-			    Write_Atom(idwrite, out, d, ATOM, flags & ARGLIST,
-					 module, mod_tag, sd);
-			    Write_Char(out, '(');
-			    Pwrite(idwrite, out, arg->val, arg->tag,
-				    MAXPREC, depth - 1, module, mod_tag,
-				    sd, ARGTERM | ARGLAST);
-			    Write_Char(out, ')');
-			}
-			else
-			{
-			    Write_Prefix(idwrite, out, d, flags & ARGLIST,
-					 module, mod_tag, sd);
-			    Pwrite(idwrite, out, arg->val, arg->tag,
-				    prec, depth - 1, module, mod_tag,
-				    sd, flags & (ARGTERM | ARGLIST | ARGLAST)
-				    | ARGOP |
-				    ( sd->options & BLANK_AFTER_SIGN && (
-					d == d_.minus1 ||
-					d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN))
-				    ? ARGSIGN : 0 ));
-			}
+			Write_Prefix(idwrite, out, d, flags & ARGLIST,
+				     module, mod_tag, sd);
+			Pwrite(idwrite, out, arg->val, arg->tag,
+				prec, depth - 1, module, mod_tag,
+				sd, flags & (ARGTERM | ARGLIST | ARGLAST)
+				| ARGOP | FOLLOWOP | FOLLOWPRE |
+				( ( d == d_.minus1 ||
+				    d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN))
+				? FOLLOWSIGN : 0 ));
 			break;
 
 		    case YF:
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				prec, depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGSIGN)
+				flags & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
 				| ARGYF | ARGOP);
 			Write_Postfix(idwrite, out, d, flags & ARGLIST,
 				      module, mod_tag, sd);
@@ -957,7 +971,7 @@ _write_structure_:			/* (d, arg) */
 		    case XF:
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				prec - 1, depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGSIGN)
+				flags & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
 				| ARGOP);
  			Write_Postfix(idwrite, out, d, flags & ARGLIST,
 				      module, mod_tag, sd);
@@ -975,36 +989,48 @@ _write_structure_:			/* (d, arg) */
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				assoc == YFX ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM | ARGLIST | ARGSIGN)
+				flags & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
 				| ARGOP | (assoc==YFX?ARGYF:0));
 			Write_Infix(idwrite, out, d, flags & ARGLIST,
 				    module, mod_tag, sd, arg, narg);
 			Pwrite(idwrite, out, narg->val, narg->tag,
 				assoc == XFY ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
-				flags & (ARGTERM | ARGLIST | ARGLAST)
+				flags & ~(FOLLOWOP|FOLLOWPRE|FOLLOWSIGN) & (ARGTERM | ARGLIST | ARGLAST)
 				| ARGOP);
 			break;
 
 		    case FXX:
 		    case FXY:
+		    {
+			int openpar2 = 0;
 			Write_Prefix(idwrite, out, d, flags & ARGLIST,
 				     module, mod_tag, sd);
 			Pwrite(idwrite, out, arg->val, arg->tag,
 				prec - 1, depth - 1, module, mod_tag, sd,
 				flags & ~ARGLAST & (ARGTERM | ARGLIST)
-				| ARGOP |
+				| ARGOP | FOLLOWOP | FOLLOWPRE |
 				    ( sd->options & BLANK_AFTER_SIGN && (
 					d == d_.minus ||
 					d == d_.plus && !(sd->options & PLUS_IS_NO_SIGN))
-				    ? ARGSIGN : 0 ));
+				    ? FOLLOWSIGN : 0 ));
+			/* Prevent accidental string concatenation (conservative,
+			 * as we don't know whether narg will start with a string!)
+			 */
+			openpar2 = idwrite & QUOTED && StreamLastCharClass(out) == SQ;
 			Write_Char(out, ' ');
+			if (openpar2) {
+			    Write_Char(out, '(');
+			    flags = flags  & ~CONTEXTMASK | ARGLAST;
+			}
 			Pwrite(idwrite, out, narg->val, narg->tag,
 				assoc == FXY ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
-				flags & (ARGTERM | ARGLIST | ARGLAST)
+				flags & ~(FOLLOWOP|FOLLOWPRE|FOLLOWSIGN) & (ARGTERM | ARGLIST | ARGLAST)
 				| ARGOP);
+			if (openpar2) { Write_Char(out, ')'); }
 			break;
+		    }
 		    }
 		}
 		if (openpar)
@@ -1018,7 +1044,7 @@ _write_structure_:			/* (d, arg) */
 
 	/* normal functor or we ignore operators */
 
-	Write_Atom(idwrite, out, d, ATOM, flags & ARGLIST, module, mod_tag, sd);
+	Write_Atom(idwrite, out, d, FUNCTOR, flags & ARGLIST, module, mod_tag, sd);
 
 _write_args_:				/* (arg,arity) */
 	Write_Char(out, '(');
@@ -1071,8 +1097,8 @@ _write_args_:				/* (arg,arity) */
 	    }
 	    idwrite &= ~(WRITE_GOAL|WRITE_CLAUSE);
 
-	    if ((status = ec_outfc(out, '[')) < 0)
-		return (status);
+	    Space_If_Needed(flags, '[')
+	    Write_Char(out, '[')
 	    arg = val.ptr;
 	    tail = arg + 1;
 	    Dereference_(arg)
@@ -1099,8 +1125,7 @@ _write_args_:				/* (arg,arity) */
 			return (status);
 		    continue;
 		default:
-		    if ((status = ec_outfc(out, '|')) < 0)
-			return (status);
+		    Write_Char(out, '|')
 		    status = _pwrite1(idwrite, out, tail->val, tail->tag, 
 				    MAXPREC, --depth, module, mod_tag,
 				    sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
@@ -1121,15 +1146,19 @@ _write_args_:				/* (arg,arity) */
 	{
 	    Handle_Type_Macro(TagType(tag))
 
-	    if (tag_desc[TagType(tag)].numeric
-	    	&& UnsignedNumberNeedsBrackets
-		&& !_is_signed_number(val, tag))
+	    if (tag_desc[TagType(tag)].numeric)
 	    {
-		if ((status = ec_outfc(out, '(')) < 0 ||
-		    (status = tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag)) < 0 ||
-		    (status = ec_outfc(out, ')')) < 0)
-			return status;
-		return status;
+		if (UnsignedNumberNeedsBrackets && !_is_signed_number(val, tag))
+		{
+		    if ((status = ec_outfc(out, ' ')) < 0 ||
+			(status = ec_outfc(out, '(')) < 0 ||
+			(status = tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag)) < 0 ||
+			(status = ec_outfc(out, ')')) < 0)
+			    return status;
+		    return status;
+		}
+		Space_If_Needed(flags, _is_signed_number(val, tag) ? '-' : '0')
+		return tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag);
 	    }
 	    return tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag);
 	}
@@ -1270,59 +1299,112 @@ _portray_term(int idwrite, stream_id out, value val, type tag, dident module, ty
     return (status == PSUCCEED) ? 1 : 0;
 }
 
+
 /*
- * Try to avoid space printing around some frequent infix operators.
- * Except for comma, make it symmetric.
- *
- * TODO: This should be done very differently. Rather than trying to
- * look ahead to the right hand side argument, we should remember the
- * last character of the operator and lazily insert a space if necessary
- * when we are about to print the first character of the next item.
+ * Determine whether a space is needed before printing next_char.
+ * This has to deal with sequences of the type
+ *	PRE-PRE, IN-PRE, POST-IN, POST-POST,
+ *	PRE-TERM, IN-TERM, TERM-IN, TERM-POST,
+ *	DELIM-TERM, TERM-DELIM,	BS-ANY
+ * Extra space is needed for:
+ *	- token separation
+ *	- separating prefix from opening parentheses
+ *	- separating prefix +/- from following unsigned number
+ *	- preventing doubled quotes to be read as escaped quotes
+ *	- preventing INTEGER-QUOTED_ATOM to be read as base notation
+ *	- preventing INTEGER-ATOM to be read as ISO base notation
+ *	- preventing ATOM-{...} to be read as structure notation
  */
-static int
-_write_infix(int idwrite, stream_id out, dident d, int flags, dident module, type mod_tag, syntax_desc *sd, pword *right, int depth)
+int
+_need_space(stream_id out, int flags, syntax_desc *sd, int next_char)
 {
-    int		status;
-    int		spaces = 0;
+    int last_char_class, next_char_class;
 
-    if ((sd->options & DENSE_OUTPUT || idwrite & WRITE_COMPACT) &&  d != d_.comma)
-    {
-	int last_left, first_right;
-	int first = sd->char_class[*DidName(d)];
-	int last = sd->char_class[*(DidName(d) + DidLength(d) - 1)];
-	last_left = sd->char_class[(unsigned char)StreamLastWritten(out)];
-	if (IsNumber(right->tag))
-	{
-	    if (_is_signed_number(right->val, right->tag))
-		first_right = sd->char_class['-'];
-	    else
-		first_right = N;
-	}
-	else if (IsAtom(right->tag))
-	    first_right = sd->char_class[*(DidName(right->val.did))];
-	else
-	    first_right = -1;
+    last_char_class = StreamLastCharClass(out);
+    if (last_char_class == BS)
+    	return 0;
+    next_char_class = sd->char_class[(unsigned char)next_char];
 
-	if (last_left == first || Alphanum(last_left) && Alphanum(first) ||
-	    last == first_right || Alphanum(last) && Alphanum(first_right) ||
-	    (!IsNumber(right->tag) && !IsAtom(right->tag) && !IsList(right->tag)))
-	{
-	    spaces = 1;
-	}
-    }
-    else
+    switch(next_char_class)
     {
-	spaces = 1;
+	case N:
+	    if (flags & FOLLOWSIGN)
+		return 1;
+	    /*fall through*/
+	case UL:
+	case UC:
+	case LC:
+	    switch(last_char_class)
+	    {
+		case UL:
+		case UC:
+		case LC:
+		case N:		/* N+LC to separate e.g. 0x1F */
+		    return 1;
+	    }
+	    break;
+
+	case AQ:
+	    /* separate quotes if necessary */
+	    if (last_char_class == AQ && sd->options & DOUBLED_QUOTE_IS_QUOTE)
+		return 1;
+	    /* need space if integer preceeded, e.g. 16 '1 2'
+	    if (flags & FOLLOWS_RADIX)
+	    */
+	    if (last_char_class == N)	/* conservative */
+		return 1;
+	    break;
+
+	case SQ:
+	    /* separate quotes if necessary (should never happen) */
+	    if (last_char_class == SQ && sd->options & DOUBLED_QUOTE_IS_QUOTE)
+		return 1;
+	    break;
+
+	case SY:
+	case ES:
+	case CM2:
+	case CM1:
+	    switch(last_char_class)
+	    {
+		case SY:
+		case ES:
+		case CM2:
+		case CM1:
+		    return 1;
+	    }
+	    break;
+
+	case DS:	/* {}[](),| */
+	    switch(next_char)
+	    {
+		case '(':	/* functor-syntax */
+		    if (flags & FOLLOWPRE)
+			return 1;
+		    break;
+
+		case '{':	/* curly-args */
+		    if (flags & FOLLOWOP && !(sd->options & NO_CURLY_ARGUMENTS))
+			return 1;
+		    break;
+
+		case '[':	/* array syntax */
+		    if (flags & FOLLOWOP && sd->options & ATOM_SUBSCRIPTS)
+			return 1;
+		    break;
+	    }
+	    break;
+
+	case SL:	/* !; */
+	    break;
+
+	/* these shouldn't occur in output */
+	case CQ:
+	case LQ:
+	case CM:
+	default:
+	    break;
     }
-    if (spaces && d != d_.comma)
-	if ((status = ec_outfc(out, ' ')) < 0)
-	    return status;
-    if ((status = _write_atom(idwrite, out, d, OPERATOR, flags,
-						    module, mod_tag, sd, depth)) < 0)
-	return status;
-    if (spaces && (d != d_.comma || !(idwrite & WRITE_COMPACT)))
-	if ((status = ec_outfc(out, ' ')) < 0)
-	    return(status);
     return 0;
 }
 
@@ -1330,8 +1412,10 @@ _write_infix(int idwrite, stream_id out, dident d, int flags, dident module, typ
 #define STRING_PLUS	10
 /*ARGSUSED*/
 static int
-_write_string(int idwrite, stream_id out, char *start, word length, int depth)
+_write_string(int idwrite, stream_id out, char *start, word length, syntax_desc *sd, int depth)
 {
+    int status;
+    Space_If_Needed(0, start[0])
 /* It is not obvious what is the best way to avoid long strings
     if (UseDepth(idwrite) && depth > 0 &&
 	    length > PrintDepth - depth + STRING_PLUS) {
@@ -1340,91 +1424,58 @@ _write_string(int idwrite, stream_id out, char *start, word length, int depth)
 	return (ec_outf(out, "...", 3));
     } else
  */
-	return ec_outf(out, start, (int) length);
+    return ec_outf(out, start, (int) length);
 }
+
 
 /* module argument is meaningful only when ARGOP is set in flag &&
    QUOTED is set in idwrite						*/
 static int
 _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth)
 {
-    int	    status;
+    int	    status, nq, need_par;
     word    length = DidLength(d);
     char    *name = DidName(d);
+    dident  d0;
 
-    if (DidArity(d) < 0)
-    {
+    if (DidArity(d) < 0) {
 	return ec_outfs(out, DidArity(d) == UNUSED_DID_ARITY ?
 			    "ILLEGAL_FREED_FUNCTOR" : "ILLEGAL_FUNCTOR");
     }
 
-    if (idwrite & QUOTED)
-    {
-	dident  d0 = check_did(d, 0);
-	int nq = ec_need_quotes(d, sd);
+    /* parenthesize operators as arguments of operators
+     * (always for ISO, otherwise only when quoting)
+     */
+    need_par = flag & ARGOP
+	    && (idwrite & QUOTED || sd->options & ISO_RESTRICTIONS)
+	    && (d0 = check_did(d, 0)) && is_visible_op(d0, module, mod_tag);
 
-	if (nq == QIDENTIFIER ||
+    if (need_par) {
+	Space_If_Needed(flag, '(')
+	Write_Char(out, '(')
+    }
+
+    if (idwrite & QUOTED && (
+	    (nq = ec_need_quotes(d, sd)) == QIDENTIFIER ||
 	    nq == COMMA && (what != OPERATOR) ||
 	    nq == BAR && (flag & ARGLIST
-                || ( (what == OPERATOR && d == d_.bar)
-                   ? sd->options & BAR_IS_SEMICOLON
-                   : sd->options & BAR_IS_NO_ATOM )) ||
-	    nq == EOCL && (what == OPERATOR || (flag & ARGOP)))
-	{
-		if ((flag & ARGOP)
-		    && is_visible_op(d0, module, mod_tag))
-		{
-			if ( ((status = ec_outfc(out, '(')) < 0)
-			   || ((status = _write_quoted(idwrite, out, name, length,
-					(char) sd->current_aq_char, sd, depth)) < 0)
-			   || ((status = ec_outfc(out, ')')) <0 ))
-			{
-				return (status);
-			}
-			else
-			{
-				return(PSUCCEED);
-			}
-		}
-		else
-		{
-		    return _write_quoted(idwrite, out, name, length,
-					(char) sd->current_aq_char, sd, depth);
-		}
-	}
+		|| ( (what == OPERATOR && d == d_.bar)
+		   ? sd->options & BAR_IS_SEMICOLON
+		   : sd->options & BAR_IS_NO_ATOM )) ||
+	    nq == EOCL && (what == OPERATOR || flag & ARGOP
+	    	|| (what == ATOM  &&  !(flag & (ARGTERM|ARGLIST)))
+		|| sd->options & ISO_RESTRICTIONS)
+    )) {
+	status = _write_quoted(idwrite, out, name, length, (char) sd->current_aq_char, sd, depth);
+    } else {
+	status = _write_string(idwrite, out, name, length, sd, depth);
+    }
+    if (status < 0)
+	return status;
 
-	if ((flag & ARGOP)
-	    && is_visible_op(d0, module, mod_tag))
-	{
-		if (((status = ec_outfc(out, '(')) <0)
-		    || ((status = ec_outf(out, name, (int) length)) < 0)
-		    || ((status = ec_outfc(out, ')')) < 0))
-		{
-			return(status);
-		}
-		else
-		{
-			return(PSUCCEED);
-		}
-	}
-	else
-	{
-	    return(ec_outf(out, name, (int) length));
-	}
-   }
-   else
-   {
-	if (!strcmp(name, "|") && (flag &ARGLIST))
-	{
-	    return _write_quoted(idwrite, out, name, length,
-			(char)sd->current_aq_char, sd, depth);
-	}
-	else
-	{
-	    return _write_string(idwrite, out, name, length, depth);
-	}
-   }
-
+    if (need_par) {
+	Write_Char(out, ')')
+    }
 }
 
 
@@ -1444,18 +1495,18 @@ static int
 _write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth)
 {
     int			status;
-    int			cut;
+    int			cut = 0;
     char		c;
 
 /* It is not obvious what is the best way to avoid long strings
     if (UseDepth(idwrite) && depth > 0 && len > PrintDepth - depth + STRING_PLUS) {
 	len = PrintDepth - depth + STRING_PLUS;
 	cut = 1;
-    } else
+    }
 */
-	cut = 0;
-    if ((status = ec_outfc(out, quotechar)))	/* write the left quote		*/
-	return status;
+
+    Space_If_Needed(0, quotechar)
+    Write_Char(out, quotechar)		/* write the left quote		*/
 
     if (sd->current_escape >= 0)	/* there is an escape character */
     {
@@ -1472,16 +1523,14 @@ _write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, 
 	    case '\t':
 		if (idwrite & DONT_QUOTE_NL)
 		{
-		    if ((status = ec_outfc(out, c)))
-			return status;
+		    Write_Char(out, c)
 		    continue;
 		}
 		c = 't'; break;
 	    case '\n':
 		if (idwrite & DONT_QUOTE_NL)
 		{
-		    if ((status = ec_outfc(out, c)))
-			return status;
+		    Write_Char(out, c)
 		    continue;
 		}
 		c = 'n';
@@ -1495,29 +1544,25 @@ _write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, 
 		    break;
 		else if(c < 32  ||  c >= 127)	/* write escaped octal	*/
 		{
-		    if ((status = ec_outfc(out, sd->current_escape)))
-			return status;
+		    Write_Char(out, sd->current_escape)
 		    if (sd->options & ISO_ESCAPES)
 		    {
 			if ((status = p_fprintf(out, "%o", c & 0xff)))
 			    return status;
-			if ((status = ec_outfc(out, sd->current_escape)))
-			    return status;
+			Write_Char(out, sd->current_escape)
 		    }
 		    else
 			if ((status = p_fprintf(out, "%03o", c & 0xff)))
 			    return status;
 		}
-		else			/* normal printable character	*/
-		    if ((status = ec_outfc(out, c)))
-			return status;
+		else {			/* normal printable character	*/
+		    Write_Char(out, c)
+		}
 		continue;
 	    }
 	    				/* write escaped char	*/
-	    if ((status = ec_outfc(out, sd->current_escape)))
-		return status;
-	    if ((status = ec_outfc(out, c)))
-		return status;
+	    Write_Char(out, sd->current_escape)
+	    Write_Char(out, c)
 	}
     }
     else				/* we have no escape character */
@@ -1525,11 +1570,10 @@ _write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, 
 	while (len-- > 0)
 	{
 	    c = *name++;
-	    if (c == quotechar)		/* double an internal quote	*/
-		if ((status = ec_outfc(out, c)))
-		     return status;
-	    if ((status = ec_outfc(out, c)))
-		return status;
+	    if (c == quotechar) {	/* double an internal quote	*/
+		Write_Char(out, c)
+	    }
+	    Write_Char(out, c)
 	}
     }
     if (cut) {

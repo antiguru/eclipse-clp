@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.9 2016/10/28 22:44:33 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.10 2016/12/12 02:16:40 jschimpf Exp $
  */
 
 /*
@@ -271,17 +271,6 @@
 #define	PORTRAY2	 0x100000	/* a portray/2 predicate exists	*/
 #define	PORTRAY1	 0x200000	/* a portray/1 predicate exists	*/
 #define	VARTERM		 0x400000	/* print variables as '_'(...)	*/
-
-/* context of the term being written */
-
-#define NOARG		0x00000000
-#define ARGTERM		0x00000001
-#define ARGOP		0x00000002
-#define ARGPREF		0x00000004
-#define ARGSIGN		0x00000008
-#define ARGLIST		0x00000010
-#define ARGYF		0x00000020	/* parent is yf[x] */
-#define ARGLAST		0x00000040	/* last subterm of its parent operator*/
 
 
 /*

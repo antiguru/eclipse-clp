@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: fd_domain.pl,v 1.4 2013/02/12 17:53:36 jschimpf Exp $
+% Version:	$Id: fd_domain.pl,v 1.5 2016/12/12 02:17:27 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -43,8 +43,6 @@
 
 
 :- module(fd_domain).
-
-:- export syntax_option(dense_output).
 
 :- reexport
 	% domain access
