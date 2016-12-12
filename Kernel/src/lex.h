@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.10 2016/10/28 22:44:33 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.11 2016/12/12 14:01:48 jschimpf Exp $
  */
 
 /*
@@ -183,5 +183,6 @@ typedef struct {
 
 Extern int lex_an(stream_id, syntax_desc*, ec_eng_t*, token_desc *);
 Extern int ec_need_quotes(dident, syntax_desc *);
+Extern int ec_is_varname (unsigned char*, word, syntax_desc *);
 Extern char *string_to_number(char *start, pword *result, stream_id nst, syntax_desc *sd, ec_eng_t*);
 

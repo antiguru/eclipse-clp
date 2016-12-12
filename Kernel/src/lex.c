@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.24 2016/10/24 01:37:52 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.25 2016/12/12 14:01:48 jschimpf Exp $
  */
 
 /*
@@ -950,6 +950,25 @@ _need_quotes1_:
 	return QIDENTIFIER;
     }
     return QIDENTIFIER;
+}
+
+
+int
+ec_is_varname(unsigned char *s, word len, syntax_desc *sd)
+{
+    if (!len) return 0;
+    switch (sd->char_class[*s]) {
+	case UC:	/* uppercase */
+	case UL:	/* special prefix for variables */
+	    break;
+	default:
+	    return 0;
+    }
+    while(--len) {
+	if (!Alphanum(sd->char_class[*++s]))
+	    return 0;
+    }
+    return 1;
 }
 
 

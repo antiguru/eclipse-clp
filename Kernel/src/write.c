@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.21 2016/12/12 02:16:40 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.22 2016/12/12 14:01:48 jschimpf Exp $
  */
 
 /*
@@ -109,14 +109,14 @@
 
 #define UseDepth(id)		(!((id) & FULLDEPTH))
 
-#define MacrosAllowed(idwrite)	(!((idwrite) & NO_MACROS))
-#define GoalMacro(idwrite)	(idwrite & WRITE_GOAL ? TR_GOAL : \
-				    (idwrite & WRITE_CLAUSE ? TR_CLAUSE : 0))
+#define MacrosAllowed(wr_opts)	(!((wr_opts) & NO_MACROS))
+#define GoalMacro(wr_opts)	(wr_opts & WRITE_GOAL ? TR_GOAL : \
+				    (wr_opts & WRITE_CLAUSE ? TR_CLAUSE : 0))
 
 #define Handle_Type_Macro(t)						\
-	if (MacrosAllowed(idwrite) && DidMacro(TransfDid(t))) {		\
+	if (MacrosAllowed(wr_opts) && DidMacro(TransfDid(t))) {		\
 	    pword *tr_res = _write_trafo(TransfDid(t),			\
-				GoalMacro(idwrite), &idwrite,		\
+				GoalMacro(wr_opts), &wr_opts,		\
 				val, tag, module, mod_tag, ec_eng);	\
 	    if (tr_res) {						\
 		val.all = tr_res->val.all;				\
@@ -141,18 +141,18 @@ static int
 		_float_to_string(value v, type t, char *buf, int precise),
 		_float_to_string_opt(value v, type t, char *buf, int precise, int options),
 		_printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par),
-		_print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *),
-		_pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng),
+		_print_var(int wr_opts, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *),
+		_pwrite1(int wr_opts, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng),
 		_is_proper_list(pword *list),
-		_write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng),
-		_write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth),
-		_write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth),
-		_write_string(int idwrite, stream_id out, char *start, word length,  syntax_desc *sd, int depth),
-		_portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag, ec_eng_t*);
+		_write_args_from_list(int wr_opts, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng),
+		_write_quoted(int wr_opts, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth),
+		_write_atom(int wr_opts, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth),
+		_write_string(int wr_opts, stream_id out, char *start, word length,  syntax_desc *sd, int depth),
+		_portray_term(int wr_opts, stream_id out, value val, type tag, dident module, type mod_tag, ec_eng_t*);
 
 static void	_output_mode_string(char *s, int mask);
 
-static pword	*_write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng);
+static pword	*_write_trafo(dident d, int tr_flags, int *wr_opts, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng);
 
 
 /*
@@ -190,28 +190,28 @@ visible_d_procedure(dident functor, dident module, type module_tag)
 }
 
 
-#define	Write_Infix(ww, s, d, flags, mod, mt, sd, arg, narg)		\
-	if (!(idwrite & WRITE_COMPACT) && d != d_.comma) { Write_Char(out, ' ') }\
-	if((status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0)\
+#define	Write_Infix(ww, s, d, context, mod, mt, sd, arg, narg)		\
+	if (!(wr_opts & WRITE_COMPACT) && d != d_.comma) { Write_Char(out, ' ') }\
+	if((status = _write_atom(ww, s, d, OPERATOR, context, mod, mt, sd, depth)) < 0)\
 	    return(status);\
-	if (!(idwrite & WRITE_COMPACT)) { Write_Char(out, ' ') }
+	if (!(wr_opts & WRITE_COMPACT)) { Write_Char(out, ' ') }
 
-#define	Write_Postfix(ww, s, d, flags, mod, mt, sd)			\
-	if (!(idwrite & WRITE_COMPACT)) { Write_Char(out, ' ') }\
-	if((status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0)\
+#define	Write_Postfix(ww, s, d, context, mod, mt, sd)			\
+	if (!(wr_opts & WRITE_COMPACT)) { Write_Char(out, ' ') }\
+	if((status = _write_atom(ww, s, d, OPERATOR, context, mod, mt, sd, depth)) < 0)\
 	    return(status);
 
-#define	Write_Prefix(ww, s, d, flags, mod, mt, sd)			\
-	if((status = _write_atom(ww, s, d, OPERATOR, flags, mod, mt, sd, depth)) < 0)\
+#define	Write_Prefix(ww, s, d, context, mod, mt, sd)			\
+	if((status = _write_atom(ww, s, d, OPERATOR, context, mod, mt, sd, depth)) < 0)\
 	    return(status);\
-	if (!(idwrite & WRITE_COMPACT)) { Write_Char(out, ' ') }
+	if (!(wr_opts & WRITE_COMPACT)) { Write_Char(out, ' ') }
 
-#define	Write_Atom(ww, s, d, what, flags, mod, mt, sd)			\
-    if((status = _write_atom(ww, s, d, what, flags, mod, mt, sd, depth)) < 0)	\
+#define	Write_Atom(ww, s, d, what, context, mod, mt, sd)			\
+    if((status = _write_atom(ww, s, d, what, context, mod, mt, sd, depth)) < 0)	\
 	return(status);
 
-#define Pwrite(ww, s, v, t, mp, d, mod, mt, sd, flags) 			\
-    if((status = _pwrite1(ww, s, v, t, mp, d, mod, mt, sd, flags, ec_eng)) < 0)	\
+#define Pwrite(ww, s, v, t, mp, d, mod, mt, sd, context) 			\
+    if((status = _pwrite1(ww, s, v, t, mp, d, mod, mt, sd, context, ec_eng)) < 0)	\
 	return(status);
 	
 #define Write_Char(s,c) if ((status = ec_outfc(s,c)) < 0) return(status);
@@ -220,10 +220,10 @@ visible_d_procedure(dident functor, dident module, type module_tag)
 
 #define Write_Comma(s) \
 	Write_Char(s, ','); \
-	if (!(idwrite & WRITE_COMPACT)) { Write_Char(s, ' '); }
+	if (!(wr_opts & WRITE_COMPACT)) { Write_Char(s, ' '); }
 
-#define Space_If_Needed(flags,next_char) {\
-	if (_need_space(out, flags, sd, next_char) && (status = ec_outfc(out,' ')) < 0)\
+#define Space_If_Needed(context,next_char) {\
+	if (_need_space(out, context, sd, next_char) && (status = ec_outfc(out,' ')) < 0)\
 	    return status;\
     }
 
@@ -474,7 +474,7 @@ ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val
 {
     pword			**old_tt = TT, *old_tg = TG, *old_ld = LD;
     syntax_desc *		sd = ModuleSyntax(module);
-    int				idwrite;
+    int				wr_opts;
     int				result;
     int				last_char;
 
@@ -487,19 +487,19 @@ ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val
 	return STREAM_MODE;
 
     /* Ugly: modify default options based on per-module syntax_options */
-    idwrite = StreamOutputMode(out);
+    wr_opts = StreamOutputMode(out);
     if (sd->options & ISO_RESTRICTIONS)	/* Default for ISO is minimal spacing */
-	idwrite |= WRITE_COMPACT;
+	wr_opts |= WRITE_COMPACT;
     if (sd->options & DENSE_OUTPUT)	/* backward compatibility */
-    	idwrite |= WRITE_COMPACT;
+    	wr_opts |= WRITE_COMPACT;
     if (sd->options & DOLLAR_VAR)	/* backward compatibility */
-    	idwrite |= OUT_DOLLAR_VAR;
+    	wr_opts |= OUT_DOLLAR_VAR;
 
     /*
      * Merge the stream's default output mode settings with the modes
      * for this particular call
      */
-    idwrite = _merge_output_modes(idwrite, mode_clr, mode_set);
+    wr_opts = _merge_output_modes(wr_opts, mode_clr, mode_set);
 
     /*
      * If 0, inherit print depth from stream or from global setting
@@ -519,31 +519,31 @@ ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val
      * syntax, but that may be unnecessarily restrictive.
      */
     if (UnauthorizedAccess(module, mod_tag))
-    	idwrite = idwrite & ~(ATTRIBUTE|PORTRAY2|PORTRAY1|PRINT_CALL)
+    	wr_opts = wr_opts & ~(ATTRIBUTE|PORTRAY2|PORTRAY1|PRINT_CALL)
 			|NO_MACROS|CANONICAL;
 
     /*
      * If needed, do the expensive procedure lookups for portray/1,2
      * here and set PORTRAY2 and PORTRAY1 flags accordingly.
      */
-    if (idwrite & PRINT_CALL)
+    if (wr_opts & PRINT_CALL)
     {
 	if (visible_d_procedure(d_portray2, module, mod_tag))
-	    idwrite |= PORTRAY2;
+	    wr_opts |= PORTRAY2;
 	if (visible_d_procedure(d_portray1, module, mod_tag))
-	    idwrite |= PORTRAY1;
+	    wr_opts |= PORTRAY1;
     }
 
     /* init StreamLastWritten to mark start of term */
     last_char = StreamLastWritten(out);
     StreamLastWritten(out) = -1;
 
-    result = _pwrite1(idwrite, out, val, tag, maxprec, depth,
+    result = _pwrite1(wr_opts, out, val, tag, maxprec, depth,
 			module, mod_tag, sd, ARGLAST, ec_eng);
     
     /* terminate the term, if requested */
     if (result == PSUCCEED)
-	result = _terminate_term(out, idwrite, sd);
+	result = _terminate_term(out, wr_opts, sd);
 
     /* reset StreamLastWritten if nothing was written */
     if (StreamLastWritten(out) == -1)
@@ -584,7 +584,7 @@ _is_signed_number(value v, type t)
 /*
  * _pwrite1() - write a Prolog term
  *
- * idwrite: flags for the different write options (see ec_io.h)
+ * wr_opts: flags for the different write options (see ec_io.h)
  *	CANONICAL	ignore operators
  *	FULLDEPTH	ignore depth
  *	DOTLIST		write lists in dot notation
@@ -601,7 +601,7 @@ _is_signed_number(value v, type t)
  *	PORTRAY2	a portray/2 predicate exists
  *	PORTRAY1	a portray/1 predicate exists
  *	VARTERM		print variables as '_'(...)
- * flags: further context information for writeq
+ * context: further context information for writeq
  *	ARGOP		immediate argument of any operator
  *	ARGYF		immediate argument of YF or YFX operator
  *	ARGLAST		last term, i.e. a delimiter follows
@@ -616,10 +616,10 @@ _is_signed_number(value v, type t)
  */
 
 #define UnsignedNumberNeedsBrackets \
-    (flags & FOLLOWSIGN && sd->options & ISO_RESTRICTIONS)
+    (context & FOLLOWSIGN && sd->options & ISO_RESTRICTIONS)
 
 static int
-_pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng)
+_pwrite1(int wr_opts, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng)
 {
     pword	*arg;
     int	status, arity;
@@ -628,55 +628,55 @@ _pwrite1(int idwrite, stream_id out, value val, type tag, int maxprec, int depth
     int			res;
 
 _pwrite_:
-    if (UseDepth(idwrite) && depth <= 0) {
+    if (UseDepth(wr_opts) && depth <= 0) {
 	Space_If_Needed(0, '.')
 	return (ec_outf(out, "...", 3));
     }
 
     if (IsRef(tag))
-	if ((idwrite & (PORTRAY2|PORTRAY1))
-		&& (idwrite & PORTRAY_VAR || IsMeta(tag))
-		&& _portray_term(idwrite, out, val, tag, module, mod_tag, ec_eng))
+	if ((wr_opts & (PORTRAY2|PORTRAY1))
+		&& (wr_opts & PORTRAY_VAR || IsMeta(tag))
+		&& _portray_term(wr_opts, out, val, tag, module, mod_tag, ec_eng))
 	    return PSUCCEED;
 	else
 	{
-	    return _print_var(idwrite, val.ptr->val, val.ptr->tag, out, depth,
+	    return _print_var(wr_opts, val.ptr->val, val.ptr->tag, out, depth,
 					module, mod_tag, sd, ec_eng);
 	}
-    else if ((idwrite & (PORTRAY2|PORTRAY1))
-    		&& _portray_term(idwrite, out, val, tag, module, mod_tag, ec_eng))
+    else if ((wr_opts & (PORTRAY2|PORTRAY1))
+    		&& _portray_term(wr_opts, out, val, tag, module, mod_tag, ec_eng))
 	return PSUCCEED;
 
     switch (TagType(tag))
     {
     case TDICT:
 	Handle_Type_Macro(TDICT)
-	if (MacrosAllowed(idwrite) && DidMacro(val.did))
+	if (MacrosAllowed(wr_opts) && DidMacro(val.did))
 	{
 	    pword *narg;
-	    if ((narg = _write_trafo(val.did, GoalMacro(idwrite),
-				&idwrite, val, tag, module, mod_tag, ec_eng)))
+	    if ((narg = _write_trafo(val.did, GoalMacro(wr_opts),
+				&wr_opts, val, tag, module, mod_tag, ec_eng)))
 	    {
 		val.all = narg->val.all;
 		tag.all = narg->tag.all;
-		idwrite &= ~(WRITE_GOAL|WRITE_CLAUSE);
+		wr_opts &= ~(WRITE_GOAL|WRITE_CLAUSE);
 		goto _pwrite_;		/* print the transformed term */
 	    }
 	}
-	return _write_atom(idwrite,out,val.did,ATOM,flags,module,mod_tag, sd, depth);
+	return _write_atom(wr_opts,out,val.did,ATOM,context,module,mod_tag, sd, depth);
 
     case TINT:
 	Handle_Type_Macro(TINT)
 	if (UnsignedNumberNeedsBrackets && val.nint >= 0)
 	    return p_fprintf(out, " (%" W_MOD "d)", val.nint);
-	Space_If_Needed(flags, val.nint < 0 ? '-' : '0')
+	Space_If_Needed(context, val.nint < 0 ? '-' : '0')
 	return (p_fprintf(out, "%" W_MOD "d", val.nint));
 
     case TDBL:
 	Handle_Type_Macro(TDBL)
 	{
 	    char fbuf[32];
-	    int size = _float_to_string_opt(val, tag, fbuf, idwrite & QUOTED, sd->options);
+	    int size = _float_to_string_opt(val, tag, fbuf, wr_opts & QUOTED, sd->options);
 	    if (UnsignedNumberNeedsBrackets && fbuf[0] != '-')
 	    {
 		if ((status = ec_outfc(out, ' ')) < 0 ||
@@ -687,22 +687,22 @@ _pwrite_:
 		return status;
 	    }
 	    else {
-		Space_If_Needed(flags, fbuf[0])
+		Space_If_Needed(context, fbuf[0])
 		return ec_outf(out, fbuf, size);
 	    }
 	}
 
     case TSTRG:
 	Handle_Type_Macro(TSTRG)
-	return  (idwrite & QUOTED)  ?
-		_write_quoted(idwrite, out, StringStart(val), StringLength(val),
+	return  (wr_opts & QUOTED)  ?
+		_write_quoted(wr_opts, out, StringStart(val), StringLength(val),
 					(char) sd->current_sq_char, sd, depth) :
-		_write_string(idwrite, out, StringStart(val),
+		_write_string(wr_opts, out, StringStart(val),
 				StringLength(val), sd, depth);
 
     case TNIL:
 	Handle_Type_Macro(TDICT)
-	Space_If_Needed(flags, '[')
+	Space_If_Needed(context, '[')
 	return (ec_outf(out, "[]", 2));
 
     case TEXTERN:	/* shouldn't occur */
@@ -713,7 +713,7 @@ _pwrite_:
 
     case TSUSP:
 	Handle_Type_Macro(TSUSP)
-	Space_If_Needed(flags, '\'')
+	Space_If_Needed(context, '\'')
 	if (!val.ptr)
 	    return p_fprintf(out, "'SUSP-0-dead'");
 	res = SuspDebugInvoc(val.ptr);
@@ -723,7 +723,7 @@ _pwrite_:
 	if (status < 0)
 	    return status;
 #if 0
-	if (SuspDead(val.ptr) || !(idwrite & QUOTED))
+	if (SuspDead(val.ptr) || !(wr_opts & QUOTED))
 	    return PSUCCEED;
 	arg = &val.ptr[SUSP_GOAL];	/* print: (Goal,Module) */
 	arity = 2;
@@ -736,23 +736,23 @@ _pwrite_:
 	Handle_Type_Macro(THANDLE)
 	if (ExternalClass(val.ptr)->to_string && ExternalData(val.ptr))
 	{
-	    int bufsize = 1 + (ExternalClass(val.ptr)->string_size)(ExternalData(val.ptr), idwrite&QUOTED?1:0);
+	    int bufsize = 1 + (ExternalClass(val.ptr)->string_size)(ExternalData(val.ptr), wr_opts&QUOTED?1:0);
 	    New_Array(char, buf, bufsize);
-	    int len = (ExternalClass(val.ptr)->to_string)(ExternalData(val.ptr), buf, idwrite&QUOTED?1:0);
-	    Space_If_Needed(flags, buf[0])
+	    int len = (ExternalClass(val.ptr)->to_string)(ExternalData(val.ptr), buf, wr_opts&QUOTED?1:0);
+	    Space_If_Needed(context, buf[0])
 	    status = ec_outf(out, buf, len);
 	    Delete_Array(char, buf, bufsize);
 	    return status;
 	}
 	else
 	{
-	    Space_If_Needed(flags, '\'')
+	    Space_If_Needed(context, '\'')
 	    return p_fprintf(out, "'HANDLE'(16'%08x)", ExternalData(val.ptr));
 	}
 
     case TPROC:		/* an atom goal in the compiler */
-	return _write_atom(idwrite, out, PriDid((pri *) (val.ptr)),
-		ATOM,flags,module,mod_tag, sd, depth);
+	return _write_atom(wr_opts, out, PriDid((pri *) (val.ptr)),
+		ATOM,context,module,mod_tag, sd, depth);
 
     case TCOMP:
     case TGRS:		/* a ground structure in the compiler */
@@ -770,33 +770,40 @@ _pwrite_:
 	arg = (val.ptr) + 1;
 _write_structure_:			/* (d, arg) */
 	arity = DidArity(d);
-	if (d == d_dollar_var && (idwrite & OUT_DOLLAR_VAR)) /* '$VAR'/1 */
+	if (d == d_dollar_var && (wr_opts & OUT_DOLLAR_VAR)) /* '$VAR'/1 */
 	{
 	    pword *narg = arg;
 	    Dereference_(narg);
 	    if (IsInteger(narg->tag) && narg->val.nint >= 0) {
-		Space_If_Needed(flags, 'A')
+		Space_If_Needed(context, 'A')
 		if ((status = ec_outfc(out, 'A' + (char)(narg->val.nint % 26))) < 0)
 		    return (status);
 		if (narg->val.nint / 26)
 		    return p_fprintf(out, "%" W_MOD "d", narg->val.nint / 26);
 		return PSUCCEED;
+
 	    } else if (!(sd->options & ISO_RESTRICTIONS)) {
-		Space_If_Needed(flags, 'A')
+		char *s;
+		word l;
 		switch (TagType(narg->tag)) {
 		case TSTRG:
-		    return ec_outf(out, StringStart(narg->val),
-					(int) StringLength(narg->val));
+		    s = StringStart(narg->val);
+		    l = StringLength(narg->val);
+		    goto _write_varname_;
 		case TDICT:
-		    return ec_outf(out, DidName(narg->val.did),
-					(int) DidLength(narg->val.did));
-		case TNIL:
-		    return ec_outf(out, "[]", 2);
+		    s = DidName(narg->val.did);
+		    l = DidLength(narg->val.did);
+_write_varname_:
+		    if (ec_is_varname((unsigned char*)s, l, sd)) {
+			Space_If_Needed(context, s[0])
+			return ec_outf(out, s, (int)l);
+		    }
+		    break;
 		}
 	    }
 	    /* else print the structure normally */
 	}
-	if (!(idwrite & CANONICAL))
+	if (!(wr_opts & CANONICAL))
 	{
 	    dident hd = d;
 	    if (d == d_.rulech2) {
@@ -807,30 +814,30 @@ _write_structure_:			/* (d, arg) */
 		else if (IsStructure(p->tag))
 		    hd = p->val.ptr->val.did;
 	    }
-	    if (MacrosAllowed(idwrite) && DidMacro(hd))	/* output macros */
+	    if (MacrosAllowed(wr_opts) && DidMacro(hd))	/* output macros */
 	    {
 		pword *narg;
-		if ((narg = _write_trafo(hd, GoalMacro(idwrite),
-				    &idwrite, val, tag, module, mod_tag, ec_eng)))
+		if ((narg = _write_trafo(hd, GoalMacro(wr_opts),
+				    &wr_opts, val, tag, module, mod_tag, ec_eng)))
 		{
 		    val.all = narg->val.all;
 		    tag.all = narg->tag.all;
-		    idwrite &= ~(WRITE_GOAL|WRITE_CLAUSE);
+		    wr_opts &= ~(WRITE_GOAL|WRITE_CLAUSE);
 		    goto _pwrite_;	/* print the transformed term */
 		}
 	    }
-	    idwrite &= ~(WRITE_GOAL|WRITE_CLAUSE);
+	    wr_opts &= ~(WRITE_GOAL|WRITE_CLAUSE);
 
 	    /*
 	     * Check for all the functors that can have special syntax
 	     */
 	    if (d == d_.nilcurbr1)	/* special case {}/1 */
 	    {
-		Space_If_Needed(flags, '{')
+		Space_If_Needed(context, '{')
 		if ((status = ec_outfc(out, '{')) < 0)
 		    return (status);
 		Dereference_(arg);
-		status = _pwrite1(idwrite, out, arg->val, arg->tag, MAXPREC, 
+		status = _pwrite1(wr_opts, out, arg->val, arg->tag, MAXPREC, 
 				 depth-1, module, mod_tag, sd, ARGLAST, ec_eng);
 		if (status < 0 || (status = ec_outfc(out, '}')) < 0)
 		    return (status);
@@ -846,10 +853,10 @@ _write_structure_:			/* (d, arg) */
  		    IsRef(arg1->tag) && !IsMeta(arg1->tag) ||
  		    IsAtom(arg1->tag) && (sd->options & ATOM_SUBSCRIPTS)))
  		{
- 		    Pwrite(idwrite|CANONICAL, out, arg1->val, arg1->tag, MAXPREC,
- 			     depth, module, mod_tag, sd, flags);
- 		    Pwrite(idwrite, out, arg2->val, arg2->tag, MAXPREC,
- 			     depth, module, mod_tag, sd, flags);
+ 		    Pwrite(wr_opts|CANONICAL, out, arg1->val, arg1->tag, MAXPREC,
+ 			     depth, module, mod_tag, sd, context);
+ 		    Pwrite(wr_opts, out, arg2->val, arg2->tag, MAXPREC,
+ 			     depth, module, mod_tag, sd, context);
  		    return (PSUCCEED);
  		}
  	    }
@@ -861,10 +868,10 @@ _write_structure_:			/* (d, arg) */
  		Dereference_(arg2);
 		if ((IsRef(arg1->tag) && !IsMeta(arg1->tag)) && _is_proper_list(arg2))
 		{
-		    Pwrite(idwrite, out, arg1->val, arg1->tag, MAXPREC, 
+		    Pwrite(wr_opts, out, arg1->val, arg1->tag, MAXPREC, 
 			     depth, module, mod_tag, sd, ARGTERM | ARGLAST);
 		    Write_Char(out, '{');
-		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags, ec_eng);
+		    status = _write_args_from_list(wr_opts, out, arg2, depth, module, mod_tag, sd, context, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, '}');
 		    return (PSUCCEED);
@@ -878,10 +885,10 @@ _write_structure_:			/* (d, arg) */
  		Dereference_(arg2);
 		if ((IsRef(arg1->tag) && !IsMeta(arg1->tag)) && _is_proper_list(arg2))
 		{
-		    Pwrite(idwrite, out, arg1->val, arg1->tag, MAXPREC, 
+		    Pwrite(wr_opts, out, arg1->val, arg1->tag, MAXPREC, 
 			     depth, module, mod_tag, sd, ARGTERM | ARGLAST);
 		    Write_Char(out, '(');
-		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags, ec_eng);
+		    status = _write_args_from_list(wr_opts, out, arg2, depth, module, mod_tag, sd, context, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, ')');
 		    return (PSUCCEED);
@@ -895,9 +902,9 @@ _write_structure_:			/* (d, arg) */
  		Dereference_(arg2);
 		if (IsAtom(arg1->tag) && (IsNil(arg2->tag) || _is_proper_list(arg2)))
 		{
-		    Write_Atom(idwrite, out, arg1->val.did, FUNCTOR, flags & ARGLIST, module, mod_tag, sd);
+		    Write_Atom(wr_opts, out, arg1->val.did, FUNCTOR, context & ARGLIST, module, mod_tag, sd);
 		    Write_Char(out, '{');
-		    status = _write_args_from_list(idwrite, out, arg2, depth, module, mod_tag, sd, flags, ec_eng);
+		    status = _write_args_from_list(wr_opts, out, arg2, depth, module, mod_tag, sd, context, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, '}');
 		    return (PSUCCEED);
@@ -927,16 +934,16 @@ _write_structure_:			/* (d, arg) */
 		    Set_Opi_Invalid(post_infix);
 		}
 		if (  prec > maxprec 
-		    || d == d_.comma && (flags & ARGTERM)
-		    || d == d_.bar && (flags & ARGLIST)
-		    || flags & ARGYF && prec == maxprec &&
+		    || d == d_.comma && (context & ARGTERM)
+		    || d == d_.bar && (context & ARGLIST)
+		    || context & ARGYF && prec == maxprec &&
 			(assoc == FY || assoc == XFY || assoc == FXY)
-		    || OpiPreced(post_infix) && !(flags & ARGLAST)
-		    || flags & FOLLOWSIGN && IsInfixOrPostfix(assoc) && sd->options & ISO_RESTRICTIONS	/* ISO */
+		    || OpiPreced(post_infix) && !(context & ARGLAST)
+		    || context & FOLLOWSIGN && IsInfixOrPostfix(assoc) && sd->options & ISO_RESTRICTIONS	/* ISO */
 		   )
 		{
-		    Space_If_Needed(flags, '(')
-		    flags = flags  & ~CONTEXTMASK | ARGLAST;
+		    Space_If_Needed(context, '(')
+		    context = context  & ~CONTEXTMASK | ARGLAST;
 		    openpar = 1;
 		    Write_Char(out, '(');
 		}
@@ -948,11 +955,11 @@ _write_structure_:			/* (d, arg) */
 		    case FX:
 			prec -= 1;
 		    case FY:
-			Write_Prefix(idwrite, out, d, flags & ARGLIST,
+			Write_Prefix(wr_opts, out, d, context & ARGLIST,
 				     module, mod_tag, sd);
-			Pwrite(idwrite, out, arg->val, arg->tag,
+			Pwrite(wr_opts, out, arg->val, arg->tag,
 				prec, depth - 1, module, mod_tag,
-				sd, flags & (ARGTERM | ARGLIST | ARGLAST)
+				sd, context & (ARGTERM | ARGLIST | ARGLAST)
 				| ARGOP | FOLLOWOP | FOLLOWPRE |
 				( ( d == d_.minus1 ||
 				    d == d_.plus1 && !(sd->options & PLUS_IS_NO_SIGN))
@@ -960,20 +967,20 @@ _write_structure_:			/* (d, arg) */
 			break;
 
 		    case YF:
-			Pwrite(idwrite, out, arg->val, arg->tag,
+			Pwrite(wr_opts, out, arg->val, arg->tag,
 				prec, depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
+				context & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
 				| ARGYF | ARGOP);
-			Write_Postfix(idwrite, out, d, flags & ARGLIST,
+			Write_Postfix(wr_opts, out, d, context & ARGLIST,
 				      module, mod_tag, sd);
 			break;
 
 		    case XF:
-			Pwrite(idwrite, out, arg->val, arg->tag,
+			Pwrite(wr_opts, out, arg->val, arg->tag,
 				prec - 1, depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
+				context & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
 				| ARGOP);
- 			Write_Postfix(idwrite, out, d, flags & ARGLIST,
+ 			Write_Postfix(wr_opts, out, d, context & ARGLIST,
 				      module, mod_tag, sd);
 			break;
  		    }
@@ -986,17 +993,17 @@ _write_structure_:			/* (d, arg) */
 		    case XFX:
 		    case XFY:
 		    case YFX:
-			Pwrite(idwrite, out, arg->val, arg->tag,
+			Pwrite(wr_opts, out, arg->val, arg->tag,
 				assoc == YFX ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
+				context & ~ARGLAST & (ARGTERM|ARGLIST|FOLLOWOP|FOLLOWPRE|FOLLOWSIGN)
 				| ARGOP | (assoc==YFX?ARGYF:0));
-			Write_Infix(idwrite, out, d, flags & ARGLIST,
+			Write_Infix(wr_opts, out, d, context & ARGLIST,
 				    module, mod_tag, sd, arg, narg);
-			Pwrite(idwrite, out, narg->val, narg->tag,
+			Pwrite(wr_opts, out, narg->val, narg->tag,
 				assoc == XFY ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
-				flags & ~(FOLLOWOP|FOLLOWPRE|FOLLOWSIGN) & (ARGTERM | ARGLIST | ARGLAST)
+				context & ~(FOLLOWOP|FOLLOWPRE|FOLLOWSIGN) & (ARGTERM | ARGLIST | ARGLAST)
 				| ARGOP);
 			break;
 
@@ -1004,11 +1011,11 @@ _write_structure_:			/* (d, arg) */
 		    case FXY:
 		    {
 			int openpar2 = 0;
-			Write_Prefix(idwrite, out, d, flags & ARGLIST,
+			Write_Prefix(wr_opts, out, d, context & ARGLIST,
 				     module, mod_tag, sd);
-			Pwrite(idwrite, out, arg->val, arg->tag,
+			Pwrite(wr_opts, out, arg->val, arg->tag,
 				prec - 1, depth - 1, module, mod_tag, sd,
-				flags & ~ARGLAST & (ARGTERM | ARGLIST)
+				context & ~ARGLAST & (ARGTERM | ARGLIST)
 				| ARGOP | FOLLOWOP | FOLLOWPRE |
 				    ( sd->options & BLANK_AFTER_SIGN && (
 					d == d_.minus ||
@@ -1017,16 +1024,16 @@ _write_structure_:			/* (d, arg) */
 			/* Prevent accidental string concatenation (conservative,
 			 * as we don't know whether narg will start with a string!)
 			 */
-			openpar2 = idwrite & QUOTED && StreamLastCharClass(out) == SQ;
+			openpar2 = wr_opts & QUOTED && StreamLastCharClass(out) == SQ;
 			Write_Char(out, ' ');
 			if (openpar2) {
 			    Write_Char(out, '(');
-			    flags = flags  & ~CONTEXTMASK | ARGLAST;
+			    context = context  & ~CONTEXTMASK | ARGLAST;
 			}
-			Pwrite(idwrite, out, narg->val, narg->tag,
+			Pwrite(wr_opts, out, narg->val, narg->tag,
 				assoc == FXY ? prec : prec - 1,
 				depth - 1, module, mod_tag, sd,
-				flags & ~(FOLLOWOP|FOLLOWPRE|FOLLOWSIGN) & (ARGTERM | ARGLIST | ARGLAST)
+				context & ~(FOLLOWOP|FOLLOWPRE|FOLLOWSIGN) & (ARGTERM | ARGLIST | ARGLAST)
 				| ARGOP);
 			if (openpar2) { Write_Char(out, ')'); }
 			break;
@@ -1044,11 +1051,11 @@ _write_structure_:			/* (d, arg) */
 
 	/* normal functor or we ignore operators */
 
-	Write_Atom(idwrite, out, d, FUNCTOR, flags & ARGLIST, module, mod_tag, sd);
+	Write_Atom(wr_opts, out, d, FUNCTOR, context & ARGLIST, module, mod_tag, sd);
 
 _write_args_:				/* (arg,arity) */
 	Write_Char(out, '(');
-	if (UseDepth(idwrite) && depth <= 1)
+	if (UseDepth(wr_opts) && depth <= 1)
 	{
 	    /* abbreviate even more: only one ... for all arguments */
 	    if ((status = ec_outf(out, "...", 3)) < 0)
@@ -1060,7 +1067,7 @@ _write_args_:				/* (arg,arity) */
 	    {
 		pword *narg = arg + 1;
 		Dereference_(arg);
-		Pwrite(idwrite, out, arg->val, arg->tag, MAXPREC, 
+		Pwrite(wr_opts, out, arg->val, arg->tag, MAXPREC, 
 				 depth-1, module, mod_tag, sd, ARGTERM | ARGLAST);
 		if (--arity == 0)
 		    break;
@@ -1074,7 +1081,7 @@ _write_args_:				/* (arg,arity) */
     case TLIST:
     case TGRL:		/* a ground list in the compiler */
 	Handle_Type_Macro(TCOMP)
-	if (idwrite & DOTLIST)
+	if (wr_opts & DOTLIST)
 	{
 	    d = d_.list;		/* write list in ./2 notation */
 	    arg = val.ptr;
@@ -1083,30 +1090,30 @@ _write_args_:				/* (arg,arity) */
 	else				/* write list in [ ] notation */
 	{
 	    pword *tail;
-	    if (MacrosAllowed(idwrite) && DidMacro(d_.list))	/* output macros */
+	    if (MacrosAllowed(wr_opts) && DidMacro(d_.list))	/* output macros */
 	    {
 		pword *narg;
-		if ((narg = _write_trafo(d_.list, GoalMacro(idwrite),
-				    &idwrite, val, tag, module, mod_tag, ec_eng)))
+		if ((narg = _write_trafo(d_.list, GoalMacro(wr_opts),
+				    &wr_opts, val, tag, module, mod_tag, ec_eng)))
 		{
 		    val.all = narg->val.all;
 		    tag.all = narg->tag.all;
-		    idwrite &= ~(WRITE_GOAL|WRITE_CLAUSE);
+		    wr_opts &= ~(WRITE_GOAL|WRITE_CLAUSE);
 		    goto _pwrite_;	/* print the transformed term */
 		}
 	    }
-	    idwrite &= ~(WRITE_GOAL|WRITE_CLAUSE);
+	    wr_opts &= ~(WRITE_GOAL|WRITE_CLAUSE);
 
-	    Space_If_Needed(flags, '[')
+	    Space_If_Needed(context, '[')
 	    Write_Char(out, '[')
 	    arg = val.ptr;
 	    tail = arg + 1;
 	    Dereference_(arg)
-	    status = _pwrite1(idwrite, out, arg->val, arg->tag, MAXPREC, 
+	    status = _pwrite1(wr_opts, out, arg->val, arg->tag, MAXPREC, 
 		     --depth, module, mod_tag, sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
 	    if (status < 0)
 		return (status);
-	    while (!(UseDepth(idwrite) && depth <= 0))
+	    while (!(UseDepth(wr_opts) && depth <= 0))
 	    {
 		Dereference_(tail);
 		switch (TagType(tail->tag))
@@ -1118,7 +1125,7 @@ _write_args_:				/* (arg,arity) */
 		    tail = tail->val.ptr;
 		    arg = tail++;
 		    Dereference_(arg);
-		    status = _pwrite1(idwrite, out, arg->val, arg->tag, MAXPREC, 
+		    status = _pwrite1(wr_opts, out, arg->val, arg->tag, MAXPREC, 
 				    --depth, module, mod_tag, sd,
 				    ARGTERM | ARGLIST | ARGLAST, ec_eng);
 		    if (status < 0)
@@ -1126,7 +1133,7 @@ _write_args_:				/* (arg,arity) */
 		    continue;
 		default:
 		    Write_Char(out, '|')
-		    status = _pwrite1(idwrite, out, tail->val, tail->tag, 
+		    status = _pwrite1(wr_opts, out, tail->val, tail->tag, 
 				    MAXPREC, --depth, module, mod_tag,
 				    sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
 		    if (status < 0)
@@ -1152,15 +1159,15 @@ _write_args_:				/* (arg,arity) */
 		{
 		    if ((status = ec_outfc(out, ' ')) < 0 ||
 			(status = ec_outfc(out, '(')) < 0 ||
-			(status = tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag)) < 0 ||
+			(status = tag_desc[TagType(tag)].write(wr_opts & QUOTED, out, val, tag)) < 0 ||
 			(status = ec_outfc(out, ')')) < 0)
 			    return status;
 		    return status;
 		}
-		Space_If_Needed(flags, _is_signed_number(val, tag) ? '-' : '0')
-		return tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag);
+		Space_If_Needed(context, _is_signed_number(val, tag) ? '-' : '0')
+		return tag_desc[TagType(tag)].write(wr_opts & QUOTED, out, val, tag);
 	    }
-	    return tag_desc[TagType(tag)].write(idwrite & QUOTED, out, val, tag);
+	    return tag_desc[TagType(tag)].write(wr_opts & QUOTED, out, val, tag);
 	}
 	else
 	    p_fprintf(out, "BAD_TERM_0x%" W_MOD "x_0x%" W_MOD "x", val.all, tag.all);
@@ -1188,13 +1195,13 @@ _is_proper_list(pword *list)
 
 /* CAUTION: this function assumes that list is a proper list! */
 static int
-_write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int flags, ec_eng_t *ec_eng)
+_write_args_from_list(int wr_opts, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng)
 {
     pword *arg;
     int status;
     if (IsNil(list->tag))
 	return PSUCCEED;
-    if (UseDepth(idwrite) && depth <= 1)
+    if (UseDepth(wr_opts) && depth <= 1)
     {
 	/* abbreviate even more: only one ... for all arguments */
 	Write_Str(out, "...", 3);
@@ -1204,7 +1211,7 @@ _write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident
 	list = list->val.ptr;
 	arg = list++;
 	Dereference_(arg);
-	Pwrite(idwrite, out, arg->val, arg->tag, MAXPREC, 
+	Pwrite(wr_opts, out, arg->val, arg->tag, MAXPREC, 
 		 depth-1, module, mod_tag, sd, ARGTERM | ARGLAST);
 	Dereference_(list);
 	if (IsList(list->tag))
@@ -1218,7 +1225,7 @@ _write_args_from_list(int idwrite, stream_id out, pword *list, int depth, dident
 
 
 static pword *
-_write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng)
+_write_trafo(dident d, int tr_flags, int *wr_opts, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng)
 {
     int macroflags;
     pword *result, *tr_goal;
@@ -1238,7 +1245,7 @@ _write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident modu
 	macroflags = 0;
 	result = pw + 2;
     } else {
-	tr_goal = trafo_term(ec_eng, d, TR_WRITE|TR_TOP|flags, module, mod_tag, &macroflags);
+	tr_goal = trafo_term(ec_eng, d, TR_WRITE|TR_TOP|tr_flags, module, mod_tag, &macroflags);
 	if (tr_goal)
 	{
 	    TransfTermIn(tr_goal)->val.all = val.all;
@@ -1254,7 +1261,7 @@ _write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident modu
 	/* to avoid looping, check if something was actually transformed */
 	if (result->val.all != val.all || result->tag.all != tag.all) {
 	    if (macroflags & TR_PROTECT)
-		*idwrite |= NO_MACROS;
+		*wr_opts |= NO_MACROS;
 	    return result;
 	}
     }
@@ -1266,7 +1273,7 @@ _write_trafo(dident d, int flags, int *idwrite, value val, type tag, dident modu
  * Call portray/1,2 on a specified term. Returns 1 iff the call succeeded.
  */
 static int
-_portray_term(int idwrite, stream_id out, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng)
+_portray_term(int wr_opts, stream_id out, value val, type tag, dident module, type mod_tag, ec_eng_t *ec_eng)
 {
     value		v1, v2;
     int			status = PFAIL;
@@ -1274,7 +1281,7 @@ _portray_term(int idwrite, stream_id out, value val, type tag, dident module, ty
 
     v1.ptr = goal;
     v2.did = module;
-    if (idwrite & PORTRAY2)
+    if (wr_opts & PORTRAY2)
     {
 	Make_Atom(&goal[0], d_portray2);
 	goal[1] = StreamHandle(out);
@@ -1284,7 +1291,7 @@ _portray_term(int idwrite, stream_id out, value val, type tag, dident module, ty
 	if (status == PSUCCEED) return 1;
 	/* else try portray/1 */
     }
-    if (idwrite & PORTRAY1)
+    if (wr_opts & PORTRAY1)
     {
 	/* compatibility hack for portray/1: temporarily redirect output */
 	stream_id saved_output = stream_tid.copy(current_output_);
@@ -1316,7 +1323,7 @@ _portray_term(int idwrite, stream_id out, value val, type tag, dident module, ty
  *	- preventing ATOM-{...} to be read as structure notation
  */
 int
-_need_space(stream_id out, int flags, syntax_desc *sd, int next_char)
+_need_space(stream_id out, int context, syntax_desc *sd, int next_char)
 {
     int last_char_class, next_char_class;
 
@@ -1328,7 +1335,7 @@ _need_space(stream_id out, int flags, syntax_desc *sd, int next_char)
     switch(next_char_class)
     {
 	case N:
-	    if (flags & FOLLOWSIGN)
+	    if (context & FOLLOWSIGN)
 		return 1;
 	    /*fall through*/
 	case UL:
@@ -1349,7 +1356,7 @@ _need_space(stream_id out, int flags, syntax_desc *sd, int next_char)
 	    if (last_char_class == AQ && sd->options & DOUBLED_QUOTE_IS_QUOTE)
 		return 1;
 	    /* need space if integer preceeded, e.g. 16 '1 2'
-	    if (flags & FOLLOWS_RADIX)
+	    if (context & FOLLOWS_RADIX)
 	    */
 	    if (last_char_class == N)	/* conservative */
 		return 1;
@@ -1379,17 +1386,17 @@ _need_space(stream_id out, int flags, syntax_desc *sd, int next_char)
 	    switch(next_char)
 	    {
 		case '(':	/* functor-syntax */
-		    if (flags & FOLLOWPRE)
+		    if (context & FOLLOWPRE)
 			return 1;
 		    break;
 
 		case '{':	/* curly-args */
-		    if (flags & FOLLOWOP && !(sd->options & NO_CURLY_ARGUMENTS))
+		    if (context & FOLLOWOP && !(sd->options & NO_CURLY_ARGUMENTS))
 			return 1;
 		    break;
 
 		case '[':	/* array syntax */
-		    if (flags & FOLLOWOP && sd->options & ATOM_SUBSCRIPTS)
+		    if (context & FOLLOWOP && sd->options & ATOM_SUBSCRIPTS)
 			return 1;
 		    break;
 	    }
@@ -1412,12 +1419,12 @@ _need_space(stream_id out, int flags, syntax_desc *sd, int next_char)
 #define STRING_PLUS	10
 /*ARGSUSED*/
 static int
-_write_string(int idwrite, stream_id out, char *start, word length, syntax_desc *sd, int depth)
+_write_string(int wr_opts, stream_id out, char *start, word length, syntax_desc *sd, int depth)
 {
     int status;
     Space_If_Needed(0, start[0])
 /* It is not obvious what is the best way to avoid long strings
-    if (UseDepth(idwrite) && depth > 0 &&
+    if (UseDepth(wr_opts) && depth > 0 &&
 	    length > PrintDepth - depth + STRING_PLUS) {
 	length = PrintDepth - depth + STRING_PLUS;
 	Write_Str(out, start, (int) length);
@@ -1429,9 +1436,9 @@ _write_string(int idwrite, stream_id out, char *start, word length, syntax_desc 
 
 
 /* module argument is meaningful only when ARGOP is set in flag &&
-   QUOTED is set in idwrite						*/
+   QUOTED is set in wr_opts						*/
 static int
-_write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth)
+_write_atom(int wr_opts, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth)
 {
     int	    status, nq, need_par;
     word    length = DidLength(d);
@@ -1447,7 +1454,7 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
      * (always for ISO, otherwise only when quoting)
      */
     need_par = flag & ARGOP
-	    && (idwrite & QUOTED || sd->options & ISO_RESTRICTIONS)
+	    && (wr_opts & QUOTED || sd->options & ISO_RESTRICTIONS)
 	    && (d0 = check_did(d, 0)) && is_visible_op(d0, module, mod_tag);
 
     if (need_par) {
@@ -1455,7 +1462,7 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
 	Write_Char(out, '(')
     }
 
-    if (idwrite & QUOTED && (
+    if (wr_opts & QUOTED && (
 	    (nq = ec_need_quotes(d, sd)) == QIDENTIFIER ||
 	    nq == COMMA && (what != OPERATOR) ||
 	    nq == BAR && (flag & ARGLIST
@@ -1466,9 +1473,9 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
 	    	|| (what == ATOM  &&  !(flag & (ARGTERM|ARGLIST)))
 		|| sd->options & ISO_RESTRICTIONS)
     )) {
-	status = _write_quoted(idwrite, out, name, length, (char) sd->current_aq_char, sd, depth);
+	status = _write_quoted(wr_opts, out, name, length, (char) sd->current_aq_char, sd, depth);
     } else {
-	status = _write_string(idwrite, out, name, length, sd, depth);
+	status = _write_string(wr_opts, out, name, length, sd, depth);
     }
     if (status < 0)
 	return status;
@@ -1492,14 +1499,14 @@ _write_atom(int idwrite, stream_id out, dident d, int what, int flag, dident mod
  */
 /*ARGSUSED*/
 static int
-_write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth)
+_write_quoted(int wr_opts, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth)
 {
     int			status;
     int			cut = 0;
     char		c;
 
 /* It is not obvious what is the best way to avoid long strings
-    if (UseDepth(idwrite) && depth > 0 && len > PrintDepth - depth + STRING_PLUS) {
+    if (UseDepth(wr_opts) && depth > 0 && len > PrintDepth - depth + STRING_PLUS) {
 	len = PrintDepth - depth + STRING_PLUS;
 	cut = 1;
     }
@@ -1521,14 +1528,14 @@ _write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, 
 	    case '\b':
 		c = 'b'; break;
 	    case '\t':
-		if (idwrite & DONT_QUOTE_NL)
+		if (wr_opts & DONT_QUOTE_NL)
 		{
 		    Write_Char(out, c)
 		    continue;
 		}
 		c = 't'; break;
 	    case '\n':
-		if (idwrite & DONT_QUOTE_NL)
+		if (wr_opts & DONT_QUOTE_NL)
 		{
 		    Write_Char(out, c)
 		    continue;
@@ -1589,15 +1596,15 @@ _write_quoted(int idwrite, stream_id out, char *name, word len, char quotechar, 
  * The stack is pword-aligned.
  */
 static int
-_print_var(int idwrite, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *ec_eng)
+_print_var(int wr_opts, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *ec_eng)
 {
     int name_printed = 0;
     int slot;
 
-    if (idwrite & VARTERM)
+    if (wr_opts & VARTERM)
 	(void) ec_outf(str, "'_'(\"", 5);
 
-    if (idwrite & VAR_ANON)
+    if (wr_opts & VAR_ANON)
     {
 	(void) ec_outfc(str, (char) sd->current_ul_char);
     }
@@ -1612,7 +1619,7 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
     else
     {
 	/* ISO requires _xxx names */
-	if (!(idwrite & VAR_NUMBERS) && !(sd->options & ISO_RESTRICTIONS))
+	if (!(wr_opts & VAR_NUMBERS) && !(sd->options & ISO_RESTRICTIONS))
 	{
 	    switch (TagType(t))
 	    {
@@ -1650,7 +1657,7 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
 	    }
 	}
 
-	if ((idwrite & (VAR_NUMBERS|VAR_NAMENUM) && name_printed != 2)
+	if ((wr_opts & (VAR_NUMBERS|VAR_NAMENUM) && name_printed != 2)
 		|| !name_printed)
 	{
 	    (void) ec_outfc(str, (char) sd->current_ul_char);
@@ -1683,7 +1690,7 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
     }
 
     /* if it's a non marked metavariable write the metaterm */
-    if (IsMeta(t) && (idwrite & (STD_ATTR | ATTRIBUTE)) && !(t.kernel & HIDE_ATTR))
+    if (IsMeta(t) && (wr_opts & (STD_ATTR | ATTRIBUTE)) && !(t.kernel & HIDE_ATTR))
     {
 	/* important to mark before printing meta term or
 	 * could not write circular metaterms.
@@ -1692,7 +1699,7 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
 	 */
 	Trail_Tag(v.ptr);
 
-	if (idwrite & STD_ATTR) {
+	if (wr_opts & STD_ATTR) {
 	    pword *pw, *r;
 	    pword pw_out;
             (v.ptr)->tag.kernel  |= HIDE_ATTR;
@@ -1703,22 +1710,22 @@ _print_var(int idwrite, value v, type t, stream_id str, int depth, dident module
 	    TG += ATTR_IO_TERM_SIZE;
 	    Check_Gc;
 	    TG = transf_meta_out(ec_eng, pw->val, pw->tag, r,
-	    	(idwrite & CANONICAL ? D_UNKNOWN : module), &pw_out);
-	    (void) _pwrite1(idwrite, str, pw_out.val, pw_out.tag, 1200, depth,
+	    	(wr_opts & CANONICAL ? D_UNKNOWN : module), &pw_out);
+	    (void) _pwrite1(wr_opts, str, pw_out.val, pw_out.tag, 1200, depth,
 						module, mod_tag, sd, ARGLAST, ec_eng);
 	    (void) ec_outfc(str,'}');
 	} else {
 	    pword *r = _write_trafo(D_UNKNOWN /*META*/, 0,
-				&idwrite, v, t, module, mod_tag, ec_eng);
+				&wr_opts, v, t, module, mod_tag, ec_eng);
 	    (v.ptr)->tag.kernel  |= HIDE_ATTR;
 	    if (r) {
-		(void) _pwrite1(idwrite, str, r->val, r->tag, 1200, depth,
+		(void) _pwrite1(wr_opts, str, r->val, r->tag, 1200, depth,
 			    module, mod_tag, sd, ARGLAST, ec_eng);
 	    }
 	}
     }
 
-    if (idwrite & VARTERM)
+    if (wr_opts & VARTERM)
 	(void) ec_outf(str, "\")", 2);
 
     return PSUCCEED;
