@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.17 2016/12/13 16:31:53 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.18 2016/12/13 20:16:27 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -1442,9 +1442,17 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 		/* translate Term[Args] into subscript(Term, [Args]) */
 		pword *pw;
 		source_pos_t pos = pd->token.pos;
-		Build_Struct(&term, pw, d_.subscript, pd->token.pos);
-		Move_Pword(result, pw+1);
 		Next_Token(pd);
+		if (IsToken(pd, CLOSING_SOLO, ']'))
+		{
+		    /* it _might_ be a postfix [] */
+		    did0 = d_.nil;
+		    Merge_Source_Pos(pos, pd->token.pos, pd->token.pos);
+                    Make_Ident_Token(pd, "[]", 2);
+		    goto _treat_like_atom_;	/* (pd,did0) */
+		}
+		Build_Struct(&term, pw, d_.subscript, pos);
+		Move_Pword(result, pw+1);
 		status = _read_list(pd, &pw[2], &pos);
 		Return_If_Error(status);
 		context_flags &= ~(SUBSCRIPTABLE|FZINC_SUBSCRIPTABLE|OPCANTFOLLOW);
@@ -1457,9 +1465,18 @@ _treat_like_atom_:		/* (did0) - caution: may have wrong token in pd */
 	    {
 		/* Attribute follows */
 		pword *pw;
-		Build_Struct(&term, pw, d_.with_attributes2, pd->token.pos);
-		Move_Pword(result, pw+1);
+		source_pos_t pos = pd->token.pos;
 		Next_Token(pd);
+		if (IsToken(pd, CLOSING_SOLO, '}'))
+		{
+		    /* it _might_ be a postfix {} */
+		    did0 = d_.nilcurbr;
+		    Merge_Source_Pos(pos, pd->token.pos, pd->token.pos);
+                    Make_Ident_Token(pd, "{}", 2);
+		    goto _treat_like_atom_;	/* (pd,did0) */
+		}
+		Build_Struct(&term, pw, d_.with_attributes2, pos);
+		Move_Pword(result, pw+1);
 		status = _read_sequence_until(pd, &pw[2], '}');
 		Return_If_Error(status);
 		context_flags &= ~(OPCANTFOLLOW);
