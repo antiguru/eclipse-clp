@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.16 2016/11/14 15:09:58 jschimpf Exp $
+ * $Id: embed.h,v 1.17 2017/01/10 23:57:15 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -130,6 +130,7 @@ Extern DLLEXP int	Winapi	ecl_join_acquire(ec_eng_t*, int);
  */
 Extern DLLEXP int	Winapi	ecl_post_event(ec_eng_t*,pword);
 Extern DLLEXP int	Winapi	ecl_post_event_unique(ec_eng_t*,pword);
+Extern DLLEXP int	Winapi	ecl_post_throw(ec_eng_t *from_eng, ec_eng_t *ec_eng, pword ball);
 
 Extern DLLEXP int	Winapi	ecl_post_event_string(ec_eng_t*,const char *);
 
