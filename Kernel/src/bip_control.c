@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.9 2016/09/20 22:26:35 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.10 2017/01/10 00:00:54 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -204,6 +204,9 @@ p_vm_flags(value vc, type tc, value vs, type ts, value v, type t, ec_eng_t *ec_e
 static int
 p_sys_flags(value vf, type tf, value vval, type tval, ec_eng_t *ec_eng)
 {
+#undef Bip_Error
+#define Bip_Error(N) Bip_Error_Fail(N)
+
     Check_Integer(tf);
     switch (vf.nint)
     {
@@ -255,11 +258,47 @@ p_sys_flags(value vf, type tf, value vval, type tval, ec_eng_t *ec_eng)
 	    Succeed_;
 	}
 
+    	/* local/global size for creation of further engines
+	 * This setting is local to an engine and gets inherited
+	 */
+    case 5:				/* localsize (KB) */
+	if (IsRef(tval))
+	{
+	    Return_Unify_Integer(vval, tval, ec_eng->options.localsize/1024);
+	}
+	else
+	{
+	    Check_Integer(tval);
+	    if (vval.nint < ENG_MIN_LOCAL) {
+		Bip_Error(RANGE_ERROR)
+	    }
+	    ec_eng->options.localsize = ((uword)vval.nint)*1024;
+	    Succeed_;
+	}
+
+    case 6:				/* globalsize (KB) */
+	if (IsRef(tval))
+	{
+	    Return_Unify_Integer(vval, tval, ec_eng->options.globalsize/1024);
+	}
+	else
+	{
+	    Check_Integer(tval);
+	    if (vval.nint < ENG_MIN_GLOBAL) {
+		Bip_Error(RANGE_ERROR)
+	    }
+	    ec_eng->options.globalsize = ((uword)vval.nint)*1024;
+	    Succeed_;
+	}
 
     default:
 	Bip_Error(RANGE_ERROR)
     }
+
+#undef Bip_Error
+#define Bip_Error(err)	return(err);
 }
+
 
 
 /*

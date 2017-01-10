@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.20 2016/10/28 22:23:58 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.21 2017/01/10 00:02:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -93,6 +93,10 @@ do_get_flag(debug_compile,X, _) :-
 	(F /\ 16'00000080 =:= 0 -> X=off ; X=on).
 do_get_flag(default_language, Language, _) :-
 	getval(default_language, Language).
+do_get_flag(default_localsize, X, _) :-
+	sys_flags(5, KBytes), X=KBytes.
+do_get_flag(default_globalsize, X, _) :-
+	sys_flags(6, KBytes), X=KBytes.
 %do_get_flag(debugger_warnings,X, _) :-
 %	sys_flags(4, Y), (Y = 0 -> X = off; X = on).
 do_get_flag(dfid_compile,X, _) :-
@@ -279,11 +283,15 @@ do_set_flag(loaded_library,X, _) :- !,
 do_set_flag(parser_size,_, _) :- !.			% obsolete
 do_set_flag(max_vars_per_clause,_, _) :- !.		% obsolete
 do_set_flag(print_depth,X, _) :- !,
-	(integer(X) -> sys_flags(1, X) ; set_bip_error(5)).
+	sys_flags(1, X).	% may fail with bip_error
 do_set_flag(load_release_delay,X, _) :- !,
-	(integer(X) -> sys_flags(2, X) ; set_bip_error(5)).
+	sys_flags(2, X).	% may fail with bip_error
 do_set_flag(publishing_parameter,X, _) :- !,
-	(integer(X) -> sys_flags(3, X) ; set_bip_error(5)).
+	sys_flags(3, X).	% may fail with bip_error
+do_set_flag(default_localsize,X, _) :- !,
+	sys_flags(5, X).	% may fail with bip_error
+do_set_flag(default_globalsize,X, _) :- !,
+	sys_flags(6, X).	% may fail with bip_error
 do_set_flag(break_level, X, _) :- !,
 	(integer(X) -> setval(break_level, X) ; set_bip_error(5)).
 do_set_flag(all_dynamic, X, _) :- !,

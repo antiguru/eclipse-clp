@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: threads.ecl,v 1.2 2016/12/04 02:40:31 jschimpf Exp $
+% Version:	$Id: threads.ecl,v 1.3 2017/01/10 00:02:40 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 % Semantic differences
@@ -42,7 +42,7 @@
 :- comment(summary, "Prolog thread API (ISO/IEC Draft TR 13211-5:2007)").
 :- comment(author, "Joachim Schimpf").
 :- comment(copyright, "Coninfer Ltd").
-:- comment(date, '$Date: 2016/12/04 02:40:31 $').
+:- comment(date, '$Date: 2017/01/10 00:02:40 $').
 :- comment(desc, html("<P>
     This library implements most of the functionality described in
     the Draft Technical Recommendation ISO/IEC DTR 13211-5:2007
@@ -104,6 +104,52 @@ is_thread(Alias) :- atom(Alias), !,
 	is_handle(Handle, engine).
 is_thread(Handle) :-
 	is_handle(Handle, engine).
+
+
+:- comment(thread_default/1, [
+    amode:(thread_default(+) is det),
+    amode:(thread_default(-) is multi),
+    args:["Option":"A term with arity 1, or variable"],
+    summary:"Get default options for thread/engine creation",
+    desc:html("Accesses the default thread/engine creation options:
+    local(KBytes), global(KBytes) and detached(Bool).
+    "),
+    eg:"
+    % This predicate is defined as:
+    thread_default(local(KB))  :- get_flag(default_localsize,  KB).
+    thread_default(global(KB)) :- get_flag(default_globalsize, KB).
+    thread_default(detached(false)).
+    ",
+    see_also:[thread_create/2,thread_property/2,engine_create/2,get_flag/2]
+]).
+:- export thread_default/1.
+thread_default(local(X)) :- get_flag(default_localsize, X).
+thread_default(global(X)) :- get_flag(default_globalsize, X).
+thread_default(detached(false)).
+
+
+:- comment(thread_set_default/1, [
+    amode:(thread_set_default(++) is det),
+    args:["Option":"A thread-option term"],
+    summary:"Set default options for thread/engine creation",
+    desc:html("Sets default thread/engine creation options.
+    The supported options are:
+<DL>
+    <DT>local(KBytes)</DT>
+        <DD>Set size of local/control stack in kBytes.
+	Equivalent to set_flag(default_localsize, kBytes).</DD>
+    <DT>global(KBytes)</DT>
+        <DD>Set size of global/trail stack in kBytes.
+	Equivalent to set_flag(default_globalsize, kBytes).</DD>
+</DL>
+    "),
+    see_also:[thread_create/2,engine_create/2,set_flag/2]
+]).
+:- export thread_set_default/1.
+thread_set_default(local(X)) ?- !, set_flag(default_localsize, X).
+thread_set_default(global(X)) ?- !, set_flag(default_globalsize, X).
+thread_set_default(detached(X)) ?- !, throw(error(permission_error(modify,thread_option,X),_)).
+thread_set_default(Option) :- must_be(thread_option, Option).
 
 
 :- comment(thread_create/3, [

@@ -521,12 +521,14 @@ Yes (3.00s cpu)
     <DT><B>global(KiBytes)</B></DT><DD>
         size limit of the engine's global/trail stack in KiB.
         Corresponds to ECLiPSe's -g command line option. 
-        Defaults to the parent's engine's value (max_global_trail).
+        Defaults to the parent's engine's default_globalsize setting
+	(see set_flag/2).
         </DD>
     <DT><B>local(KiBytes)</B></DT><DD>
         size limit of the engine's local/control stack in KiB.
         Corresponds to ECLiPSe's -l command line option. 
-        Defaults to the parent's engine's value (max_local_control).
+        Defaults to the parent's engine's default_localsize setting
+	(see set_flag/2).
         </DD>
     <DT><B>verbose</DT></B><DD>
         Print messages on log_output when engine is created, shared
@@ -561,7 +563,7 @@ Yes (3.00s cpu)
     Yes (0.00s cpu)
 ",
     see_also:[engine_properties/2, engine_resume/3,engine_resume_thread/2,
-                engine_join/3,engine_status/2]]).
+                engine_join/3,engine_status/2,set_flag/2]]).
 
 
 :- comment( engine_resume/3, [
