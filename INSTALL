@@ -49,6 +49,12 @@ Build on multi-architecture machine, e.g. 64 bit build on 32/64 bit solaris:
         CONFIG_SITE=config.$ECLIPSEARCH ./configure --build=x86_64-pc-solaris2.9
         make -f Makefile.$ECLIPSEARCH
 
+Build on multi-architecture machine, e.g. 32 bit build on 64 bit Linux:
+
+        export ECLIPSEARCH=i386_linux
+        CONFIG_SITE=config.$ECLIPSEARCH ./configure --build=i586-pc-linux-gnu
+        make -f Makefile.$ECLIPSEARCH
+
 Cross build, e.g. for Windows on Linux:
 
         export ECLIPSEARCH=i386_nt
