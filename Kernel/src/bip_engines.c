@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.9 2016/11/14 15:09:58 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.10 2017/01/11 17:58:13 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -469,8 +469,21 @@ p_engine_status(value v, type t, value vs, type ts, ec_eng_t *ec_eng)
 
 /**
  * engine_join(+Engine, +TimeoutInSeconds, -Status)
+ *
+ * The behaviour should be similar to:
+ *
+ *    engine_join(E, T, S) :-
+ *	with_mutex(E, engine_join_locked(E, T, S)).
+ *
+ *    engine_join_locked(E, T, S) :-
+ *    	engine_status(E, S0),
+ *	( S0 \== running ->
+ *	    S = S0
+ *	;
+ *	    condition_wait(E, T),
+ *	    engine_join_locked(E, T, S)
+ *	).
  */
-
 static int
 p_engine_join(value v, type t, value vto, type tto, value vs, type ts, ec_eng_t *ec_eng)
 {
@@ -495,13 +508,17 @@ p_engine_join(value v, type t, value vto, type tto, value vs, type ts, ec_eng_t 
 
     Get_Typed_Object(v, t, &engine_tid, eng);
     res = ecl_join_acquire(eng, timeout_ms);
-    Return_If_Error(res)
     if (res == PRUNNING) {
 	Fail_;	/* for timeout */
     }
-    res = _encode_result(ec_eng, eng, 1, &result);
-    ecl_relinquish_engine(eng);
-    Return_If_Error(res)
+    if (res == ENGINE_BUSY) {
+	/* engine stopped, but was acquired by other thread already */
+	Make_Atom(&result, d_running_);
+    } else {
+	Return_If_Error(res)
+	res = _encode_result(ec_eng, eng, 1, &result);
+	ecl_relinquish_engine(eng);
+    }
     Return_Unify_Pw(vs, ts, result.val, result.tag);
 }
 

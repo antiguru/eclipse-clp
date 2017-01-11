@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.11 2016/11/15 00:03:14 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.12 2017/01/11 17:58:13 jschimpf Exp $
  *
  */
 
@@ -988,9 +988,10 @@ ecl_copy_resume_async(ec_eng_t *from_eng, ec_eng_t *ec_eng, const pword term, co
  * @param timeout	in milliseconds, -1 means no timeout
  * @return
  *	- PSUCCEED	engine stopped and acquired for result retrieval
- *	- PEXITED	engine already dead (not acquired)
- *	- ENGINE_NOT_ASYNC	engine not joinable (self or not async running)
  *	- PRUNNING	timeout, engine still running (not acquired)
+ *	- PEXITED	engine already dead (not acquired)
+ *	- ENGINE_NOT_ASYNC  engine not joinable (self or not async running)
+ *	- ENGINE_BUSY	engine did stop, but was otherwise acquired
  *	- SYS_ERROR	error from ec_cond_wait()
  */
 int Winapi
@@ -1007,21 +1008,34 @@ ecl_join_acquire(ec_eng_t *ec_eng, int timeout)
 
     ec_mutex_lock(&ec_eng->lock);
 
-    while (!EngIsFree(ec_eng)) {
-	/* we only allow waiting for engines that are running on their
-	 * own thread, because only they will signal when finished.
+    if (!EngIsFree(ec_eng))
+    {
+	/* To prevent hanging waits, we only allow waiting
+	 * for engines that are running in their own thread.
 	 */
 	if (ec_eng->owner_thread != ec_eng->own_thread) {
-	    res = ENGINE_NOT_ASYNC;	/* cannot be waited for */
+	    res = ENGINE_NOT_ASYNC;
 	    goto _unlock_return_;
 	}
-	res = ec_cond_wait(&ec_eng->cond, &ec_eng->lock, timeout);
-	if (res < 0) {
-	    res = PRUNNING;		/* timeout */
-	    goto _unlock_return_;
+
+	/* This loop normally stops with EngIsFree(ec_eng), but when there are
+	 * multiple joiners, another one may have grabbed the engine. In that
+	 * case the loop stops as well, since _all_ joiners are being signaled. 
+	 */
+	while (ec_eng->owner_thread == ec_eng->own_thread) {
+	    res = ec_cond_wait(&ec_eng->cond, &ec_eng->lock, timeout);
+	    if (res < 0) {
+		res = PRUNNING;		/* timeout */
+		goto _unlock_return_;
+	    }
+	    if (res > 0) {
+		res = SYS_ERROR;
+		goto _unlock_return_;
+	    }
 	}
-	if (res > 0) {
-	    res = SYS_ERROR;
+
+	if (!EngIsFree(ec_eng)) {
+	    res = ENGINE_BUSY;		/* was acquired by someone else */
 	    goto _unlock_return_;
 	}
     }

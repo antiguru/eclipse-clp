@@ -931,8 +931,8 @@ Yes (3.00s cpu)
     desc:html("<P>\
     Waits for an (asynchronously resumed) engine to stop executing, then
     returns its status.  The status descriptors are the same as in
-    engine_status/2, except that 'running' never occurs.  If the engine
-    does not stop within Timeout seconds, the predicate fails.
+    engine_status/2 (except that 'running' does normally not occur).
+    If the engine does not stop within Timeout seconds, the predicate fails.
     If the engine is already stopped at the time of the join, it succeeds
     immediately.
 </P><P>
@@ -942,7 +942,8 @@ Yes (3.00s cpu)
     as the caller of engine_join/3.
 </P><P>
     If multiple joins are waiting for the same engine, they will all
-    succeed when the engine stops.
+    succeed when the engine stops.  In this special case, some of these
+    joins may return the status 'running'.
 </P><P>
     If Timeout is the atom 'block', no timeout is used, the operation
     can block indefinitely, and never fails.
@@ -966,8 +967,7 @@ Yes (3.00s cpu)
         5 : "Engine is not an engine handle",
         5 : "Timeout is neither integer, float, nor the atom 'block'",
         6 : "Timeout is a negative number",
-        180 : "Engine running, but cannot be joined",
-        181 : "Engine is not an asynchronous engine"],
+        181 : "Engine running, but cannot be joined"],
     eg:"
     ?- engine_create(E, [thread]),
        engine_resume_thread(E, writeln(hello)),
