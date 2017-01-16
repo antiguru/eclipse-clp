@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_load.c,v 1.5 2016/09/17 19:15:42 jschimpf Exp $
+ * VERSION	$Id: bip_load.c,v 1.6 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -157,8 +157,7 @@ p_load(value v, type t, ec_eng_t *ec_eng)
     dloaded = LoadLibrary(os_filename(name, winname));
     if (!dloaded)
     {
-	Set_Sys_Errno(GetLastError(), ERRNO_WIN32)
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
     dli = (struct dload_info *) hp_alloc_size(sizeof(struct dload_info));
     dli->handle = dloaded;
@@ -544,7 +543,6 @@ p_call_c(value v, type t, value vr, type tr, ec_eng_t *ec_eng)
 	    default:
 		Bip_Error(ARITY_LIMIT)
 	}
-    Set_Errno;	/* in case something went wrong */
     if (res_type == TINT) {
 	Return_Unify_Integer(resv, rest, aux);
     } else if (res_type == TDBL) {

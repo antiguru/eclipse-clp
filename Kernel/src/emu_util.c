@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.16 2016/11/14 15:09:58 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.17 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /*
@@ -258,6 +258,7 @@ emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
     Make_Atom(&POSTED, d_.true0);	/* init posted goals with true */
     PARSENV = NULL;
     Set_Bip_Error(0);
+    ec_eng->last_os_error = ec_eng->last_os_errgrp = 0;
 
     for(i = 0; i < NARGREGS; i++)
     {

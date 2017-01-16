@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.8 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.9 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /*
@@ -280,8 +280,8 @@ char *	ec_error_message[MAX_ERRORS] = {
 "child process stopped",
 "message passing error",			/* MPS_ERROR		*/
 "problem while trying to load a shared library",	/* NO_SHARED_LIB	*/
-0,
-0,
+"uncaught POSIX error",				/* SYS_ERROR_ERRNO	*/
+"uncaught WIN32 error",				/* SYS_ERROR_WIN	*/
 /* -180 */
 "engine not ready",				/* ENGINE_BUSY */
 "engine not joinable",				/* ENGINE_NOT_ASYNC */
@@ -296,7 +296,7 @@ char *	ec_error_message[MAX_ERRORS] = {
 /* I/O, Streams */
 /* -190 */
 "end of file reached",				/* PEOF			*/
-"output error",					/* OUT_ERROR		*/
+0,						/* was OUT_ERROR	*/
 "illegal stream mode",				/* STREAM_MODE		*/
 "illegal stream specification",			/* STREAM_SPEC		*/
 "too many symbolic names of a stream",		/* TOO_MANY_NAMES	*/
@@ -563,27 +563,37 @@ ec_error_string(int n)
 }
 
 static int
-p_get_last_errno(value v, type t, ec_eng_t *ec_eng)
-{
-    Return_Unify_Integer(v, t, ec_os_errno_);
-}
-
-static int
-p_set_last_errno(value v, type t, ec_eng_t *ec_eng)
-{
-    Check_Integer(t);
-    ec_os_errno_ = v.nint;
-    ec_os_errgrp_ = ERRNO_UNIX;
-    Succeed_;
-}
-
-static int
 p_max_error(value val1, type tag1, ec_eng_t *ec_eng)
 {
 	Check_Output_Integer(tag1);
 	Return_Unify_Integer(val1, tag1, MAX_ERRORS - 1);
 }
 
+
+/* Deprecated access to stored OS error number: use the convention
+ * that Windows numbers are negative, Unix numbers are positive.
+ */
+static int
+p_get_last_errno(value v, type t, ec_eng_t *ec_eng)
+{
+    Return_Unify_Integer(v, t,
+    	ec_eng->last_os_errgrp == SYS_ERROR_WIN ?
+		-ec_eng->last_os_error : ec_eng->last_os_error);
+}
+
+static int
+p_set_last_errno(value v, type t, ec_eng_t *ec_eng)
+{
+    Check_Integer(t);
+    if (v.nint>=0) {
+	ec_eng->last_os_error = v.nint;
+	ec_eng->last_os_errgrp = SYS_ERROR_ERRNO;
+    } else {
+	ec_eng->last_os_error = -v.nint;
+	ec_eng->last_os_errgrp = SYS_ERROR_WIN;
+    }
+    Succeed_;
+}
 
 static int
 p_errno_id(value eval, type etag, value sval, type stag, ec_eng_t *ec_eng)
@@ -594,7 +604,10 @@ p_errno_id(value eval, type etag, value sval, type stag, ec_eng_t *ec_eng)
     Check_Integer(etag);
     Check_Output_String(stag);
 
-    Make_String(&pw, ec_os_err_string(eval.nint, ec_os_errgrp_, buf, 1024));
+    Make_String(&pw, ec_os_err_string(
+		eval.nint>=0? eval.nint: -eval.nint,
+		eval.nint>=0? ERRNO_UNIX: ERRNO_WIN32,
+		buf, 1024));
     Return_Unify_Pw(sval, stag, pw.val, pw.tag);
 }
 
@@ -606,7 +619,10 @@ p_errno_id1(value sval, type stag, ec_eng_t *ec_eng)
 
     Check_Output_String(stag);
 
-    Make_String(&pw, ec_os_err_string(ec_os_errno_, ec_os_errgrp_, buf, 1024));
+    Make_String(&pw, ec_os_err_string(
+		ec_eng->last_os_error,
+		ec_eng->last_os_errgrp==SYS_ERROR_WIN? ERRNO_WIN32: ERRNO_UNIX,
+		buf, 1024));
     Return_Unify_Pw(sval, stag, pw.val, pw.tag);
 }
 

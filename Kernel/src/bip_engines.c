@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.10 2017/01/11 17:58:13 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.11 2017/01/16 19:04:17 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -423,8 +423,10 @@ p_engine_resume_thread(value v, type t, value vin, type tin, value vm, type tm, 
     res = ecl_acquire_engine(eng);
     Return_If_Error(res==PFAIL?ENGINE_BUSY:res);
     res = ecl_copy_resume_async(ec_eng, eng, term, module);
-    if (res != PSUCCEED)
+    if (res != PSUCCEED) {
+	Store_Eng_SysError(res);
 	ecl_relinquish_engine(eng);
+    }
     /* else engine has been handed over to its own thread */
     return res;
 }

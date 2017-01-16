@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.h
  *
- * $Id: os_support.h,v 1.10 2016/11/05 01:31:18 jschimpf Exp $
+ * $Id: os_support.h,v 1.11 2017/01/16 19:04:18 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -50,6 +50,7 @@
 #endif
 
 
+#include <errno.h>
 #include <sys/types.h>
 
 #ifdef HAVE_UNISTD_H
@@ -107,32 +108,22 @@
 #endif
 
 
-/* Values for the global variable ec_os_errgrp_ indicating
- * what kind of error number we have in ec_os_errno_ */
-
+/* Constants for ec_os_err_string() to indicate
+ * what kind of error number we want to decode
+ */
 #define ERRNO_UNIX	0
 #define ERRNO_WIN32	1
+
+/* OS-dependent access to thread-specific last error number */
+
 #ifdef _WIN32
-#define ERRNO_OS	ERRNO_WIN32
+#define SetLastOSError(e) SetLastError(e)
+#define GetLastOSError() GetLastError()
 #else
-#define ERRNO_OS	ERRNO_UNIX
+#define SetLastOSError(e) errno = (e);
+#define GetLastOSError() errno
 #endif
 
-#define Set_Sys_Errno(n,grp) { \
-	ec_os_errgrp_ = (grp); \
-	ec_os_errno_ = (n); }
-
-#ifdef SOCKETS
-#ifdef _WIN32
-#define Set_Socket_Errno() { \
- 	ec_os_errno_ = WSAGetLastError(); \
-	ec_os_errgrp_ = ERRNO_WIN32; }
-#else
-#define Set_Socket_Errno() { \
- 	ec_os_errno_ = errno; \
-	ec_os_errgrp_ = ERRNO_UNIX; }
-#endif
-#endif
 
 #ifdef _WIN32
 #  include 	<stdlib.h>
@@ -161,8 +152,6 @@ typedef    struct stat	struct_stat;
 
 Extern char	ec_version[];
 Extern int	clock_hz;
-Extern int	ec_os_errno_;
-Extern int	ec_os_errgrp_;
 Extern int	ec_use_own_cwd;
 Extern int      ec_sigalrm;
 Extern int      ec_sigio;

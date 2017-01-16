@@ -23,7 +23,7 @@
 /*
  * ECLiPSe Kernel Module
  *
- * $Id: handle.c,v 1.7 2016/12/04 02:41:09 jschimpf Exp $
+ * $Id: handle.c,v 1.8 2017/01/16 19:04:18 jschimpf Exp $
  *
  * Author:	Stefano Novello, IC-Parc
  *		Joachim Schimpf, IC-Parc
@@ -252,7 +252,7 @@ _handle_unlock(pword *panchor, word *pdata, int size, int undo_context, ec_eng_t
     assert(IsTag(panchor[1].tag.kernel, TPTR));
     if (ExternalData(panchor)) {
 	DbgPrintf("Untrail, unlocking\n", ExternalData(panchor));
-	if (!ExternalClass(panchor)->unlock(ExternalData(panchor))) {
+	if (ExternalClass(panchor)->unlock(ExternalData(panchor))) {
 	    assert(0);
 	}
     } else {
@@ -264,6 +264,7 @@ _handle_unlock(pword *panchor, word *pdata, int size, int undo_context, ec_eng_t
 static int
 p_handle_lock_trailed(value v, type t, value vflag, type tflag, ec_eng_t *ec_eng)
 {
+    int res;
     pword result;
 
     Check_Type(t, THANDLE);
@@ -271,7 +272,9 @@ p_handle_lock_trailed(value v, type t, value vflag, type tflag, ec_eng_t *ec_eng
 	Bip_Error(UNIMPLEMENTED);
     }
     DbgPrintf("Locking 0x%x\n", ExternalData(v.ptr));
-    if (!ExternalClass(v.ptr)->lock(ExternalData(v.ptr))) {
+    res = ExternalClass(v.ptr)->lock(ExternalData(v.ptr));
+    if (res) {
+	Store_Eng_OSError_And_Group(res,SYS_ERROR_OS);
 	Bip_Error(SYS_ERROR);
     }
     result = ecl_handle(ec_eng, ExternalClass(v.ptr),
@@ -293,7 +296,9 @@ p_handle_unlock_free(value v, type t, ec_eng_t *ec_eng)
     if (ExternalData((v).ptr)) {
 	/* handle still valid: unlock */
 	DbgPrintf("Unlocking 0x%x\n", ExternalData(v.ptr));
-	if (!ExternalClass(v.ptr)->unlock(ExternalData(v.ptr))) {
+	res = ExternalClass(v.ptr)->unlock(ExternalData(v.ptr));
+	if (res) {
+	    Store_Eng_OSError_And_Group(res,SYS_ERROR_OS);
 	    Bip_Error(SYS_ERROR);
 	}
 	/* free the handle, indicating that we must not unlock again */
@@ -309,11 +314,14 @@ p_handle_unlock_free(value v, type t, ec_eng_t *ec_eng)
 static int
 p_handle_lock(value v, type t, ec_eng_t *ec_eng)
 {
+    int res;
     Check_Type(t, THANDLE);
     if (!ExternalClass(v.ptr)->lock) {
 	Bip_Error(UNIMPLEMENTED);
     }
-    if (!ExternalClass(v.ptr)->lock(ExternalData(v.ptr))) {
+    res = ExternalClass(v.ptr)->lock(ExternalData(v.ptr));
+    if (res) {
+	Store_Eng_OSError_And_Group(res,SYS_ERROR_OS);
 	Bip_Error(SYS_ERROR);
     }
     Succeed_;
@@ -328,20 +336,24 @@ p_handle_trylock(value v, type t, ec_eng_t *ec_eng)
 	Bip_Error(UNIMPLEMENTED);
     }
     res = ExternalClass(v.ptr)->trylock(ExternalData(v.ptr));
-    if (!res) {
+    if (res>0) {
+	Store_Eng_OSError_And_Group(res,SYS_ERROR_OS);
 	Bip_Error(SYS_ERROR);
     }
-    Succeed_If(res>0);
+    Succeed_If(res==0);
 }
 
 static int
 p_handle_unlock(value v, type t, ec_eng_t *ec_eng)
 {
+    int res;
     Check_Type(t, THANDLE);
     if (!ExternalClass(v.ptr)->unlock) {
 	Bip_Error(UNIMPLEMENTED);
     }
-    if (!ExternalClass(v.ptr)->unlock(ExternalData(v.ptr))) {
+    res = ExternalClass(v.ptr)->unlock(ExternalData(v.ptr));
+    if (res) {
+	Store_Eng_OSError_And_Group(res,SYS_ERROR_OS);
 	Bip_Error(SYS_ERROR);
     }
     Succeed_;
@@ -363,7 +375,7 @@ p_condition_signal(value v, type t, value vall, type tall, ec_eng_t *ec_eng)
 
     err = ExternalClass(v.ptr)->signal(ExternalData(v.ptr), all);
     if (err) {
-	Set_Sys_Errno(err,ERRNO_OS);
+	Store_Eng_OSError_And_Group(err,SYS_ERROR_OS);
 	Bip_Error(SYS_ERROR);
     }
     Succeed_;
@@ -390,7 +402,7 @@ p_condition_wait(value v, type t, value vtimeout, type ttimeout, ec_eng_t *ec_en
     err = ExternalClass(v.ptr)->wait(ExternalData(v.ptr), timeout_ms);
     ecl_unpause_engine(ec_eng);
     if (err > 0) {
-	Set_Sys_Errno(err,ERRNO_OS);
+	Store_Eng_OSError_And_Group(err,SYS_ERROR_OS);
 	Bip_Error(SYS_ERROR);
     }
     Succeed_If(err==0);		/* fail if timeout */

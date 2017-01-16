@@ -25,7 +25,7 @@
  *
  * IDENTIFICATION:	os_support.c
  *
- * $Id: os_support.c,v 1.22 2016/11/05 01:31:18 jschimpf Exp $
+ * $Id: os_support.c,v 1.23 2017/01/16 19:04:18 jschimpf Exp $
  *
  * AUTHOR:		Joachim Schimpf, IC-Parc
  *
@@ -51,7 +51,6 @@
  * OS-includes
  *----------------------------------------------------------------------*/
 
-#include <errno.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>	/* for struct stat or _stat */
@@ -145,12 +144,6 @@ static clock_t	start_time;	/* in clock ticks */
  * the resolution of the system clock
  */
 int		clock_hz;
-
-/*
- * Error numbers of OS-errors
- */
-int		ec_os_errno_;	/* the operating system error number */
-int		ec_os_errgrp_;	/* which group of error numbers it is from */
 
 
 /*
@@ -286,14 +279,14 @@ getpid(void)
 }
 
 int
-ec_chdir(char *name)
+ec_chdir(char *name)	/* using errno */
 {
     char winname[MAX_PATH_LEN];
     return _chdir(os_filename(name, winname));
 }
 
 int
-ec_stat(char *name, struct_stat *buf)
+ec_stat(char *name, struct_stat *buf)	/* using errno */
 {
     char winname[MAX_PATH_LEN];
     return _stat(os_filename(name, winname), (struct _stat *) buf);
@@ -337,13 +330,10 @@ lseek(int handle, long offset, int whence)
 #endif
 
 int
-ec_truncate(int fd)
+ec_truncate(int fd)	/* using errno or GetLastError */
 {
     if (!SetEndOfFile((HANDLE)_get_osfhandle(fd)))
-    {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return -1;
-    }
     return 0;
 }
 
@@ -957,9 +947,9 @@ ec_get_cwd(char *buf, int size)
     }
 }
 
-/* return 0 on success, -1 on error with Sys_Errno */
+/* return 0 on success, -1 on error with errno set */
 int
-ec_set_cwd(char *name)
+ec_set_cwd(char *name)	/* using errno */
 {
     if (ec_use_own_cwd)
     {
@@ -968,12 +958,11 @@ ec_set_cwd(char *name)
 	struct_stat st_buf;
 	name = expand_filename(name, buf, EXPAND_NORMALISE);
 	if (ec_stat(name, &st_buf)) {
-	    Set_Sys_Errno(errno, ERRNO_UNIX);
-	    return -1;
+	    return -1;	/* with errno */
 	}
 	if (!S_ISDIR(st_buf.st_mode)) {
-	    Set_Sys_Errno(ENOTDIR, ERRNO_UNIX);	/* simulate chdir() */
-	    return -1;
+	    errno = ENOTDIR;	/* simulate chdir() */
+	    return -1;		/* with errno */
 	}
 	strcpy(ec_cwd, buf);
 	len = strlen(ec_cwd);
@@ -983,8 +972,7 @@ ec_set_cwd(char *name)
 	}
 
     } else if (ec_chdir(name)) {
-	Set_Sys_Errno(errno, ERRNO_UNIX);
-	return -1;
+	return -1;		/* with errno */
     }
     return 0;
 }
@@ -1235,13 +1223,11 @@ ec_gethostid(char *buf, int len)
 
     char *bufp = buf;
     if (sysinfo(SI_HW_PROVIDER, buf, len) == -1) {
-	ec_os_errgrp_ = ERRNO_UNIX; ec_os_errno_ = errno; errno = 0;
 	return -1;
     }
     bufp = buf + strlen(buf);
     *bufp++ = '#';
     if (sysinfo(SI_HW_SERIAL, bufp, len-(bufp-buf)) == -1) {
-	ec_os_errgrp_ = ERRNO_UNIX; ec_os_errno_ = errno; errno = 0;
 	return -1;
     }
 
@@ -1292,7 +1278,7 @@ ec_gethostid(char *buf, int len)
 
 
 int
-ec_gethostname(char *buf, int size)	/* sets ec_os_errno_/errgrp_ on failure */
+ec_gethostname(char *buf, int size)	/* using errno or GetLastError */
 {
     int i;
     struct hostent *hp;
@@ -1300,46 +1286,27 @@ ec_gethostname(char *buf, int size)	/* sets ec_os_errno_/errgrp_ on failure */
 
 #if defined(HAVE_GETHOSTNAME)
     if (gethostname(buf, size)) {
-# ifdef _WIN32
-	ec_os_errgrp_ = ERRNO_WIN32; ec_os_errno_ = GetLastError();
-# else
-	ec_os_errgrp_ = ERRNO_UNIX; ec_os_errno_ = errno; errno = 0;
-# endif
-	return -1;
+	return -1;	/* errno or GetLastError */
     }
 #else
 # if defined(HAVE_SYSINFO) && defined(HAVE_SYS_SYSTEMINFO_H)
 /* Linux has sysinfo(), but not same interface or sys/systeminfo.h */
     if (sysinfo(SI_HOSTNAME, buf, size) == -1) {
-	ec_os_errgrp_ = ERRNO_UNIX; ec_os_errno_ = errno; errno = 0;
-	return -1;
+	return -1;	/* errno */
     }
 # else
     /* assume uname is defined */
     struct utsname utsn;
 
     if (uname(&utsn) <= -1) {
-#  ifdef _WIN32
-	ec_os_errgrp_ = ERRNO_WIN32; ec_os_errno_ = GetLastError();
-#  else
-	ec_os_errgrp_ = ERRNO_UNIX; ec_os_errno_ = errno; errno = 0;
-#  endif
-	return -1;
+	return -1;	/* errno */
     }
     strncpy(buf, utsn.nodename, size);
 # endif
 #endif 
 
-#ifdef sun4_0
-/*  There is a bug with the Sun4 static C library version of gethostbyname():
- *  it seems to strip the full hostname (with dots) and return the single
- *  component (without dots), rather than the other way round
- */
-    hp = NULL;
-#else
     hp = gethostbyname(buf);
-#endif
-    if (hp != NULL) {
+    if (hp) {
       strncpy(buf, hp->h_name, size);
     }
 
@@ -1430,14 +1397,14 @@ ec_os_err_string(int err, int grp, char *buf, int size)
 int
 ec_getch_raw(int unit)
 {
-    return _getch();
+    return _getch();	/* no errors */
 }
 
 int
 ec_putch_raw(int c)
 {
-    _putch(c);
-    return 0;
+    _putch(c);	/* may return EOF */
+    return 0;	/* no errors */
 }
 #endif
 
@@ -1556,37 +1523,37 @@ ec_thread_cancel_and_join(void *thread_id)
 
 
 int
-ec_mutex_init(CRITICAL_SECTION *pm, int recursive)
+ec_mutex_init(CRITICAL_SECTION *pm, int recursive) /* returns 0 or OS error */
 {
     InitializeCriticalSection(pm);	/* always recursive */
-    return 1;
+    return 0;
 }
 
 int
-ec_mutex_destroy(CRITICAL_SECTION *pm)
+ec_mutex_destroy(CRITICAL_SECTION *pm)	/* returns 0 or OS error */
 {
     DeleteCriticalSection(pm);
-    return 1;
+    return 0;
 }
 
 int
-ec_mutex_lock(CRITICAL_SECTION *pm)
+ec_mutex_lock(CRITICAL_SECTION *pm)	/* returns OS error */
 {
     EnterCriticalSection(pm);
-    return 1;
+    return 0;
 }
 
 int
-ec_mutex_trylock(CRITICAL_SECTION *pm) /* returns 1 (lock), -1 (busy), 0 (error) */
+ec_mutex_trylock(CRITICAL_SECTION *pm) /* returns 0 (lock), -1 (busy) */
 {
-    return TryEnterCriticalSection(pm) ? 1 : -1;
+    return TryEnterCriticalSection(pm) ? 0 : -1;
 }
 
 int
-ec_mutex_unlock(CRITICAL_SECTION *pm)
+ec_mutex_unlock(CRITICAL_SECTION *pm)	/* returns OS error */
 {
     LeaveCriticalSection(pm);
-    return 1;
+    return 0;
 }
 
 
@@ -1678,7 +1645,7 @@ ec_thread_cancel_and_join(void *os_thread)
 
 
 int
-ec_mutex_init(pthread_mutex_t *pm, int recursive)
+ec_mutex_init(pthread_mutex_t *pm, int recursive) /* returns 0 or OS error */
 {
     int res = pthread_mutex_init(pm, recursive? &recursive_mutex_attr :
 #if 0
@@ -1688,15 +1655,11 @@ ec_mutex_init(pthread_mutex_t *pm, int recursive)
 #endif
 	);
     assert(!res);
-    if (res) {
-	Set_Sys_Errno(res, ERRNO_UNIX);
-	return 0;
-    }
-    return 1;
+    return res;
 }
 
 int
-ec_mutex_destroy(pthread_mutex_t *pm)
+ec_mutex_destroy(pthread_mutex_t *pm)	/* returns 0 or OS error */
 {
     int res;
     for(;;) {
@@ -1707,46 +1670,37 @@ ec_mutex_destroy(pthread_mutex_t *pm)
 	if (pthread_mutex_unlock(pm) != 0)
 	    break;
     }
-    if (res) {
-	Set_Sys_Errno(res, ERRNO_UNIX);
-	return 0;
-    }
-    return 1;
+    return res;
 }
 
+/**
+ * Lock a mutex
+ * @return	0 on success, or OS error code
+ */
 int
-ec_mutex_lock(pthread_mutex_t *pm)
+ec_mutex_lock(pthread_mutex_t *pm)	/* using errno or GetLastError */
 {
-    int res = pthread_mutex_lock(pm);
-    assert(!res);
-    if (res) {
-	Set_Sys_Errno(res, ERRNO_UNIX);
-	return 0;
-    }
-    return 1;
+    return pthread_mutex_lock(pm);
 }
 
+/**
+ * Try to lock a mutex
+ * @return	0 on success, -1 if already locked, >0 for OS error code
+ */
 int
-ec_mutex_trylock(pthread_mutex_t *pm) /* returns 1 (lock), -1 (busy), 0 (error) */
+ec_mutex_trylock(pthread_mutex_t *pm)
 {
-    int res = pthread_mutex_trylock(pm);
-    if (res == 0)
-    	return 1;
-    if (res == EBUSY)
-    	return -1;
-    Set_Sys_Errno(res, ERRNO_UNIX);
-    return 0;
+    return pthread_mutex_trylock(pm);
 }
 
+/**
+ * Unlock a mutex
+ * @return	0 on success, or OS error code
+ */
 int
 ec_mutex_unlock(pthread_mutex_t *pm)
 {
-    int res = pthread_mutex_unlock(pm);
-    if (res) {
-	Set_Sys_Errno(res, ERRNO_UNIX);
-	return 0;
-    }
-    return 1;
+    return pthread_mutex_unlock(pm);
 }
 
 
@@ -1873,7 +1827,7 @@ ec_fun_thread(thread_data *desc)
 }
 
 void *
-ec_make_thread(void)
+ec_make_thread(void)	/* using errno or GetLastError */
 {
     DWORD thread_id;
     thread_data *desc = malloc(sizeof(thread_data));
@@ -1882,13 +1836,11 @@ ec_make_thread(void)
     desc->start_event = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (!desc->start_event)
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return NULL;
     }
     desc->done_event = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!desc->done_event)
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return NULL;
     }
     desc->thread_handle = CreateThread(NULL, 0,
@@ -1896,7 +1848,6 @@ ec_make_thread(void)
 	(LPVOID) desc, 0, &thread_id);
     if (!desc->thread_handle)
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return NULL;
     }
 #if 0
@@ -1946,15 +1897,13 @@ ec_start_thread(void *desc, int (*fun)(void *), void *data)
 
     if (!ResetEvent(((thread_data*)desc)->done_event))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	return 0;
+	return -1;
     }
     ((thread_data*)desc)->data = data;
     ((thread_data*)desc)->fun = fun;
     if (!SetEvent(((thread_data*)desc)->start_event))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	return 0;
+	return -1;
     }
     return 1;
 }
@@ -1964,7 +1913,7 @@ ec_start_thread(void *desc, int (*fun)(void *), void *data)
  * Returns: 1 if cleanly terminated, 0 if forcibly terminated, -1 error
  */
 int
-ec_thread_terminate(void *desc, int timeout)
+ec_thread_terminate(void *desc, int timeout)	/* using errno or GetLastError */
 {
     int result;
     DWORD thread_exit_code = 0;
@@ -1974,28 +1923,19 @@ ec_thread_terminate(void *desc, int timeout)
 	/* restart the thread with NULL function: leads to termination */
 	((thread_data*)desc)->fun = 0;
 	if (!SetEvent(((thread_data*)desc)->start_event))
-	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
-	}
     }
     else
     {
 	/* still running, terminate forcibly */
 	if (!TerminateThread(((thread_data*)desc)->thread_handle, 0))
-	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
-	}
     }
     switch(WaitForSingleObject(((thread_data*)desc)->thread_handle, timeout > 0 ? (DWORD)timeout : INFINITE))
     {
     case WAIT_OBJECT_0:	/* termination was signalled */
 	if (!GetExitCodeThread(((thread_data*)desc)->thread_handle, &thread_exit_code))
-	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
-	}
 	/*thread_exit_code is 0 or 1 */
 	break;
 
@@ -2003,14 +1943,12 @@ ec_thread_terminate(void *desc, int timeout)
     case WAIT_TIMEOUT:	/* timeout occurred, terminate forcibly */
 	if (!TerminateThread(((thread_data*)desc)->thread_handle, 0))
 	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
 	}
 	/* thread_exit_code is 0, don't bother to wait */
 	break;
 
     case WAIT_FAILED:
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return -1;
     }
 
@@ -2018,7 +1956,6 @@ ec_thread_terminate(void *desc, int timeout)
 	!CloseHandle(((thread_data*)desc)->start_event) ||
 	!CloseHandle(((thread_data*)desc)->done_event))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return -1;
     }
     free(desc);
@@ -2107,7 +2044,7 @@ ec_fun_thread(thread_data *desc)
 
 
 void *
-ec_make_thread(void)	/* with all signals blocked */
+ec_make_thread(void)	/* using errno or GetLastError */
 {
     int res;
     sigset_t block, old;
@@ -2126,8 +2063,8 @@ ec_make_thread(void)	/* with all signals blocked */
 	    (void*(*)(void*))ec_fun_thread, (void*) desc))
     )
     {
-	Set_Sys_Errno(res, ERRNO_UNIX);
 	free(desc);
+	errno = res;
 	desc = NULL;
     }
     pthread_sigmask(SIG_SETMASK, &old, NULL);	/* reset signal mask */
@@ -2199,11 +2136,9 @@ ec_start_thread(void *vdesc, int (*fun)(void *), void *data)
  * Returns: 1 if cleanly terminated, 0 if detached, -1 error
  */
 int
-ec_thread_terminate(void *vdesc, int timeout)
+ec_thread_terminate(void *vdesc, int timeout)	/* using errno or GetLastError */
 {
     thread_data *desc = (thread_data*) vdesc;
-    int dummy, res;
-    int return_code = 1;
 
     pthread_mutex_lock(&desc->mutex);
     desc->detached = 1;
@@ -2404,13 +2339,11 @@ ec_set_alarm(
 	alarm_thread.time_set_event = CreateEvent(NULL, FALSE, FALSE, NULL);
 	if (!alarm_thread.time_set_event)
 	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return 0;
 	}
 	alarm_thread.time_accept_event = CreateEvent(NULL, FALSE, FALSE, NULL);
 	if (!alarm_thread.time_accept_event)
 	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return 0;
 	}
 	alarm_thread.thread_handle = CreateThread(NULL, 0,
@@ -2418,7 +2351,6 @@ ec_set_alarm(
 	    (LPVOID) &alarm_thread, 0, &thread_id);
 	if (!alarm_thread.thread_handle)
 	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return 0;
 	}
     }
@@ -2433,7 +2365,6 @@ ec_set_alarm(
 
     if (!SetEvent(alarm_thread.time_set_event))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return 0;
     }
 
@@ -2441,11 +2372,9 @@ ec_set_alarm(
     switch (WaitForSingleObject(alarm_thread.time_accept_event, 10000))
     {
     case WAIT_FAILED:
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return 0;
 
     default:
-	Set_Sys_Errno(ERROR_TIMEOUT,ERRNO_WIN32);
 	return 0;
 
     case WAIT_OBJECT_0:
@@ -2461,7 +2390,7 @@ ec_set_alarm(
  * Returns: 1 if cleanly terminated, 0 if forcibly terminated, -1 error
  */
 int
-ec_terminate_alarm()
+ec_terminate_alarm()	/* using errno or GetLastError */
 {
     DWORD thread_exit_code = 0;
 
@@ -2471,35 +2400,25 @@ ec_terminate_alarm()
     /* send a termination request to the thread */
     alarm_thread.terminate_req = 1;
     if (!SetEvent(alarm_thread.time_set_event))
-    {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return -1;
-    }
 
     /* wait for termination */
     switch(WaitForSingleObject(alarm_thread.thread_handle, 3000))
     {
     case WAIT_OBJECT_0:	/* termination was signalled */
 	if (!GetExitCodeThread(alarm_thread.thread_handle, &thread_exit_code))
-	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
-	}
 	/* thread_exit_code is 0 or 1 */
 	break;
 
     default:
     case WAIT_TIMEOUT:	/* timeout occurred, terminate forcibly */
 	if (!TerminateThread(alarm_thread.thread_handle, 0))
-	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	    return -1;
-	}
 	/* thread_exit_code is 0, don't bother to wait */
 	break;
 
     case WAIT_FAILED:
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return -1;
     }
 
@@ -2507,7 +2426,6 @@ ec_terminate_alarm()
 	!CloseHandle(alarm_thread.time_set_event) ||
 	!CloseHandle(alarm_thread.time_accept_event))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
 	return -1;
     }
 
@@ -2682,7 +2600,7 @@ ec_set_alarm(
         )
         {
             pthread_mutex_unlock(&alarm_thread.mutex);
-	    Set_Sys_Errno(res, ERRNO_UNIX);
+	    errno = res;
 	    return 0;
         }
     }
@@ -2704,7 +2622,7 @@ ec_set_alarm(
     pthread_mutex_unlock(&alarm_thread.mutex);
     if (res)
     {
-        Set_Sys_Errno(res, ERRNO_UNIX);
+	errno = res;
 	return 0;
     }
 
@@ -2719,7 +2637,7 @@ ec_set_alarm(
  * Returns: 1 if cleanly terminated, 0 if forcibly terminated, -1 error
  */
 int
-ec_terminate_alarm()
+ec_terminate_alarm()	/* using errno or GetLastError */
 {
     int res;
     void *thread_exit_code = NULL;
@@ -2736,7 +2654,7 @@ ec_terminate_alarm()
     /* wait for termination */
     if ((res = pthread_join(alarm_thread.thread_handle, &thread_exit_code)))
     {
-        Set_Sys_Errno(res, ERRNO_UNIX);
+	errno = res;
 	return -1;
     }
 
@@ -2850,7 +2768,6 @@ ec_env_lookup(char *name, char *buf, int *buflen)
     if (!(res = getenv(vname)) && !(res = getenv(name)))
     {
 	free(vname);
-	Set_Sys_Errno(0, ERRNO_UNIX);
 	return NULL;
     }
     free(vname);

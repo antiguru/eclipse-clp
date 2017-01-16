@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.6 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: error.h,v 1.7 2017/01/16 19:04:18 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -182,23 +182,36 @@
 #define TR_IN_MOD		-161
 #define NO_TR			-162
 #define	ONE_SQ_AQ		-163
-#define SYS_ERROR		-170	/* (host) system error; errno usually
-					 *  holds the real error code.
-					 * The global variable whose did is
-					 * "d_errno_" should be set by the
-					 * macro "Set_Errno" to the system
-					 * "errno" describing the error.
+
+#define SYS_ERROR		-170	/* operating system error: error code
+					 * is in ec_eng->last_os_err{no,grp}
 					 */
 #define NO_FILE			-171
 #define MPS_ERROR		-176
 #define NO_SHARED_LIB		-177
+/*
+ * More specific forms of SYS_ERROR that indicate where the
+ * actual system error code is to be found:
+ *	SYS_ERROR_ERRNO - errno (used on Unix and Windows)
+ *	SYS_ERROR_WIN   - GetLastError() (used on Windows only)
+ *	SYS_ERROR_OS    - one of the above, depending on the OS
+ * They should ideally not be passed to the Prolog level (use SYS_ERROR)!
+ */
+#define SYS_ERROR_ERRNO		-178
+#define SYS_ERROR_WIN		-179
+#ifdef _WIN32
+#define SYS_ERROR_OS		SYS_ERROR_WIN
+#else
+#define SYS_ERROR_OS		SYS_ERROR_ERRNO
+#endif
+
 #define ENGINE_BUSY		-180
 #define ENGINE_NOT_ASYNC	-181
 #define ENGINE_DEAD		-182
 #define ENGINE_NOT_UP		-183
 #define ENGINE_NOT_OWNED	-184
 #define PEOF			-190	/* end of file in an IO predicate */
-#define OUT_ERROR		-191	/* like SYS_ERROR for output functions*/
+/*#define OUT_ERROR		-191	/* like SYS_ERROR for output functions*/
 #define STREAM_MODE		-192 	/* wrong stream mode */
 #define STREAM_SPEC		-193
 #define TOO_MANY_NAMES		-194

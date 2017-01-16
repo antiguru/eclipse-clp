@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.25 2016/11/14 15:09:59 jschimpf Exp $
+ * $Id: types.h,v 1.26 2017/01/16 19:04:18 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -377,6 +377,8 @@ typedef union control {
 	char		*followed_oracle;
 	char		*pending_oracle;
 	int		global_bip_error;
+	int		last_os_error;
+	int		last_os_errgrp;
 	trace_t		trace_data;
 	pword           *gctg;
 	pword           *tg_soft_lim;
@@ -565,6 +567,8 @@ typedef struct ec_eng_s
     int		ntry;
 
     int		global_bip_error;
+    int		last_os_error;	/* copy of errno or GetLastError() */
+    int		last_os_errgrp;	/* kind of error SYS_ERROR_{ERRNO|WIN} */
 
     trace_t	trace_data;
 

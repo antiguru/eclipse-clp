@@ -372,7 +372,7 @@ p_mps_init_2(value v_hostname, type t_hostname, value v_portnumber, type t_portn
     }
 
     if (gethostname(localhostname,HOST_NAMELEN+1) != 0) {
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_ERRNO);
     }
     localhostname[HOST_NAMELEN] = '\0';
 

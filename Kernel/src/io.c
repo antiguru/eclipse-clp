@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: io.c,v 1.25 2016/10/25 22:27:59 jschimpf Exp $
+ * VERSION	$Id: io.c,v 1.26 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /*
@@ -764,8 +764,7 @@ ec_open_file(char *name, int mode, int *err)
     /* try to open the file (don't use absolute path if possible) */
     (void) expand_filename(name, buf, EXPAND_STANDARD);
     if ((fd = ec_open(buf, smode, 0666)) < 0) {
-	Set_Errno;
-	*err = SYS_ERROR;
+	*err = SYS_ERROR_ERRNO;
 	return NO_STREAM;
     }
     io_type = isatty(fd) ? &ec_tty : &ec_file;
@@ -909,9 +908,8 @@ ec_close_stream(stream_id nst, int options)
     {
 	if (ec_unlink(DidName(StreamPath(nst))) < 0)
 	{
-	    Set_Errno
-	    if (!(options & CLOSE_FORCE)) return SYS_ERROR;
-	    res = (res==PSUCCEED ? SYS_ERROR : res);
+	    if (!(options & CLOSE_FORCE)) return SYS_ERROR_ERRNO;
+	    res = (res==PSUCCEED ? SYS_ERROR_ERRNO : res);
 	}
     }
     _free_stream(nst);
@@ -949,8 +947,7 @@ _local_io_close(stream_id nst)
     if (IsReadlineStream(nst)) {
 	if (fclose(StreamFILE(nst)) < 0)
 	{
-	    Set_Errno
-	    return(SYS_ERROR);
+	    return(SYS_ERROR_ERRNO);
 	}
     }
 #endif
@@ -1131,14 +1128,15 @@ _local_fill_buffer(stream_id nst)
     } else
 #endif
     {
+	int err;
 	int wanted = StreamSize(nst);
-	count = StreamMethods(nst).read(StreamUnit(nst), (char *) StreamBuf(nst), wanted);
+	count = StreamMethods(nst).read(StreamUnit(nst), (char *) StreamBuf(nst), wanted, &err);
 	/* Caution: Windows may store a ^Z in the buffer while returning 0... */
 	StreamBuf(nst)[count] = EOB_MARK;
 	if (count <= 0)
 	{
 	    StreamMode(nst) &= ~MREAD;
-	    return count == 0 ? PEOF : SYS_ERROR;
+	    return count == 0 ? PEOF : err;
 	}
 	else if (nst->signal_thread && StreamNeedsThread(nst))
 	{
@@ -1217,7 +1215,7 @@ set_readline(stream_id nst)
 
     f = fdopen(StreamUnit(nst), "r");
     if (f == (FILE *) 0) {
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
     nst->stdfile = (void *) f;
     StreamMode(nst) |= READLINE;
@@ -1898,8 +1896,7 @@ _local_io_flush_out(stream_id nst)
     {
 	if (lseek(StreamUnit(nst), (long) - StreamCnt(nst), LSEEK_INCR) == -1)
 	{
-	    Set_Errno;
-	    return(OUT_ERROR);
+	    return SYS_ERROR_ERRNO;	/* from lseek() */
 	}
 	if (StreamPtr(nst) < StreamBuf(nst) + StreamCnt(nst))
 	    StreamPtr(nst) = StreamBuf(nst) + StreamCnt(nst);
@@ -1944,7 +1941,7 @@ _local_io_flush_out(stream_id nst)
 	    *StreamBuf(nst) = EOB_MARK;
 	}
     }
-    return(n);
+    return(n);	/* maybe SYS_ERROR_OS */
 }
 
 
@@ -2086,8 +2083,7 @@ _file_seek(stream_id nst, long int pos, int whence)
 	    max = buf.st_size;
 	else
 	{
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR)
+	    Bip_Error(SYS_ERROR_ERRNO)
 	}
     }
     if (whence == LSEEK_END)
@@ -2126,8 +2122,7 @@ _file_seek(stream_id nst, long int pos, int whence)
 	StreamOffset(nst) = pos;
 	if (at != pos)
 	{
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
     }
     StreamMode(nst) &= ~MEOF;
@@ -2191,8 +2186,7 @@ _file_at(stream_id nst, long int *pos)
 	    *pos = buf.st_size;
 	else
 	{
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR)
+	    Bip_Error(SYS_ERROR_ERRNO)
 	}
     }
     else
@@ -2299,8 +2293,7 @@ _buffer_at_eof(stream_id nst)
     if(ec_stat(DidName(StreamPath(nst)), &buf) < 0)
 #endif
     {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
     offset = StreamPtr(nst) - StreamBuf(nst);
 #ifndef _WIN32
@@ -2352,14 +2345,13 @@ _file_truncate(stream_id nst)
     Return_If_Error(res);
     if (ec_truncate(StreamUnit(nst)))
     {
-	Bip_Error(SYS_ERROR);
+	return SYS_ERROR_OS;
     }
 #else
     if (ftruncate(StreamUnit(nst),
     	(off_t) StreamOffset(nst) + (StreamPtr(nst) - StreamBuf(nst))))
     {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	return SYS_ERROR_ERRNO;
     }
 #endif
     StreamCnt(nst) = StreamPtr(nst) - StreamBuf(nst);
@@ -2451,8 +2443,7 @@ _set_raw_tty(int fd, int min, int time, struct termios *tbuf)
 	if (ioctl(fd, GetTermAttr, tbuf) == -1)
 #endif
 	{
-	    Set_Errno;
-	    return SYS_ERROR;
+	    return SYS_ERROR_ERRNO;
 	}
 	rawbuf = *tbuf;
 
@@ -2474,8 +2465,7 @@ _set_raw_tty(int fd, int min, int time, struct termios *tbuf)
 	if (ioctl(fd, SetTermAttr, &rawbuf) == -1)
 #endif
 	{
-	    Set_Errno;
-	    return SYS_ERROR;
+	    return SYS_ERROR_ERRNO;
 	}
     }
 #endif
@@ -2509,8 +2499,7 @@ _unset_raw_tty(int fd, struct termios *tbuf)
 	if (ioctl(fd, SetTermAttr, tbuf) == -1)
 #endif
 	{
-	    Set_Errno;
-	    return SYS_ERROR;
+	    return SYS_ERROR_ERRNO;
 	}
     }
 #endif
@@ -2550,6 +2539,7 @@ ec_tty_in(stream_id nst)
 
 /* Auxiliary function which has to be executed on the process
  * that owns the file descriptor (possibly via rpc).
+ * Returns character read (>=0) or error (<0)
  */
 static int
 _local_tty_in(stream_id nst)
@@ -2610,10 +2600,7 @@ _local_tty_in(stream_id nst)
     if (res != PSUCCEED)
 	return res;
     if(n < 1)
-    {
-	Set_Errno
-	return(SYS_ERROR);
-    }
+	return SYS_ERROR_ERRNO;
     return (int) c;
 #endif
 }
@@ -2640,7 +2627,7 @@ ec_tty_outs(stream_id nst, char *s, int n)
 	    return res;
 	}
 	res = StreamMethods(nst).write(StreamUnit(nst), s, n);
-	res = _unset_raw_tty(StreamUnit(nst), &tbuf);
+	(void) _unset_raw_tty(StreamUnit(nst), &tbuf);
 	return(res);
 #endif
     }
@@ -2832,20 +2819,17 @@ set_sigio(int fd)
     if (fcntl(fd, F_SETOWN, getpid()) == -1 ||
 	(i = fcntl(fd, F_GETFL, 0)) == -1)
     {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
     /* FASYNC enables signaling the pgrp when data ready */
     if (fcntl(fd, F_SETFL, i | FASYNC) == -1) {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
 #endif
 #ifdef SIGIO_SETSIG
     /* see manual streamio(7) */
     if (ioctl(fd, I_SETSIG, S_RDNORM|S_RDBAND|S_HIPRI|S_BANDURG) == -1) {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
 #endif
 #ifdef SIGIO_FIOASYNC
@@ -2855,14 +2839,12 @@ set_sigio(int fd)
     /* set the process receiving SIGIO/SIGURG signals to us */
     if (ioctl(fd, SIOCSPGRP, &pid) == -1)
     {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
     /* allow receipt of asynchronous I/O signals */
     if (ioctl(fd, FIOASYNC, &on) == -1)
     {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
 #endif
     return PSUCCEED;
@@ -2876,19 +2858,16 @@ reset_sigio(int fd)
 
     if ((i = fcntl(fd, F_GETFL, 0)) == -1)
     {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
 
     if (fcntl(fd, F_SETFL, i & ~FASYNC) == -1) {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
 #endif
 #ifdef SIGIO_SETSIG
     if (ioctl(fd, I_SETSIG, 0) == -1) {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
 #endif
 #ifdef SIGIO_FIOASYNC
@@ -2897,8 +2876,7 @@ reset_sigio(int fd)
     /* allow receipt of asynchronous I/O signals */
     if (ioctl(fd, FIOASYNC, &off) == -1)
     {
-	Set_Errno;
-	return SYS_ERROR;
+	return SYS_ERROR_ERRNO;
     }
 #endif
     return PSUCCEED;
@@ -2967,6 +2945,13 @@ _dummy_io(int fd, char *buf, int n)
 }
 
 static int
+_dummy_read(int fd, char *buf, int n, int *err)
+{
+    *err = UNIMPLEMENTED;
+    return 0;
+}
+
+static int
 _dummy_size(stream_id nst)
 {
     return 0;
@@ -2983,10 +2968,7 @@ static int
 _close_fd(int fd)
 {
     if (close(fd) < 0)
-    {
-	Set_Errno;
-	return SYS_ERROR;
-    }
+	return SYS_ERROR_ERRNO;
     return PSUCCEED;
 }
 
@@ -3011,8 +2993,7 @@ _write_fd(int fd, char *buf, int n)
 	    if (errno == EINTR)
 		continue;	/* an interrupted call, try again */
 #endif
-	    Set_Errno
-	    return OUT_ERROR;
+	    return SYS_ERROR_ERRNO;	/* from write() */
 	}
 	else
 	{
@@ -3023,7 +3004,7 @@ _write_fd(int fd, char *buf, int n)
 }
 
 static int
-_read_fd(int fd, char *buf, int n)
+_read_fd(int fd, char *buf, int n, int *err)
 {
     int count;
 
@@ -3036,7 +3017,7 @@ _read_fd(int fd, char *buf, int n)
 	    if (errno == EINTR)
 		continue;	/* an interrupted call, try again */
 #endif
-	    Set_Errno
+	    *err = SYS_ERROR_ERRNO;
 	}
 	return count;
     }
@@ -3117,7 +3098,7 @@ io_channel_t	ec_null_stream = {
     0,			/*buf_size_hint*/
     _dummy_close,	/*close*/
     _dummy_io,		/*ready*/
-    _dummy_io,		/*read*/
+    _dummy_read,	/*read*/
     _dummy_io,		/*write*/
     _dummy_at,		/*at*/
     _always_at_eof,	/*at_eof*/
@@ -3131,7 +3112,7 @@ io_channel_t	ec_null_stream = {
 };
 
 extern int ec_write_socket(int, char *, int);
-extern int ec_read_socket(int, char *, int);
+extern int ec_read_socket(int, char *, int, int*);
 extern int ec_close_socket(int);
 
 io_channel_t	ec_socket = {
@@ -3163,7 +3144,7 @@ io_channel_t	ec_string_stream = {
     1024,		/*buf_size_hint*/
     _dummy_close,	/*close*/
     _dummy_io,		/*ready*/
-    _dummy_io,		/*read*/
+    _dummy_read,	/*read*/
     _dummy_io,		/*write*/
     _buffer_at,		/*at*/
     _string_at_eof,	/*at_eof*/
@@ -3182,7 +3163,7 @@ io_channel_t	ec_queue_stream = {
     1024,		/*buf_size_hint*/
     _dummy_close,	/*close*/
     _dummy_io,		/*ready*/
-    _dummy_io,		/*read*/
+    _dummy_read,	/*read*/
     _dummy_io,		/*write*/
     _queue_at,		/*at*/
     _queue_at_eof,	/*at_eof*/

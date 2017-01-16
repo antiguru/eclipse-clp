@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.13 2016/11/14 15:09:58 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.14 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -448,8 +448,16 @@ static void
 _make_error_message(int err, char *where, char *buf)
 {
     extern char *ec_error_message[];
-    if (err == SYS_ERROR)
-	sprintf(buf, "ECLiPSe: %s (%s) in %s.", ec_error_message[err], strerror(errno), where);
+    char	os_msg[1024];
+
+    if (err == SYS_ERROR_ERRNO)
+	sprintf(buf, "ECLiPSe: %s (%s) in %s.", ec_error_message[err],
+		ec_os_err_string(errno,ERRNO_UNIX,os_msg,1024), where);
+#if _WIN32
+    else if (err == SYS_ERROR_WIN)
+	sprintf(buf, "ECLiPSe: %s (%s) in %s.", ec_error_message[err],
+		ec_os_err_string(GetLastError(),ERRNO_WIN32,os_msg,1024), where);
+#endif
     else
 	sprintf(buf, "ECLiPSe: %s in %s.", ec_error_message[err], where);
 }

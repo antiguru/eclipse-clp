@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.41 2016/11/07 01:55:49 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.42 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /*
@@ -77,6 +77,8 @@
 #include "module.h"
 #include "debug.h"
 #include "property.h"
+
+#include <errno.h>
 
 #if defined(PROFILE) && !defined(__GNUC__)
 /* on sunos5, gcc inserts funny marking labels that confuse the assembler */
@@ -1696,6 +1698,7 @@ _bip_res1_:				/* (err_code,proc) */
 _bip_err1_:			/* (err_code, proc), args in A[] */
 	Mark_Prof(_bip_err1_)
 	Kill_DE;
+	Store_Eng_SysError(err_code); /* replace SYS_ERROR_OS by SYS_ERROR and set last_error_errXX */
 	err_code = -err_code;
 	val_did = PriDid(proc);
 	tmp1 = DidArity(val_did);
@@ -3996,7 +3999,7 @@ _try_par_1_:	/* (i:alt, tmp1:arity, back_code, err_code) */
 		if (LOAD < 0)
 		    LOAD = LoadReleaseDelay;	/* reinit countdown */
                 back_code = (emu_code) BBp(B.args); /* backtrack to same point */
-		goto _read_choice_point_;	/* (pw2,err_code,back_code) */
+		goto _read_choice_point_;	/* (pw2,DBG_PORT,back_code) */
 	    } else {
 #ifdef PB_MAINTAINED
 		PB = ChpPar(pw1)->ppb;
@@ -6798,6 +6801,8 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 #endif
 	    PPB = Invoc(pw1)->ppb;
 	    Set_Bip_Error(Invoc(pw1)->global_bip_error);
+	    ec_eng->last_os_error = Invoc(pw1)->last_os_error;
+	    ec_eng->last_os_errgrp = Invoc(pw1)->last_os_errgrp;
 	    GCTG = Invoc(pw1)->gctg;
 	    PP = (emu_code) Invoc(pw1)->pp;
 

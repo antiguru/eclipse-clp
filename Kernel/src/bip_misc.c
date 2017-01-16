@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
-  VERSION	$Id: bip_misc.c,v 1.13 2016/11/14 15:09:58 jschimpf Exp $
+  VERSION	$Id: bip_misc.c,v 1.14 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -258,8 +258,7 @@ p_setenv(value v0, type t0, value v1, type t1, ec_eng_t *ec_eng)
 #ifdef _WIN32
     if (!SetEnvironmentVariable(name, new_value))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
 #else
 #ifdef HAVE_PUTENV
@@ -276,8 +275,8 @@ p_setenv(value v0, type t0, value v1, type t1, ec_eng_t *ec_eng)
 
 	if (strchr(name, '='))	/* emulate setenv() behaviour */
 	{
-	    Set_Sys_Errno(EINVAL, ERRNO_UNIX);
-	    Bip_Error(SYS_ERROR);
+	    errno = EINVAL;
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
 	/* check if the environment variable is already set to new_value */
 	envstring = getenv(name);
@@ -289,8 +288,7 @@ p_setenv(value v0, type t0, value v1, type t1, ec_eng_t *ec_eng)
 	    if (putenv(envstring))
 	    {
 		free(envstring);
-		Set_Errno
-		Bip_Error(SYS_ERROR);
+		Bip_Error(SYS_ERROR_ERRNO);
 	    }
 	}
    }
@@ -298,8 +296,7 @@ p_setenv(value v0, type t0, value v1, type t1, ec_eng_t *ec_eng)
     /* setenv() copies the strings, old strings are leaked! */
     if (setenv(name, new_value, 1))
     {
-	Set_Errno
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_ERRNO);
     }
 #endif
 #endif
@@ -322,8 +319,7 @@ p_unsetenv(value v0, type t0, ec_eng_t *ec_eng)
 #ifdef _WIN32
     if (SetEnvironmentVariable(name, 0))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
 #else
     unsetenv(name);
@@ -755,7 +751,7 @@ p_cd(value v, type t, ec_eng_t *ec_eng)
     char   *name;
     Get_Name(v,t,name)
     if (ec_set_cwd(name)) {
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_ERRNO);
     }
     Succeed_;
 }
@@ -768,8 +764,7 @@ p_all_times(value vuser, type tuser, value vsys, type tsys, value vreal, type tr
     Prepare_Requests
     if (all_times(&user, &sys, &elapsed))
     {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
     Request_Unify_Float(vuser, tuser, user);
     Request_Unify_Float(vsys, tsys, sys);
@@ -936,7 +931,7 @@ p_alarm(value v, type t, ec_eng_t *ec_eng)
     Check_Integer(t);
 #ifdef USE_TIMER_THREAD
     if (!ec_set_alarm((double) v.nint, 0.0, _post_alarm, ec_sigalrm, 0, 0))
-    	{ Bip_Error(SYS_ERROR); }
+    	{ Bip_Error(SYS_ERROR_OS); }
 #else
     (void) alarm((unsigned) v.nint);
 #endif
@@ -961,14 +956,13 @@ p_get_hr_time(value v, type t, ec_eng_t *ec_eng)
 
     if (!QueryPerformanceCounter(&ticks))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
     seconds = (double)ticks.QuadPart/(double)ticks_per_sec_.QuadPart;
 #else
     struct timeval ticks;
     if (gettimeofday(&ticks, NULL))
-    	{ Bip_Error(SYS_ERROR); }
+    	{ Bip_Error(SYS_ERROR_ERRNO); }
     seconds = ticks.tv_sec + ticks.tv_usec/1000000.0;
 #endif
     Return_Unify_Float(v, t, seconds);
@@ -1033,7 +1027,7 @@ p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinter
             { Bip_Error(TYPE_ERROR); }
 
         if (!ec_set_alarm(first, interv, _post_alarm, ec_sigalrm, 0, 0))
-            { Bip_Error(SYS_ERROR); }
+            { Bip_Error(SYS_ERROR_OS); }
         Succeed_
     }
 #endif
@@ -1095,8 +1089,7 @@ p_start_timer(value vtimer, type ttimer, value vfirst, type tfirst, value vinter
 	    { Bip_Error(TYPE_ERROR); }
 
 	if (setitimer(timer, &desc, (struct itimerval *) 0) < 0) {
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
 	Succeed_
     }
@@ -1135,9 +1128,9 @@ p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv, ec_eng_t *ec
 
         Check_Output_Float(tinterv)
         if (!ec_set_alarm(0.0, 0.0, _post_alarm, ec_sigalrm, &remain, &old_interv))
-            { Bip_Error(SYS_ERROR); }
+            { Bip_Error(SYS_ERROR_OS); }
         if (!ec_set_alarm(remain, old_interv, _post_alarm, ec_sigalrm, 0, 0))
-            { Bip_Error(SYS_ERROR); }
+            { Bip_Error(SYS_ERROR_OS); }
         if (old_interv == 0)
            { Fail_; }
         Return_Unify_Float(vinterv, tinterv, old_interv)
@@ -1150,8 +1143,7 @@ p_get_timer(value vtimer, type ttimer, value vinterv, type tinterv, ec_eng_t *ec
 
 	Check_Output_Float(tinterv)
 	if (getitimer(timer, &desc) < 0) {
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
 	if (desc.it_interval.tv_sec == 0 &&
 	    desc.it_interval.tv_usec == 0) {
@@ -1196,7 +1188,7 @@ p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinte
     {
         double	remain, old_interv;
         if (!ec_set_alarm(0.0, 0.0, _post_alarm, ec_sigalrm, &remain, &old_interv))
-            { Bip_Error(SYS_ERROR); }
+            { Bip_Error(SYS_ERROR_OS); }
         Request_Unify_Float(vinterv, tinterv, old_interv) 
         Request_Unify_Float(vremain, tremain, remain)
         Return_Unify
@@ -1212,8 +1204,7 @@ p_stop_timer(value vtimer, type ttimer, value vremain, type tremain, value vinte
 	new.it_value.tv_sec = 0;
 	new.it_value.tv_usec = 0;
 	if (setitimer(timer, &new, &old) < 0) {
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
 	Request_Unify_Float(vinterv, tinterv,
 		old.it_interval.tv_sec + old.it_interval.tv_usec/1000000.0)
@@ -1262,8 +1253,7 @@ p_kill(value vpid, type tpid, value vsig, type tsig, ec_eng_t *ec_eng)
 	    CloseHandle(phandle);
 	    Succeed_;
 	}
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
     Bip_Error(UNIMPLEMENTED);
 #else
@@ -1275,8 +1265,7 @@ p_kill(value vpid, type tpid, value vsig, type tsig, ec_eng_t *ec_eng)
 	}
 	else
 	{
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
     }
     Succeed_;
@@ -1294,8 +1283,7 @@ p_system(value v, type t, ec_eng_t *ec_eng)
     res = system(command);
     if (res == -1)
     {
-	Set_Errno;
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_ERRNO);
     }
     Succeed_If(res == 0);
 }

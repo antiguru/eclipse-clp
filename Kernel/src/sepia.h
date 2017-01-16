@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.20 2016/10/28 22:24:51 jschimpf Exp $
+ * $Id: sepia.h,v 1.21 2017/01/16 19:04:18 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -324,10 +324,43 @@
 
 #define Bip_Error(errcode)	return(errcode);
 
-#define Set_Errno { \
-	ec_os_errgrp_ = 0 /*ERRNO_UNIX*/ ; \
-	ec_os_errno_ = errno; \
-	errno = 0; }
+/*
+ * Store an OS error code in an engine-specific location, for retrieval
+ * by the error handler. Normalise return code to SYS_ERROR.
+ *	SYS_ERROR_ERRNO		error code in errno
+ *	SYS_ERROR_WIN		error code in GetLastError()
+ *	SYS_ERROR		error code&type in last_os_err{or,grp}
+ */
+#define Store_Eng_OSError_And_Group(e,grp) \
+	ec_eng->last_os_error = (e); \
+	ec_eng->last_os_errgrp = (grp);
+
+#define Store_Eng_Errno() \
+	Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO)
+
+#ifdef _WIN32
+#define Store_Eng_OSError() \
+	Store_Eng_OSError_And_Group(GetLastError(),SYS_ERROR_WIN)
+
+#define Store_Eng_SysError(e) { \
+	if ((e) == SYS_ERROR_ERRNO) { \
+	    Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO) \
+	    (e) = SYS_ERROR; \
+	} else if ((e) == SYS_ERROR_WIN) { \
+	    Store_Eng_OSError_And_Group(GetLastError(),SYS_ERROR_WIN) \
+	    (e) = SYS_ERROR; \
+	}}
+#else
+#define Store_Eng_OSError() \
+	Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO)
+
+#define Store_Eng_SysError(e) { \
+	if ((e) == SYS_ERROR_ERRNO) { \
+	    Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO) \
+	    (e) = SYS_ERROR; \
+	}}
+#endif
+
 
 #define Bip_Throw(val, tag)	return return_throw(ec_eng, val, tag);
 

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.29 2016/11/14 15:09:58 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.30 2017/01/16 19:04:17 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -938,8 +938,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr, 
 		fd = dup((int) pw->val.nint);
 		if (fd == -1)
 		{
-		    Set_Errno
-		    Bip_Error(SYS_ERROR)
+		    Bip_Error(SYS_ERROR_ERRNO)
 		}
 	    	kind = SFD;		/* preliminary */
 	    }
@@ -973,8 +972,7 @@ p_open(value vfile, type tfile, value vmode, type tmode, value vstr, type tstr, 
 
 	if (fstat(fd, &fs))
 	{
-	    Set_Errno
-	    Bip_Error(SYS_ERROR)
+	    Bip_Error(SYS_ERROR_ERRNO)
 	}
 	if (isatty(fd))
 	    kind = STTY;
@@ -1120,6 +1118,7 @@ p_close2(value v, type t, value vopt, type topt, ec_eng_t *ec_eng)
     if ((res < 0)  &&  !(close_options & CLOSE_FORCE)  &&
     	!(res==STREAM_SPEC && (IsAtom(t)||IsNil(t))))
     {
+	Store_Eng_SysError(res);	/* save across cleanup */
 	ec_release_stream_if_needed(nst, err_or_copied);
 	Bip_Error(res)
     }
@@ -1212,8 +1211,7 @@ p_delete(value v, type t, ec_eng_t *ec_eng)
 
     if (ec_stat(name, &file_stat) < 0)
     {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
     if ((file_stat.st_mode & S_IFMT) == S_IFDIR)	/* it's a directory */
 	err = ec_rmdir(name);
@@ -1221,8 +1219,7 @@ p_delete(value v, type t, ec_eng_t *ec_eng)
 	err = ec_unlink(name);
     if (err < 0)
     {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
     Succeed_;
 }
@@ -1238,8 +1235,7 @@ p_mkdir(value v, type t, ec_eng_t *ec_eng)
 
     if (ec_mkdir(name, 0777) < 0)
     {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
     Succeed_;
 }
@@ -1257,8 +1253,7 @@ p_rename(value vo, type to, value vd, type td, ec_eng_t *ec_eng)
     old = expand_filename(old, fullold, EXPAND_STANDARD);
     new = expand_filename(new, fullnew, EXPAND_STANDARD);
     if (ec_rename(old, new) < 0) {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
     Succeed_;
 }
@@ -1282,8 +1277,7 @@ p_rename(value vo, type to, value vd, type td, ec_eng_t *ec_eng)
     (void) system(buf);
 #else
     if(system(buf) < 0) {
-	Set_Errno
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
 #endif /* no system return code check */
     Succeed_;
@@ -1541,8 +1535,7 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *
 	    memset(&name, 0, length);
 
 	    if (getsockname(StreamUnit(nst), (struct sockaddr *) &name, &length) < 0) {
-		Set_Errno;
-		Bip_Error(SYS_ERROR);
+		Bip_Error(SYS_ERROR_OS);
 	    }
 	    result.tag.kernel = TINT;
 	    result.val.nint = ntohs(name.sin_port);
@@ -2315,8 +2308,7 @@ p_pipe(value valr, type tagr, value valw, type tagw, ec_eng_t *ec_eng)
 
 	if (pipe(pd) == -1)
 	{
-		Set_Errno;
-		Bip_Error(SYS_ERROR);
+		Bip_Error(SYS_ERROR_ERRNO);
 	}
 	nr = find_free_stream();
 	init_stream(nr, pd[0], SREAD | SPIPE, d_pipe, NO_STREAM, 0);
@@ -2604,7 +2596,6 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
     char		full_name[MAX_PATH_LEN];
     HANDLE		dirp;
     WIN32_FIND_DATA	dent;
-    DWORD		err;
     pword		file_list, dir_list;
     register pword	*file_last = &file_list;
     register pword	*dir_last = &dir_list;
@@ -2621,8 +2612,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
     dirp = FindFirstFile(name, &dent);
     if (dirp == INVALID_HANDLE_VALUE)
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
 
     do
@@ -2649,16 +2639,14 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
 
     } while (FindNextFile(dirp, &dent));
 
-    if ((err = GetLastError()) != ERROR_NO_MORE_FILES)
+    if (GetLastError() != ERROR_NO_MORE_FILES)
     {
-	Set_Sys_Errno(err,ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
 
     if (!FindClose(dirp))
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     }
 
     Make_Nil(file_last);			/* terminate the lists */
@@ -2695,8 +2683,7 @@ p_read_dir(value vdir, type tdir, value vpat, type tpat, value vsubdirs, type ts
     name = os_filename(name, full_name);
     if ((dirp = opendir(name)) == NULL)		/* try to open the directory */
     {
-	Set_Errno;
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_ERRNO);
     }
 
     for (name = full_name; *name; name++)	/* prepare the name buffer */
@@ -2790,8 +2777,7 @@ p_socket(value vdom, type tdom, value vtp, type ttp, value vs, type ts, ec_eng_t
     }
     s = socket(sdomain, stype, 0);
     if (s == INVALID_SOCKET) {
-	Set_Socket_Errno();
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_OS);
     }
     inst = alloc_slave_stream();
     init_stream(inst, s, SREAD | SSOCKET | SSLAVE, d_socket, NO_STREAM, 0);
@@ -2824,14 +2810,13 @@ socket_bind(stream_id nst, value vaddr, type taddr, ec_eng_t *ec_eng)
 	(void) strcpy(name.sun_path, DidName(vaddr.did));
 	if (bind(StreamUnit(nst), (struct sockaddr *) &name,
 	    strlen(name.sun_path) + sizeof(name.sun_family)) < 0) {
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_OS);
 	}
 	StreamName(nst) = vaddr.did;
 	SocketUnix(nst) = vaddr.did;
 	Succeed_;
 #else
-	Bip_Error(SYS_ERROR);
+	Bip_Error(UNIMPLEMENTED);
 #endif
     }
     else
@@ -2867,7 +2852,7 @@ socket_bind(stream_id nst, value vaddr, type taddr, ec_eng_t *ec_eng)
 
 	    hlen = ec_gethostname(buf, 257);
 	    if (hlen < 0) {
-		Bip_Error(SYS_ERROR);
+		Bip_Error(SYS_ERROR_OS);
 	    }
 	    hdid = enter_dict_n(buf, hlen, 0);
 	}
@@ -2885,13 +2870,11 @@ socket_bind(stream_id nst, value vaddr, type taddr, ec_eng_t *ec_eng)
 	else
 	    name.sin_port = htons(0);
 	if (bind((socket_t) StreamUnit(nst), (struct sockaddr *) &name, sizeof(name)) != 0) {
-	    Set_Socket_Errno();
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_OS);
 	}
 	StreamName(nst) = hdid;
 	if (getsockname((socket_t) StreamUnit(nst), (struct sockaddr *) &name, &length) != 0) {
-	    Set_Socket_Errno();
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_OS);
 	}
 	if (IsRef(taddr))
 	{
@@ -2927,7 +2910,7 @@ p_bind(value v, type t, value vaddr, type taddr, ec_eng_t *ec_eng)
 }
 
 static int
-socket_connect(stream_id nst, value vaddr, type taddr)
+socket_connect(stream_id nst, value vaddr, type taddr, ec_eng_t *ec_eng)
 {
     if (SocketUnix(nst))
     {
@@ -2953,8 +2936,7 @@ socket_connect(stream_id nst, value vaddr, type taddr)
 	    strlen(name.sun_path) + sizeof(name.sun_family)) < 0
 	    && !(IsInteger(taddr) && errno == ENOTSOCK))
 	{
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_OS);
 	}
 	if (IsInteger(taddr))
 	    SocketConnection(nst) = 0;
@@ -2962,7 +2944,7 @@ socket_connect(stream_id nst, value vaddr, type taddr)
 	    SocketConnection(nst) = (unsigned char *) (vaddr.did);
 	Succeed_;
 #else
-	Bip_Error(SYS_ERROR);
+	Bip_Error(UNIMPLEMENTED);
 #endif
     }
     else
@@ -3014,9 +2996,12 @@ socket_connect(stream_id nst, value vaddr, type taddr)
 	name.sin_family = AF_INET;
 	if (connect((socket_t) StreamUnit(nst), (struct sockaddr *) &name, sizeof(name)) != 0)
 	{
-	    Set_Socket_Errno();
+	    /* save the OS error code (because it may get overwritten by
+	     * ec_close_stream), and return SYS_ERROR to indicate it.
+	     */
+	    Store_Eng_OSError();
 #ifdef EADDRNOTAVAIL
-	    if (!(host == 0 && haddr == 0 && ec_os_errno_ == EADDRNOTAVAIL))
+	    if (!(host == 0 && haddr == 0 && ec_eng->last_os_error == EADDRNOTAVAIL))
 #endif
 	    { 
 	      /* if connect returns with error, then the socket is closed
@@ -3042,16 +3027,15 @@ p_connect(value v, type t, value vaddr, type taddr, ec_eng_t *ec_eng)
 
     Get_Locked_Stream(v, t, SRDWR, nst);
     return RemoteStream(nst) ? io_rpc(nst, IO_CONNECT):
-				socket_connect(nst, vaddr, taddr);
+				socket_connect(nst, vaddr, taddr, ec_eng);
 }
 
 static int
-socket_listen(stream_id nst, value vn, type tn)
+socket_listen(stream_id nst, value vn, type tn, ec_eng_t *ec_eng)
 {
     Check_Integer(tn);
     if (listen((socket_t) StreamUnit(nst), (int) vn.nint) != 0) {
-	Set_Socket_Errno();
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_OS);
     }
     Succeed_;
 }
@@ -3063,7 +3047,7 @@ p_listen(value v, type t, value vn, type tn, ec_eng_t *ec_eng)
 
     Get_Locked_Stream(v, t, SRDWR, nst);
     return RemoteStream(nst) ? io_rpc(nst, IO_LISTEN):
-				socket_listen(nst, vn, tn);
+				socket_listen(nst, vn, tn, ec_eng);
 }
 
 static int
@@ -3085,13 +3069,12 @@ socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio, ec_eng
 	length = sizeof(name);
 	res = accept(StreamUnit(nst), (struct sockaddr *) &name, &length);
 	if (res == INVALID_SOCKET) {
-	    Set_Socket_Errno();
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_OS);
 	}
 	wn = enter_dict_n(name.sun_path, length-sizeof(name.sun_family), 0);
 	Request_Unify_Atom(vaddr, taddr, wn);
 #else
-	Bip_Error(SYS_ERROR);
+	Bip_Error(UNIMPLEMENTED);
 #endif
     }
     else
@@ -3107,8 +3090,7 @@ socket_accept(stream_id nst, value vaddr, type taddr, pword p, int sigio, ec_eng
 
 	res = accept((socket_t) StreamUnit(nst), (struct sockaddr *) &name, &length);
 	if (res == INVALID_SOCKET) {
-	    Set_Socket_Errno();
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_OS);
 	}
 	host = gethostbyaddr ((char *) &name.sin_addr, sizeof(name.sin_addr), AF_INET);
 	TG += 3;
@@ -3187,16 +3169,14 @@ ec_write_socket(uword fd, char *buf, int n)	/* returns eclipse status */
 	    return PSUCCEED;
 	else if (cnt < 0 )
 	{
-	    Set_Socket_Errno();
-#ifdef EINTR
-	    if (ec_os_errno_ == EINTR)
-	    	continue;	/* an interrupted call, try again */
-#endif
 #ifdef _WIN32
-	    if (ec_os_errno_ == WSAEINTR)
+	    if (GetLastError() == WSAEINTR)
+	    	continue;	/* an interrupted call, try again */
+#elif defined(EINTR)
+	    if (errno == EINTR)
 	    	continue;	/* an interrupted call, try again */
 #endif
-	    return OUT_ERROR;
+	    return SYS_ERROR_OS;	/* from send() */
 	}
 	else
 	{
@@ -3207,7 +3187,7 @@ ec_write_socket(uword fd, char *buf, int n)	/* returns eclipse status */
 }
 
 int
-ec_read_socket(uword fd, char *buf, int n)	/* returns count, sets ec_os_errno_ if -1 */
+ec_read_socket(uword fd, char *buf, int n, int* err)	/* returns count, sets OS error */
 {
     int count;
 
@@ -3216,15 +3196,14 @@ ec_read_socket(uword fd, char *buf, int n)	/* returns count, sets ec_os_errno_ i
 	count = recv((int) fd, buf, n, 0);
 	if (count < 0)
 	{
-	    Set_Socket_Errno();
-#ifdef EINTR
-	    if (ec_os_errno_ == EINTR)
-	    	continue;	/* an interrupted call, try again */
-#endif
 #ifdef _WIN32
-	    if (ec_os_errno_ == WSAEINTR)
+	    if (GetLastError() == WSAEINTR)
+	    	continue;	/* an interrupted call, try again */
+#elif defined(EINTR)
+	    if (errno == EINTR)
 	    	continue;	/* an interrupted call, try again */
 #endif
+	    *err = SYS_ERROR_OS;
 	}
 	return count;
     }
@@ -3239,8 +3218,7 @@ ec_close_socket(uword fd)		/* returns eclipse status */
     if (close(fd) != 0)
 #endif
     {
-	Set_Socket_Errno();
-	return SYS_ERROR;
+	return SYS_ERROR_OS;
     }
     return PSUCCEED;
 }
@@ -3323,14 +3301,14 @@ ec_setup_stream_sigio_thread(stream_id nst)
 	    return UNIMPLEMENTED;
 	nst->signal_thread = ec_make_thread();
 	if (!nst->signal_thread)
-	    return SYS_ERROR;
+	    return SYS_ERROR_OS;
     }
     else if (!ec_thread_stopped(nst->signal_thread, &res))
     {
 	return PSUCCEED;
     }
     if (!ec_start_thread(nst->signal_thread, (int(*)(void*))_sigio_thread_function, nst))
-	return SYS_ERROR;
+	return SYS_ERROR_OS;
     return PSUCCEED;
 }
 
@@ -3349,7 +3327,7 @@ ec_teardown_stream_sigio_thread(stream_id nst, int always)
 	int dummy;
 	stream_id inst;
 	if (ec_thread_terminate(nst->signal_thread, THREAD_TIMEOUT) < 0)
-	    return SYS_ERROR;
+	    return SYS_ERROR_OS;
 	nst->signal_thread = 0;
     }
     return PSUCCEED;
@@ -3376,8 +3354,7 @@ ec_reenable_sigio(stream_id nst, int bytes_wanted, int bytes_read)
 	if (res > 0) {
 	    return PSUCCEED;	/* there is more data */
 	} else if (res < 0) {
-	    Set_Socket_Errno();
-	    return SYS_ERROR;
+	    return SYS_ERROR_OS;
 	}
     }
 
@@ -3385,7 +3362,7 @@ ec_reenable_sigio(stream_id nst, int bytes_wanted, int bytes_read)
     if (ec_thread_stopped(nst->signal_thread, &res))
     {
 	if (!ec_start_thread(nst->signal_thread, (int(*)(void*))_sigio_thread_function, nst))
-	    return SYS_ERROR;
+	    return SYS_ERROR_OS;
     }
     return PSUCCEED;
 }
@@ -3579,8 +3556,7 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout, ec
 	ecl_unpause_engine(ec_eng);
 	if (res < 0)
 	{
-	    Set_Socket_Errno();
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_OS);
 	}
     }
 #ifdef _WIN32
@@ -3600,7 +3576,7 @@ p_select(value vin, type tin, value vtime, type ttime, value vout, type tout, ec
 	if (!PeekNamedPipe((HANDLE)_get_osfhandle(StreamUnit(nst_win_pipe)),
 				NULL, 0, NULL, &avail, NULL))
 	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
+	    Store_Eng_OSError();	/* save until return */
 	    res = SYS_ERROR;
 	}
 	else if (avail > 0)
@@ -3736,8 +3712,7 @@ p_readline(value v, type t, ec_eng_t *ec_eng)
     }
     res = set_readline(nst);
     if (res != PSUCCEED) {
-	Set_Errno;
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_ERRNO);
     }
     Succeed_;
 }
@@ -3864,8 +3839,8 @@ _build_argv(ec_eng_t *ec_eng,
 		Bip_Error(TYPE_ERROR);
 	    }
 	    if (i >= MAX_ARGS) {
-		Set_Sys_Errno(E2BIG, ERRNO_UNIX);
-		Bip_Error(SYS_ERROR);
+		errno = E2BIG;
+		Bip_Error(SYS_ERROR_ERRNO);
 	    }
 	    cdr = cdr->val.ptr;
 	}
@@ -4015,14 +3990,12 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	}
 	if (hParent == INVALID_HANDLE_VALUE || hChild == INVALID_HANDLE_VALUE)
 	{
-	    Set_Errno;
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
 	if (!SetHandleInformation(hChild, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)
 	 || !SetHandleInformation(hParent, HANDLE_FLAG_INHERIT, 0))
 	{
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_WIN);
 	}
     }
 
@@ -4037,8 +4010,8 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	}
 	if (len > MAX_WIN_CMD_LINE)
 	{
-	    Set_Sys_Errno(E2BIG, ERRNO_UNIX);
-	    Bip_Error(SYS_ERROR);
+	    errno = E2BIG;
+	    Bip_Error(SYS_ERROR_ERRNO);
 	}
 	Push_Buffer(len);
 	cmd = s = (char *) BufferStart(pw_s);
@@ -4065,10 +4038,8 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	&si,            /* Pointer to STARTUPINFO structure */
 	&pi))           /* Pointer to PROCESS_INFORMATION structure */
     {
-	Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	Bip_Error(SYS_ERROR);
 	_close_pipes(pipes);
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_WIN);
     } 
 
     /* Pop all the temporary strings */
@@ -4166,8 +4137,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
     {
     case -1:
 	_close_pipes(pipes);
-	Set_Errno;
-	Bip_Error(SYS_ERROR);
+	Bip_Error(SYS_ERROR_ERRNO);
 
     case 0:			/* child */
 	_connect_pipes(pipes);
@@ -4431,6 +4401,7 @@ _check_stream(value v, type t, pword *s, int io)
 static void
 _close_pipes(struct pipe_desc *pipes)
 {
+    int saved_errno = errno;
     while (!(pipes->flags & EXEC_PIPE_LAST)) {
 	if (pipes->flags) {
 	    (void) close(pipes->fd[0]);
@@ -4438,6 +4409,7 @@ _close_pipes(struct pipe_desc *pipes)
 	}
 	pipes++;
     }
+    errno = saved_errno;
 }
 
 #ifndef _WIN32
@@ -4479,10 +4451,9 @@ _open_pipes(struct pipe_desc *allpipes)
     while (!(pipes->flags & EXEC_PIPE_LAST)) {
 	if (pipes->flags) {
 	    if (pipe(pipes->fd) == -1) {
-		Set_Errno;
 		pipes->flags |= EXEC_PIPE_LAST;
 		_close_pipes(allpipes);
-		return SYS_ERROR;
+		return SYS_ERROR_ERRNO;
 	    }
 	}
 	pipes++;
@@ -4528,8 +4499,7 @@ p_wait(value pv, type pt, value sv, type st, value vmode, type tmode, ec_eng_t *
 		{
 		    Fail_;
 		}
-		Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-		Bip_Error(SYS_ERROR);
+		Bip_Error(SYS_ERROR_WIN);
 	    }
 	}
 
@@ -4564,8 +4534,7 @@ p_wait(value pv, type pt, value sv, type st, value vmode, type tmode, ec_eng_t *
 _wait_cleanup_error_:
 	    Child_Unlink(pd);
 	    CloseHandle(phandle);
-	    Set_Sys_Errno(GetLastError(),ERRNO_WIN32);
-	    Bip_Error(SYS_ERROR);
+	    Bip_Error(SYS_ERROR_WIN);
         }
 #else
 	Cut_External;
@@ -4601,8 +4570,7 @@ _wait_cleanup_error_:
 	if (errno == ECHILD) {
 	    Fail_;
 	}
-	Set_Errno;
-	Bip_Error(SYS_ERROR)
+	Bip_Error(SYS_ERROR_ERRNO)
     }
     Request_Unify_Integer(sv, st, statusp);
     Return_Unify;

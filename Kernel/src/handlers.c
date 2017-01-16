@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.16 2016/11/14 15:09:58 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.17 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /** @file
@@ -574,12 +574,10 @@ _setup_signal_thread()
 {
     if (!signal_thread)
     {
-	if (pipe(signal_pipe)) {
-	    Set_Errno;
-	    return SYS_ERROR;
-	}
+	if (pipe(signal_pipe))
+	    return SYS_ERROR_ERRNO;
 	if (ec_thread_create(&signal_thread, (void*(*)(void*))_signal_thread_function, (void*)(word)signal_pipe[0]))
-	    return SYS_ERROR;
+	    return SYS_ERROR_OS;
     }
     return PSUCCEED;
 }
@@ -747,8 +745,7 @@ _install_int_handler(int sig, int how, pri *proc, ec_eng_t *ec_eng)
 		action.sa_handler = _catch_fatal;
 #endif
 		if (sigaction(sig, &action, NULL)) {
-		    Set_Errno;
-		    return SYS_ERROR;
+		    return SYS_ERROR_ERRNO;
 		}
 		/* The mask should apply to all threads, but this sets only
 		 * the calling thread.  Repeat the setup in other threads if

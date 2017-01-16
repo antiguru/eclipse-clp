@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.12 2017/01/11 17:58:13 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.13 2017/01/16 19:04:18 jschimpf Exp $
  *
  */
 
@@ -307,8 +307,7 @@ _engine_thread_create(ec_eng_t *ec_eng)
 		(void*(*)(void*)) _engine_run_thread,
 		(void*) ec_eng);
     if (err) {
-	Set_Sys_Errno(err, ERRNO_OS);
-	return SYS_ERROR;
+	return SYS_ERROR_OS;
     }
     /* wait until the thread is ready and has set ec_eng->own_thread */
     ec_mutex_lock(&ec_eng->lock);
@@ -387,7 +386,7 @@ _return_error_:
  *	- PSUCCEED
  *	- RANGE_ERROR		options out of range (e.g. stack sizes)
  *	- ENGINE_NOT_UP		could not create/start engine
- *	- SYS_ERROR		OS error during creation
+ *	- SYS_ERROR_OS		OS error during creation
  */
 
 
@@ -897,7 +896,7 @@ ecl_running(ec_eng_t *ec_eng)
 /**
  * Resume an engine in its own thread.
  * This creates an extra reference and transfers engine ownership to the thread.
- * @return PSUCCEED, PRUNNING, ENGINE_NOT_ASYNC, SYS_ERROR
+ * @return PSUCCEED, PRUNNING, ENGINE_NOT_ASYNC, SYS_ERROR_OS
  */
 
 int Winapi
@@ -992,7 +991,7 @@ ecl_copy_resume_async(ec_eng_t *from_eng, ec_eng_t *ec_eng, const pword term, co
  *	- PEXITED	engine already dead (not acquired)
  *	- ENGINE_NOT_ASYNC  engine not joinable (self or not async running)
  *	- ENGINE_BUSY	engine did stop, but was otherwise acquired
- *	- SYS_ERROR	error from ec_cond_wait()
+ *	- SYS_ERROR_OS	error from ec_cond_wait()
  */
 int Winapi
 ecl_join_acquire(ec_eng_t *ec_eng, int timeout)
@@ -1029,7 +1028,8 @@ ecl_join_acquire(ec_eng_t *ec_eng, int timeout)
 		goto _unlock_return_;
 	    }
 	    if (res > 0) {
-		res = SYS_ERROR;
+		SetLastOSError(res);
+		res = SYS_ERROR_OS;
 		goto _unlock_return_;
 	    }
 	}
@@ -1062,7 +1062,7 @@ _unlock_return_:
  *	PSUCCEED..PFLUSHIO	engine status (=A[1],  and A[2])
  *	ENGINE_NOT_ASYNC engine not joinable (self or not async running)
  *	PRUNNING	timeout, engine still running
- *	SYS_ERROR	error from ec_cond_wait()
+ *	SYS_ERROR_OS	error from ec_cond_wait()
  */
 int Winapi
 ecl_wait_resume_status_long(ec_eng_t *ec_eng, long int *to_c, int timeout)

@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_record.c,v 1.8 2016/11/05 01:31:18 jschimpf Exp $
+ * VERSION	$Id: bip_record.c,v 1.9 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /* ********************************************************************
@@ -597,7 +597,7 @@ p_recordz_body(value vrec, type trec, value vterm, type tterm, value vmod, type 
 
 /**
  * Specialized version of record_wait_append/4:  append a handle
- * (represented by call+data) to the record, and signal waiters.
+ * (represented by class+data) to the record, and signal waiters.
  * CAUTION: data is not copied here, the reference is moved to the heap.
  */
 int

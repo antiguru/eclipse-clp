@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.10 2016/12/12 02:16:40 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.11 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /*
@@ -283,7 +283,7 @@ typedef struct {
     int		buf_size_hint;
     int		(*close)(int);
     int		(*ready)();
-    int		(*read)(int,char*,int);
+    int		(*read)(int,char*,int,int*);
     int		(*write)(int,char*,int);
     int		(*at)(stream_id nst, long int*);
     int		(*at_eof)(stream_id);

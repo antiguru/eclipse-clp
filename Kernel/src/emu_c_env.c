@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.17 2016/11/14 15:09:58 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.18 2017/01/16 19:04:18 jschimpf Exp $
  */
 
 /*
@@ -217,6 +217,8 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
 #endif
     b_aux.invoc->node = eng_root_branch;
     Get_Bip_Error(b_aux.invoc->global_bip_error);
+    b_aux.invoc->last_os_error = ec_eng->last_os_error;
+    b_aux.invoc->last_os_errgrp = ec_eng->last_os_errgrp;
     b_aux.invoc->gctg = GCTG;
     GCTG = TG;
     Save_Tg_Soft_Lim(b_aux.invoc->tg_soft_lim);
@@ -441,6 +443,8 @@ ecl_engine_clone(ec_eng_t* from_eng, ec_eng_t* to_eng)
     to_eng->load = 0;
     to_eng->ntry = 0;
     to_eng->leaf = NULL;
+    to_eng->last_os_error = 0;
+    to_eng->last_os_errgrp = 0;
     */
 
     /* adjust the stack sizes */

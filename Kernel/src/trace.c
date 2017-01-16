@@ -295,8 +295,7 @@ write_trace_buffer(int full)
       ub = theader.entries % MAX_EVENTS;
     for(i = 0; i < ub; i++) 
       if (write(temp_fd, &events[i],sizeof(trace_event_t)) < 0) {
-	Set_Errno;
-	return SYS_ERROR ;
+	return SYS_ERROR_ERRNO;
       }
     if (full)
       LOG_EVENT_POP

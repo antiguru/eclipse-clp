@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkeclipse.c,v 1.5 2016/07/28 03:34:36 jschimpf Exp $
+ *	$Id: tkeclipse.c,v 1.6 2017/01/16 19:04:18 jschimpf Exp $
  *
  *	Code for embedding eclipse into a tcl program
  */
@@ -206,7 +206,7 @@ EcResume(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *const *ob
 	Tcl_WrongNumArgs(interp, 1, objv, "?async?");
 	return TCL_ERROR;
     }
-    /* ec_resume_async() can only return PSUCCEED, PRUNNING or SYS_ERROR */
+    /* ec_resume_async() can only return PSUCCEED, PRUNNING or SYS_ERROR_OS */
     res =  async ? ec_resume_async() : ec_resume_long(&arg);
     switch (res)
     {
