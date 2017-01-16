@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.37 2016/10/10 01:40:03 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.38 2017/01/16 19:41:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -928,16 +928,6 @@ boot_error(N, Goal) :-
 	).
 
 
-output_error_handler(X, Culprit, CM, LM):-
-	( Culprit = close(_) ->
-	    true
-	;
-	    extract_stream(Culprit, S),
-	    close(S)
-	),
-	system_error_handler(X, Culprit, CM, LM).
-
-
 % This handler is called when we were trying to close one of the predefined
 % streams, whether explicitly or via their handle or another alias.
 
@@ -1479,13 +1469,14 @@ postpone_suspensions(Susp) :-
    set_default_error_handler_(175, error_handler/2, sepia_kernel),
    set_default_error_handler_(176, error_handler/2, sepia_kernel),
    set_default_error_handler_(177, error_handler/2, sepia_kernel),
+   set_default_error_handler_(178, error_handler/2, sepia_kernel),
+   set_default_error_handler_(179, error_handler/2, sepia_kernel),
    set_default_error_handler_(180, error_handler/2, sepia_kernel),
    set_default_error_handler_(181, error_handler/2, sepia_kernel),
    set_default_error_handler_(182, error_handler/2, sepia_kernel),
    set_default_error_handler_(183, error_handler/2, sepia_kernel),
    set_default_error_handler_(184, error_handler/2, sepia_kernel),
    set_default_error_handler_(190, eof_handler/4, sepia_kernel),
-   set_default_error_handler_(191, output_error_handler/4, sepia_kernel),
    set_default_error_handler_(192, error_handler/2, sepia_kernel),
    set_default_error_handler_(193, error_handler/2, sepia_kernel),
    set_default_error_handler_(194, error_handler/2, sepia_kernel),
@@ -1978,6 +1969,5 @@ bip_error_(Goal, CM, LM) :-	% for internal use
 	error_handler/2,
 	error_handler/3,
 	error_handler/4,
-	output_error_handler/4,
 	parser_error_handler/3,
 	system_error_handler/4.
