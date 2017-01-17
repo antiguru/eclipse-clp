@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: error.h,v 1.7 2017/01/16 19:04:18 jschimpf Exp $
+ * VERSION	$Id: error.h,v 1.8 2017/01/17 17:20:51 jschimpf Exp $
  *
  * IDENTIFICATION		error.h
  *
@@ -40,10 +40,6 @@
 #define stringify_step1(s) stringify_step2(s)
 #define stringify_step2(s) #s
 
-
-#define Set_Bip_Error(N)	ec_eng->global_bip_error = (N);
-#define Get_Bip_Error(N)	(N) = ec_eng->global_bip_error; Set_Bip_Error(0);
-#define Bip_Error_Fail(N)	Set_Bip_Error(N); Fail_;
 
 #define MAX_ERRORS		370	/* size of the message array */
 #define USER_ERROR		340	/* first user-reserved entry */

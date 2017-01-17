@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.25 2016/12/12 14:01:48 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.26 2017/01/17 17:20:51 jschimpf Exp $
  */
 
 /*
@@ -1061,7 +1061,6 @@ _find_matching_predicate(char *string, int state)
 	    }
 	}
     }
-    Set_Bip_Error(0);
     return (char *) 0;
 }
 #else
@@ -1386,11 +1385,6 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
 }
 
 
-/*** the subsequent BIPs fail on error and set the global variable ***/
-
-#undef Bip_Error
-#define Bip_Error(N) Bip_Error_Fail(N)
-
 /*
  * set_syntax(+flag, +val) - set or reset a syntax flag, fails on error
  *
@@ -1400,6 +1394,9 @@ p_read_token_(value vs, type ts, value v, type t, value vc, type tc, value vm, t
 static int
 p_set_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm, ec_eng_t *ec_eng)
 {
+#undef Bip_Error
+#define Bip_Error(N) Bip_Error_Fail(N)
+
     int		i, flag;
     syntax_desc	*sd;
 
@@ -1420,6 +1417,9 @@ p_set_syntax(value val1, type tag1, value val2, type tag2, value vm, type tm, ec
 	}
     }
     Bip_Error(RANGE_ERROR);
+
+#undef Bip_Error
+#define Bip_Error(N) Bip_Error_Return(N)
 }
 
 
@@ -1943,4 +1943,3 @@ return_err:
     return (char *) t;
 }
 
-/* CAUTION: Bip_Error() is redefined to Bip_Error_Fail() */

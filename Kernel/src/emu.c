@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.42 2017/01/16 19:04:18 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.43 2017/01/17 17:20:51 jschimpf Exp $
  */
 
 /*
@@ -6800,7 +6800,7 @@ _exit_emulator_:				/* (err_code[,scratch_pw]) */
 	    PO = Invoc(pw1)->pending_oracle;
 #endif
 	    PPB = Invoc(pw1)->ppb;
-	    Set_Bip_Error(Invoc(pw1)->global_bip_error);
+	    ec_eng->global_bip_error = Invoc(pw1)->global_bip_error;
 	    ec_eng->last_os_error = Invoc(pw1)->last_os_error;
 	    ec_eng->last_os_errgrp = Invoc(pw1)->last_os_errgrp;
 	    GCTG = Invoc(pw1)->gctg;
@@ -6942,8 +6942,8 @@ _exit_engine_:				/* (scratch_pw) */
 	    {
 		Get_Argument(pw1)
 		Dereference_Pw_Tag(pw1, tmp1);
-		if (IsTag(tmp1, TINT))
-		    Set_Bip_Error(- pw1->val.nint);
+		if (IsTag(tmp1, TINT) && pw1->val.nint >= 0)
+		    Set_Bip_Error(-pw1->val.nint);
 	    }
 	    Fail;
 

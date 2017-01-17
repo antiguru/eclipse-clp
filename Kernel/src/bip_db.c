@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_db.c,v 1.23 2016/11/07 01:55:49 jschimpf Exp $
+ * VERSION	$Id: bip_db.c,v 1.24 2017/01/17 17:20:51 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -797,13 +797,11 @@ p_proc_flags(value vn, type tn, value vc, type tc, value vf, type tf, value vm, 
     proc = visible_procedure(wd, vm.did, tt, PRI_DONTWARN, &err);
     if (! proc)
     {
-	Set_Bip_Error(0);
 	Fail_;
     }
     flags = PriFlags(proc);
     if (PriScope(proc) == DEFAULT  &&  !PriReferenced(proc))
     {
-	Set_Bip_Error(0);
 	Fail_;
     }
     if (vc.nint == 7 || UnauthorizedAccess(vm.did, tm) && !PriExported(proc))
@@ -2259,8 +2257,7 @@ p_set_proc_flags(value vproc, type tproc, value vf, type tf, value vv, type tv, 
 
 _unlock_return_err_:
 	mt_mutex_unlock(&ProcedureLock);
-	Set_Bip_Error(err);
-	Fail_;
+	Bip_Error(err);
 }
 
 #undef Bip_Error

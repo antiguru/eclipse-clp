@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.21 2017/01/16 19:04:18 jschimpf Exp $
+ * $Id: sepia.h,v 1.22 2017/01/17 17:20:51 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -322,7 +322,31 @@
 					Bip_Error(INSTANTIATION_FAULT)\
 				}
 
-#define Bip_Error(errcode)	return(errcode);
+/* Return error code to the engine.
+ * May be redefined to Bip_Error_Fail()! */
+#define Bip_Error(errcode)	Bip_Error_Return(errcode)
+
+/* Use this variant whenever errcode might be SYS_ERROR_{ERRNO,WIN}.
+ * May be redefined to Bip_SysError_Fail()! */
+#define Bip_SysError(errcode)	Bip_Error_Return(errcode)
+
+/* Default convention for error return from externals */
+#define Bip_Error_Return(errcode) return(errcode);
+
+
+/* Failure-based convention for error return from externals */
+#define Bip_Error_Fail(N) \
+	Set_Bip_Error(N); Fail_;
+
+#define Set_Bip_Error(N) \
+	ec_eng->global_bip_error = (N);
+
+#define Reset_Bip_Error() \
+	ec_eng->global_bip_error = 0;
+
+#define Get_Bip_Error(N) \
+	(N) = ec_eng->global_bip_error; ec_eng->global_bip_error=0;
+
 
 /*
  * Store an OS error code in an engine-specific location, for retrieval
@@ -350,6 +374,18 @@
 	    Store_Eng_OSError_And_Group(GetLastError(),SYS_ERROR_WIN) \
 	    (e) = SYS_ERROR; \
 	}}
+
+#define Bip_SysError_Fail(e) { \
+	if ((e) == SYS_ERROR_ERRNO) { \
+	    Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO) \
+	    Set_Bip_Error(SYS_ERROR); \
+	} else if ((e) == SYS_ERROR_WIN) { \
+	    Store_Eng_OSError_And_Group(GetLastError(),SYS_ERROR_WIN) \
+	    Set_Bip_Error(SYS_ERROR); \
+	} else { \
+	    Set_Bip_Error(e); \
+	} \
+	Fail_ }
 #else
 #define Store_Eng_OSError() \
 	Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO)
@@ -359,6 +395,15 @@
 	    Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO) \
 	    (e) = SYS_ERROR; \
 	}}
+
+#define Bip_SysError_Fail(e) { \
+	if ((e) == SYS_ERROR_ERRNO) { \
+	    Store_Eng_OSError_And_Group(errno,SYS_ERROR_ERRNO) \
+	    Set_Bip_Error(SYS_ERROR); \
+	} else { \
+	    Set_Bip_Error(e); \
+	} \
+	Fail_ }
 #endif
 
 

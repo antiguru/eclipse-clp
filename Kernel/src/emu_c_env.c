@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.18 2017/01/16 19:04:18 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.19 2017/01/17 17:20:51 jschimpf Exp $
  */
 
 /*
@@ -216,7 +216,8 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
     b_aux.invoc->pb = PB;
 #endif
     b_aux.invoc->node = eng_root_branch;
-    Get_Bip_Error(b_aux.invoc->global_bip_error);
+    b_aux.invoc->global_bip_error = ec_eng->global_bip_error;
+	ec_eng->global_bip_error = 0;
     b_aux.invoc->last_os_error = ec_eng->last_os_error;
     b_aux.invoc->last_os_errgrp = ec_eng->last_os_errgrp;
     b_aux.invoc->gctg = GCTG;
@@ -261,8 +262,6 @@ save_vm_status(ec_eng_t *ec_eng, vmcode *fail_code, int options)
     re_fake_overflow(ec_eng);
 
     Restore_Tg_Soft_Lim(TG + TG_SEG)
-
-    Set_Bip_Error(0);
 }
 
 #if 0	/*TODO*/

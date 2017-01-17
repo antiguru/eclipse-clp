@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_io.c,v 1.30 2017/01/16 19:04:17 jschimpf Exp $
+ * VERSION	$Id: bip_io.c,v 1.31 2017/01/17 17:20:51 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -1768,6 +1768,8 @@ p_stream_info_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *
 
 #undef Bip_Error
 #define Bip_Error(N) Bip_Error_Fail(N)
+#undef Bip_SysError
+#define Bip_SysError(N) Bip_SysError_Fail(N)
 
 static int
 p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t, ec_eng_t *ec_eng)
@@ -2100,7 +2102,9 @@ p_set_stream_prop_(value vs, type ts, value vi, type ti, value v, type t, ec_eng
 }
 
 #undef Bip_Error
-#define Bip_Error(N) return(N);
+#define Bip_Error(N) Bip_Error_Return(N);
+#undef Bip_SysError
+#define Bip_SysError(N) Bip_Error_Return(N);
 
 
 static int
@@ -3861,6 +3865,8 @@ _build_argv(ec_eng_t *ec_eng,
 
 #undef Bip_Error
 #define Bip_Error(N) Bip_Error_Fail(N)
+#undef Bip_SysError
+#define Bip_SysError(N) Bip_SysError_Fail(N);
 
 static int
 p_check_valid_stream(value v, type t, ec_eng_t *ec_eng)
@@ -3870,7 +3876,7 @@ p_check_valid_stream(value v, type t, ec_eng_t *ec_eng)
 
     nst = get_stream_id(v, t, SRDWR, 0, NULL, &err_or_copied);
     if (nst == NO_STREAM) {
-	Bip_Error(err_or_copied);
+	Bip_SysError(err_or_copied);
     }
     ec_release_stream_if_needed(nst, err_or_copied);
     Succeed_;
@@ -3931,17 +3937,17 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 
     err = _build_argv(ec_eng, vc, tc, argv, &cmd);
     if (err < 0) {
-	Bip_Error(err)
+	Bip_SysError(err)
     }
 
     err = _check_streams(vstr, tstr, pipes);
     if (err < 0) {
-	Bip_Error(err)
+	Bip_SysError(err)
     }
 
     err = _open_pipes(pipes);
     if (err < 0) {
-	Bip_Error(err)
+	Bip_SysError(err)
     }
 
     /* Prepare arguments for CreateProcess() */
@@ -3990,12 +3996,12 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	}
 	if (hParent == INVALID_HANDLE_VALUE || hChild == INVALID_HANDLE_VALUE)
 	{
-	    Bip_Error(SYS_ERROR_ERRNO);
+	    Bip_SysError(SYS_ERROR_ERRNO);
 	}
 	if (!SetHandleInformation(hChild, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)
 	 || !SetHandleInformation(hParent, HANDLE_FLAG_INHERIT, 0))
 	{
-	    Bip_Error(SYS_ERROR_WIN);
+	    Bip_SysError(SYS_ERROR_WIN);
 	}
     }
 
@@ -4011,7 +4017,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	if (len > MAX_WIN_CMD_LINE)
 	{
 	    errno = E2BIG;
-	    Bip_Error(SYS_ERROR_ERRNO);
+	    Bip_SysError(SYS_ERROR_ERRNO);
 	}
 	Push_Buffer(len);
 	cmd = s = (char *) BufferStart(pw_s);
@@ -4039,7 +4045,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	&pi))           /* Pointer to PROCESS_INFORMATION structure */
     {
 	_close_pipes(pipes);
-	Bip_Error(SYS_ERROR_WIN);
+	Bip_SysError(SYS_ERROR_WIN);
     } 
 
     /* Pop all the temporary strings */
@@ -4088,7 +4094,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 	    init_stream(id, p->fd[0], SREAD | SPIPE, d_pipe, NO_STREAM, 0);
 	    if (p->flags & EXEC_PIPE_SIG) {
 		if ((err = ec_stream_set_sigio(id)) < 0) {
-		    Bip_Error(err);
+		    Bip_SysError(err);
 		}
 	    }
 	}
@@ -4120,24 +4126,24 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 
     err = _build_argv(ec_eng, vc, tc, argv, &cmd);
     if (err < 0) {
-	Bip_Error(err)
+	Bip_SysError(err)
     }
 
     err = _check_streams(vstr, tstr, pipes);
     if (err < 0) {
-	Bip_Error(err)
+	Bip_SysError(err)
     }
 
     err = _open_pipes(pipes);
     if (err < 0) {
-	Bip_Error(err)
+	Bip_SysError(err)
     }
 
     switch (pid = vfork())
     {
     case -1:
 	_close_pipes(pipes);
-	Bip_Error(SYS_ERROR_ERRNO);
+	Bip_SysError(SYS_ERROR_ERRNO);
 
     case 0:			/* child */
 	_connect_pipes(pipes);
@@ -4186,7 +4192,7 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 		init_stream(id, p->fd[0], SREAD | SPIPE, d_pipe, NO_STREAM, 0);
 		if (p->flags & EXEC_PIPE_SIG) {
 		    if ((err = ec_stream_set_sigio(id)) < 0) {
-			Bip_Error(err);
+			Bip_SysError(err);
 		    }
 		}
 	    }
@@ -4202,7 +4208,10 @@ p_exec(value vc, type tc, value vstr, type tstr, value vp, type tp, value vpr, t
 #endif
 
 #undef Bip_Error
-#define Bip_Error(N) return(N);
+#define Bip_Error(N) Bip_Error_Return(N)
+#undef Bip_SysError
+#define Bip_SysError(N) Bip_Error_Return(N)
+
 
 /*
  * Break up a string into an array of tokens which can be used for
@@ -4499,7 +4508,7 @@ p_wait(value pv, type pt, value sv, type st, value vmode, type tmode, ec_eng_t *
 		{
 		    Fail_;
 		}
-		Bip_Error(SYS_ERROR_WIN);
+		Bip_SysError(SYS_ERROR_WIN);
 	    }
 	}
 
@@ -4534,7 +4543,7 @@ p_wait(value pv, type pt, value sv, type st, value vmode, type tmode, ec_eng_t *
 _wait_cleanup_error_:
 	    Child_Unlink(pd);
 	    CloseHandle(phandle);
-	    Bip_Error(SYS_ERROR_WIN);
+	    Bip_SysError(SYS_ERROR_WIN);
         }
 #else
 	Cut_External;
@@ -4570,7 +4579,7 @@ _wait_cleanup_error_:
 	if (errno == ECHILD) {
 	    Fail_;
 	}
-	Bip_Error(SYS_ERROR_ERRNO)
+	Bip_SysError(SYS_ERROR_ERRNO)
     }
     Request_Unify_Integer(sv, st, statusp);
     Return_Unify;

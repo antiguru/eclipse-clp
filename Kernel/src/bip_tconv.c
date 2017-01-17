@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.12 2016/08/05 19:59:02 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.13 2017/01/17 17:20:51 jschimpf Exp $
  */
 
 /*
@@ -1500,8 +1500,7 @@ p_get_var_type(value vvar, type tvar, value vvtype, type ttype, ec_eng_t *ec_eng
     }
     else
     {
-	Set_Bip_Error(0);
-	Fail_;
+	Bip_Error_Fail(0);	/* normal failure */
     }
 }
 
@@ -1520,8 +1519,7 @@ p_get_var_name(value vvar, type tvar, value vname, type tname, ec_eng_t *ec_eng)
     }
     else
     {
-	Set_Bip_Error(0);
-	Fail_;
+	Bip_Error_Fail(0);	/* normal failure */
     }
 }
 

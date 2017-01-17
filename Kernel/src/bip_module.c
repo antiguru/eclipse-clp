@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: bip_module.c,v 1.17 2016/10/25 22:34:59 jschimpf Exp $
+ * VERSION	$Id: bip_module.c,v 1.18 2017/01/17 17:20:51 jschimpf Exp $
  */
 
 /*
@@ -68,18 +68,11 @@ _tool_body(pri *proci, dident *pdid, int *parity, dident *pmodule, ec_eng_t *ec_
     code = proci->code.vmc;
 
     if (!(flags & CODE_DEFINED))
-    {
-	if (flags & AUTOLOAD)
-	    { Set_Bip_Error(NOT_LOADED); }
-	else
-	    { Set_Bip_Error(NOENTRY); }
-	return 0;
-    }
+	return (flags & AUTOLOAD) ? NOT_LOADED : NOENTRY;
+
     if (!(flags & TOOL))
-    {
-	Set_Bip_Error(NO_TOOL);
-	return 0;
-    }
+	return NO_TOOL;
+
     if (PriCodeType(proci) == VMCODE)
     {
 	if (DebugProc(proci))
@@ -92,10 +85,9 @@ _tool_body(pri *proci, dident *pdid, int *parity, dident *pmodule, ec_eng_t *ec_
     }
     else /* don't know how to get the tool body */
     {
-	Set_Bip_Error(NO_TOOL);
-	return 0;
+	return NO_TOOL;
     }
-    return 1;
+    return PSUCCEED;
 }
 
 static int
@@ -125,11 +117,8 @@ p_tool_body(value vi, type ti, value vb, type tb, value vmb, type tmb, value vm,
 	    Bip_Error(err);
 	}
 
-	if (!_tool_body(proci, &pdid, &arity, &module, ec_eng))
-	{
-	    Get_Bip_Error(err);
-	    Bip_Error(err);
-	}
+	err = _tool_body(proci, &pdid, &arity, &module, ec_eng);
+	Return_If_Error(err);
 
 	TG += 3;
 	Check_Gc;
