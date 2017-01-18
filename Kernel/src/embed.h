@@ -23,7 +23,7 @@
 /*
  * ECLiPSe LIBRARY MODULE
  *
- * $Id: embed.h,v 1.17 2017/01/10 23:57:15 jschimpf Exp $
+ * $Id: embed.h,v 1.18 2017/01/18 03:56:46 jschimpf Exp $
  *
  *
  * IDENTIFICATION:	embed.h
@@ -266,6 +266,7 @@ Extern DLLEXP void	Winapi	ec_xdr_double(char * buf , double * d);
  */
 
 Extern DLLEXP char *	Winapi	ec_error_string(int);
+Extern DLLEXP void	Winapi	ec_make_error_message(int err, char *where, char *buf, int size);
 Extern DLLEXP void		ec_panic(const char* what, const char* where); /* no Winapi */
 
 

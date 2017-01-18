@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: mem.c,v 1.8 2016/11/09 14:38:16 jschimpf Exp $
+ * VERSION	$Id: mem.c,v 1.9 2017/01/18 03:56:46 jschimpf Exp $
  */
 
 /*
@@ -211,7 +211,10 @@ _unmap_at(char *addr,	/* page-aligned */
     }
 }
 
-/*ARGSUSED*/
+/*
+ * Map memory
+ * return 1 if ok, otherwise 0 with errno/GetLastError()
+ */
 static int
 _map_at(char *addr,	/* page-aligned */
 	size_t bytes)	/* multiple of pagesize */
@@ -221,12 +224,10 @@ _map_at(char *addr,	/* page-aligned */
     case ALLOC_VIRTUAL:
 #ifdef _WIN32
 	if (!VirtualAlloc(addr,bytes,MEM_COMMIT,PAGE_READWRITE))
-	{
 	    return 0;
-	    /* Could use GetLastError for better info */
-	}
 #else
 #ifndef HAVE_MMAP
+	errno = ENOSYS;
 	return 0;	/* ALLOC_VIRTUAL needs HAVE_MMAP */
 #else
 #ifdef HAVE_MAP_NORESERVE
@@ -297,6 +298,7 @@ _report_adjustment(char *change, char *name, word bytes)
  *
  * If partition_hint is nonzero, then no gap is left between the two stacks;
  * the gap space is divided somewhere close to partition_hint.
+ * @return 1 if ok, otherwise 0 with errno/GetLastError
  */
 int
 adjust_stacks(struct stack_struct *descr, uword *lower_max, uword *upper_max, uword *partition_hint)
@@ -309,8 +311,14 @@ adjust_stacks(struct stack_struct *descr, uword *lower_max, uword *upper_max, uw
     if ((diff = ((uword)descr[1].start-(uword)upper_max) % STACK_PAGESIZE))
 	upper_max -= (STACK_PAGESIZE - diff)/sizeof(uword);
 
-    if (lower_max > upper_max)
+    if (lower_max > upper_max) {
+#ifdef _WIN32
+	SetLastError(ERROR_OUTOFMEMORY);
+#else
+	errno = ENOMEM;
+#endif
 	return 0;			/* stacks clash */
+    }
 
     if (partition_hint)
     {
@@ -392,8 +400,10 @@ adjust_stacks(struct stack_struct *descr, uword *lower_max, uword *upper_max, uw
  * ALLOC_PRE		-	+		-
  * ALLOC_FIXED		+	-		+
  * ALLOC_VIRTUAL	-	-		+
+ *
+ * @return 1 if ok, otherwise 0 with errno/GetLastError
  */
-void
+int
 alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct **descr)
 {
     uword bytes_allocated = 0;
@@ -417,7 +427,7 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
 	stack_base = (uword *) VirtualAlloc(NULL,bytes_allocated,MEM_RESERVE,
 				PAGE_READWRITE);
 	if (NULL == stack_base)
-	    ec_panic("Cannot reserve stack space","alloc_stack_pairs()");
+	    return 0;	/* +GetLastError() */
 #else
 #ifdef HAVE_MMAP
     	stack_base = (uword *) mmap((caddr_t) 0,(size_t) bytes_allocated,
@@ -433,7 +443,7 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
 #endif
 		    (off_t) 0);
 	if (stack_base == (uword *) -1)
-	    ec_panic("Cannot reserve stack space","alloc_stack_pairs()");
+	    return 0;	/* +errno */
 #else
 	ec_panic("ALLOC_VIRTUAL not supported","alloc_stack_pairs()");
 #endif
@@ -446,7 +456,7 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
 	stack_base = (uword *) VirtualAlloc(NULL,bytes_allocated,MEM_COMMIT,
 				PAGE_READWRITE);
 	if (NULL == stack_base)
-	    ec_panic("Cannot allocate stack space","alloc_stack_pairs()");
+	    return 0;	/* +GetLastError() */
 #else
 #ifdef HAVE_MMAP
     	stack_base = (uword *) mmap((caddr_t) 0,(size_t) bytes_allocated,
@@ -461,7 +471,7 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
     	stack_base = (uword *) sbrk(bytes_allocated);
 #endif
 	if (stack_base == (uword *) -1)
-	    ec_panic("Cannot allocate stack space","alloc_stack_pairs()");
+	    return 0;	/* +errno */
 #endif
 	break;
 
@@ -486,6 +496,7 @@ alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct *
 	descr[i]->start = descr[i]->end = descr[i]->peak = stack_base;
 	stack_base += bytes[i]/sizeof(uword);
     }
+    return 1;
 }
 
 

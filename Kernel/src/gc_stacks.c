@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.12 2016/11/06 03:18:56 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.13 2017/01/18 03:56:46 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -2317,6 +2317,8 @@ control_ov(ec_eng_t *ec_eng)
  * Adjust the stacks such that the global stack has space for margin pwords.
  * Return 0 if that was not possible.
  * Set TG_LIM and TT_LIM according to new stack sizes, leaving proper gaps.
+ * @return	1 if ok
+ *		0 if no adjustment, or only partial adjustment
  */
 
 int
@@ -2336,6 +2338,7 @@ trim_global_trail(ec_eng_t *ec_eng, uword margin)
     /* first try to grow global and trail proportionally */
     if (!adjust_stacks(ec_eng->global_trail, (uword*) tg_new, (uword *) tt_new, 0))
     {
+	Store_Eng_OSError();
 	/* try without accommodating margin, just partition the remaining
 	 * space, roughly preserving the current trail/global ratio
 	 */
@@ -2346,8 +2349,10 @@ trim_global_trail(ec_eng_t *ec_eng, uword margin)
 
 	if (!adjust_stacks(ec_eng->global_trail, (uword*) tg_new, (uword*) tt_new, (uword *) split_at))
 	{
+	    Store_Eng_OSError();
 	    return res;
 	}
+	/* else partial adjustment, still return error code */
     }
     /* the following will also adjust TG_SL if necessary */
     Set_Tg_Lim((pword *) ec_eng->global_trail[0].end - GLOBAL_TRAIL_GAP)

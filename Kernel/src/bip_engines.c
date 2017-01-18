@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_engines.c,v 1.11 2017/01/16 19:04:17 jschimpf Exp $
+ * VERSION	$Id: bip_engines.c,v 1.12 2017/01/18 03:56:46 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -208,10 +208,14 @@ _options_from_list(value v, type t, t_eclipse_options *eng_opts, t_ext_ptr *repo
 
 		if (d == d_.local) {
 		    Check_Integer(arg->tag);
+		    if ((uword) arg->val.nint > MAX_U_WORD/1024)
+			return RANGE_ERROR;
 		    eng_opts->localsize = (uword) arg->val.nint * 1024;
 
 		} else if (d == d_.global) {
 		    Check_Integer(arg->tag);
+		    if ((uword) arg->val.nint > MAX_U_WORD/1024)
+			return RANGE_ERROR;
 		    eng_opts->globalsize = (uword) arg->val.nint * 1024;
 
 		} else if (d == d_thread1_) {

@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: mem.h,v 1.4 2016/10/28 22:44:33 jschimpf Exp $
+ * VERSION	$Id: mem.h,v 1.5 2017/01/18 03:56:46 jschimpf Exp $
  *
  * IDENTIFICATION	mem.h
  *
@@ -240,3 +240,13 @@ void            hg_free();
 void *          hg_resize();
 int             hg_statistics();
 #endif /* __STDC__ */
+
+
+/*---------------------------------------------------------------------
+ * Large mapped stack management
+ *---------------------------------------------------------------------*/
+
+int	alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct **descr);
+void	dealloc_stack_pairs(struct stack_struct *lower, struct stack_struct *upper);
+int	adjust_stacks(struct stack_struct *descr, uword *lower_max, uword *upper_max, uword *partition_hint);
+

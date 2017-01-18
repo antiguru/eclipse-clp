@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.18 2017/01/17 17:20:51 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.19 2017/01/18 03:56:46 jschimpf Exp $
  */
 
 /*
@@ -78,12 +78,12 @@ pword	*spmax_; /* not for overflow checks, just to know if an address
  *
  * allocate Prolog stacks with the given sizes and initialize
  * the pointers to their borders
+ * @return	0 if ok, otherwise EncodedError
  */
 
-static void
-allocate_stacks(ec_eng_t *ec_eng)
+static int
+_allocate_stacks(ec_eng_t *ec_eng)
 {
-    extern void alloc_stack_pairs(int nstacks, char **names, uword *bytes, struct stack_struct **descr);
     static char *names[4] = { "global","trail","control","local" };
     uword sizes[4];
     struct stack_struct *stacks[4];
@@ -102,32 +102,7 @@ allocate_stacks(ec_eng_t *ec_eng)
     	( ec_eng->options.globalsize/GC_INTERVAL_FRACTION > MIN_GC_INTERVAL ?
 	  ec_eng->options.globalsize/GC_INTERVAL_FRACTION : MIN_GC_INTERVAL ) /sizeof(pword);
 
-    alloc_stack_pairs( 4, names, sizes, stacks);
-
-#ifdef AS_EMU
-
-    /* differences with the assembler emulator:
-     * - ec_eng->sporigin is set in main() to point into the C stack
-     * - B is checked against bmax_ in overflow checks (there is always
-     *   room left for one frame of the biggest size (invocation frame))
-     */
-
-    bmax_ = (pword *) ((char *) ec_eng->blimit - NARGREGS * sizeof(pword)
-            - sizeof(struct invocation_frame));
-
-#if defined(RLIMIT_STACK)
-    {
-	struct rlimit rlp;
-	getrlimit(RLIMIT_STACK, &rlp);
-
-	spmax_ = ec_eng->sporigin - rlp.rlim_cur/sizeof(pword);
-    }
-#else /* don't know how to find the stack size in SYS_V */
-    spmax_ = ec_eng->sporigin - 0x1000000;	/* 16MB */
-#endif
-
-#endif /* AS_EMU */
-
+    return alloc_stack_pairs( 4, names, sizes, stacks);
 }
 
 /**
@@ -194,27 +169,23 @@ ec_init_globvars(ec_eng_t *ec_eng)
  * We need to initialize those registers that might not be initialised
  * on emulator entry (save_vm_status), or that need to have a sensible
  * previous value.
+ * @return	PSUCCEED on success
+ *		SYS_ERROR with details in parent_eng's last_os_err fields
+ *		SYS_ERROR_{ERRNO,WIN} if no parent engine
  */
 
-void
+int
 emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
 {
-    int		i;
-#ifdef lint
-    value v1;
-    uword *find_word();
+    int i;
 
-    v1.all = 0;
-    (void) lastpp(0);
-    (void) find_word((uword) 0);
-    (void) check_global();
-#endif /* lint */
+    if (!_allocate_stacks(ec_eng))
+	goto _return_err_;
 
     ec_eng->ref_ctr = 1;
     ec_eng->needs_dgc_marking = 0;
     mt_mutex_init_recursive(&ec_eng->lock);
     ec_cond_init(&ec_eng->cond);
-    allocate_stacks(ec_eng);
 
     if (parent_eng)
 	ec_eng->frand_state = parent_eng->frand_state;	/* inherit */
@@ -232,14 +203,14 @@ emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
     TG = GCTG = GB = (pword *) ec_eng->global_trail[0].start;
     TT = (pword **) ec_eng->global_trail[1].start;
     if (!trim_global_trail(ec_eng, TG_SEG))		/* sets TG_LIM and TT_LIM */
-	ec_panic(MEMORY_P, "emu_init()");
+    	goto _return_err_;
 
     B.args = PB = PPB = (pword *) ec_eng->control_local[0].start;
 #ifndef AS_EMU
     E = SP = EB = (pword *) ec_eng->control_local[1].start;
 #endif
     if (!trim_control_local(ec_eng))		/* sets b_limit and sp_limit */
-	ec_panic(MEMORY_P, "emu_init()");
+	goto _return_err_;
 
     /* some other registers */
     DE = MU = LD = LCA = OCB = TCS = TO = TG_SL = TG_SLS = (pword *) 0;
@@ -307,6 +278,16 @@ emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
 	ec_eng->backtrace[i] = NULL;
     ec_eng->bt_index = 0;
 #endif
+    return PSUCCEED;
+
+    /* Return, passing details in parent engine's fields, if possible */
+_return_err_:
+    if (!parent_eng)
+	return SYS_ERROR_OS;
+#define ec_eng parent_eng
+    Store_Eng_OSError();
+#undef ec_eng
+    return SYS_ERROR;
 }
 
 
@@ -326,8 +307,6 @@ void
 ec_emu_fini(ec_eng_t *ec_eng)
 {
     void *engine_thread = NULL;
-
-    extern void dealloc_stack_pairs(struct stack_struct *, struct stack_struct *);
 
     assert(!EngIsDead(ec_eng));
     assert(EngIsOurs(ec_eng));

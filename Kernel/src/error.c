@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: error.c,v 1.9 2017/01/16 19:04:18 jschimpf Exp $
+ * VERSION	$Id: error.c,v 1.10 2017/01/18 03:56:46 jschimpf Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#include <stdio.h>
 
 char *	ec_error_message[MAX_ERRORS] = {
 /* 0 - SUCCEED */
@@ -561,6 +562,35 @@ ec_error_string(int n)
     	return ErrorMessage[n];
     return (char *) 0;
 }
+
+/*
+ * Make a primitive error message, mainly for startup errors.
+ * A large enough buffer must be provided in buf.
+ * Caution: this may access errno/GetLastError()
+ */
+void Winapi
+ec_make_error_message(int err, char *where, char *buf, int size)
+{
+    char	os_msg[1024];
+
+    if (err == SYS_ERROR_ERRNO)
+	snprintf(buf, size, "ECLiPSe: %s in %s:\n%s",
+		ec_error_message[-SYS_ERROR], where,
+		ec_os_err_string(errno,ERRNO_UNIX,os_msg,1024));
+#if _WIN32
+    else if (err == SYS_ERROR_WIN)
+	snprintf(buf, size, "ECLiPSe: %s in %s:\n%s",
+		ec_error_message[-SYS_ERROR], where,
+		ec_os_err_string(GetLastError(),ERRNO_WIN32,os_msg,1024));
+#endif
+    else if (0 < err && err < MAX_ERRORS)
+	snprintf(buf, size, "ECLiPSe: %s in %s.",
+		ec_error_message[-err], where);
+    else
+	snprintf(buf, size, "ECLiPSe: error %d in %s.", err, where);
+}
+
+
 
 static int
 p_max_error(value val1, type tag1, ec_eng_t *ec_eng)

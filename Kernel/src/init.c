@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.14 2017/01/16 19:04:18 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.15 2017/01/18 03:56:46 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -135,8 +135,7 @@ void		ec_worker_cleanup(void);
  * LOCAL function declarations
  */
 
-static void	_make_error_message(int err, char *where, char *buf),
-		wait_for_flag(volatile int *pflag, int mask);
+static void	wait_for_flag(volatile int *pflag, int mask);
 
 static char * arg1 = "Embedded ECLiPSE";
 
@@ -355,7 +354,7 @@ eclipse_global_init(int init_flags)
     if ((err = io_init(init_flags)) != PSUCCEED)
     {
 	char msg[1024];
-	_make_error_message(err, "io_init", msg);
+	ec_make_error_message(err, "io_init", msg, 1024);
 	ec_bad_exit(msg);
     }
     bip_emu_init(init_flags);
@@ -437,29 +436,6 @@ eclipse_boot(ec_eng_t *ec_eng, char *initfile)
     v2.did = d_.kernel_sepia;
     t2.kernel = ModuleTag(d_.kernel_sepia);
     return boot_emulc(ec_eng, v1, t1, v2, t2);
-}
-
-
-/*
- * Preliminary I/O routines to be used while our own I/O is not initialised
- */
-
-static void
-_make_error_message(int err, char *where, char *buf)
-{
-    extern char *ec_error_message[];
-    char	os_msg[1024];
-
-    if (err == SYS_ERROR_ERRNO)
-	sprintf(buf, "ECLiPSe: %s (%s) in %s.", ec_error_message[err],
-		ec_os_err_string(errno,ERRNO_UNIX,os_msg,1024), where);
-#if _WIN32
-    else if (err == SYS_ERROR_WIN)
-	sprintf(buf, "ECLiPSe: %s (%s) in %s.", ec_error_message[err],
-		ec_os_err_string(GetLastError(),ERRNO_WIN32,os_msg,1024), where);
-#endif
-    else
-	sprintf(buf, "ECLiPSe: %s in %s.", ec_error_message[err], where);
 }
 
 

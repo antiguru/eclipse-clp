@@ -23,7 +23,7 @@
  * END LICENSE BLOCK */
 
 /** @file
- * @version	$Id: engines.c,v 1.13 2017/01/16 19:04:18 jschimpf Exp $
+ * @version	$Id: engines.c,v 1.14 2017/01/18 03:56:46 jschimpf Exp $
  *
  */
 
@@ -97,6 +97,8 @@ ecl_init_aux(t_eclipse_options *opts, ec_eng_t *ec_eng, int extra_flags)
 
 /**
  * Initialize the static Prolog engines, and perform Prolog-level boot.
+ * @return	PSUCCEED
+ *		SYS_ERROR_ERRNO with errno, or SYS_ERROR_WIN with GetLastError
  */
 
 int
@@ -326,6 +328,8 @@ _engine_thread_create(ec_eng_t *ec_eng)
  * - parent_eng only used to inherit settings (may be NULL)
  * - returns an acquired engine with a ref-count of 1
  * TODO: merge with emu_init()
+ * @return	ECLiPSe error code
+ *		(if no parent engine, SYS_ERROR_OS may be returned)
  */
 
 int
@@ -333,7 +337,8 @@ ecl_engine_init(ec_eng_t *parent_eng, ec_eng_t *new_eng)
 {
     int res;
 
-    emu_init(parent_eng, new_eng);
+    res = emu_init(parent_eng, new_eng);
+    Return_If_Error(res);
 
     /* link it into the global list of engines */
     mt_mutex_lock(&EngineListLock);
@@ -410,7 +415,7 @@ ecl_engine_create(t_eclipse_options *opts, ec_eng_t *parent_eng, ec_eng_t **eng)
     new_eng->options = *opts;
     res = ecl_engine_init(parent_eng, new_eng);
     if (res != PSUCCEED) {
-	ecl_free_engine(new_eng, 0);
+	hg_free_size(new_eng, sizeof(ec_eng_t));
 	return res;
     }
 

@@ -25,7 +25,7 @@
 /*
  * ECLiPSe C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
+ * VERSION	$Id: main.c,v 1.8 2017/01/18 03:56:46 jschimpf Exp $
  *
  * Standalone main()
  *
@@ -368,14 +368,21 @@ main(int argc, char **argv)
 	ec_set_option_ptr(EC_OPTION_ECLIPSEDIR, eclipsedir);
 
     if (init_flags) {
-	if (ecl_init(NULL, &ec_eng) != PSUCCEED)
-	    ec_bad_exit("ECLiPSe: could not initialize.");
+	res = ecl_init(NULL, &ec_eng);
+	if (res != PSUCCEED) {
+	    char buf[1024];
+	    ec_make_error_message(res, "initialization", buf, 1024);
+	    ec_bad_exit(buf);
+	}
     } else {
 	/* re-init main engine after fatal error,
 	 * hoping we can get a recovery prompt */
 	ec_eng = &ec_.m;
-	if (ecl_engine_init(NULL, ec_eng) != PSUCCEED)
-	    ec_bad_exit("ECLiPSe: could not re-initialize.");
+	if (ecl_engine_init(NULL, ec_eng) != PSUCCEED) {
+	    char buf[1024];
+	    ec_make_error_message(res, "attempted restart", buf, 1024);
+	    ec_bad_exit(buf);
+	}
     }
     
     goal = ecl_term(ec_eng, ec_did(":",2),
