@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.24 2016/10/05 01:16:17 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.25 2017/01/19 03:30:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -200,7 +200,7 @@ set_stream_property(Stream, Info, Value) :-
     set_stream_property1(_Stream, Info, _Value) :- var(Info), !,
 	set_bip_error(4).
     set_stream_property1(Stream, output_options, Options) :- !,
-	options_to_format(Options, 0, _Off, 0, On, 0, Depth, 1200, _Prec),
+	options_to_format(Options, 0, _Off, 0, On, 0, Depth, 1200, _Prec, [], _VN),
 	stream_info_nr(output_options, I1),
 	set_stream_prop_(Stream, I1, On),
 	stream_info_nr_hidden(print_depth, I2),
@@ -251,7 +251,7 @@ set_stream_options(_, _) :-
     	( stream_info_nr(reposition, Nr), stream_info_(Stream, Nr, true) -> true
 	; set_bip_error(192) ).				% ISO
     set_stream_option(output_options(Options), Stream) ?-
-	options_to_format(Options, 0, _Off, 0, On, 0, Depth, 1200, _Prec),
+	options_to_format(Options, 0, _Off, 0, On, 0, Depth, 1200, _Prec, [], _VN),
 	stream_info_nr(output_options, I1),
 	set_stream_prop_(Stream, I1, On),
 	stream_info_nr_hidden(print_depth, I2),
@@ -412,8 +412,8 @@ write_term_(Term, Options, Module) :-
 	write_term_(output, Term, Options, Module).
 
 write_term_(Stream, Term, Options, Module) :-		% 8.14.2
-	options_to_format(Options, 0, Off, 0, On, 0, Depth, 1200, Prec),
-	write_term(Stream, Term, Off, On, Depth, Prec, Module),
+	options_to_format(Options, 0, Off, 0, On, 0, Depth, 1200, Prec, [], VarNames),
+	write_term(Stream, Term, Off, On, Depth, Prec, VarNames, Module),
 	!.
 write_term_(Stream, Term, Options, Module) :-
 	bip_error(write_term(Stream, Term, Options), Module).
@@ -422,44 +422,37 @@ write_term_(Stream, Term, Options, Module) :-
 % The following auxiliary predicates map symbolic write-options to
 % bitmask+depth used on the C level (in write.c) and vice versa
 
-:- mode options_to_format(?,+,-,+,-,+,-,+,-).	% may fail with bip_error
-options_to_format(List, _, _, _, _, _, _, _, _) :- var(List), !,
+:- mode options_to_format(?,+,-,+,-,+,-,+,-,+,-).	% may fail with bip_error
+options_to_format(List, _, _, _, _, _, _, _, _, _, _) :- var(List), !,
 	set_bip_error(4).
-options_to_format([], Off, Off, On, On, Depth, Depth, Prec, Prec) :- !.
-options_to_format([O|Os], Off0, Off, On0, On, Depth0, Depth, Prec0, Prec) :- !,
-	option_to_format(O, ThisOff, ThisOn, ThisDepth, ThisPrec),
+options_to_format([], Off, Off, On, On, Depth, Depth, Prec, Prec, VN, VN) :- !.
+options_to_format([O|Os], Off0, Off, On0, On, Depth0, Depth, Prec0, Prec, VN0, VN) :- !,
+	option_to_format(O, ThisOff, ThisOn, ThisDepth, ThisPrec, VarNames),
 	Off1 is Off0 /\ \ThisOn \/ ThisOff,
 	On1 is On0 /\ \ThisOff \/ ThisOn,
 	( var(ThisDepth) -> Depth1 = Depth0 ; Depth1 = ThisDepth ),
 	( var(ThisPrec) -> Prec1 = Prec0 ; Prec1 = ThisPrec ),
-	options_to_format(Os, Off1, Off, On1, On, Depth1, Depth, Prec1, Prec).
-options_to_format(_, _, _, _, _, _, _, _, _) :-
+	( var(VarNames) -> VN1 = VN0 ; VN1 = VarNames ),
+	options_to_format(Os, Off1, Off, On1, On, Depth1, Depth, Prec1, Prec, VN1, VN).
+options_to_format(_, _, _, _, _, _, _, _, _, _, _) :-
 	set_bip_error(5).
 
-    option_to_format(Junk, _, _, _, _) :- var(Junk), !,
+    option_to_format(Junk, _, _, _, _, _) :- var(Junk), !,
 	set_bip_error(4).
-    option_to_format(Option, C, S, D, _P) :-
+    option_to_format(Option, C, S, D, _P, _VN) :-
 	option_format(Option, C, S, D), !.
-    option_to_format(Option, C, S, D, _P) :-
+    option_to_format(Option, C, S, D, _P, _VN) :-
 	option_format_compat(Option, C, S, D), !.
-    option_to_format(precedence(P0), 0, 0, _D, P) :- !,
+    option_to_format(precedence(P0), 0, 0, _D, P, _VN) :- !,
     	P = P0.
-    option_to_format(priority(P0), 0, 0, _D, P) :- !,	% SICStus/SWI compat
+    option_to_format(priority(P0), 0, 0, _D, P, _VN) :- !, % SICStus/SWI compat
     	P = P0.
-    option_to_format(Junk, _, _, _, _) :- compound(Junk), !,
+    option_to_format(variable_names(VN0), 0, 0, _D, _P, VN) :- !,
+    	VN = VN0.
+    option_to_format(Junk, _, _, _, _, _) :- compound(Junk), !,
 	set_bip_error(6).
-    option_to_format(_, _, _, _, _) :-
+    option_to_format(_, _, _, _, _, _) :-
 	set_bip_error(5).
-
-    % same as before, but just check
-    valid_write_option(Junk) :- var(Junk), !,
-    	fail.
-    valid_write_option(Option) :-
-	option_format(Option, _, _, _), !.
-    valid_write_option(Option) :-
-	option_format_compat(Option, _, _, _), !.
-    valid_write_option(precedence(_)).
-    valid_write_option(priority(_)).
 
 
 options_from_format(On, Depth, Options) :-
@@ -526,7 +519,7 @@ option_format_compat(max_depth(N),	16'0002, 16'0000, N).
 
 %
 % term_string(?Term, ?String, +Options)
-% This is currently strict wrt Options: they must fit with the direction.  % SWI is permissive and ignores all unknown options in either direction.
+% Options that don't apply to the direction are ignored.
 %
 
 :- export term_string/3.
@@ -543,8 +536,8 @@ term_string_(T, S, Options, Module) :- var(S), !,
 term_string_(T, S, Options, Module) :- string(S), !,
 	( S \== "" ->
 	    open(string(S), read, Stream),
+	    filter_options(Options, read, ROptions),
 	    (
-		filter_options(Options, read, ROptions),
 		read_term_(Stream, T0, ROptions, Module),
 		read_token_(Stream, end_of_file, _, Module)
 	    ->
@@ -563,15 +556,20 @@ term_string_(T, S, Options, Module) :-
     filter_options([Option|Options], RW, FOptions) ?- !,
 	( ignore_option(Option, RW) ->
 	    FOptions = FOptions0
+	; get_bip_error(_) ->	% clear the error code, if any
+	    FOptions = [Option|FOptions0]
 	;
-	    FOptions = [Option|FOptions0],
-	    get_bip_error(_)	% clear the error code
+	    FOptions = [Option|FOptions0]
 	),
 	filter_options(Options, RW, FOptions0).
     filter_options(Options, _RW, Options).	% [] and non-lists (for error later)
 
-    % fails with bip_error
-    ignore_option(Option, read) ?- option_to_format(Option, _, _, _, _).
+    % fails (possibly with bip_error) when option is applicable
+    % Problem: variables(-List) conflicts with variables(+Atom)
+    ignore_option(variables(Mode), read) ?- !, atom(Mode), Mode\==[].
+    ignore_option(variables(Vs), write) ?- !, (var(Vs);is_list(Vs)).
+    ignore_option(variable_names(_), _) ?- !, fail.
+    ignore_option(Option, read) ?- option_to_format(Option, _, _, _, _, _).
     ignore_option(Option, write) ?- check_read_option(Option).
 
 

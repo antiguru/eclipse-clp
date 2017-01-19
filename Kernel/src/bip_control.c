@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.10 2017/01/10 00:00:54 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.11 2017/01/19 03:29:39 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -561,7 +561,7 @@ _fail_write_stream(pword *pitem, word *pdata, int size, int flags, ec_eng_t *ec_
     {
 	int stream_copied = res;
 	res = ec_pwrite(ec_eng, 0, FULLDEPTH|VAR_NUMBERS|NO_MACROS|CANONICAL,
-	    out, data[1].val, data[1].tag, 1200, 1, d_.dummy_module, tdict);
+	    out, data[1].val, data[1].tag, 1200, 1, NULL, d_.dummy_module, tdict);
 	Unlock_Stream(out);	/* locked by get_stream_id() */
 	if (stream_copied)
 	    stream_tid.free(out);

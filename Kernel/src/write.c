@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: write.c,v 1.23 2017/01/17 17:20:51 jschimpf Exp $
+ * VERSION	$Id: write.c,v 1.24 2017/01/19 03:29:39 jschimpf Exp $
  */
 
 /*
@@ -141,10 +141,10 @@ static int
 		_float_to_string(value v, type t, char *buf, int precise),
 		_float_to_string_opt(value v, type t, char *buf, int precise, int options),
 		_printf_asterisk(word asterisk, pword **list, type arg_type, stream_id nst, char *par),
-		_print_var(int wr_opts, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *),
-		_pwrite1(int wr_opts, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng),
+		_print_var(int wr_opts, value v, type t, stream_id str, int depth, pword *varnames, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *),
+		_pwrite1(int wr_opts, stream_id out, value val, type tag, int maxprec, int depth, pword *varnames, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng),
 		_is_proper_list(pword *list),
-		_write_args_from_list(int wr_opts, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng),
+		_write_args_from_list(int wr_opts, stream_id out, pword *list, int depth, pword *varnames, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng),
 		_write_quoted(int wr_opts, stream_id out, char *name, word len, char quotechar, syntax_desc *sd, int depth),
 		_write_atom(int wr_opts, stream_id out, dident d, int what, int flag, dident module, type mod_tag, syntax_desc *sd, int depth),
 		_write_string(int wr_opts, stream_id out, char *start, word length,  syntax_desc *sd, int depth),
@@ -211,7 +211,7 @@ visible_d_procedure(dident functor, dident module, type module_tag)
 	return(status);
 
 #define Pwrite(ww, s, v, t, mp, d, mod, mt, sd, context) 			\
-    if((status = _pwrite1(ww, s, v, t, mp, d, mod, mt, sd, context, ec_eng)) < 0)	\
+    if((status = _pwrite1(ww, s, v, t, mp, d, varnames, mod, mt, sd, context, ec_eng)) < 0)	\
 	return(status);
 	
 #define Write_Char(s,c) if ((status = ec_outfc(s,c)) < 0) return(status);
@@ -276,7 +276,7 @@ p_write(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
     int		res;
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, current_output_, val, tag, 1200, 0, NULL, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -293,7 +293,7 @@ p_writeq(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
     int		res;
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, current_output_, val, tag, 1200, 0, NULL, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -309,7 +309,7 @@ p_writeq3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, out, val, tag, 1200, 0, vm.did, tm);
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, out, val, tag, 1200, 0, NULL, vm.did, tm);
 }
 
 /*
@@ -321,7 +321,7 @@ p_write_canonical(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
     int		res;
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON, current_output_, val, tag, 1200, 0, NULL, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -336,8 +336,7 @@ p_write_canonical3(value vals, type tags, value val, type tag, value vm, type tm
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON,
-		    out, val, tag, 1200, 0, vm.did, tm);
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_CANON, out, val, tag, 1200, 0, NULL, vm.did, tm);
 }
 
 /*
@@ -354,7 +353,7 @@ p_write3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, NULL, vm.did, tm);
 }
 
 
@@ -370,7 +369,7 @@ p_writeln(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITE, out, val, tag, 1200, 0, NULL, vm.did, tm);
     if (res == PSUCCEED)
 	res = ec_newline(out);
     return res;
@@ -390,7 +389,7 @@ p_print(value val, type tag, value vm, type tm, ec_eng_t *ec_eng)
 
     Check_Module(tm, vm);
     Lock_Stream(current_output_);
-    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, current_output_, val, tag, 1200, 0, vm.did, tm);
+    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, current_output_, val, tag, 1200, 0, NULL, vm.did, tm);
     Unlock_Stream(current_output_);
     return res;
 }
@@ -410,7 +409,7 @@ p_print3(value vals, type tags, value val, type tag, value vm, type tm, ec_eng_t
 
     Get_Locked_Stream(vals, tags, SWRITE, out);
     Check_Module(tm, vm);
-    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, out, val, tag, 1200, 0, vm.did, tm);
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, out, val, tag, 1200, 0, NULL, vm.did, tm);
 }
 
 
@@ -426,8 +425,7 @@ p_display(value vs, type ts, value val, type tag, ec_eng_t *ec_eng)
 
     Get_Locked_Stream(vs, ts, SWRITE, out);
     /* the module tag is not meaningful here				*/
-    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_DISPLAY,
-		    out, val, tag, 1200, 0, d_.dummy_module, tdict);
+    return ec_pwrite(ec_eng, 0, WRITE_OPTIONS_DISPLAY, out, val, tag, 1200, 0, NULL, d_.dummy_module, tdict);
 }
 
 
@@ -470,7 +468,9 @@ _terminate_term(stream_id nst, int options, syntax_desc *sd)
  * does initialisation and finalisation, while pwrite() is recursive.
  */
 int
-ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag)
+ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out,
+	  value val, type tag, int maxprec, int depth, pword *varnames,
+	  dident module, type mod_tag)
 {
     pword			**old_tt = TT, *old_tg = TG, *old_ld = LD;
     syntax_desc *		sd = ModuleSyntax(module);
@@ -538,7 +538,7 @@ ec_pwrite(ec_eng_t *ec_eng, int mode_clr, int mode_set, stream_id out, value val
     last_char = StreamLastWritten(out);
     StreamLastWritten(out) = -1;
 
-    result = _pwrite1(wr_opts, out, val, tag, maxprec, depth,
+    result = _pwrite1(wr_opts, out, val, tag, maxprec, depth, varnames,
 			module, mod_tag, sd, ARGLAST, ec_eng);
     
     /* terminate the term, if requested */
@@ -619,7 +619,9 @@ _is_signed_number(value v, type t)
     (context & FOLLOWSIGN && sd->options & ISO_RESTRICTIONS)
 
 static int
-_pwrite1(int wr_opts, stream_id out, value val, type tag, int maxprec, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng)
+_pwrite1(int wr_opts, stream_id out, value val, type tag,
+	int maxprec, int depth, pword *varnames, dident module, type mod_tag,
+	syntax_desc *sd, int context, ec_eng_t *ec_eng)
 {
     pword	*arg;
     int	status, arity;
@@ -640,7 +642,7 @@ _pwrite_:
 	    return PSUCCEED;
 	else
 	{
-	    return _print_var(wr_opts, val.ptr->val, val.ptr->tag, out, depth,
+	    return _print_var(wr_opts, val.ptr->val, val.ptr->tag, out, depth, varnames,
 					module, mod_tag, sd, ec_eng);
 	}
     else if ((wr_opts & (PORTRAY2|PORTRAY1))
@@ -837,8 +839,8 @@ _write_varname_:
 		if ((status = ec_outfc(out, '{')) < 0)
 		    return (status);
 		Dereference_(arg);
-		status = _pwrite1(wr_opts, out, arg->val, arg->tag, MAXPREC, 
-				 depth-1, module, mod_tag, sd, ARGLAST, ec_eng);
+		status = _pwrite1(wr_opts, out, arg->val, arg->tag, 1200,
+				 depth-1, varnames, module, mod_tag, sd, ARGLAST, ec_eng);
 		if (status < 0 || (status = ec_outfc(out, '}')) < 0)
 		    return (status);
 		return (PSUCCEED);
@@ -853,9 +855,9 @@ _write_varname_:
  		    IsRef(arg1->tag) && !IsMeta(arg1->tag) ||
  		    IsAtom(arg1->tag) && (sd->options & ATOM_SUBSCRIPTS)))
  		{
- 		    Pwrite(wr_opts|CANONICAL, out, arg1->val, arg1->tag, MAXPREC,
+ 		    Pwrite(wr_opts, out, arg1->val, arg1->tag, 0,
  			     depth, module, mod_tag, sd, context);
- 		    Pwrite(wr_opts, out, arg2->val, arg2->tag, MAXPREC,
+ 		    Pwrite(wr_opts, out, arg2->val, arg2->tag, 0,
  			     depth, module, mod_tag, sd, context);
  		    return (PSUCCEED);
  		}
@@ -868,10 +870,10 @@ _write_varname_:
  		Dereference_(arg2);
 		if ((IsRef(arg1->tag) && !IsMeta(arg1->tag)) && _is_proper_list(arg2))
 		{
-		    Pwrite(wr_opts, out, arg1->val, arg1->tag, MAXPREC, 
+		    Pwrite(wr_opts, out, arg1->val, arg1->tag, 0, 
 			     depth, module, mod_tag, sd, ARGTERM | ARGLAST);
 		    Write_Char(out, '{');
-		    status = _write_args_from_list(wr_opts, out, arg2, depth, module, mod_tag, sd, context, ec_eng);
+		    status = _write_args_from_list(wr_opts, out, arg2, depth, varnames, module, mod_tag, sd, context, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, '}');
 		    return (PSUCCEED);
@@ -885,10 +887,10 @@ _write_varname_:
  		Dereference_(arg2);
 		if ((IsRef(arg1->tag) && !IsMeta(arg1->tag)) && _is_proper_list(arg2))
 		{
-		    Pwrite(wr_opts, out, arg1->val, arg1->tag, MAXPREC, 
+		    Pwrite(wr_opts, out, arg1->val, arg1->tag, 0, 
 			     depth, module, mod_tag, sd, ARGTERM | ARGLAST);
 		    Write_Char(out, '(');
-		    status = _write_args_from_list(wr_opts, out, arg2, depth, module, mod_tag, sd, context, ec_eng);
+		    status = _write_args_from_list(wr_opts, out, arg2, depth, varnames, module, mod_tag, sd, context, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, ')');
 		    return (PSUCCEED);
@@ -904,7 +906,7 @@ _write_varname_:
 		{
 		    Write_Atom(wr_opts, out, arg1->val.did, FUNCTOR, context & ARGLIST, module, mod_tag, sd);
 		    Write_Char(out, '{');
-		    status = _write_args_from_list(wr_opts, out, arg2, depth, module, mod_tag, sd, context, ec_eng);
+		    status = _write_args_from_list(wr_opts, out, arg2, depth, varnames, module, mod_tag, sd, context, ec_eng);
 		    if (status < 0) return status;
 		    Write_Char(out, '}');
 		    return (PSUCCEED);
@@ -1110,7 +1112,7 @@ _write_args_:				/* (arg,arity) */
 	    tail = arg + 1;
 	    Dereference_(arg)
 	    status = _pwrite1(wr_opts, out, arg->val, arg->tag, MAXPREC, 
-		     --depth, module, mod_tag, sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
+		     --depth, varnames, module, mod_tag, sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
 	    if (status < 0)
 		return (status);
 	    while (!(UseDepth(wr_opts) && depth <= 0))
@@ -1126,7 +1128,7 @@ _write_args_:				/* (arg,arity) */
 		    arg = tail++;
 		    Dereference_(arg);
 		    status = _pwrite1(wr_opts, out, arg->val, arg->tag, MAXPREC, 
-				    --depth, module, mod_tag, sd,
+				    --depth, varnames, module, mod_tag, sd,
 				    ARGTERM | ARGLIST | ARGLAST, ec_eng);
 		    if (status < 0)
 			return (status);
@@ -1134,7 +1136,7 @@ _write_args_:				/* (arg,arity) */
 		default:
 		    Write_Char(out, '|')
 		    status = _pwrite1(wr_opts, out, tail->val, tail->tag, 
-				    MAXPREC, --depth, module, mod_tag,
+				    MAXPREC, --depth, varnames, module, mod_tag,
 				    sd, ARGTERM | ARGLIST | ARGLAST, ec_eng);
 		    if (status < 0)
 			return (status);
@@ -1195,7 +1197,7 @@ _is_proper_list(pword *list)
 
 /* CAUTION: this function assumes that list is a proper list! */
 static int
-_write_args_from_list(int wr_opts, stream_id out, pword *list, int depth, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng)
+_write_args_from_list(int wr_opts, stream_id out, pword *list, int depth, pword *varnames, dident module, type mod_tag, syntax_desc *sd, int context, ec_eng_t *ec_eng)
 {
     pword *arg;
     int status;
@@ -1590,21 +1592,95 @@ _write_quoted(int wr_opts, stream_id out, char *name, word len, char quotechar, 
     return ec_outfc(out, quotechar);	/* write the right quote	*/
 }
 
+
+/**
+ * Syntax-check a variable_names-list of the form ['X'=X,...]
+ * Store pointer to first element in *pvarnames, otherwise NULL.
+ */
+static int
+_check_var_names_list(value vvn, type tvn, syntax_desc *sd, pword **pvarnames)
+{
+    pword *list;
+    if (IsNil(tvn)) {
+	*pvarnames = NULL;
+	Succeed_;
+    }
+    Check_List(tvn);
+    list = vvn.ptr;
+    for(;;) {
+	pword *eq, *name;
+	eq = list++;
+	Dereference_(eq);
+	Check_Structure(eq->tag);
+	if (eq->val.ptr[0].val.did != d_.unify) {
+	    Bip_Error(RANGE_ERROR);
+	}
+	name = &eq->val.ptr[1];
+	Dereference_(name);
+	Check_Atom(name->tag);
+	if (!ec_is_varname(DidName(name->val.did), DidLength(name->val.did), sd)) {
+	    Bip_Error(RANGE_ERROR);
+	}
+	Dereference_(list);
+	if (!IsList(list->tag))
+	    break;
+	list = list->val.ptr;
+    }
+    Check_Nil(list->tag);
+    *pvarnames = vvn.ptr;
+    Succeed_;
+}
+
+/**
+ * Look up a variable in a variable_names list.
+ * Assume the list has been checked with _check_var_names_list().
+ */
+static dident
+_lookup_var_name(pword *var, pword *list)
+{
+    for(;;) {
+	pword *eq, *term;
+	eq = list++;
+	Dereference_(eq);
+	/* assume eq points to =/2 structure */
+	term = &eq->val.ptr[2];
+	Dereference_(term);
+	if (term == var) {
+	    pword *name = &eq->val.ptr[1];
+	    Dereference_(name);
+	    /* assume name points to an atom */
+	    return name->val.did;
+	}
+	Dereference_(list);
+	if (!IsList(list->tag))
+	    break;
+	list = list->val.ptr;
+    }
+    return D_UNKNOWN;
+}
+
+
 /*
  * Print the variable.
  * The number is the distance in pwords from the stack origin.
  * The stack is pword-aligned.
  */
 static int
-_print_var(int wr_opts, value v, type t, stream_id str, int depth, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *ec_eng)
+_print_var(int wr_opts, value v, type t, stream_id str, int depth, pword *varnames, dident module, type mod_tag, syntax_desc *sd, ec_eng_t *ec_eng)
 {
     int name_printed = 0;
     int slot;
+    dident var_name;
 
     if (wr_opts & VARTERM)
 	(void) ec_outf(str, "'_'(\"", 5);
 
-    if (wr_opts & VAR_ANON)
+    var_name = varnames ? _lookup_var_name(v.ptr, varnames) : D_UNKNOWN;
+
+    if (var_name != D_UNKNOWN) {
+	(void) ec_outf(str, DidName(var_name), DidLength(var_name));
+    }
+    else if (wr_opts & VAR_ANON)
     {
 	(void) ec_outfc(str, (char) sd->current_ul_char);
     }
@@ -1711,7 +1787,7 @@ _print_var(int wr_opts, value v, type t, stream_id str, int depth, dident module
 	    Check_Gc;
 	    TG = transf_meta_out(ec_eng, pw->val, pw->tag, r,
 	    	(wr_opts & CANONICAL ? D_UNKNOWN : module), &pw_out);
-	    (void) _pwrite1(wr_opts, str, pw_out.val, pw_out.tag, 1200, depth,
+	    (void) _pwrite1(wr_opts, str, pw_out.val, pw_out.tag, 1200, depth, varnames,
 						module, mod_tag, sd, ARGLAST, ec_eng);
 	    (void) ec_outfc(str,'}');
 	} else {
@@ -1719,7 +1795,7 @@ _print_var(int wr_opts, value v, type t, stream_id str, int depth, dident module
 				&wr_opts, v, t, module, mod_tag, ec_eng);
 	    (v.ptr)->tag.kernel  |= HIDE_ATTR;
 	    if (r) {
-		(void) _pwrite1(wr_opts, str, r->val, r->tag, 1200, depth,
+		(void) _pwrite1(wr_opts, str, r->val, r->tag, 1200, depth, varnames,
 			    module, mod_tag, sd, ARGLAST, ec_eng);
 	    }
 	}
@@ -2378,7 +2454,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
 
 		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(ec_eng, mask_clr, mask_set, nst, elem->val, elem->tag,
-			1200, width, vm.did, tm);
+			1200, width, NULL, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
 		}
@@ -2390,7 +2466,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
                     }
 		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_PRINT, nst,
-			    elem->val, elem->tag, 1200, 0, vm.did, tm);
+			    elem->val, elem->tag, 1200, 0, NULL, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
 
@@ -2401,7 +2477,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
                     }
 		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_WRITEQ, nst,
-			    elem->val, elem->tag, 1200, 0, vm.did, tm);
+			    elem->val, elem->tag, 1200, 0, NULL, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
 
@@ -2412,7 +2488,7 @@ p_printf5(value vs, type ts, value strval, type strtag, value lval, type ltag, v
                     }
 		    Next_Element(elem, list, Printf_Error)
 		    res = ec_pwrite(ec_eng, 0, WRITE_OPTIONS_DISPLAY, nst,
-			    elem->val, elem->tag, 1200, 0, vm.did, tm);
+			    elem->val, elem->tag, 1200, 0, NULL, vm.did, tm);
 		    if (res < 0) goto _return_res_;
 		    break;
 
@@ -2641,15 +2717,18 @@ writeq_term(uword val, uword tag)
 
 
 /*
- * write_term(+Stream, +Term, +ClrOptions, +SetOptions, +Depth, +Precedence, +Module)
+ * write_term(+Stream, +Term, +ClrOptions, +SetOptions, +Depth, +Precedence, +VarNames, +Module)
  *
  * Depth=0	use stream's/global default setting
  */
 static int
 p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm,
 	value vsm, type tsm, value vdepth, type tdepth,
-	value vprec, type tprec, value vm, type tm, ec_eng_t *ec_eng)
+	value vprec, type tprec, value vvn, type tvn,
+	value vm, type tm, ec_eng_t *ec_eng)
 {
+    int res;
+    pword *varnames;
     stream_id	out;
 
     Get_Locked_Stream(vs, ts, SWRITE, out);
@@ -2659,7 +2738,9 @@ p_write_term(value vs, type ts, value val, type tag, value vcm, type tcm,
     Check_Integer(tprec);
     if (vprec.nint < 0 || 1200 < vprec.nint) { Bip_Error(RANGE_ERROR); }
     Check_Module(tm, vm);
-    return ec_pwrite(ec_eng, vcm.nint, vsm.nint, out, val, tag, vprec.nint, vdepth.nint, vm.did, tm);
+    res = _check_var_names_list(vvn, tvn, ModuleSyntax(vm.did), &varnames);
+    Return_If_Error(res);
+    return ec_pwrite(ec_eng, vcm.nint, vsm.nint, out, val, tag, vprec.nint, vdepth.nint, varnames, vm.did, tm);
 }
 
 /* CAUTION: Bip_Error() is redefined to Bip_Error_Fail() ! */
@@ -2698,7 +2779,7 @@ write_init(int flags)
     (void) local_built_in(in_dict("writeln_body", 3), p_writeln, B_SAFE);
     (void) exported_built_in(in_dict("writeq_", 3), p_writeq3, B_SAFE);
     (void) exported_built_in(in_dict("write_canonical_", 3), p_write_canonical3, B_SAFE);
-    (void) exported_built_in(in_dict("write_term", 7), p_write_term, B_SAFE);
+    (void) exported_built_in(in_dict("write_term", 8), p_write_term, B_SAFE);
     (void) built_in(in_dict("display", 2), p_display, B_SAFE);
     (void) local_built_in(in_dict("output_mode", 1), p_output_mode, B_UNSAFE|U_SIMPLE);
     (void) local_built_in(in_dict("output_mode_mask", 1), p_output_mode_mask, B_UNSAFE|U_SIMPLE);

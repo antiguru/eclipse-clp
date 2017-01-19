@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_serialize.c,v 1.3 2016/09/17 19:15:43 jschimpf Exp $
+ * VERSION	$Id: bip_serialize.c,v 1.4 2017/01/19 03:29:39 jschimpf Exp $
  */
 
 /*
@@ -756,8 +756,8 @@ dbformat_to_term(ec_eng_t *ec_eng, register char *buf, dident mod, type tmod)
 	if (!r) {
 	    p_fprintf(current_err_,
 		    "unknown attribute in dbformat_to_term: ");
-	    (void) ec_pwrite(ec_eng, 0, 2, current_err_, pw->val, pw->tag, 1200, 0,
-		    mod, tdict);
+	    (void) ec_pwrite(ec_eng, 0, 2, current_err_, pw->val, pw->tag,
+				1200, 0, NULL, mod, tdict);
 	    (void) ec_newline(current_err_);
 	    return (pword *) 0;
 	}

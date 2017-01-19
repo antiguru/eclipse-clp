@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: ec_io.h,v 1.11 2017/01/16 19:04:18 jschimpf Exp $
+ * VERSION	$Id: ec_io.h,v 1.12 2017/01/19 03:29:39 jschimpf Exp $
  */
 
 /*
@@ -304,7 +304,7 @@ typedef struct {
 Extern int		own_pid;
 Extern void		my_io_aport();
 
-Extern	int	ec_pwrite(ec_eng_t*,int,int,stream_id,value,type,int,int,dident,type);
+Extern	int	ec_pwrite(ec_eng_t*,int,int,stream_id,value,type,int,int,pword*,dident,type);
 Extern	int	ec_tty_in(stream_id);
 Extern	int	ec_tty_out(stream_id, int);
 Extern	int	ec_tty_outs(stream_id, char*, int);

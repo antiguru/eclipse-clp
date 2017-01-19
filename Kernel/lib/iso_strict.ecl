@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.11 2016/08/08 14:34:24 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.12 2017/01/19 03:30:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -55,14 +55,14 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2016/08/08 14:34:24 $`).
+:- comment(date, `$Date: 2017/01/19 03:30:17 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
     This library provides an implementation of Standard Prolog as
     defined in ISO/IEC 13211-1 (Information Technology, Programming
     Languages, Prolog, Part 1, General Core, 1995) and the technical
-    corrigenda ISO/IEC 13211-1 TC1 (2007) and TC2 (2012).
+    corrigenda ISO/IEC 13211-1 TC1 (2007), TC2 (2012) and TC3 (2017).
     The library is provided in source form.
     <P>
     This library aims at providing a "strict mode" as required by ISO 13211-1,
@@ -199,7 +199,6 @@
 
 <h3>Remaining deviations from Standard</h3>
     <OL>
-    <LI>The write predicates output extra spaces</LI>
     <LI>The char_conversion flag is always off, meaning that character
     conversion is not applied to prolog texts or on term input.  However,
     char_conversion/2 and current_char_conversion/2 predicates are operational.
@@ -701,21 +700,37 @@ write_term_(Stream, Term, Options, Module) :-		% 8.14.2
 	throw(error(instantiation_error, write_term/3)).
     check_write_options([], _) :- !.
     check_write_options([O|Os], All) :- !,
-	check_write_option(O),
-	check_write_options(Os, All).
+	( check_write_option(O, UnInst) ->
+	    ( UnInst==true -> throw(error(instantiation_error, write_term/3))
+	    ; check_write_options(Os, All)
+	    )
+	;
+	    % Cor3, 5.5.12 requires error at this level
+	    throw(error(domain_error(write_option,O), write_term/3))
+	).
     check_write_options(_, All) :-
 	throw(error(type_error(list,All), write_term/3)).
 
-    check_write_option(Option) :- nonground(Option), !,
-	throw(error(instantiation_error, write_term/3)).
-    check_write_option(quoted(false)) :- !.
-    check_write_option(quoted(true)) :- !.
-    check_write_option(ignore_ops(false)) :- !.
-    check_write_option(ignore_ops(true)) :- !.
-    check_write_option(numbervars(false)) :- !.
-    check_write_option(numbervars(true)) :- !.
-    check_write_option(Option) :-
-	throw(error(domain_error(write_option,Option), write_term/3)).
+    check_bool(Bool, UnInst) :- var(Bool), !, UnInst=true.
+    check_bool(false, _).
+    check_bool(true, _).
+
+    check_write_option(Option, UnInst) :- var(Option), !, UnInst=true.
+    check_write_option(quoted(Bool), UnInst) :- check_bool(Bool, UnInst).
+    check_write_option(ignore_ops(Bool), UnInst) :- check_bool(Bool, UnInst).
+    check_write_option(numbervars(Bool), UnInst) :- check_bool(Bool, UnInst).
+    check_write_option(variable_names(VNs), UnInst) :-
+	check_variable_names_list(VNs, UnInst).
+
+    check_variable_names_list(List, UnInst) :- var(List), !, UnInst=true.
+    check_variable_names_list([], _).
+    check_variable_names_list([O|Os], UnInst) :-
+	check_name_eq_term(O, UnInst),
+	check_variable_names_list(Os, UnInst).
+
+    check_name_eq_term(Eq, UnInst) :- var(Eq), !, UnInst=true.
+    check_name_eq_term(Name=_, UnInst) :-
+    	( var(Name) -> UnInst=true ; atom(Name) ).
 
 
 %-----------------------------------------------------------------------

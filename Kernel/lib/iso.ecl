@@ -24,13 +24,13 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso.ecl,v 1.2 2013/03/06 22:06:45 jschimpf Exp $
+% Version:	$Id: iso.ecl,v 1.3 2017/01/19 03:30:17 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
 % ECLiPSe PROLOG LIBRARY MODULE
 %
-% $Id: iso.ecl,v 1.2 2013/03/06 22:06:45 jschimpf Exp $
+% $Id: iso.ecl,v 1.3 2017/01/19 03:30:17 jschimpf Exp $
 %
 % IDENTIFICATION:	iso.pl
 %
@@ -54,14 +54,14 @@
 :- comment(summary, `ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, ECRC, IC-Parc and Coninfer Ltd`).
 :- comment(copyright, `Cisco Systems, Inc (2006), Coninfer Ltd (modifications 2007-2012)`).
-:- comment(date, `$Date: 2013/03/06 22:06:45 $`).
+:- comment(date, `$Date: 2017/01/19 03:30:17 $`).
 :- comment(see_also, [library(multifile),library(iso_strict),library(iso_light)]).
 :- comment(desc, html(`\
 <h3>Overview</h3>\n\
     This library provides an implementation of Standard Prolog as\n\
     defined in ISO/IEC 13211-1 (Information Technology, Programming\n\
     Languages, Prolog, Part 1, General Core, 1995) and the technical\n\
-    corrigenda ISO/IEC 13211-1 TC1 (2007) and TC2 (2012).\n\
+    corrigenda ISO/IEC 13211-1 TC1 (2007), TC2 (2012) and TC3 (2017).\n\
     The library is provided in source form.\n\
     <P>\n\
     There are libraries for three degrees of compatibility:\n\

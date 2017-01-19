@@ -1732,6 +1732,15 @@ Error:
         do not apply any portray (write) transformations.
         </P></DD>
 
+    <DT><STRONG>variable_names(VarsNames)</STRONG></DT><DD><P>
+        use the given variable names when printing the corresponding
+	variables.  VarsNames is a list of terms of the form Name=Var
+	(where Name is an atom that gives a valid variable name, e.g. 'X').
+	If the printed term contains an uninstantiated variable that is
+	identical to Var, it is printed as (unquoted) Name. In case of
+	ambiguity, the leftmost name is used.
+        </P></DD>
+
     <DT><STRONG>variables(default)</STRONG> -- default</DT><DD><P>
         print variables using their source name, if available.
         Otherwise print a system-generated name, which consists of
@@ -1842,6 +1851,9 @@ Error:
         ?- write_term(*(^(1,2),+(3,4)), []).
         1 ^ 2 * (3 + 4)
 
+        ?- write_term(*(^(1,2),+(3,4)), [compact(true)]).
+        1^2*(3+4)
+
         ?- write_term(*(^(1,2),+(3,4)), [operators(false)]).
         *(^(1, 2), +(3, 4))
 
@@ -1862,6 +1874,9 @@ Error:
 
         ?- write('X = '), write_term(a=b, [precedence(699)]).
 	X = (a = b)
+",
+        ?- write_term(foo(X,Y,Z), [variables(raw),variable_names(['X'=X,'Z'=Z])]).
+	foo(X, _69, Z)
 ",
         see_also:[write_term/2, display/2, print/2, printf / 3, write / 2,
         writeln/2, writeq / 2, write_canonical/2, get_stream_info/3, get_flag/2]]).
