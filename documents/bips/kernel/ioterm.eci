@@ -1874,7 +1874,7 @@ Error:
 
         ?- write('X = '), write_term(a=b, [precedence(699)]).
 	X = (a = b)
-",
+
         ?- write_term(foo(X,Y,Z), [variables(raw),variable_names(['X'=X,'Z'=Z])]).
 	foo(X, _69, Z)
 ",
