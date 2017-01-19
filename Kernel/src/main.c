@@ -25,7 +25,7 @@
 /*
  * ECLiPSe C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.8 2017/01/18 03:56:46 jschimpf Exp $
+ * VERSION	$Id: main.c,v 1.9 2017/01/19 03:04:20 jschimpf Exp $
  *
  * Standalone main()
  *
@@ -84,18 +84,19 @@ usage(char *opt, char *arg)
     else
 	fprintf(stderr,"Invalid option: %s\n",opt);
     fprintf(stderr,"Usage:\n");
-    fprintf(stderr,"  -b <file>     compile or load file on startup (deprecated, same as -f)\n");
     fprintf(stderr,"  -f <file>     compile or load file on startup (.ecl or .eco)\n");
     fprintf(stderr,"  -e <goal>     goal to execute (in Prolog syntax)\n");
     fprintf(stderr,"  -g <size>     global+trail stack size\n");
     fprintf(stderr,"  -l <size>     local+control stack size\n");
     fprintf(stderr,"  -L <language> default language dialect\n");
-    fprintf(stderr,"  -h <size>     private heap size\n");
-    fprintf(stderr,"  -s <size>     shared heap size\n");
     fprintf(stderr,"  -t <module>   name of initial toplevel module\n");
     fprintf(stderr,"  -d <seconds>  delayed startup\n");
     fprintf(stderr,"  -D <dir>      installation directory\n");
     fprintf(stderr,"  --            end of ECLiPSe options\n");
+    fprintf(stderr,"Deprecated:\n");
+    fprintf(stderr,"  -b <file>     compile or load file on startup (same as -f)\n");
+    fprintf(stderr,"  -h <size>     private heap size (ignored)\n");
+    fprintf(stderr,"  -s <size>     shared heap size (ignored)\n");
     fprintf(stderr,"Specify <size> in kilobytes, megabytes (M suffix) or gigabytes (G suffix)\n");
 #if 0
     fprintf(stderr,"Parallel system only:\n");
@@ -206,28 +207,6 @@ main(int argc, char **argv)
 	{
 	    switch (argv[c][1])
 	    {
-	    case 'a':			/* -a <worker> <session> 
-                                              <nsrv_hostname> <nsrv_port_no> */
-		if (++c + 4 > argc) usage(argv[c-1], NULL);
-		ec_set_option_int(EC_OPTION_PARALLEL_WORKER, atoi(argv[c++]));	
-		session = argv[c++];
-		nsrv_hostname = argv[c++];
-		nsrv_port_number = atoi(argv[c++]);
-		break;
-
-	    case 'c':				/* -c <shared_map_file> */
-		if (++c + 1 > argc) usage(argv[c-1], NULL);
-		ec_set_option_ptr(EC_OPTION_MAPFILE, argv[c++]);
-		ec_set_option_int(EC_OPTION_ALLOCATION, ALLOC_FIXED);
-		init_flags &= ~INIT_SHARED;
-		break;
-
-	    case 'm':				/* -m <shared_map_file> */
-		if (++c + 1 > argc) usage(argv[c-1], NULL);
-		ec_set_option_ptr(EC_OPTION_MAPFILE, argv[c++]);
-		ec_set_option_int(EC_OPTION_ALLOCATION, ALLOC_FIXED);
-		break;
-
 	    case 'g':				/* -g <size> */
 		argv[new_argc++] = argv[c];		/* shift */
 		if (++c + 1 > argc) usage(argv[c-1], NULL);
@@ -261,6 +240,29 @@ main(int argc, char **argv)
 		}
 		break;
 
+#ifdef WITH_ALLOC_FIXED
+	    case 'a':			/* -a <worker> <session> 
+                                              <nsrv_hostname> <nsrv_port_no> */
+		if (++c + 4 > argc) usage(argv[c-1], NULL);
+		ec_set_option_int(EC_OPTION_PARALLEL_WORKER, atoi(argv[c++]));	
+		session = argv[c++];
+		nsrv_hostname = argv[c++];
+		nsrv_port_number = atoi(argv[c++]);
+		break;
+
+	    case 'c':				/* -c <shared_map_file> */
+		if (++c + 1 > argc) usage(argv[c-1], NULL);
+		ec_set_option_ptr(EC_OPTION_MAPFILE, argv[c++]);
+		ec_set_option_int(EC_OPTION_ALLOCATION, ALLOC_FIXED);
+		init_flags &= ~INIT_SHARED;
+		break;
+
+	    case 'm':				/* -m <shared_map_file> */
+		if (++c + 1 > argc) usage(argv[c-1], NULL);
+		ec_set_option_ptr(EC_OPTION_MAPFILE, argv[c++]);
+		ec_set_option_int(EC_OPTION_ALLOCATION, ALLOC_FIXED);
+		break;
+
 	    case 'h':				/* -h <size> */
 		argv[new_argc++] = argv[c];		/* shift */
 		if (++c + 1 > argc) usage(argv[c-1], NULL);
@@ -282,6 +284,13 @@ main(int argc, char **argv)
 		    ec_bad_exit("ECLiPSe: Shared heap size too small.");
 		}
 		break;
+#else
+	    case 'h':
+	    case 's':
+		fprintf(stderr,"Ignoring unsupported option %s\n", argv[c]);
+		c += 2;
+		break;
+#endif
 
 	    case 'o':				/* enable oracles */
 		c += 1;
