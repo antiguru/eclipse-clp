@@ -21,7 +21,7 @@
 % END LICENSE BLOCK
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: generic_global_constraints.ecl,v 1.16 2016/07/24 19:34:45 jschimpf Exp $
+% Version:	$Id: generic_global_constraints.ecl,v 1.17 2017/01/29 03:19:28 jschimpf Exp $
 %
 %
 % IDENTIFICATION:	generic_global_constraints.ecl
@@ -53,6 +53,7 @@
 	lexico_le/2,            % backwards compatibility, alias for lex_le/2
         minlist/2,
 	maxlist/2,
+	nvalue/2,
 	sorted/2,
 	sorted/3,
 	sum_ge_zero/1,
@@ -819,14 +820,14 @@ ordered_sum_l(Xs, N, Sum, Susp) :-
 	tails."),
     see_also:[ordered/2,_:lex_le/2,lex_lt/2],
     eg:"\
-    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]).		% X::0..2
+    L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]).	% X::0..2
     L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), X=2.	% Y::0..3
     L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), X#>2.	% fail
     L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), X#<2.	% true
     L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), Y=3.	% X::0..2
     L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), Y#>3.	% X::0..1
     L=[X, Y, Z], L :: 0..9, lex_le(L, [2, 3, 1]), Y#<3.	% X::0..2
-    lex_le([2, 3, 1], [3]).					% true
+    lex_le([2, 3, 1], [3]).				% true
     " ]).
 
 lex_le(XVector,YVector):-
@@ -1701,6 +1702,38 @@ set_to_zero_up_to_j([0|B],F,J):-
         F1 is F+1,
         set_to_zero_up_to_j(B,F1,J).
 */
+
+
+
+%----------------------------------------------------------------------
+% nvalue(?N, +Xs) - decomposition version
+%----------------------------------------------------------------------
+
+:- comment(nvalue/2, [
+	summary:"The collection Vars contains N different values.",
+        kind:[constraint:[root:[ic,fd]]],
+	desc:html("<P>\
+   This constraint ensures that the collection Vars contains N
+   different integer values.  The value of N can therefore lie between
+   1 and the length of the list.
+</P><P>
+   Behaviour: This implementation uses decomposition and guarantees
+   neither bounds- or arc-consistency.
+</P>"),
+	args:["?N" : "An integer or variable",
+	      "?Vars" : "A collection (a la collection_to_list/2) of domain variables or integers"],
+	fail_if:"The collection contains too many or to few different values.",
+	see_also:[alldifferent/2, atmost/3, atleast/3, occurrences/3, collection_to_list/2]]).
+
+nvalue(N, Xc) :-
+	collection_to_list(Xc, Xs),
+	( fromto(Xs,[X|Ys],Ys,[]), foreach(B,Bs) do
+	    ( fromto(Ys,[Y|Ys1],Ys1,[]), foreach(D,Ds), param(X) do
+		#\=(X, Y, D)
+	    ),
+	    ( Ds==[] -> B=1 ; B #= min(Ds) )	% B #= and(Ds)
+	),
+	N #= sum(Bs).
 
 
 /*****************************************************************
