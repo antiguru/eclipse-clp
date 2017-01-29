@@ -1299,7 +1299,7 @@ integer_or_var_vars(subscript(Array, IndexList)):-
 %
 '::_body'(X, Domain, Module):-
 	process_domain_domain(Domain, NormalDomain, Type, Module),
-	process_domain_vars(X, Xs),
+	collection_to_list(flatten(X), Xs),
 	!,
 	call_priority((
 		set_vars_type(Xs, Type),
@@ -1313,7 +1313,7 @@ integer_or_var_vars(subscript(Array, IndexList)):-
 %
 '#::_body'(X, Domain, Module):-
 	process_domain_domain(Domain, NormalDomain, integer, Module),
-	process_domain_vars(X, Xs),
+	collection_to_list(flatten(X), Xs),
 	!,
 	call_priority((
 		set_vars_type(Xs, integer),
@@ -1327,7 +1327,7 @@ integer_or_var_vars(subscript(Array, IndexList)):-
 %
 '$::_body'(X, Domain, Module):-
 	process_domain_domain(Domain, NormalDomain, real, Module),
-	process_domain_vars(X, Xs),
+	collection_to_list(flatten(X), Xs),
 	!,
 	call_priority((
 		set_vars_type(Xs, real),
@@ -1444,18 +1444,6 @@ domain_error_reified(Op, X, Domain, Bool) :-
 	    error(5, Goal)
 	).
 
-
-    %
-    % process_domain_vars(?VarSpec, -VarList)
-    %	Compiles a list of all the variables to be constrained.
-    %
-process_domain_vars(X, Xs) :-
-	( var(X) ; number(X) ),
-	!,
-	Xs = [X].
-process_domain_vars(X, Xs) :-
-	nonvar(X),
-	collection_to_list(flatten(X), Xs).
 
     %
     % process_domain_domain(++Domain, -NormalDomain, ?Type, ++Module)

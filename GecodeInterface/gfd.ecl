@@ -930,7 +930,7 @@ check_nonvar(A) :-
         (nonvar(A) -> true ; set_bip_error(4)). % instantiation fault
 
 check_collection_to_list(C, L) :-
-        (collection_to_list(flatten(C), L) -> true ; set_bip_error(5)).
+        (collection_to_list(C, L), nonvar(L) -> true ; set_bip_error(5)).
 
 
 %------------------------------------------------------------------------
@@ -2007,7 +2007,7 @@ ec_to_gecode_arith_expr1(E, _H, In, _N0,_N, _Bs0,_Bs, _Auxs0,_AuxsT,
 
 '::_body'(X, Domain, Module):-
         get_prob_handle_nvars(H, NV0),
-        normalise_vars(X, NX),
+        check_collection_to_list(flatten(X), NX),
 	process_domain_domain(Domain, NormalDomain, Module),
         process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs, _),
         !, % cut here to avoid posting events with a live choicepoint
@@ -2780,7 +2780,7 @@ circuit_offset_events1(SArr, Off, CostMatrix, ArcCosts, Cost, ConLev, H,
         ;
             collection_is_matrix(CostMatrix, NNodes, NNodes)
         ), 
-        check_collection_to_list(CostMatrix, CMList),
+        check_collection_to_list(flatten(1,CostMatrix), CMList),
         CMArr =.. [[]|CMList],
         ec_to_gecode_varint1(Cost, H, NV1,NV2, GCost),
         ( ArcCosts == [] ->
@@ -2948,7 +2948,7 @@ ham_path_offset_events1(GStart, GEnd, SArr, Off, CostMatrix, ArcCosts,
 
         arity(SArr, NNodes),
         collection_is_matrix(CostMatrix, NNodes, NNodes),
-        check_collection_to_list(CostMatrix, CMList),
+        check_collection_to_list(flatten(1,CostMatrix), CMList),
         CMArr =.. [[]|CMList],
         ec_to_gecode_varint1(Cost, H, NV1,NV2, GCost),
         ( ArcCosts == [] ->
@@ -4050,8 +4050,8 @@ bin_packing_md(Items0, ItemMDSizes, BinMDLoads) :-
             collection_is_matrix(BinMDLoads, NumOfBins, Dimension)
         ),
         check_collection_to_list(Items0, Items),
-        check_collection_to_list(ItemMDSizes, ItemSizes),
-        check_collection_to_list(BinMDLoads, BinLoads),
+        check_collection_to_list(flatten(1,ItemMDSizes), ItemSizes),
+        check_collection_to_list(flatten(1,BinMDLoads), BinLoads),
         get_prob_handle_nvars(H, NV0),
         ec_to_gecode_multivarlists1([Items,BinLoads], H, NV0,NV, [GIs,GLs]),
 
@@ -4122,7 +4122,7 @@ bin_packing_md(Items0, ItemMDSizes0, NumOfBins, BinMDSize):-
             collection_is_matrix(ItemMDSizes0,  NumOfItems, Dimension)
         ),
         check_collection_to_list(Items0, Items),
-        check_collection_to_list(ItemMDSizes0, ItemSizes),
+        check_collection_to_list(flatten(1,ItemMDSizes0), ItemSizes),
         check_collection_to_list(BinMDSize, BinSize),
 
         BSizeArray =.. [[]|BinSize],
@@ -5631,7 +5631,7 @@ add_symmetry(variables_interchange, _, _, VArr, SpH, SymH) ?-
         !,
         g_add_ldsbsym_variableinter(SymH, VArr, SpH).
 add_symmetry(parallel_value_interchange(Vs0), _, _, _, _, SymH) ?-
-        check_collection_to_list(Vs0, VsList),
+        check_collection_to_list(flatten(1,Vs0), VsList),
         ( foreach(V, VsList) do integer(V)),
         collection_is_matrix(Vs0, NRows, NCols), % is 2D collection
         length(VsList) =:= NRows*NCols,          % has right # of elms
@@ -5640,7 +5640,7 @@ add_symmetry(parallel_value_interchange(Vs0), _, _, _, _, SymH) ?-
         VArr =..[[]|VsList],
         g_add_ldsbsym_parvalueinter(SymH, VArr, NCols).
 add_symmetry(parallel_variable_interchange(Vs0), _, Pos, _, SpH, SymH) ?-
-        check_collection_to_list(Vs0, VsList0),
+        check_collection_to_list(flatten(1,Vs0), VsList0),
         collection_is_matrix(Vs0, NRows, NCols),
         length(VsList0) =:= NRows*NCols, 
         extract_vars_at_pos(Pos, VsList0, VsList),
@@ -5715,7 +5715,7 @@ add_matrix_symmetry(SymType, Vars, Pos, SpH, SymH) :-
         collection_is_matrix(Vars, NRows, NCols),
         % diagonal_reflection requires a square matrix
         (SymType == diag_reflect -> NRows =:= NCols ; true),
-        check_collection_to_list(Vars,  List),
+        check_collection_to_list(flatten(1,Vars),  List),
         length(List) =:= NRows*NCols,
         extract_vars_at_pos(Pos, List, VList),
         get_prob_handle_nvars(H, NV1),
