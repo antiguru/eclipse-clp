@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.11 2017/01/29 03:15:18 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.12 2017/01/30 00:35:49 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -54,7 +54,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2017/01/29 03:15:18 $").
+:- comment(date, "$Date: 2017/01/30 00:35:49 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -82,6 +82,7 @@
 	flatten/3,
 	halve/3,
 	intersection/3,
+	maplist/2,
 	maplist/3,
 	print_list/1,
 	select/3,
@@ -102,7 +103,9 @@
     from sepia_kernel.
 
 
-:- tool(maplist/3, maplist_body/4).
+:- tool(maplist/2, maplist_/3).
+:- meta_predicate(maplist(2,*)).
+:- tool(maplist/3, maplist_/4).
 :- meta_predicate(maplist(2,*,*)).
 :- tool(checklist/2, checklist_body/3).
 :- meta_predicate(checklist(1,*)).
@@ -144,19 +147,16 @@ subset(L, [_|S]) :-
     subset(L,S).
 
 
-maplist_body(_, [], [], _).
-maplist_body(Pred, [H1|T1], [H2|T2], M) :-
+maplist_(_, [], [], _).
+maplist_(Pred, [H1|T1], [H2|T2], M) :-
 	call(Pred, H1, H2)@M,
-	maplist_body(Pred, T1, T2, M).
+	maplist_(Pred, T1, T2, M).
 
 
-:- export maplist/2.
-:- tool(maplist/2, maplist_body/3).
-:- meta_predicate(maplist(2,*)).
-maplist_body(_, [], _).
-maplist_body(Pred, [Head|Tail], M) :-
+maplist_(_, [], _).
+maplist_(Pred, [Head|Tail], M) :-
 	call(Pred, Head)@M,
-	maplist_body(Pred, Tail, M).
+	maplist_(Pred, Tail, M).
 
 
 checklist_body(_, [], _).
@@ -329,12 +329,12 @@ append(Ls, Xs) :-
 	In these top N levels, all subterms that look like list or array
 	(including []) are interpreted as sub-collections and their
 	elements added to the flattened result.
-	If Collection is single element (i.e. a non-collection term),
+	If Collection is a single element (i.e. a non-collection term),
 	the result is a single-element list containing it.
    <DT><STRONG>flatten(Collection)</STRONG><DD>
 	If the collection is nested (multi-dimensional), all nesting
 	structure is removed and a flat list is returned.
-	If Collection is single element (i.e. a non-collection term),
+	If Collection is a single element (i.e. a non-collection term),
 	the result is a single-element list containing it.
 </DL>
     If Collection is a free variable, it is interpreted as a potential
@@ -464,10 +464,10 @@ eval_cexpr(Xe>>Ye, Zs, Zs0, _AllowSingleton) :- !,
 	eval_cexpr(Ye, Zs1, Zs0, false).
 eval_cexpr(flatten(Xe), Ys, Ys0, _AllowSingleton) :- !,
 	eval_cexpr(Xe, Xs, [], true),
-	flatten_data(Xs, Ys, Ys0, -1).
+	element_to_flat_list(Xs, Ys, Ys0, -1).
 eval_cexpr(flatten(D,Xe), Ys, Ys0, _AllowSingleton) :- !,
 	eval_cexpr(Xe, Xs, [], true),
-	flatten_data(Xs, Ys, Ys0, D).
+	element_to_flat_list(Xs, Ys, Ys0, D).
 eval_cexpr(X, [X|Ys0], Ys0, true).
 
     % Convert data structures only
@@ -481,33 +481,36 @@ eval_cexpr(X, [X|Ys0], Ys0, true).
     collection_to_list_simple(X, [X|Ys0], Ys0, true).
 
     % Like flatten/3, but works for arrays and lists, returning list
-    flatten_data(X, Ys, Ys0, _D) :- var(X), !,
+    element_to_flat_list(X, Ys, Ys0, _D) :- var(X), !,
 	Ys = [X|Ys0].
-    flatten_data(Xs, Ys, Ys0, D) :- Xs=[_|_], !,
+    element_to_flat_list(Xs, Ys, Ys0, D) :- Xs=[_|_], !,
 	( D==0 ->
 	    det_append(Xs, Ys0, Ys)
 	;
 	    D1 is D-1,
-	    ( foreach(X,Xs), fromto(Ys,Ys1,Ys2,Ys0), param(D1) do
-		flatten_data(X, Ys1, Ys2, D1)
-	    )
+	    list_to_flat_list(Xs, Ys, Ys0, D1)	% fail for improper lists
 	).
-    flatten_data(Xz, Ys, Ys0, D) :- is_array(Xz), !,
+    element_to_flat_list(Xz, Ys, Ys0, D) :- is_array(Xz), !,
 	( D==0 ->
 	    sepia_kernel:array_list(Xz, Ys, Ys0)
 	;
 	    D1 is D-1,
 	    ( foreacharg(X,Xz), fromto(Ys,Ys1,Ys2,Ys0), param(D1) do
-		flatten_data(X, Ys1, Ys2, D1)
+		element_to_flat_list(X, Ys1, Ys2, D1)
 	    )
 	).
-    flatten_data(X, [X|Ys0], Ys0, _D).
-
+    element_to_flat_list(X, [X|Ys0], Ys0, _D).
 
     % fails if Xs is partial or improper list
-    det_append(Xs, [], Zs) ?- !, Zs=Xs.
+    list_to_flat_list([], Ys, Ys0, _) ?- Ys=Ys0.
+    list_to_flat_list([X|Xs], Ys, Ys0, D) ?-
+    	element_to_flat_list(X, Ys, Ys1, D),
+	list_to_flat_list(Xs, Ys1, Ys0, D).
+
+    det_append(Xs, [], Zs) ?- !, Zs=Xs.		% avoid copying
     det_append(Xs, Ys, Zs) :- det_append1(Xs, Ys, Zs).
 
+    % fails if Xs is partial or improper list
     det_append1([], Ys, Zs) ?- Zs=Ys.
     det_append1([X|Xs], Ys, Zs) ?- Zs=[X|Zs1], det_append1(Xs, Ys, Zs1).
 	
@@ -544,12 +547,12 @@ eval_cexpr(X, [X|Ys0], Ys0, true).
 	In these top N levels, all subterms that look like list or array
 	(including []) are interpreted as sub-collections and their
 	elements added to the flattened result.
-	If Collection is single element (i.e. a non-collection term),
+	If Collection is a single element (i.e. a non-collection term),
 	the result is a single-element array containing it.
    <DT><STRONG>flatten(Collection)</STRONG><DD>
 	If the collection is nested (multi-dimensional), all nesting
 	structure is removed and a flat array is returned.
-	If Collection is single element (i.e. a non-collection term),
+	If Collection is a single element (i.e. a non-collection term),
 	the result is a single-element array containing it.
 </DL>
     If Collection is a free variable, it is interpreted as a potential
@@ -664,10 +667,10 @@ eval_cexpr_array(Xe>>Ye, Zz, _AllowSingleton) :- !,
 	array_concat(Xz, Yz, Zz).
 eval_cexpr_array(flatten(Xe), Yz, _AllowSingleton) :- !,
 	eval_cexpr(Xe, Xs, [], true),
-	flatten_data_array(Xs, Yz, -1).
+	element_to_flat_array(Xs, Yz, -1).
 eval_cexpr_array(flatten(D,Xe), Yz, _AllowSingleton) :- !,
 	eval_cexpr(Xe, Xs, [], true),
-	flatten_data_array(Xs, Yz, D).
+	element_to_flat_array(Xs, Yz, D).
 eval_cexpr_array(X, [](X), true).
 
     % Convert data structures only
@@ -681,29 +684,27 @@ eval_cexpr_array(X, [](X), true).
     collection_to_array_simple(X, [](X), true).
 
     % Like array_flat/3, but works on arrays and lists, returning array
-    flatten_data_array(X, Yz, _D) :- var(X), !,
+    element_to_flat_array(X, Yz, _D) :- var(X), !,
 	Yz = [](X).
-    flatten_data_array(Xs, Yz, D) :- Xs=[_|_], !,
+    element_to_flat_array(Xs, Yz, D) :- Xs=[_|_], !,
 	( D==0 ->
 	    array_list(Yz, Xs)
 	;
 	    D1 is D-1,
-	    ( foreach(X,Xs), fromto(Ys,Ys1,Ys2,[]), param(D1) do
-		flatten_data(X, Ys1, Ys2, D1)
-	    ),
+	    list_to_flat_list(Xs, Ys, [], D1),
 	    array_list(Yz, Ys)
 	).
-    flatten_data_array(Xz, Yz, D) :- is_array(Xz), !,
+    element_to_flat_array(Xz, Yz, D) :- is_array(Xz), !,
 	( D==0 ->
 	    Yz = Xz
 	;
 	    D1 is D-1,
 	    ( foreacharg(X,Xz), fromto(Ys,Ys1,Ys2,[]), param(D1) do
-		flatten_data(X, Ys1, Ys2, D1)
+		element_to_flat_list(X, Ys1, Ys2, D1)
 	    ),
 	    array_list(Yz, Ys)
 	).
-    flatten_data_array(X, [](X), _D).
+    element_to_flat_array(X, [](X), _D).
 
 
 
@@ -1231,24 +1232,37 @@ append([X|L1],L2,[X|L3]):-
 	amode:(checklist(+,+)),
 	template:"checklist(+Pred, +List)",
 	desc:html("\
-   checklist/3 succeeds if for every element of List, the invocation of
+   This is a synonym for maplist/2.
+	"),
+	args:["+Pred" : "Atom or compound term.", "+List" : "List."],
+	resat:"Resatisfiable if at least for one element of List the invocation of Pred with this additional argument is resatisfiable.",
+	fail_if:"Fails if at least for one element of List the invocation of Pred with this additional argument fails.",
+	eg:"\nSuccess:\n  checklist(integer, [1, 3, 5]).\n  checklist(spy, [var/1, functor/3]).\n\nFail:\n  checklist(current_op(_, _), [+, -, =]).\n  (fails because the precedence of = does not match that of +)\n\n\n\n",
+	see_also:[maplist / 3]]).
+
+:- comment(maplist / 2, [
+	summary:"Succeeds if Pred(Elem) succeeds for every element of List.\n\n",
+	amode:(maplist(+,+)),
+	template:"maplist(+Pred, +List)",
+	desc:html("\
+   maplist/3 succeeds if for every element of List, the invocation of
    Pred with one aditional argument which is this element succeeds.
 <P>
    The definition of this Prolog library predicate is:
 <PRE>
-:- tool(checklist/3, checklist_body/4).
+:- tool(maplist/2, maplist_/3).
 
-checklist_body(_, [], _).
-checklist_body(Pred, [Head|Tail], M) :-
-    call(Pred, Head)@M,
-    checklist_body(Pred, Tail, M).
+maplist_(_, [], _).
+maplist_(Pred, [Head|Tail], Module) :-
+    call(Pred, Head)@Module,
+    maplist_(Pred, Tail, Module).
 </PRE>
    This predicate does not perform any type testing functions.
 	"),
 	args:["+Pred" : "Atom or compound term.", "+List" : "List."],
 	resat:"Resatisfiable if at least for one element of List the invocation of Pred with this additional argument is resatisfiable.",
 	fail_if:"Fails if at least for one element of List the invocation of Pred with this additional argument fails.",
-	eg:"\nSuccess:\n  checklist(integer, [1, 3, 5]).\n  checklist(spy, [var/1, functor/3]).\n\nFail:\n  checklist(current_op(_, _), [+, -, =]).\n  (fails because the precedence of = does not match that of +)\n\n\n\n",
+	eg:"\nSuccess:\n  maplist(integer, [1, 3, 5]).\n  maplist(spy, [var/1, functor/3]).\n\nFail:\n  maplist(current_op(_, _), [+, -, =]).\n  (fails because the precedence of = does not match that of +)\n\n\n\n",
 	see_also:[maplist / 3]]).
 
 :- comment(flatten / 2, [
@@ -1278,7 +1292,23 @@ flatten_aux(Term, [Term|Cont], Cont).
 	args:["+NestedList" : "A List.", "?FlatList" : "List or variable."],
 	resat:"   No.",
 	fail_if:"   Fails if FlatList does not unify with the flattened version of\n   NestedList.\n\n",
-	eg:"\nSuccess:\n    [eclipse]: flatten([[1,2,[3,4],5],6,[7]], L).\n    L = [1, 2, 3, 4, 5, 6, 7]\n    yes.\n\nFail:\n    [eclipse]: flatten([1,[3],2], [1,2,3]).\n    no.\n\n\n\n",
+	eg:"
+    Success:
+        [eclipse]: flatten([[1,2,[3,4],5],6,[7]], L).
+        L = [1, 2, 3, 4, 5, 6, 7]
+        yes.
+
+        [eclipse]: flatten([1,2,3], L).
+        L = [1, 2, 3]
+        yes.
+
+      [eclipse]: flatten(a, L).
+      L = [a]
+      yes.
+
+    Fail:
+        [eclipse]: flatten([1,[3],2], [1,2,3]).
+        no.",
 	see_also:[flatten / 3, sort / 2, sort / 4, length / 2, member / 2]]).
 
 :- comment(flatten / 3, [
@@ -1313,6 +1343,10 @@ flatten_aux(Term, [Term|Cont], Cont).
       [eclipse]: flatten(3, [[1,2,[3,4],5],6,[7]], L).
       L = [1, 2, 3, 4, 5, 6, 7]
       yes.
+
+      [eclipse]: flatten(1, a, L).
+      L = [a]
+      yes.
       
    Fail:
       [eclipse]: flatten(2, [1,[3],2], [1,2,3]).
@@ -1333,12 +1367,12 @@ flatten_aux(Term, [Term|Cont], Cont).
 <P>
    The definition of this Prolog library predicate is:
 <PRE>
-:- tool(maplist/3, maplist_body/4).
+:- tool(maplist/3, maplist_/4).
 
-maplist_body(_, [], [], _).
-maplist_body(Pred, [H1|T1], [H2|T2], M) :-
-    call(Pred, H1, H2)@M,
-    maplist_body(Pred, T1, T2, M).
+maplist_(_, [], [], _).
+maplist_(Pred, [H1|T1], [H2|T2], Module) :-
+    call(Pred, H1, H2)@Module,
+    maplist_(Pred, T1, T2, Module).
 </PRE>
    This predicate does not perform any type testing functions.
 	"),
@@ -1346,7 +1380,7 @@ maplist_body(Pred, [H1|T1], [H2|T2], M) :-
 	resat:"Resatisfiable if at least for one pair of corresponding elements of OldList and NewList the invocation of Pred with these two additional arguments is resatisfiable",
 	fail_if:"Fails if at least for one pair of corresponding elements of OldList and NewList the invocation of Pred with these two additional arguments fails",
 	eg:"\nSuccess:\n  maplist(integer_atom, [1, 2, 3], ['1', '2', '3']).\n  maplist(sin, [0, 1, 2], X).\n      (gives X = [0.0, 0.841471, 0.909297])\n  maplist(get_flag(var/1), [skip, type, spy], [off, built_in, off]).\nFail:\n  maplist(type_of, [1, a, \"a\"], [integer, atom, atom]).\n\n\n\n",
-	see_also:[checklist / 2]]).
+	see_also:[maplist / 2]]).
 
 :- comment(subset / 2, [
 	summary:"Succeeds if List is the list which contains all elements from SubList in\nthe same order as in SubList.\n\n",
