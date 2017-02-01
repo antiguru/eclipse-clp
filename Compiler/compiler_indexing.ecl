@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_indexing.ecl,v 1.13 2016/08/12 17:39:18 jschimpf Exp $
+% Version:	$Id: compiler_indexing.ecl,v 1.14 2017/02/01 02:05:15 jschimpf Exp $
 %----------------------------------------------------------------------
 
 :- module(compiler_indexing).
@@ -30,7 +30,7 @@
 :- comment(summary, "ECLiPSe III compiler - indexing").
 :- comment(copyright, "Cisco Technology Inc").
 :- comment(author, "Joachim Schimpf").
-:- comment(date, "$Date: 2016/08/12 17:39:18 $").
+:- comment(date, "$Date: 2017/02/01 02:05:15 $").
 
 :- use_module(compiler_common).
 :- import state_lookup_binding/3 from compiler_analysis.
@@ -487,6 +487,7 @@ type_test(ground,	[[[]]-t,[atom]-t,[bignum]-t,[breal]-t,[goal]-t,[list]-m,[struc
 type_test(integer,	[[bignum]-t,[integer]-t]).
 type_test(is_event,	[[atom]-m,[handle]-m]).	% not only tag test!
 type_test(is_handle,	[[handle]-t]).
+type_test(is_array,	[[[]]-t,[structure]-m]).	% not only tag test!
 type_test(is_list,	[[[]]-t,[list]-m]).	% not only tag test!
 type_test(is_suspension, [[goal]-m]).		% not only tag test!
 type_test(meta,		[[var,meta]-t]).

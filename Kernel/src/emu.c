@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.43 2017/01/17 17:20:51 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.44 2017/02/01 02:04:10 jschimpf Exp $
  */
 
 /*
@@ -7085,6 +7085,14 @@ _exit_engine_:				/* (scratch_pw) */
 	    } 
 	    else {
 		if (!(IsAtom(pw1->tag) || IsNil(pw1->tag))) { Fail }
+	    }
+	    Next_Pp;
+
+         Case(BI_IsArray, I_BI_IsArray)
+	    Get_Argument(pw1)
+	    Dereference_Pw(pw1);
+	    if (!(IsArray(pw1->val, pw1->tag) || IsNil(pw1->tag))) {
+		Fail;
 	    }
 	    Next_Pp;
 

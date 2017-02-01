@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: opcode.h,v 1.8 2016/08/11 22:07:45 jschimpf Exp $
+ * VERSION	$Id: opcode.h,v 1.9 2017/02/01 02:04:10 jschimpf Exp $
  */
 
 /*
@@ -487,12 +487,13 @@ extern vmcode op_addr[];
 #define BI_Min					(BLOCK1 + 410)
 #define BI_Max					(BLOCK1 + 411)
 #define BI_Plus					(BLOCK1 + 412)
+#define BI_IsArray				(BLOCK1 + 413)
 
 /*
  * Insert new instructions here.  Don't forget to update the following files:
  * names.h emu_op_addr.h printam.c asm.pl
  */
 
-#define Inst_Error				(BLOCK1 + 413)
+#define Inst_Error				(BLOCK1 + 414)
 #define NUMBER_OP				(Inst_Error + 1)
 

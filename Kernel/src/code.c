@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: code.c,v 1.22 2016/10/24 01:41:13 jschimpf Exp $
+ * VERSION	$Id: code.c,v 1.23 2017/02/01 02:04:10 jschimpf Exp $
  */
 
 /********************************************************************
@@ -1264,6 +1264,7 @@ code_init(int flags)
     make_test_bip(d_.is_list, BI_IsList, 0, 0, -1, EXPORT);
     make_test_bip(d_.bignum, BI_Bignum, 0, 0, -1, EXPORT);
     make_test_bip(in_dict("callable",1), BI_Callable, 0, 0, -1, EXPORT);
+    make_test_bip(in_dict("is_array",1), BI_IsArray, 0, 0, -1, EXPORT);
 
     make_function_bip(in_dict("-",2), BI_Minus, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);
     make_function_bip(in_dict("+",2), BI_Plus, U_SIMPLE, BoundArg(2,CONSTANT), 4, 1);

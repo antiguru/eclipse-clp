@@ -1630,7 +1630,7 @@ label(1):
 	move                     a(5)     y(2) 
 	put_global_variable2     a(3)     y(3)     a(5)     y(4) 
 	callf                    declarative / 5     Y[1,2,3,4] 
-	put_atom                 a(1)     . 
+	put_atom                 a(1)     '.' 
 	move                     y(3)     a(2)     y(1)     a(3)     y(4)     a(4) 
 	move_chain               y(2)     a(5)     terminator / 5 
 
@@ -2939,7 +2939,7 @@ p :-
 	A = 4,
 	r.
 
-WARNING: calling =/2 will always fail
+WARNING: calling = /2 will always fail
 p / 0:
 label(1):
 	allocate                 1 
@@ -2958,7 +2958,7 @@ p :-
 	r,
 	B = 4.
 
-WARNING: calling =/2 will always fail
+WARNING: calling = /2 will always fail
 p / 0:
 label(1):
 	allocate                 2 
@@ -10655,26 +10655,28 @@ p(A) :-
 p(A) :-
 	is_list(A).
 p(A) :-
+	is_array(A).
+p(A) :-
 	fail.
 
 INDEXES for (nondet) disjunction [2]
-1. Quality 4.4
-    [] - [21]
-    [[]] - [5, 8, 17, 18, 20, 21]
-    [atom] - [3, 5, 8, 17, 18, 21]
-    [bignum] - [5, 9, 10, 16, 17, 21]
-    [breal] - [5, 12, 14, 16, 17, 21]
-    [double] - [5, 12, 13, 16, 17, 21]
-    [goal] - [2, 5, 17, 21]
-    [handle] - [3, 4, 5, 17, 21]
-    [integer] - [5, 9, 16, 17, 21]
-    [list] - [5, 18, 19, 20, 21]
-    [rational] - [5, 11, 16, 17, 21]
-    [string] - [5, 15, 17, 21]
-    [structure] - [5, 18, 19, 21]
-    [var] - [6, 21]
-    [var, free] - [1, 6, 21]
-    [var, meta] - [6, 7, 21]
+1. Quality 4.6
+    [] - [22]
+    [[]] - [5, 8, 17, 18, 20, 21, 22]
+    [atom] - [3, 5, 8, 17, 18, 22]
+    [bignum] - [5, 9, 10, 16, 17, 22]
+    [breal] - [5, 12, 14, 16, 17, 22]
+    [double] - [5, 12, 13, 16, 17, 22]
+    [goal] - [2, 5, 17, 22]
+    [handle] - [3, 4, 5, 17, 22]
+    [integer] - [5, 9, 16, 17, 22]
+    [list] - [5, 18, 19, 20, 22]
+    [rational] - [5, 11, 16, 17, 22]
+    [string] - [5, 15, 17, 22]
+    [structure] - [5, 18, 19, 21, 22]
+    [var] - [6, 22]
+    [var, free] - [1, 6, 22]
+    [var, meta] - [6, 7, 22]
 Branch determinisms for disjunction [2]
     Branch 1: try
     Branch 2: try
@@ -10696,28 +10698,29 @@ Branch determinisms for disjunction [2]
     Branch 18: retry
     Branch 19: retry
     Branch 20: retry
-    Branch 21: trust
+    Branch 21: retry
+    Branch 22: trust
 p / 1:
 label(1):
 	switch_on_type           a(1) 
-		meta: 	ref(58)
-		[]: 	ref(45)
-		atom: 	ref(46)
-		bignum: 	ref(47)
-		breal: 	ref(48)
-		double: 	ref(49)
-		goal: 	ref(50)
-		handle: 	ref(51)
-		integer: 	ref(52)
-		list: 	ref(53)
-		rational: 	ref(54)
-		string: 	ref(55)
-		structure: 	ref(56)
+		meta: 	ref(60)
+		[]: 	ref(47)
+		atom: 	ref(48)
+		bignum: 	ref(49)
+		breal: 	ref(50)
+		double: 	ref(51)
+		goal: 	ref(52)
+		handle: 	ref(53)
+		integer: 	ref(54)
+		list: 	ref(55)
+		rational: 	ref(56)
+		string: 	ref(57)
+		structure: 	ref(58)
 
-label(57):
+label(59):
 	try                      0     1     ref(3) 
 	retry                    0     ref(13) 
-	trust                    0     ref(43) 
+	trust                    0     ref(45) 
 label(3):
 	bi_free                  a(1) 
 	ret                  
@@ -10779,85 +10782,90 @@ label(41):
 	bi_is_list               a(1) 
 	ret                  
 label(43):
-	failure              
+	bi_is_array              a(1) 
+	ret                  
 label(45):
+	failure              
+label(47):
 	try                      0     1     ref(11) 
 	retry                    0     ref(17) 
 	retry                    0     ref(35) 
 	retry                    0     ref(37) 
 	retry                    0     ref(41) 
-	trust                    0     ref(43) 
-label(46):
+	retry                    0     ref(43) 
+	trust                    0     ref(45) 
+label(48):
 	try                      0     1     ref(7) 
 	retry                    0     ref(11) 
 	retry                    0     ref(17) 
 	retry                    0     ref(35) 
 	retry                    0     ref(37) 
-	trust                    0     ref(43) 
-label(47):
+	trust                    0     ref(45) 
+label(49):
 	try                      0     1     ref(11) 
 	retry                    0     ref(19) 
 	retry                    0     ref(21) 
 	retry                    0     ref(33) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(48):
+	trust                    0     ref(45) 
+label(50):
 	try                      0     1     ref(11) 
 	retry                    0     ref(25) 
 	retry                    0     ref(29) 
 	retry                    0     ref(33) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(49):
+	trust                    0     ref(45) 
+label(51):
 	try                      0     1     ref(11) 
 	retry                    0     ref(25) 
 	retry                    0     ref(27) 
 	retry                    0     ref(33) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(50):
+	trust                    0     ref(45) 
+label(52):
 	try                      0     1     ref(5) 
 	retry                    0     ref(11) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(51):
+	trust                    0     ref(45) 
+label(53):
 	try                      0     1     ref(7) 
 	retry                    0     ref(9) 
 	retry                    0     ref(11) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(52):
+	trust                    0     ref(45) 
+label(54):
 	try                      0     1     ref(11) 
 	retry                    0     ref(19) 
 	retry                    0     ref(33) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(53):
+	trust                    0     ref(45) 
+label(55):
 	try                      0     1     ref(11) 
 	retry                    0     ref(37) 
 	retry                    0     ref(39) 
 	retry                    0     ref(41) 
-	trust                    0     ref(43) 
-label(54):
+	trust                    0     ref(45) 
+label(56):
 	try                      0     1     ref(11) 
 	retry                    0     ref(23) 
 	retry                    0     ref(33) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(55):
+	trust                    0     ref(45) 
+label(57):
 	try                      0     1     ref(11) 
 	retry                    0     ref(31) 
 	retry                    0     ref(35) 
-	trust                    0     ref(43) 
-label(56):
+	trust                    0     ref(45) 
+label(58):
 	try                      0     1     ref(11) 
 	retry                    0     ref(37) 
 	retry                    0     ref(39) 
-	trust                    0     ref(43) 
-label(58):
+	retry                    0     ref(43) 
+	trust                    0     ref(45) 
+label(60):
 	try                      0     1     ref(13) 
 	retry                    0     ref(15) 
-	trust                    0     ref(43) 
+	trust                    0     ref(45) 
 
 ------ Test bip(type_tests_det1) -------
 p(A) :-

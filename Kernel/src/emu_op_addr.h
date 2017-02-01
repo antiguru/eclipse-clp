@@ -442,3 +442,4 @@ op_addr[i++] = (vmcode) &&I_BI_Sgn;
 op_addr[i++] = (vmcode) &&I_BI_Min;
 op_addr[i++] = (vmcode) &&I_BI_Max;
 op_addr[i++] = (vmcode) &&I_BI_Plus;
+op_addr[i++] = (vmcode) &&I_BI_IsArray;

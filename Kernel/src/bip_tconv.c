@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_tconv.c,v 1.13 2017/01/17 17:20:51 jschimpf Exp $
+ * VERSION	$Id: bip_tconv.c,v 1.14 2017/02/01 02:04:10 jschimpf Exp $
  */
 
 /*
@@ -1121,13 +1121,6 @@ p_canonical_copy(value v, type t, value vi, type ti, ec_eng_t *ec_eng)
  * Arrays
  *----------------------------------------------------------------------*/
 
-static int
-p_is_array(value v, type t, ec_eng_t *ec_eng)
-{
-    Succeed_If(IsArray(v, t) || IsNil(t));
-}
-
-
 /*
  * Auxiliary for dim(-Array, +Dimensions)
  * returns PFAIL if the dimensions contain a zero
@@ -1554,7 +1547,6 @@ bip_tconv_init(int flags)
 	(void) built_in(in_dict("array_list", 2), p_array_list, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("array_list", 3), p_array_list3, B_UNSAFE|U_UNIFY|PROC_DEMON);
 	(void) built_in(in_dict("array_concat", 3), p_array_concat, B_UNSAFE|U_UNIFY|PROC_DEMON);
-	(void) built_in(in_dict("is_array", 1), p_is_array, B_SAFE);
 	(void) built_in(in_dict("dim", 2), p_dim, B_UNSAFE|U_UNIFY);
 	built_in(in_dict("number_string_",3), p_number_string, B_UNSAFE|U_GROUND)
 		-> mode = BoundArg(1, NONVAR) | BoundArg(2, NONVAR);

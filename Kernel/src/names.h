@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: names.h,v 1.8 2016/11/07 01:55:49 jschimpf Exp $
+ * VERSION	$Id: names.h,v 1.9 2017/02/01 02:04:10 jschimpf Exp $
  */
 
 /*
@@ -448,6 +448,7 @@ char * inst_name[] = {
 "BI_Min",
 "BI_Max",
 "BI_Plus",
+"BI_IsArray",
 
 "Inst_Error"
 };

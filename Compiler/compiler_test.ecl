@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler tests
-% Version:	$Id: compiler_test.ecl,v 1.28 2016/11/20 18:04:46 jschimpf Exp $
+% Version:	$Id: compiler_test.ecl,v 1.29 2017/02/01 02:05:15 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- lib(numbervars).
@@ -1171,6 +1171,7 @@ testclause(bip(type_tests), [
 	(p(X) :- callable(X)),
 	(p(X) :- compound(X)),
 	(p(X) :- is_list(X)),
+	(p(X) :- is_array(X)),
 	(p(X) :- fail)
 ]).
 testclause(bip(type_tests_det1), [

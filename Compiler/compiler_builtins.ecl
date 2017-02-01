@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: compiler_builtins.ecl,v 1.6 2016/08/11 22:09:40 jschimpf Exp $
+% Version:	$Id: compiler_builtins.ecl,v 1.7 2017/02/01 02:05:14 jschimpf Exp $
 %
 % Part of module(compiler_codegen)
 % ----------------------------------------------------------------------
@@ -268,6 +268,7 @@ inlined_builtin(atomic,		1,	0,		bi_atomic(arg)).
 inlined_builtin(callable,	1,	0,		bi_callable(arg)).
 inlined_builtin(compound,	1,	0,		bi_compound(arg)).
 inlined_builtin(is_list,	1,	0,		bi_is_list(arg)).
+inlined_builtin(is_array,	1,	0,		bi_is_array(arg)).
 inlined_builtin(==,		2,	0,		get_matched_value(arg,arg)).
 inlined_builtin(\==,		2,	0,		bi_not_identical(arg,arg)).
 inlined_builtin(set_bip_error,	1,	0,		bi_set_bip_error(arg)).

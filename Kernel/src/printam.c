@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: printam.c,v 1.14 2016/11/07 01:55:49 jschimpf Exp $
+ * VERSION	$Id: printam.c,v 1.15 2017/02/01 02:04:10 jschimpf Exp $
  */
 
 /*
@@ -397,6 +397,7 @@ print_am(vmcode *code,		/* pointer to instruction */
 	case BI_IsHandle:
 	case BI_IsEvent:
 	case BI_IsList:
+	case BI_IsArray:
 	case BI_Bignum:
 	case BI_Callable:
 		Am;
