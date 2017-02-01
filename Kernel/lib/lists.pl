@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.12 2017/01/30 00:35:49 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.13 2017/02/01 02:01:55 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -54,7 +54,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2017/01/30 00:35:49 $").
+:- comment(date, "$Date: 2017/02/01 02:01:55 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -103,9 +103,9 @@
     from sepia_kernel.
 
 
-:- tool(maplist/2, maplist_/3).
+:- tool(maplist/2, maplist_body/3).
 :- meta_predicate(maplist(2,*)).
-:- tool(maplist/3, maplist_/4).
+:- tool(maplist/3, maplist_body/4).
 :- meta_predicate(maplist(2,*,*)).
 :- tool(checklist/2, checklist_body/3).
 :- meta_predicate(checklist(1,*)).
@@ -147,16 +147,16 @@ subset(L, [_|S]) :-
     subset(L,S).
 
 
-maplist_(_, [], [], _).
-maplist_(Pred, [H1|T1], [H2|T2], M) :-
+maplist_body(_, [], [], _).
+maplist_body(Pred, [H1|T1], [H2|T2], M) :-
 	call(Pred, H1, H2)@M,
-	maplist_(Pred, T1, T2, M).
+	maplist_body(Pred, T1, T2, M).
 
 
-maplist_(_, [], _).
-maplist_(Pred, [Head|Tail], M) :-
+maplist_body(_, [], _).
+maplist_body(Pred, [Head|Tail], M) :-
 	call(Pred, Head)@M,
-	maplist_(Pred, Tail, M).
+	maplist_body(Pred, Tail, M).
 
 
 checklist_body(_, [], _).
@@ -1250,12 +1250,12 @@ append([X|L1],L2,[X|L3]):-
 <P>
    The definition of this Prolog library predicate is:
 <PRE>
-:- tool(maplist/2, maplist_/3).
+:- tool(maplist/2, maplist_body/3).
 
-maplist_(_, [], _).
-maplist_(Pred, [Head|Tail], Module) :-
+maplist_body(_, [], _).
+maplist_body(Pred, [Head|Tail], Module) :-
     call(Pred, Head)@Module,
-    maplist_(Pred, Tail, Module).
+    maplist_body(Pred, Tail, Module).
 </PRE>
    This predicate does not perform any type testing functions.
 	"),
@@ -1367,12 +1367,12 @@ flatten_aux(Term, [Term|Cont], Cont).
 <P>
    The definition of this Prolog library predicate is:
 <PRE>
-:- tool(maplist/3, maplist_/4).
+:- tool(maplist/3, maplist_body/4).
 
-maplist_(_, [], [], _).
-maplist_(Pred, [H1|T1], [H2|T2], Module) :-
+maplist_body(_, [], [], _).
+maplist_body(Pred, [H1|T1], [H2|T2], Module) :-
     call(Pred, H1, H2)@Module,
-    maplist_(Pred, T1, T2, Module).
+    maplist_body(Pred, T1, T2, Module).
 </PRE>
    This predicate does not perform any type testing functions.
 	"),
