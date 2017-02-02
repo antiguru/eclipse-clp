@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.26 2017/01/16 19:04:18 jschimpf Exp $
+ * $Id: types.h,v 1.27 2017/02/02 19:21:03 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -628,6 +628,8 @@ typedef struct ec_eng_s
 
     action_list_t *cleanup;	/* cleanup after returning from external pred */
     action_list_t *cleanup_bot;	/* (top and bottom of cleanup stack) */
+
+    uword	wake_count;	/* statistics: count suspension wakes */
 
 #ifdef PRINTAM
 #define MAX_BACKTRACE 1024

@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: environment.pl,v 1.21 2017/01/10 00:02:40 jschimpf Exp $
+% Version:	$Id: environment.pl,v 1.22 2017/02/02 19:22:13 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -660,6 +660,8 @@ statistics(Name, Value) :-
 	var(Name),
 	!,
 	get_stat(Name, Value, _, _).
+statistics(reset, _Value) :- !,
+	statistics_reset.
 statistics(Name, Value) :-
 	get_stat(Name, X, _, _),
 	!,
@@ -717,6 +719,7 @@ get_stat(dict_gc_countdown, X, '', sepia) :-	dict_param(8, X).
 get_stat(dict_gc_running, X, '', sepia) :-	dict_param(9, Steps),
 	( Steps>0 -> X=true ; X=false ).
 get_stat(dict_gc_time, X, seconds, sepia) :-	dict_param(6, X).
+get_stat(wake_count, X, '', sepia) :-		gc_stat(5, X).
 
 get_stat(runtime, [Total, Last], '', quintus) :-	% compatibility, very common
 	gc_stat(4, Gc),

@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * $Id: gc_stacks.c,v 1.13 2017/01/18 03:56:46 jschimpf Exp $
+ * $Id: gc_stacks.c,v 1.14 2017/02/02 19:21:03 jschimpf Exp $
  *
  * IDENTIFICATION	gc_stacks.c
  *
@@ -344,6 +344,10 @@ p_gc_stat(value vwhat, type twhat, value vval, type tval, ec_eng_t *ec_eng)
 	Make_Float(&result, (double) collection_time_ / clock_hz);
 	break;
 
+    case 5:	/* wake_count */
+	result.val.nint = ec_eng->wake_count;
+	break;
+
 
     case 8:	/* global stack used */
 	result.val.nint = (char *) TG -
@@ -430,6 +434,7 @@ p_stat_reset(ec_eng_t *ec_eng)
     ec_eng->global_trail[1].peak = ec_eng->global_trail[1].end;
     ec_eng->control_local[0].peak = ec_eng->control_local[0].end;
     ec_eng->control_local[1].peak = ec_eng->control_local[1].end;
+    ec_eng->wake_count = 0;
     Succeed_
 }
 

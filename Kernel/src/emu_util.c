@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.19 2017/01/18 03:56:46 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.20 2017/02/02 19:21:03 jschimpf Exp $
  */
 
 /*
@@ -270,6 +270,7 @@ emu_init(ec_eng_t *parent_eng, ec_eng_t *ec_eng)
     ec_eng->next = ec_eng->prev = NULL;
 
     TracerInit;
+    ec_eng->wake_count = 0;
 
 #ifdef PRINTAM
     /* WAM level debugging support */

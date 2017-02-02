@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.44 2017/02/01 02:04:10 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.45 2017/02/02 19:21:03 jschimpf Exp $
  */
 
 /*
@@ -5759,6 +5759,7 @@ _susp_wake_:					/* suspension in pw2 */
 	    Set_Det
 	    DBG_PORT = WAKE_PORT;
 	    DBG_INVOC = SuspDebugInvoc(pw2);
+	    ++ec_eng->wake_count;
 	    if (SuspDemon(pw2)) {
 		Set_Susp_Delayed(pw2);
 		if (PriFlags(proc) & EXTERN)	/* set DE for C externals */
