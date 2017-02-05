@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: lex.h,v 1.11 2016/12/12 14:01:48 jschimpf Exp $
+ * VERSION	$Id: lex.h,v 1.12 2017/02/05 03:00:32 jschimpf Exp $
  */
 
 /*
@@ -153,8 +153,9 @@
 #define BAR_IS_SEMICOLON	0x400000/* map infix |/2 to ;/2             */
 #define PLUS_IS_NO_SIGN 	0x800000/* + is always functor, never sign  */
 #define ISO_RESTRICTIONS	0x1000000/* other ISO restrictions	    */
+#define SYNTAX_ERRORS_FAIL	0x2000000/* read-preds fail on syntax error */
 
-#define SYNTAX_FLAGS		25	/* number of flags above	*/
+#define SYNTAX_FLAGS		26	/* number of flags above	*/
 
 
 /*

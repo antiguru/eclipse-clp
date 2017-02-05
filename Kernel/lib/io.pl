@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: io.pl,v 1.25 2017/01/19 03:30:17 jschimpf Exp $
+% Version:	$Id: io.pl,v 1.26 2017/02/05 03:00:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -321,20 +321,22 @@ read_term_(Term, Options, Module) :-
 	read_term_(input, Term, Options, Module).
 
 read_term_(Stream, Term, Options, Module) :-		% 8.14.1
-	check_read_options(Options),
+	check_read_options(Options, VarFlag, default, ErrFlag),
 	!,
-	readvar(Stream, Term, Vars, Module),
+    	( var(VarFlag) -> VarFlag = 0 ; true ),
+	read_term(Stream, Term, VarFlag, ErrFlag, Vars, _HasMacros, Module),
 	handle_read_options(Options, Term, Vars).
 read_term_(Stream, Term, Options, Module) :-
 	bip_error(read_term(Stream, Term, Options), Module).
 
-    check_read_options(Options) :- var(Options), !,
+    :- mode check_read_options(?,?,?,-).
+    check_read_options(Options, _, _, _) :- var(Options), !,
     	set_bip_error(4).
-    check_read_options([]) :- !.
-    check_read_options([O|Os]) :- !,
-	check_read_option(O),
-	check_read_options(Os).
-    check_read_options(_Options) :-
+    check_read_options([], _, EF, EF) :- !.
+    check_read_options([O|Os], VF, EF0, EF) :- !,
+	check_read_option(O, VF, EF0, EF1),
+	check_read_options(Os, VF, EF1, EF).
+    check_read_options(_Options, _, _, _) :-
     	set_bip_error(5).
 
     :- mode handle_read_options(+,?,+).
@@ -344,18 +346,21 @@ read_term_(Stream, Term, Options, Module) :-
 	handle_read_options(Os, Term, Vars).
 
     % Always change the next 2 predicates together!
-    check_read_option(Option) :- var(Option), !, set_bip_error(4).
-    check_read_option(variables(_)).
-    check_read_option(variable_names(_)).
-    check_read_option(singletons(_)).
-    check_read_option(_) :- set_bip_error(6).
+    :- mode check_read_option(?,?,?,-).
+    check_read_option(Option, _, _, _) :- var(Option), !, set_bip_error(4).
+    check_read_option(variables(_), _, EF, EF) :- !.
+    check_read_option(variable_names(_), VarFlag, EF, EF) :- !,
+    	VarFlag = 2'100.	% VARLIST_PLEASE
+    check_read_option(singletons(_), _, EF, EF) :- !.
+    check_read_option(syntax_errors(ErrorOption), _, _, ErrorOption) :-
+    	syntax_error_option(ErrorOption), !.
+    check_read_option(_, _, _, _) :- set_bip_error(6).
 
-    % If you make a change here, change also check_read_option/1!
+    % If you make a change here, change also check_read_option/4!
     :- mode handle_read_option(+,?,+).
     handle_read_option(variables(Vs), Term, _Vars) :-
 	term_variables(Term, Vs).
-    handle_read_option(variable_names(VNs), _Term, Vars) :-
-    	name_eq_var(Vars, VNs).
+    handle_read_option(variable_names(Vars), _Term, Vars).
     handle_read_option(singletons(NamesSingletons), Term, NsVs) :-
 	collect_variables(Term, [], Vars),
 	( Vars = [] ->
@@ -366,14 +371,12 @@ read_term_(Stream, Term, Options, Module) :-
 	    collect_singletons(_X, Xs, Singletons),
 	    add_names(Singletons, NsVs, NamesSingletons)
 	).
+    handle_read_option(syntax_errors(_), _, _).
 
-    vars_only([], []).
-    vars_only([[_|V]|Vars], [V|Vs]) :-
-	vars_only(Vars, Vs).
-
-    name_eq_var([], []).
-    name_eq_var([[N|V]|VNs], [N=V|Vs]) :-
-	name_eq_var(VNs, Vs).
+    %syntax_error_option(default).
+    syntax_error_option(fail).
+    syntax_error_option(error).
+    syntax_error_option(quiet).
 
     collect_singletons(_X, [], [_X]).
     collect_singletons(_X, [_Y|Ys], Singletons) :-
@@ -397,7 +400,7 @@ read_term_(Stream, Term, Options, Module) :-
 	( varnamelookup(S, NsVs, N) -> NsSs = [N=S|NsSs1] ; NsSs = NsSs1 ),
 	add_names(Ss, NsVs, NsSs1).
 
-    varnamelookup(X, [[N|Y]|_], N) :- X==Y, !.
+    varnamelookup(X, [N=Y|_], N) :- X==Y, !.
     varnamelookup(X, [_|T], N):- varnamelookup(X, T, N).
 
 
@@ -538,13 +541,16 @@ term_string_(T, S, Options, Module) :- string(S), !,
 	    open(string(S), read, Stream),
 	    filter_options(Options, read, ROptions),
 	    (
-		read_term_(Stream, T0, ROptions, Module),
+		read_term_(Stream, T0, [syntax_errors(quiet)|ROptions], Module),
 		read_token_(Stream, end_of_file, _, Module)
 	    ->
 		close(Stream),
 		T = T0
 	    ;
 		close(Stream),
+		% fail if 'quiet' or 'fail' was explicitly requested
+		nonmember(syntax_errors(quiet), ROptions),
+		nonmember(syntax_errors(fail), ROptions),
 		error(7, term_string(T, S), Module)
 	    )
 	;
@@ -570,7 +576,44 @@ term_string_(T, S, Options, Module) :-
     ignore_option(variables(Vs), write) ?- !, (var(Vs);is_list(Vs)).
     ignore_option(variable_names(_), _) ?- !, fail.
     ignore_option(Option, read) ?- option_to_format(Option, _, _, _, _, _).
-    ignore_option(Option, write) ?- check_read_option(Option).
+    ignore_option(Option, write) ?- check_read_option(Option, 0, _, _).
+
+
+%
+% term_string(?Term, ?String)
+%
+
+:- export term_string/2.
+:- skipped term_string/2.
+term_string_body(T, S, Module) :- var(S), !,
+	open(string(""), write, Stream),
+	writeq_(Stream, T, Module),
+	stream_info_(Stream, 0, S),  % = get_stream_info(Stream,name,S)
+	close(Stream).
+term_string_body(T, S, Module) :- string(S), !,
+	( S \== "" ->
+	    open(string(S), read, Stream),
+	    (
+		read_term(Stream, T0, 0, quiet, _, _, Module),
+		read_token_(Stream, end_of_file, _, Module)
+	    ->
+		close(Stream),
+		T = T0
+	    ;
+		close(Stream),
+		error(7, term_string(T, S))
+	    )
+	;
+	    error(7, term_string(T, S))
+	).
+term_string_body(T, S, _Module) :-
+	error(5, term_string(T, S)).
+
+
+% Backward compatibility
+readvar(Stream, Term, Vars, Module) :-
+	read_term(Stream, Term, 2'1100, default, Vars, _, Module). % VARLIST_PLEASE|READVAR_PAIRS
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -593,7 +636,7 @@ term_string_(T, S, Options, Module) :-
 :- tool(read_annotated/2, read_annotated_/3).
 
 read_annotated_(Stream, AnnTerm, Module) :-
-	read_annotated_raw(Stream, RawAnnTerm, HasMacros, Module),
+	read_term(Stream, RawAnnTerm, 2, default, [], HasMacros, Module), % LAYOUT_PLEASE
 	( HasMacros == 1 ->
 	    unannotate_term(RawAnnTerm, RawTerm),
 	    expand_macros_annotated_(RawTerm, RawAnnTerm, _Term, AnnTerm, Module)
@@ -606,7 +649,7 @@ read_annotated_(Stream, AnnTerm, Module) :-
 :- tool(read_annotated/3, read_annotated_/4).
 
 read_annotated_(Stream, Term, AnnTerm, Module) :-
-	read_annotated_raw(Stream, RawAnnTerm, HasMacros, Module),
+	read_term(Stream, RawAnnTerm, 2, default, [], HasMacros, Module), % LAYOUT_PLEASE
 	unannotate_term(RawAnnTerm, RawTerm),
 	( HasMacros == 1 ->
 	    expand_macros_annotated_(RawTerm, RawAnnTerm, Term, AnnTerm, Module)

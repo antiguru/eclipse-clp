@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: lex.c,v 1.26 2017/01/17 17:20:51 jschimpf Exp $
+ * VERSION	$Id: lex.c,v 1.27 2017/02/05 03:00:32 jschimpf Exp $
  */
 
 /*
@@ -160,7 +160,7 @@ static syntax_desc	default_syntax_desc = {
     LC, LC, LC, LC, LC, LC, LC, SY, LC, LC, LC, LC, LC, LC, LC, LC,
 /*  EOI symbol */
     RE},
-    BASED_BIGNUMS|NEWLINE_IN_QUOTES|NO_BLANKS,	/* default options */
+    BASED_BIGNUMS|NEWLINE_IN_QUOTES|NO_BLANKS|SYNTAX_ERRORS_FAIL, /* default options */
     '"',				/* sq	   */
     '\'',				/* aq	   */
     '_',				/* ul	   */
@@ -218,6 +218,7 @@ lex_init(int flags)	/* initialization: setting the name of types */
     syntax_flags[22] =	in_dict("bar_is_semicolon",0);
     syntax_flags[23] =	in_dict("plus_is_no_sign",0);
     syntax_flags[24] =	in_dict("iso_restrictions",0);
+    syntax_flags[25] =	in_dict("syntax_errors_fail",0);
 
     default_syntax_desc.char_class[EOB_MARK] = RE;
 

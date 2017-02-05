@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: events.pl,v 1.38 2017/01/16 19:41:18 jschimpf Exp $
+% Version:	$Id: events.pl,v 1.39 2017/02/05 02:59:59 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -384,13 +384,22 @@ parser_error_handler(N, Goal, M):-
 	error_id(N, Id), 
 	( extract_stream(Goal, Stream) ->
 	    get_context_and_skip_forward(Stream, Context),
-	    ( get_flag(syntax_option, iso_restrictions)@CM ->	%%% temporary
-		% ISO style: throw error term
-	        throw(error(syntax_error(Id), Context))
+	    ( extract_syntax_error_option(Goal, Option), Option\==default ->
+		true
+	    ; get_flag(syntax_option, syntax_errors_fail)@CM ->
+		Option = fail
 	    ;
+		Option = error
+	    ),
+	    ( Option==quiet ->
+		fail
+	    ; Option==fail ->
 		% old ECLiPSe style: print error directly, then fail
 		print_syntax_error(Id, Context),
 		fail
+	    ; % Option==error and default
+		% ISO style: throw error term
+	        throw(error(syntax_error(Id), Context))
 	    )
 	;
 	    error_message(N, Goal),
@@ -579,7 +588,7 @@ extract_stream(read(_), input).
 extract_stream(read_(_, _), input).
 extract_stream(readvar(S, _, _), S).
 extract_stream(readvar(S, _, _, _), S).
-extract_stream(read_annotated_raw(S, _, _, _), S).
+extract_stream(read_term(S, _, _, _, _, _, _), S).
 extract_stream(read_string(_, _, _), input).
 extract_stream(read_string(S, _, _, _), S).
 extract_stream(read_string(S, _, _, _, _), S).
@@ -628,7 +637,7 @@ extract_stream(close(S), S).
 :- mode extract_module(+, -).
 extract_module(read_(_, M), M).
 extract_module(readvar(_, _, _, M), M).
-extract_module(read_annotated_raw(_, _, _, M), M).
+extract_module(read_term(_, _, _, _, _, _, M), M).
 extract_module(read_(_, _, M), M).
 extract_module(read_token_(_, _, _, M), M).
 extract_module(compile_stream_(_, M), M).
@@ -640,6 +649,8 @@ extract_module(write_(_, M), M).
 extract_module(write_(_, _, M), M).
 extract_module(writeln_body(_,M), M).
 extract_module(writeln_body(_,_,M), M).
+
+extract_syntax_error_option(read_term(_,_,_,Option,_,_,_), Option).
 
 
 %-------------------------------------
@@ -687,11 +698,15 @@ eof_handler(_, tyi(_, -1)).
 eof_handler(_, get_char(_)) :- fail.
 eof_handler(_, get_char(_, _)) :- fail.
 eof_handler(_, getw(_, end_of_file)).
-eof_handler(_, read_annotated_raw(S,
-	    annotated_term(end_of_file,end_of_file,File,Line,End,End), 0, _)) :-
-	stream_info_(S, 0 /*name*/, File),
-	stream_info_(S, 5 /*line*/, Line),
-	at(S, End).
+eof_handler(_, read_term(S,Term,Flags,_,_,0,_)) :-
+	( getbit(Flags, 1, 1) ->	% LAYOUT_PLEASE?
+	    Term = annotated_term(end_of_file,end_of_file,File,Line,End,End),
+	    stream_info_(S, 0 /*name*/, File),
+	    stream_info_(S, 5 /*line*/, Line),
+	    at(S, End)
+	;
+	    Term = end_of_file
+	).
 
 
 past_eof_handler(N, Goal) :-

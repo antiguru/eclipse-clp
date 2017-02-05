@@ -674,6 +674,11 @@ disabled by default):
 \item[read_floats_as_breals:] read all floating point numbers as bounded
     reals rather than as floats. The resulting breal is a small interval
     enclosing the true value of the number in decimal notation.
+\item[syntax_errors_fail:]
+    the predicates of the read-family fail when encountering a
+    syntax error (after printing an error message).  Without this
+    option, the predicates throw an error term of the form
+    \verb:error(syntax_error(MessageString), context(...)):.
 \item[var_functor_is_apply:] allow variables as functors, and parse a term
     like \notation{X(A,B,C)} as if it were \notation{apply(X,[A,B,C])}.
 \end{description}

@@ -20,7 +20,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: iso_strict.ecl,v 1.12 2017/01/19 03:30:17 jschimpf Exp $
+% Version:	$Id: iso_strict.ecl,v 1.13 2017/02/05 03:00:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -55,7 +55,7 @@
 :- comment(summary, `Strict ISO Prolog compatibility library`).
 :- comment(author, `Joachim Schimpf, Coninfer Ltd`).
 :- comment(copyright, 'Joachim Schimpf, Coninfer Ltd').
-:- comment(date, `$Date: 2017/01/19 03:30:17 $`).
+:- comment(date, `$Date: 2017/02/05 03:00:00 $`).
 :- comment(see_also, [library(multifile),library(iso),library(iso_light)]).
 :- comment(desc, html(`
 <h3>Overview</h3>
@@ -265,6 +265,7 @@
 	syntax_option(iso_escapes),
 	syntax_option(iso_base_prefix),
 	syntax_option(iso_restrictions),
+	syntax_option(not(syntax_errors_fail)),
 	syntax_option(plus_is_no_sign),
 	syntax_option(doubled_quote_is_quote),
 	syntax_option(no_array_subscripts),

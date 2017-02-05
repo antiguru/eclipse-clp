@@ -36,7 +36,6 @@
 :- tool(read_annotated / 3).
 :- tool(read_term / 2).
 :- tool(read_term / 3).
-:- tool(readvar / 3).
 :- tool(sprintf / 3).
 :- tool(write / 1).
 :- tool(write / 2).
@@ -1113,78 +1112,7 @@ Error:
 
 
 ",
-        see_also:[read / 1, readvar / 3, read_token / 2, read_token / 3]]).
-
-:- comment(readvar / 3, [
-        summary:"Succeeds if the next Prolog term from the input stream Stream is
-successfully read and unified with Term, and any variables in Term are
-collected in the list VarList, together with their names.
-
-",
-        amode:(readvar(+,-,-) is semidet),
-        desc:html("   Used to read the next term from the input stream Stream, unify it with
-   Term and store any variables in Term to the list VarList.  This is a
-   list of pairs in the format [VarName|Var].
-
-<P>
-   VarName is the literal input variable name expressed as an atom; Var is
-   the variable.  The first element of the pair Varname is the atom
-   corresponding to the variable name, and the second element Var is the
-   corresponding variable.
-
-<P>
-   If there is more than one Prolog term in the file, the term must be in
-   Prolog term format i.e.  terminated by a period and a blank space
-   character, neither of which are retained by Prolog.
-
-<P>
-"),
-        args:[
-            "Stream" : "Stream handle or alias (atom)",
-            "Term" : "Prolog term.", "VarList" : "A Variable."],
-        fail_if:"Fails if a syntax error was detected and no term could be read",
-        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is not an atom or a stream handle, Varlist is not a    variable.", 190 : "End of file was encountered before reading any character.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification.", 198 : "Trying to read even after the error 190 was raised."],
-        eg:"
-Success:
-      ?- readvar(input,Term,VarList).
-       atom.
-      Term = atom
-      VarList = []
-      yes.
-
-      ?- readvar(input,T,L).
-       X.
-      T = _50
-      L = [['X'|_50]]
-      yes.
-
-      ?- system('cat file1').
-      f(X,Y).
-      g(1,X).
-      yes.
-      ?- open(file1,update,r), readvar(r,T1,V1),
-         readvar(r, T2,V2).
-      T1 = f(_120, _122)
-      V1 = [['X'|_120], ['Y'|_122]]
-      T2 = g(1, _146)              % the clauses are separate,
-      V2 = [['X'|_146]]            % so the X's are different.
-      yes.
-
-Fail:
-      ?- readvar(input, X + 2,V).
-       X + 1.
-      no.
-
-Error:
-      readvar(S,a(b,c),V).          (Error 4).
-      readvar(\"string\",a(b,c),V,).  (Error 5).
-      readvar(output,X + 2,V).      (Error 192).
-      readvar(atom,X + 2,V).        (Error 193).
-
-
-
-",
-        see_also:[read / 1, read / 2]]).
+        see_also:[read / 1, read_term / 2, read_token / 2, read_token / 3]]).
 
 :- comment(write / 1, [
         summary:"The term Term is written on output stream according to the current operator
@@ -1906,7 +1834,7 @@ Error:
         Equivalent to read_term(output, Term, Options).
         See read_term/3 for examples.
 ",
-        see_also:[read_term/3, read/1, read/2, readvar/3, library(numbervars)]]).
+        see_also:[read_term/3, read/1, read/2, library(numbervars)]]).
 
 
 
@@ -1934,6 +1862,15 @@ Error:
         is a named (non-anonymous) variable which occurs only once in
         the term that has been read, and Name is an atom, representing
         the source name.  </P></DD>
+
+    <DT><STRONG>syntax_errors(Atom)</STRONG></DT><DD><P>
+        modifies the treatment of syntax errors: if 'quiet', the predicate
+	fails quietly; if 'fail', an error message is printed and then
+	the predicate fails; if 'error', a term of the form
+	error(syntax_error(MessageString),context(...)) is thrown.
+	The default is 'fail' if the per-module syntax_option
+	'syntax_errors_fail' is set, otherwise 'error'.
+        </P></DD>
 
 </DL>
 "),
@@ -1970,8 +1907,12 @@ Error:
          V = [X, _278, Y, _Z]
          VN = ['X' = X, 'Y' = Y, '_Z' = _Z]
          S = ['_Z' = _Z, 'Y' = Y]
+
+        ?- read_term(T, [syntax_errors(quiet)]).
+	a b.
+	No (0.00s cpu)
 ",
-        see_also:[read_term/2, readvar/3, read/1, read / 2, set_stream_property/3]]).
+        see_also:[read_term/2, read/1, read / 2, set_stream_property/3]]).
 
 
 :- comment(read_annotated / 2, [
@@ -2221,6 +2162,6 @@ AT = annotated_term([
         ], compound, user, 4, 21, 22)
 Yes (0.00s cpu)
 ",
-        see_also:[read_annotated/2, read / 1, readvar / 3, read_token / 2, read_token / 3,
+        see_also:[read_annotated/2, read / 1, read_term / 2, read_token / 2, read_token / 3,
         expand_macros/2, macro/3, type_of/2]]).
 

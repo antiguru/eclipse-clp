@@ -48,6 +48,7 @@
 :- tool(tool / 1).
 :- tool(retract_all / 1).
 :- tool(mutex / 2).
+:- tool(readvar / 3).
 
 :- comment(lib / 2, [
 	summary:"The library LibraryName is loaded into the module ModuleName if not loaded
@@ -3268,4 +3269,78 @@ Error:
 
 ",
 	see_also:[merge / 3, merge / 5, number_merge / 3]]).
+
+
+:- comment(readvar / 3, [
+        summary:"Succeeds if the next Prolog term from the input stream Stream is
+successfully read and unified with Term, and any variables in Term are
+collected in the list VarList, together with their names.
+
+",
+        amode:(readvar(+,-,-) is semidet),
+        desc:html("\
+   This predicate has been superseeded by read_term/3 with the
+   variable_names(VarsNames) option.
+<P>
+   Used to read the next term from the input stream Stream, unify it with
+   Term and store any variables in Term to the list VarList.  This is a
+   list of pairs in the format [VarName|Var].
+<P>
+   VarName is the literal input variable name expressed as an atom; Var is
+   the variable.  The first element of the pair Varname is the atom
+   corresponding to the variable name, and the second element Var is the
+   corresponding variable.
+<P>
+   If there is more than one Prolog term in the file, the term must be in
+   Prolog term format i.e.  terminated by a period and a blank space
+   character, neither of which are retained by Prolog.
+
+<P>
+"),
+        args:[
+            "Stream" : "Stream handle or alias (atom)",
+            "Term" : "Prolog term.", "VarList" : "A Variable."],
+        fail_if:"Fails if a syntax error was detected and no term could be read",
+        exceptions:[4 : "Stream is not instantiated.", 5 : "Stream is not an atom or a stream handle, Varlist is not a    variable.", 190 : "End of file was encountered before reading any character.", 192 : "Stream is not an input stream.", 193 : "Stream is an illegal stream specification.", 198 : "Trying to read even after the error 190 was raised."],
+        eg:"
+Success:
+      ?- readvar(input,Term,VarList).
+       atom.
+      Term = atom
+      VarList = []
+      yes.
+
+      ?- readvar(input,T,L).
+       X.
+      T = _50
+      L = [['X'|_50]]
+      yes.
+
+      ?- system('cat file1').
+      f(X,Y).
+      g(1,X).
+      yes.
+      ?- open(file1,update,r), readvar(r,T1,V1),
+         readvar(r, T2,V2).
+      T1 = f(_120, _122)
+      V1 = [['X'|_120], ['Y'|_122]]
+      T2 = g(1, _146)              % the clauses are separate,
+      V2 = [['X'|_146]]            % so the X's are different.
+      yes.
+
+Fail:
+      ?- readvar(input, X + 2,V).
+       X + 1.
+      no.
+
+Error:
+      readvar(S,a(b,c),V).          (Error 4).
+      readvar(\"string\",a(b,c),V,).  (Error 5).
+      readvar(output,X + 2,V).      (Error 192).
+      readvar(atom,X + 2,V).        (Error 193).
+
+
+
+",
+        see_also:[read_term/3]]).
 

@@ -22,7 +22,7 @@
 
 /*----------------------------------------------------------------------
  * System:	ECLiPSe Constraint Logic Programming System
- * Version:	$Id: read.c,v 1.18 2016/12/13 20:16:27 jschimpf Exp $
+ * Version:	$Id: read.c,v 1.19 2017/02/05 03:00:33 jschimpf Exp $
  *
  * Content:	ECLiPSe parser
  * Author: 	Joachim Schimpf, IC-Parc
@@ -275,19 +275,6 @@ static parse_desc
 
 static vword *
 	_var_table_entry(parse_desc *pd, char *varname, word lenght);
-
-static int
-	_pread3(value v, type t, stream_id nst, value vm, type tm, ec_eng_t*),
-	p_read2(value v, type t, value vm, type tm, ec_eng_t*),
-	p_read3(value vs, type ts, value v, type t, value vm, type tm, ec_eng_t*),
-	p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm, ec_eng_t*),
-	p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm, ec_eng_t*);
-
-static uword
-	hashfunction(char *id);
-
-static vword
-	*_alloc_vword(register parse_desc *pd);
 
 static int
 	_transf_attribute(register pword *pw, pword *r, int def),
@@ -619,14 +606,21 @@ _make_variable_from_token(parse_desc *pd, pword *pvar)
     {
 	pword *pw = TG;
 	Make_List(pd->var_list_tail, TG);
-	Push_List_Frame();		/* list element */
-	Push_List_Frame();		/* ['Name'|Var] pair */
-	Make_List(&pw[0], &pw[2]);
 	pd->var_list_tail = &pw[1];
+	Push_List_Frame();		/* list element */
+	if (pd->options & READVAR_PAIRS) {
+	    Make_List(&pw[0], TG);
+	    pw = TG;
+	    Push_List_Frame();		/* ['Name'|Var] pair */
+	} else {
+	    Make_Struct(&pw[0], TG);
+	    pw = TG+1;
+	    Push_Struct_Frame(d_.unify);
+	}
 	if (did0 == D_UNKNOWN)
 	    did0 = enter_dict_n(TokenString(pd), TokenStringLen(pd), 0);
-	Make_Atom(&pw[2], did0);
-	Make_Ref(&pw[3], pvar);
+	Make_Atom(&pw[0], did0);
+	Make_Ref(&pw[1], pvar);
     }
     return pvar;
 }
@@ -1624,71 +1618,6 @@ _return_error_:
 
 /*********************** THE PARSER RELATED BUILTINS ********************/
 
-void
-read_init(int flags)
-{
-
-    d_comma0_ = in_dict(",", 0);
-    d_bar0_ = in_dict("|", 0);
-    d_annotated_term_ = in_dict("annotated_term", TERM_ARITY);
-    d_anonymous_ = in_dict("anonymous", 0);
-    no_pos_.file = d_.empty;
-
-    if (!(flags & INIT_SHARED))
-	return;
-
-    exported_built_in(in_dict("read_", 2), p_read2, B_UNSAFE|U_FRESH)
-	-> mode = BoundArg(1, NONVAR);
-    exported_built_in(in_dict("read_", 3), p_read3, B_UNSAFE|U_FRESH)
-	-> mode = BoundArg(2, NONVAR);
-    exported_built_in(in_dict("readvar", 4), p_readvar, B_UNSAFE|U_FRESH)
-	-> mode = BoundArg(2, NONVAR) | BoundArg(3, NONVAR);
-    exported_built_in(in_dict("read_annotated_raw", 4), p_read_annotated_raw, B_UNSAFE|U_FRESH)
-	-> mode = BoundArg(2, NONVAR) | BoundArg(3, CONSTANT);
-}
-
-
-
-/*
- *	read_(Term, Module)
- *	reads a term from the current input
-*/
-static int
-p_read2(value v, type t, value vm, type tm, ec_eng_t *ec_eng)
-{
-    int     status;
-
-    Check_Module(tm, vm);
-    status = _pread3(v, t, current_input_, vm, tm, ec_eng);
-    if (status < 0)
-    {
-	Bip_Error(status)
-    }
-    return (status);
-}
-
-/*
- *	read_(Stream, Term, Module)
- *	reads a termfrom the current input and unifies it with its argument.
- *	The unification/dereferencing is done by the emulator on Request_unify
-*/
-static int
-p_read3(value vs, type ts, value v, type t, value vm, type tm, ec_eng_t *ec_eng)
-{
-    int     	status;
-    stream_id	nst;
-
-    Check_Module(tm, vm);
-    Get_Locked_Stream(vs, ts, SREAD, nst);
-
-    status = _pread3(v, t, nst, vm, tm, ec_eng);
-    if (status < 0)
-    {
-	Bip_Error(status)
-    }
-    return (status);
-}
-
 
 static int
 _pread3(value v, type t, stream_id nst, value vm, type tm, ec_eng_t *ec_eng)
@@ -1717,35 +1646,72 @@ _pread3(value v, type t, stream_id nst, value vm, type tm, ec_eng_t *ec_eng)
 
 
 /*
- *	readvar(Stream, Term, ListVar, Module)
- *	reads a term from the current input, unifies with with the
- *	first argument, unifies the second argument with the list of doublets
- *	[namevar|adrvar].
+ *	read_(Term, Module)
+ *	reads a term from the current input
 */
 static int
-p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type tm, ec_eng_t *ec_eng)
+p_read2(value v, type t, value vm, type tm, ec_eng_t *ec_eng)
+{
+    Check_Module(tm, vm);
+    return _pread3(v, t, current_input_, vm, tm, ec_eng);
+}
+
+/*
+ *	read_(Stream, Term, Module)
+ *	reads a term from the current input and unifies it with its argument.
+ *	The unification/dereferencing is done by the emulator on Request_unify
+*/
+static int
+p_read3(value vs, type ts, value v, type t, value vm, type tm, ec_eng_t *ec_eng)
+{
+    stream_id	nst;
+    Check_Module(tm, vm);
+    Get_Locked_Stream(vs, ts, SREAD, nst);
+    return _pread3(v, t, nst, vm, tm, ec_eng);
+}
+
+
+/*
+ * read_term(+Stream,-Term,+Flags,+ErrFlag,-VarList,-HasMacros,+Module)
+ *
+ * Term: term or annotated term (depending on Flags)
+ * Flags: bit-significant options
+ * ErrFlag: how to handle syntax errors (interpreted by error handler)
+ * Varlist: variable_names list (depending on Flags)
+ * HasMacros: current only set 0/1 when making annotated terms (LAYOUT_PLEASE)
+ */
+static int
+p_read_term(value vs, type ts, value v, type t, value vflags, type tflags, value vef, type tef,
+	value vv, type tv, value vmac, type tmac, value vm, type tm, ec_eng_t *ec_eng)
 {
     pword	*pw;
-    pword	result;
-    pword	vars;
+    pword	result, vars;
     int		status;
+    int		has_macro = 0;
     stream_id	nst;
     Prepare_Requests
 
     Get_Locked_Stream(vs, ts, SREAD, nst);
-    Check_Ref(tv);
+    Check_Integer(tflags);
     Check_Module(tm, vm);
 
     status = ec_read_term(ec_eng, nst,
-    		(EclGblFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
-		&result, &vars, 0, vm, tm);
+    		vflags.nint|(EclGblFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
+		&result, vflags.nint&VARLIST_PLEASE ? &vars : NULL, &has_macro, vm, tm);
 
     if (status != PSUCCEED)
     {
 	Bip_Error(status);
     }
 
-    Request_Unify_Pw(vv, tv, vars.val, vars.tag);
+    if (vflags.nint & VARLIST_PLEASE) {
+	Request_Unify_Pw(vv, tv, vars.val, vars.tag);
+    }
+    if (vflags.nint & LAYOUT_PLEASE) {
+	if (!(EclGblFlags & MACROEXP) || (StreamMode(nst) & SNOMACROEXP))
+	    has_macro = 0;
+	Request_Unify_Integer(vmac, tmac, has_macro)
+    }
 
     pw = &result;
     Dereference_(pw);
@@ -1757,40 +1723,25 @@ p_readvar(value vs, type ts, value v, type t, value vv, type tv, value vm, type 
 }
 
 
-static int
-p_read_annotated_raw(value vs, type ts, value v, type t, value vf, type tf, value vm, type tm, ec_eng_t *ec_eng)
+void
+read_init(int flags)
 {
-    pword	*pw;
-    pword	result;
-    int		status;
-    int		has_macro = 0;
-    stream_id	nst;
-    Prepare_Requests
 
-    Get_Locked_Stream(vs, ts, SREAD, nst);
-    Check_Module(tm, vm);
+    d_comma0_ = in_dict(",", 0);
+    d_bar0_ = in_dict("|", 0);
+    d_annotated_term_ = in_dict("annotated_term", TERM_ARITY);
+    d_anonymous_ = in_dict("anonymous", 0);
+    no_pos_.file = d_.empty;
 
-    status = ec_read_term(ec_eng, nst, LAYOUT_PLEASE |
-    		(EclGblFlags & VARIABLE_NAMES ? VARNAMES_PLEASE : 0),
-		&result, 0, &has_macro, vm, tm);
+    if (!(flags & INIT_SHARED))
+	return;
 
-    if (status != PSUCCEED)
-    {
-	Bip_Error(status);
-    }
-
-    /* return flag indicating request for macro expansion */
-    if (!(EclGblFlags & MACROEXP) || (StreamMode(nst) & SNOMACROEXP))
-    	has_macro = 0;
-    Request_Unify_Integer(vf, tf, has_macro)
-
-    pw = &result;
-    Dereference_(pw);
-    if (!(IsRef(pw->tag) && pw == &result))
-    {
-	Request_Unify_Pw(v, t, pw->val, pw->tag)
-    }
-    Return_Unify
+    exported_built_in(in_dict("read_", 2), p_read2, B_UNSAFE|U_FRESH)
+	-> mode = BoundArg(1, NONVAR);
+    exported_built_in(in_dict("read_", 3), p_read3, B_UNSAFE|U_FRESH)
+	-> mode = BoundArg(2, NONVAR);
+    exported_built_in(in_dict("read_term", 7), p_read_term, B_UNSAFE|U_FRESH)
+	-> mode = BoundArg(2, NONVAR) | BoundArg(4, NONVAR);
 }
 
 

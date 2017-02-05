@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: read.h,v 1.3 2016/10/28 22:44:33 jschimpf Exp $
+ * VERSION	$Id: read.h,v 1.4 2017/02/05 03:00:33 jschimpf Exp $
  */
 
 /*
@@ -40,10 +40,13 @@
 
 /*
  * values for parser options
+ * CAUTION: these numbers are used in Prolog io.pl
  */
 
-#define VARNAMES_PLEASE	1
-#define LAYOUT_PLEASE	2
+#define VARNAMES_PLEASE	1	/* create named variables */
+#define LAYOUT_PLEASE	2	/* create annotated_term{} structures */
+#define VARLIST_PLEASE	4	/* create variable_names list */
+#define READVAR_PAIRS	8	/* create ['X'|X] instead of 'X'=X in varlist */
 
 
 Extern int ec_read_term(ec_eng_t *ec_eng, stream_id nst, int options, pword *result,

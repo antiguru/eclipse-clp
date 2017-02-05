@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: tconv.pl,v 1.3 2013/02/12 00:41:44 jschimpf Exp $
+% Version:	$Id: tconv.pl,v 1.4 2017/02/05 03:00:00 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -44,10 +44,8 @@
 
 :- export
 	name/2,
-	get_var_info/3,
-	term_string/2.
+	get_var_info/3.
 
-:- skipped term_string/2.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -97,35 +95,6 @@ chk_nmbr_lst([H|T], Goal) :- !,
 	).
 chk_nmbr_lst(_, Goal) :-
 	error(5, Goal).
-
-
-%
-% term_string(?Term, ?String)
-%
-
-term_string_body(T, S, Module) :- var(S), !,
-	open(string(""), write, Stream),
-	writeq_(Stream, T, Module),
-	stream_info_(Stream, 0, S),  % = get_stream_info(Stream,name,S)
-	close(Stream).
-term_string_body(T, S, Module) :- string(S), !,
-	( S \== "" ->
-	    open(string(S), read, Stream),
-	    (
-		read_(Stream, T0, Module),
-		read_token_(Stream, end_of_file, _, Module)
-	    ->
-		close(Stream),
-		T = T0
-	    ;
-		close(Stream),
-		error(7, term_string(T, S))
-	    )
-	;
-	    error(7, term_string(T, S))
-	).
-term_string_body(T, S, _Module) :-
-	error(5, term_string(T, S)).
 
 
 %
