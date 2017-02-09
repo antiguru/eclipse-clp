@@ -2116,7 +2116,8 @@ indomain(X) :-
     %	Xs is a list of variables to be labelled using indomain/1.
     %
 labeling(Xs) :-
-	collection_to_list(Xs, List),
+	nonvar(Xs),
+	collection_to_list(flatten(Xs), List),
 	!,
 	labeling2(List).
 labeling(Xs) :-
