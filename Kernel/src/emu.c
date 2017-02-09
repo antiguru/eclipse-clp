@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.45 2017/02/02 19:21:03 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.46 2017/02/09 23:36:40 jschimpf Exp $
  */
 
 /*
@@ -148,6 +148,14 @@ typedef code_item	*emu_code;
  * The PP register: we are using tricks to be able to access
  * it from within sigprof_handler() via Int_Pp
  */
+
+#ifdef EMU_PROFILE
+/* PP must be flushed for the profiler whenever the predicate may change! */
+#define Flush_Pp	Export_Pp
+#else
+#define Flush_Pp
+#endif
+
 #ifdef __GNUC__
 #  ifdef i386
 #define Declare_Pp	register emu_code pp asm("%esi");
@@ -358,9 +366,9 @@ extern dident	*interrupt_name_;
 #define ERetCode	*((emu_code *) ((pword **) E + 1))
 #define RetEnv(e)	*((pword **) e)
 #define ERetEnv		RetEnv(E)
-#define Pop_Ret_Code	PP = *((emu_code *) SP);\
+#define Pop_Ret_Code	PP = *((emu_code *) SP); Flush_Pp;\
 			SP = (pword *) (((emu_code *) SP) + 1);
-#define Read_Ret_Code	PP = *((emu_code *) SP);
+#define Read_Ret_Code	PP = *((emu_code *) SP); Flush_Pp;
 #define Push_Ret_Code(x) SP = (pword *) (((emu_code *) SP) - 1);\
 			*((emu_code *) SP) = (x);
 #define Push_Ret_Code_To_Eb(x) SP = (pword *) (((emu_code *) EB) - 1);\
@@ -568,7 +576,7 @@ extern dident	*interrupt_name_;
 
 
 /* PP points to 1st clause, back_code to 2nd alternative.
- * They are updated according to laternative number n.
+ * They are updated according to alternative number n.
  * For the last alternative, back_code is set to NULL.
  */
 
@@ -604,6 +612,7 @@ extern dident	*interrupt_name_;
 		p_fprintf(current_err_,				\
 		    "INTERNAL ERROR following oracle\n");	\
 	    }							\
+	    Flush_Pp;						\
 	}							\
 }
 
@@ -752,7 +761,11 @@ int tg_above_trap = 0;		/* true while TG is above tg_trap */
  */
 
 func_ptr
+#ifdef EMU_PROFILE
+ec_emulate_profile(ec_eng_t *ec_eng)
+#else
 ec_emulate(ec_eng_t *ec_eng)
+#endif
 {
     Declare_Pp
     Declare_Sp
@@ -841,6 +854,7 @@ _regular_err_2_: /* (err_code), goal A2, context module A3, lookup module A4 */
 	    Push_Ret_Code(PP) 
 	    Check_Local_Overflow
 	    PP = (emu_code) prolog_error_code_;
+	    Flush_Pp;
 	    Next_Pp;
 
 
@@ -1450,6 +1464,7 @@ _ndelay_err_:			/* (tmp1,proc,DE) */
 	{
 	    Reset_DE;
 	    PP = (emu_code) do_exit_block_code_; /* Ball should be in A[1] */
+	    Flush_Pp;
 	    Next_Pp;
 	}
 	else if (err_code > 0)
@@ -1553,6 +1568,7 @@ _nbip_err_goal_:	/* (err_code, proc,scratch_pw) */
 #else
 	    PP = (emu_code) bip_error_code_;
 #endif
+	    Flush_Pp;
 	    Next_Pp;				/* jump into syserror/4	*/
 	}
 
@@ -1856,6 +1872,7 @@ _handle_events_at_return_:
 	if (GlobalOverflow)			/* call the garbage collector */
 	{
 	    PP = (emu_code) auto_gc_code_;
+	    Flush_Pp;
 	    Next_Pp;				/* no call port		*/
 	}
 
@@ -1866,6 +1883,7 @@ _handle_events_at_return_:
 	     * and has arity 1 */
 	    proc = error_handler_[-(META_TERM_UNIFY)];
 	    PP = (emu_code) PriCode(proc);
+	    Flush_Pp;
 	    A[1].val.ptr = MU;
 	    A[1].tag.kernel = TLIST;
 	    Reset_Unify_Exceptions
@@ -3720,6 +3738,7 @@ _globalize_if_needed_:
 	    back_code = PP;
 	    DBG_PORT = PP++->nint;
 _trust_me_:					/* (back_code,PP,DBG_PORT) */
+	    Flush_Pp;
 #ifdef NEW_ORACLE
 	    if (FO && NTRY==0)
 		goto _recomp_err_;
@@ -3828,6 +3847,7 @@ _trace_redo_:				/* (DBG_PORT,FDROP,RLEVEL,tmp1) */
 	    Set_Det
 	    proc = error_handler_[-(DEBUG_REDO_EVENT)];
 	    PP = (emu_code) PriCode(proc);
+	    Flush_Pp;
 	    A[1] = TAGGED_TD;
 	    Make_Integer(&A[2], FDROP);
 	    Make_Integer(&A[3], RLEVEL);
@@ -3900,6 +3920,7 @@ _try_par_1_:	/* (i:alt, tmp1:arity, back_code, err_code) */
 	    Record_Alternative(i, O_PAR_ORACLE|(err_code & O_FROM_ORACLE? 0: O_SHALLOW));
 	    if (err_code & O_NOCREATE) { Next_Pp; }
 #endif
+	    Flush_Pp;
 	    /* create the choicepoint */
 	    Clr_Det;
 	    pw1 = B.args;
@@ -3992,6 +4013,7 @@ _try_par_1_:	/* (i:alt, tmp1:arity, back_code, err_code) */
 		pw2->tag.kernel = TINT;
 		pw2->val.nint = tmp1;
 	    }
+	    Flush_Pp;
 	    Update_Recorded_Alternative(tmp1);
 	    if (tmp1 > 1) {
 		ChpPar(pw1)->alt = tmp1;
@@ -4065,6 +4087,7 @@ _try_par_1_:	/* (i:alt, tmp1:arity, back_code, err_code) */
 
 	    Set_Det
 	    PP = (emu_code) PriCode(proc);
+	    Flush_Pp;
 #else /* if !PROLOG_SCHED */
 	    PP++;			/* skip environment size	*/
 	    if (LOAD < 0) {
@@ -4540,6 +4563,7 @@ _switch_on_type_:
 	    Check_Local_Overflow
 	Case(JmpdA, I_JmpdA)
 	    PP = PP->code;
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
@@ -4555,19 +4579,21 @@ _switch_on_type_:
 	    Push_Ret_Code(PP + 2)
 	    Check_Local_Overflow
 	    PP = PP->code;
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
 	Case(JmpdAs, I_JmpdAs)
 	    SP = ByteOffsetMinus(SP, PP++->offset);
 	    PP = PP->code;
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
 	Case(Branchs, I_Branchs)
 	    SP = ByteOffsetMinus(SP, PP++->offset);
 	Case(Branch, I_Branch)
-	    PP = PP->code;
+	    PP = PP->code;	/* branch within predicate */
 	    Next_Pp;
 
 	Case(MoveLAMCallfP, I_MoveLAMCallfP)
@@ -4582,6 +4608,7 @@ _switch_on_type_:
 	    Check_Local_Overflow
 	Case(JmpdP, I_JmpdP)
 	    PP = (emu_code) PriCode(PP->proc_entry);
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
@@ -4597,6 +4624,7 @@ _switch_on_type_:
 	    Push_Ret_Code(PP + 2)
 	    Check_Local_Overflow
 	    PP = (emu_code) PriCode(PP->proc_entry);
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
@@ -4615,6 +4643,7 @@ _switch_on_type_:
 		E = ERetEnv;
 	    }
 	    PP = (emu_code) PriCode(PP->proc_entry);
+	    Flush_Pp;
 	    Set_Det
 	    Handle_Events_Call
 	    Next_Pp;
@@ -4634,6 +4663,7 @@ _switch_on_type_:
 		E = ERetEnv;
 	    }
 	    PP = PP->code;
+	    Flush_Pp;
 	    Set_Det
 	    Handle_Events_Call
 	    Next_Pp;
@@ -4712,6 +4742,7 @@ _switch_on_type_:
 		Set_Det
 	    }
 	    PP = PP->code;
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
@@ -4722,6 +4753,7 @@ _switch_on_type_:
 		Set_Det
 	    }
 	    PP = (emu_code) PriCode(PP->proc_entry);
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
@@ -4764,6 +4796,7 @@ _switch_on_type_:
 	Case(ChaindA, I_ChaindA)
 	    Pop_Env
 	    PP = PP->code;
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
@@ -4775,6 +4808,7 @@ _switch_on_type_:
 	Case(ChaindP, I_ChaindP)
 	    Pop_Env
 	    PP = (emu_code) PriCode(PP->proc_entry);
+	    Flush_Pp;
 	    Handle_Events_Call
 	    Next_Pp;
 
@@ -4794,6 +4828,7 @@ _switch_on_type_:
 	    } else {
 		SP = EB;
 		PP = (emu_code) ERetCode;
+		Flush_Pp;
 		E = ERetEnv;
 	    }
 	    Handle_Events_Return
@@ -5229,6 +5264,7 @@ _match_values_:
 
  	Case(Continue_after_event, I_Continue_after_event)
 	    PP = (emu_code) DynEnvVal(E);		/* get continuation */
+	    Flush_Pp;
 	    if (DynEnvFlags(E) & WAS_NONDET) {Clr_Det;} else {Set_Det;}
 
 	    if (DynEnvFlags(E) & WAS_CALL) {		/* debug event frame */
@@ -5344,6 +5380,7 @@ Please make sure that TF_BREAK == BREAKPOINT
 		 */
 		proc = error_handler_[(err_code&PORT_MASK) == WAKE_PORT ? -(DEBUG_WAKE_EVENT) : -(DEBUG_CALL_EVENT)];
 		PP = (emu_code) PriCode(proc);
+		Flush_Pp;
 		Push_Ret_Code((emu_code) &restore_code_[1]);
 		Check_Local_Overflow
 	    }
@@ -5372,6 +5409,7 @@ _do_refail_:
 	Case(Failure, I_Failure)
 _do_fail_:
 	    PP = (emu_code) (B.top - 1)->backtrack;
+	    Flush_Pp;
 	    Next_Pp;
 
 
@@ -5502,6 +5540,7 @@ _metacall_check_goal_:
                     Push_Ret_Code(PP)
                     Check_Local_Overflow;
                     PP = (emu_code) CodeStart(comma_body_code_);
+		    Flush_Pp;
 _move_control_args_:
                     /* make ','(Goal1, Goal2, CM, Cut) */
                     if (i==0) {
@@ -5535,6 +5574,7 @@ _move_control_args_:
                             ( pw2->val.ptr->val.did == d_.softcut
                             && (PP = (emu_code) CodeStart(softcut5_body_code_)))))
                     {
+			Flush_Pp;
                         /*
                          * Map      call((G1->G2;G3), CM, LM, Cut)
                          *  into     ';'(G1,          G2, CM, Cut, G3)
@@ -5564,12 +5604,14 @@ _move_control_args_:
                     }
                     /* simple disjunction */
                     PP = (emu_code) CodeStart(semic_body_code_);
+		    Flush_Pp;
                     goto _move_control_args_;
 
                 } else if(val_did == d_.cond) {	/* simple ->/2 */
                     Push_Ret_Code(PP)
                     Check_Local_Overflow;
                     PP = (emu_code) CodeStart(cond_body_code_);
+		    Flush_Pp;
                     goto _move_control_args_;
 
                 } else if(val_did == d_.cut) {	/* !/0 ==> cut_to(Cut) */
@@ -5578,6 +5620,7 @@ _move_control_args_:
                     Push_Ret_Code(PP)
                     Check_Local_Overflow;
                     PP = (emu_code) CodeStart(cut_to_code_);
+		    Flush_Pp;
                     goto _exec_prolog_;
                 }
             }
@@ -5622,6 +5665,7 @@ _call_prolog_:		/* (DBG_INVOC, DBG_PORT, proc) */
 		Push_Ret_Code(PP)
 		Check_Local_Overflow;
 		PP = (emu_code) PriCode(proc);
+		Flush_Pp;
 _exec_prolog_:		/* (DBG_INVOC, DBG_PORT, proc, PP) */
 
 		if ((TD || (PriFlags(proc) & DEBUG_ST)) && DBG_PORT) {
@@ -5868,6 +5912,7 @@ _handler_call_:				/* (proc,DBG_PORT) */
 	    for(; tmp1 > 0; tmp1--)
 		*(pw2++) = *(++pw1);
 	    PP = PP->code;
+	    Flush_Pp;
 	    Next_Pp;
 
 
@@ -6255,6 +6300,7 @@ _end_external_:
 		/* call debug event(OldStack) */
 		proc = error_handler_[-(DEBUG_EXIT_EVENT)];
 		PP = (emu_code) PriCode(proc);
+		Flush_Pp;
 	    } else {
 		PP = (emu_code) return_code_;
 	    }
@@ -6528,6 +6574,7 @@ _end_external_:
 	    Make_Marked_Module(&A[3], PriModule(proc));
 	    proc = error_handler_[-(CALLING_DYNAMIC)];
 	    PP = (emu_code) PriCode(proc);
+	    Flush_Pp;
 	    Next_Pp;
 
 
@@ -6703,6 +6750,7 @@ _end_external_:
 
 		proc = error_handler_[-(DEBUG_REDO_EVENT)];
 		PP = (emu_code) PriCode(proc);
+		Flush_Pp;
 		A[1] = TAGGED_TD;
 		Make_Integer(&A[2], FDROP);
 		Make_Integer(&A[3], RLEVEL);
@@ -8063,47 +8111,10 @@ _narg_:
 } /* end emulc() */
 
 
+#ifndef EMU_PROFILE
 
 #if defined(PRINTAM) || defined(LASTPP)
 emu_break(void) {}	/* a dummy function to put a breakpoint in */
 #endif /* PRINTAM */
 
-
-/*-------------------------------------------------- 
- * Signal handler for WAM-level profiling
- *--------------------------------------------------*/
-
-/* This handler works on the default engine! */
-#define ec_eng default_eng
-
-#if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
-
-#include <signal.h>
-#include <ucontext.h>
-#ifndef REG_ESI
-#define REG_ESI ESI	/* e.g. on Solaris 10 */
 #endif
-
-RETSIGTYPE
-sigprof_handler(int signr, siginfo_t* dummy, void *context)
-
-#else
-
-RETSIGTYPE
-sigprof_handler(void)
-
-#endif
-{ 
-    extern stream_id	profile_stream_;
-
-    if (VM_FLAGS & PROFILING)
-    {
-	if (VM_FLAGS & EXPORTED)
-	    (void) ec_outfw(profile_stream_, (word) ec_eng->pp);
-	else
-	{
-	    (void) ec_outfw(profile_stream_, (word) Int_Pp);
-	}
-    }
-}
-

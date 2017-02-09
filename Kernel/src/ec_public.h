@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: ec_public.h,v 1.7 2016/07/28 03:34:36 jschimpf Exp $
+ * $Id: ec_public.h,v 1.8 2017/02/09 23:36:39 jschimpf Exp $
  *
  * Macro definitions needed for the ECLiPSe embedding interface.
  *
@@ -106,6 +106,8 @@
  *	INIT_PRIVATE	C variables, private heap
  *	INIT_PROCESS	do initialisations that are needed once
  *
+ *	INIT_WITH_PROFILER	use instrumented emulator
+ *
  * Options for engine initialization:
  *
  *	INIT_ASYNC	init engine with its own thread
@@ -126,5 +128,6 @@
 #define	INIT_NO_MAIN	16
 #define	INIT_ASYNC	32
 #define	INIT_CLONE	64
+#define	INIT_WITH_PROFILER	128	/* with INIT_SHARED */
 
 

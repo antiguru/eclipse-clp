@@ -23,7 +23,7 @@
 /*
  *      System: Eclipse
  *
- *	$Id: tkeclipse.c,v 1.6 2017/01/16 19:04:18 jschimpf Exp $
+ *	$Id: tkeclipse.c,v 1.7 2017/02/09 23:36:40 jschimpf Exp $
  *
  *	Code for embedding eclipse into a tcl program
  */
@@ -121,6 +121,7 @@ EcSetOption(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *const 
 	else if (!strcmp(option_name, "eclipsedir")) option_id = EC_OPTION_ECLIPSEDIR;
 	else if (!strcmp(option_name, "io")) option_id = EC_OPTION_IO;
 	else if (!strcmp(option_name, "cwd_separate")) option_id = EC_OPTION_CWD_SEPARATE;
+	else if (!strcmp(option_name, "with_profiler")) option_id = EC_OPTION_WITH_PROFILER;
 	else {
 	    Tcl_SetResult(interp, "invalid option name", TCL_STATIC);
 	    return TCL_ERROR;

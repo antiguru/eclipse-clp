@@ -37,6 +37,12 @@ available to set the sizes of the stacks:
               optional K), in megabytes (followed by M) or in gigabytes
               (followed by G).
 
+    -L	      default language dialect
+
+    -t	      name of initial toplevel module
+
+    -P        enable profiling support
+
 The user can also specify various initial settings for the tkeclipse which
 would override the default values. See the initial settings section for
 more.
@@ -125,6 +131,8 @@ default_module    string                 The default toplevel module name
 default_language  string                 The default language name
                                          (default: eclipse_language).
 
+with_profiler     0/1                    Profiling support (default 0)
+
 
 See the manual for more detailed description of the memory areas of ECLiPSe.
 
@@ -191,7 +199,8 @@ Menu Bar
 
        Time Profile - run the query in the Query Entry window with the
            timing profiler (see lib(profile)). Only the first solution
-	   will be computed.
+	   will be computed.  This requires ECLiPSe to be started with
+	   the -P command line option or the with_profiler startup setting.
 
        Port Profile - run the query in the Query Entry window with the
            port profiler (see lib(port_profile)). Only the first solution

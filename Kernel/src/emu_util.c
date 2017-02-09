@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_util.c,v 1.20 2017/02/02 19:21:03 jschimpf Exp $
+ * VERSION	$Id: emu_util.c,v 1.21 2017/02/09 23:36:40 jschimpf Exp $
  */
 
 /*
@@ -519,7 +519,7 @@ opaddr_init(void)
 #ifdef THREADED
 #if defined(HAVE_COMPUTED_GOTO)
     op_addr[0] = 0;
-    (void) ec_emulate(NULL);	/* to init op_addr[] */
+    ec_.emulator(NULL);	/* to init op_addr[] */
     if (op_addr[Retry] == op_addr[Retry_inline]
      || op_addr[Trust] == op_addr[Trust_inline])
      {

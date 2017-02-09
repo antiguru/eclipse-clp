@@ -23,7 +23,7 @@
 /*
  * ECLiPSe INCLUDE FILE
  *
- * $Id: types.h,v 1.27 2017/02/02 19:21:03 jschimpf Exp $
+ * $Id: types.h,v 1.28 2017/02/09 23:36:40 jschimpf Exp $
  *
  * IDENTIFICATION		types.h
  *
@@ -540,7 +540,7 @@ typedef struct ec_eng_s
     pword *	lca;		/* last cut action */
     int		vm_flags;	/* machine flags */
     volatile int event_flags;	/* flags that may be changed by signals */
-    vmcode	*pp;		/* code pointer */
+    vmcode * volatile pp;	/* code pointer, accessed by the profiler */
 
     pword *	de;		/* current suspension */
     pword *	ld;		/* list of all suspended goals (last delayed) */
@@ -1017,6 +1017,11 @@ typedef struct
     stream_id			user_output;
     stream_id			user_error;
     stream_id			null_stream;
+
+    stream_id			profile_stream;
+    ec_eng_t *			profiled_engine;
+
+    continuation_t		emulator;	/* set at boot time */
 
     ec_eng_t			m;		/* default working engine */
     ec_eng_t			m_aux;		/* auxiliary engine */

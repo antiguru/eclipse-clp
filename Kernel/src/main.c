@@ -25,7 +25,7 @@
 /*
  * ECLiPSe C SOURCE MODULE
  *
- * VERSION	$Id: main.c,v 1.9 2017/01/19 03:04:20 jschimpf Exp $
+ * VERSION	$Id: main.c,v 1.10 2017/02/09 23:36:40 jschimpf Exp $
  *
  * Standalone main()
  *
@@ -84,14 +84,15 @@ usage(char *opt, char *arg)
     else
 	fprintf(stderr,"Invalid option: %s\n",opt);
     fprintf(stderr,"Usage:\n");
-    fprintf(stderr,"  -f <file>     compile or load file on startup (.ecl or .eco)\n");
     fprintf(stderr,"  -e <goal>     goal to execute (in Prolog syntax)\n");
+    fprintf(stderr,"  -f <file>     compile or load file on startup (.ecl or .eco)\n");
     fprintf(stderr,"  -g <size>     global+trail stack size\n");
     fprintf(stderr,"  -l <size>     local+control stack size\n");
     fprintf(stderr,"  -L <language> default language dialect\n");
     fprintf(stderr,"  -t <module>   name of initial toplevel module\n");
     fprintf(stderr,"  -d <seconds>  delayed startup\n");
     fprintf(stderr,"  -D <dir>      installation directory\n");
+    fprintf(stderr,"  -P            enable profiling support\n");
     fprintf(stderr,"  --            end of ECLiPSe options\n");
     fprintf(stderr,"Deprecated:\n");
     fprintf(stderr,"  -b <file>     compile or load file on startup (same as -f)\n");
@@ -173,6 +174,7 @@ main(int argc, char **argv)
 {
     char *	eclipsedir = (char *) 0;
     int		c, new_argc, res;
+    int		with_profiler = 0;
     int		init_flags = INIT_SHARED|INIT_PRIVATE|INIT_PROCESS;
     char *	session, * nsrv_hostname;
     unsigned    nsrv_port_number;
@@ -295,6 +297,12 @@ main(int argc, char **argv)
 	    case 'o':				/* enable oracles */
 		c += 1;
 		/* vm_options = ORACLES_ENABLED; */
+		break;
+
+	    case 'P':				/* allow profiling */
+		c += 1;
+		with_profiler = 1;
+		ec_set_option_int(EC_OPTION_WITH_PROFILER, 1);
 		break;
 
                 /* Options processed by Prolog-level code */

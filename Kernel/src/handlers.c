@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.17 2017/01/16 19:04:18 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.18 2017/02/09 23:36:40 jschimpf Exp $
  */
 
 /** @file
@@ -293,13 +293,6 @@ static int
 	_set_error_array(pri **arr, word n, dident w, value vm, type tm, ec_eng_t*);
 
 
-/* Profiling handler is defined in emu.c */
-#if defined(__GNUC__) && defined(HAVE_UCONTEXTGREGS)
-extern RETSIGTYPE sigprof_handler(int, siginfo_t*, void *);
-#else
-extern RETSIGTYPE sigprof_handler(int);
-#endif
-
 #define Check_Error_Number(v,t)				\
 	Check_Integer(t)				\
 	if ( (v).nint < 1				\
@@ -372,6 +365,19 @@ _halt_session(int signr)
 
 
 /**
+ * Signal handler for WAM-level profiling (runs in signal thread)
+ */
+static RETSIGTYPE
+_sigprof_handler(int signr)
+{ 
+    ec_eng_t *ec_eng = ec_.profiled_engine;
+
+    if (ec_eng)
+	(void) ec_outfw(ec_.profile_stream, (word) ec_eng->pp);
+}
+
+
+/**
  * Set up signal handlers and signal masks for the signal_thread.
  * This must be executed in the signal handling thread!
  */
@@ -429,8 +435,20 @@ _install_signal_thread_handler(int sig, int how)
 	 */
 	if (FatalSignal(sig)) {
 	    Block_Signal(sig);	/* handled in appropriate thread, not here */
+	} else {
+	    switch(sig)
+	    {
+#ifdef SIGPROF
+	    /* The profiling timer is based on total process cpu time */
+	    case SIGPROF:
+		action.sa_handler = _sigprof_handler;
+		if (sigaction(sig, &action, NULL))
+		    return -1;
+		Unblock_Signal(sig);	/* allow signal for this thread */
+		break;
+#endif
+	    }
 	}
-	/*TODO: SIGPROF, SIGIO */
 	break;
     }
     return 0;
@@ -752,7 +770,6 @@ _install_int_handler(int sig, int how, pri *proc, ec_eng_t *ec_eng)
 		 * required.  Some of these signals can't be masked anyway */
 		Unblock_Signal(sig);
 	    }
-	    /*TODO: SIGPROF, SIGIO */
 	    break;
 
     }

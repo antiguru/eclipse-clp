@@ -27,7 +27,7 @@
 # ECLiPSe Development Tools in Tcl
 #
 #
-# $Id: eclipse_tools.tcl,v 1.44 2016/07/28 03:34:37 jschimpf Exp $
+# $Id: eclipse_tools.tcl,v 1.45 2017/02/09 23:37:56 jschimpf Exp $
 #
 # Code in this file must only rely on primitives in eclipse.tcl.
 # Don't assume these tools to be embedded into a particular
@@ -4275,6 +4275,11 @@ proc tkecl:display_one_default {w preference} {
 	set tkecl(prefset,$option) $default
 
 	switch -exact -- $type {
+	    heading {
+		pack [frame $w.$option -relief ridge -borderwidth 2]  -fill both
+		pack [label $w.$option.l -text $help -anchor w] -side left -expand 1 -fill both 
+	    }
+
 	    boolean {
 		pack [frame $w.$option]  -fill both
 		pack [label $w.$option.l -text $help -anchor w -width 50] -side left -expand 1 -fill both 

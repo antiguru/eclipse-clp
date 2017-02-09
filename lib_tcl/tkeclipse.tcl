@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.19 2016/09/24 20:23:11 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.20 2017/02/09 23:37:56 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -96,8 +96,6 @@ set tkecl(stop_scrolling) 0
 set tkecl(history) {}
 set tkecl(historypos) -1
 set tkecl(nquery) 0
-set tkecl(localsize)  0
-set tkecl(globalsize) 0
 
 #----------------------------------------------------------------------
 # Process command line options
@@ -147,29 +145,30 @@ proc tkecl:get_stack_size {sizespec} {
     }
 }
 
-set argstate flag
 
 # we are assuming that if there are argv options, then this tkeclipse
 # was started from a command line, and so the puts will go to that window
+set argstate flag
 foreach arg $argv {
 
     switch -- $argstate {
 	flag {
 	    switch -exact -- $arg {
-		-l {set argstate local}
-		-g {set argstate global}
+		-l {set argstate l}
+		-g {set argstate g}
+		-L {set argstate L}
+		-t {set argstate t}
+		-P {set tkecl(cmd_option,with_profiler) 1}
 		default {tkecl:usage}
 	    }
+	    continue
 	}
-	local {
-	    set tkecl(localsize) [tkecl:get_stack_size $arg]
-	    set argstate flag
-	}
-	global {
-	    set tkecl(globalsize) [tkecl:get_stack_size $arg]
-	    set argstate flag
-	}
+	l { set tkecl(cmd_option,localsize) [tkecl:get_stack_size $arg] }
+	g { set tkecl(cmd_option,globalsize) [tkecl:get_stack_size $arg] }
+	L { set tkecl(cmd_option,default_language) $arg }
+	t { set tkecl(cmd_option,default_module) $arg }
     }
+    set argstate flag
 }
 
 if {$argstate != "flag"} { tkecl:usage } ;# did not specify an argument
@@ -781,19 +780,19 @@ proc tkecl:set_toplevel_defaults {} {
 
 
     lappend tkecl(preferences) \
-	    {globalsize "" +integer tkeclipserc "Global/trail stack size (in megabytes)"} \
-            {localsize  "" +integer tkeclipserc "Local/Control stack size (in megabytes)"} \
-	    {default_module "" string tkeclipserc "Default module name"} \
-	    {default_language "" string tkeclipserc "Default language"} \
-	    {initquery "" string tkeclipserc "Initial query called by TkECLiPSe on start-up"} \
-	    {raise_when_done 1 boolean tkeclipserc "Raise toplevel window when query finishes"}
+	    {raise_when_done 1 boolean tkeclipserc "Raise toplevel window when query finishes"} \
+	    {none "" heading tkeclipserc "Startup options (require save&restart, overridable via command line options):"} \
+	    {globalsize "" +integer tkeclipserc "Global/trail stack size in megabytes (-g)"} \
+            {localsize  "" +integer tkeclipserc "Local/Control stack size in megabytes (-l)"} \
+	    {default_module "" string tkeclipserc "Default module name (-t)"} \
+	    {default_language "" string tkeclipserc "Default language (-L)"} \
+            {with_profiler 0 boolean tkeclipserc "Enable profiling support (-P)"} \
+	    {initquery "" string tkeclipserc "Initial query called by TkECLiPSe on start-up"}
 
-    set tkecl(pref,globalsize) ""
-    set tkecl(pref,localsize) ""
-    set tkecl(pref,initquery) ""
-    set tkecl(pref,default_module) ""
-    set tkecl(pref,default_language) ""
-    set tkecl(pref,raise_when_done) 1
+    # initialize with the defaults
+    foreach pref $tkecl(preferences) {
+    	set tkecl(pref,[lindex $pref 0]) [lindex $pref 1]
+    }
 
     set toplevdefaults [tkecl:get_user_defaults tkeclipserc]
 
@@ -806,19 +805,10 @@ proc tkecl:set_toplevel_defaults {} {
 		localsize {
 		    # make sure it is an integer!
 		    if [regexp {^[0-9]+$} $dvalue size] { 
-			if {$tkecl($dname) == 0} {
-			    # only set from pref value if not overridden
-			    set tkecl($dname) [expr $dvalue * 1048576] ;# in megabytes 
-			}
 			set tkecl(pref,$dname) $dvalue
 		    } else {
 			tk_messageBox -icon warning -message "$dname parameter: $dvalue should be a number" -type ok
 		    }
-		}
-		default_language -
-		default_module {
-		    set tkecl(pref,$dname) $dvalue
-		    ec_set_option $dname $dvalue
 		}
 
 		default {set tkecl(pref,$dname) $dvalue }
@@ -828,13 +818,20 @@ proc tkecl:set_toplevel_defaults {} {
 
 }
 
-proc tkecl:set_stack_sizes {} {
+proc tkecl:set_ec_options {} {
     global tkecl
-
     foreach stack "globalsize localsize" {
-	if {$tkecl($stack) != 0} {
-	    ec_set_option $stack $tkecl($stack)
-	    unset tkecl($stack) ;# no longer needed
+	if [info exists tkecl(cmd_option,$stack)] {
+	    ec_set_option $stack $tkecl(cmd_option,$stack)
+	} elseif {$tkecl(pref,$stack) != ""} {
+	    ec_set_option $stack [expr $tkecl(pref,$stack) * 1048576]	;# in megabytes
+	}
+    }
+    foreach option "with_profiler default_language default_module" {
+	if [info exists tkecl(cmd_option,$option)] {
+	    ec_set_option $option $tkecl(cmd_option,$option)
+	} elseif {$tkecl(pref,$option) != ""} {
+	    ec_set_option $option $tkecl(pref,$option)
 	}
     }
 }
@@ -846,7 +843,7 @@ lappend tkecl(helpfiles) topl "TkECLiPSe Toplevel" toplevelhelp.txt
 tkecl:set_tkecl_tkdefaults tkecl
 frame .tkecl
 tkecl:set_toplevel_defaults 
-tkecl:set_stack_sizes 
+tkecl:set_ec_options 
 
 #----------------------------------------------------------------------
 # Make the toplevel window
@@ -1231,7 +1228,7 @@ if {[ec_tk_platform] == "unix_x11"} {
 ec_tools_init .tkecl.mbar.windows
 
 foreach {key topic filename} $tkecl(helpfiles) {
-    .tkecl.mbar.help add command -label $topic -command "tkecl:Get_helpfileinfo $key {}"
+    .tkecl.mbar.help add command -label $topic -command "tkecl:Get_helpfileinfo $key .tkecl"
 }
 
 # use the more sophisticated version of ec_stream_to_window for more control

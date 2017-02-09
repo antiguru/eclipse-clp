@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.11 2017/01/19 03:29:39 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.12 2017/02/09 23:36:39 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -62,8 +62,6 @@
 #include <assert.h>
 
 
-stream_id	profile_stream_ = 0;
-
 static dident
 	d_threads_,
 	d_current_,
@@ -76,8 +74,8 @@ static dident
 	d_dfid_,
 	d_megalog_,
 	d_parallel_,
+	d_profiler_,
 	d_mps_;
-
 
 
 int
@@ -111,21 +109,28 @@ p_prof(value v, type t, value vf, type tf, value vs, type ts, ec_eng_t *ec_eng)
     stream_id		nst;
 
     Check_Atom(t);
+    /* TODO: make these operations atomic */
     if (v.did == d_.on) {
-	if (VM_FLAGS & PROFILING) {
+	if (ec_.profiled_engine) {
 	    Fail_;
 	}
 	nst = get_stream_id(vs, ts, SWRITE, 0, NULL, &err_or_copied);
 	if (nst == NO_STREAM) {
 	    Bip_Error(err_or_copied)
 	}
-	if (profile_stream_) stream_tid.free(profile_stream_);
-	profile_stream_ = err_or_copied? nst : stream_tid.copy(nst);
-	VM_FLAGS |= PROFILING;
+	ec_.profile_stream = err_or_copied? nst : stream_tid.copy(nst);
+	ec_.profiled_engine = engine_tid.copy(ec_eng);
+
     } else if (v.did == d_.off) {
-	VM_FLAGS &= ~PROFILING;
-	if (profile_stream_) stream_tid.free(profile_stream_);
-	profile_stream_ = NULL;
+	if (ec_.profiled_engine == ec_eng) {
+	    stream_tid.free(ec_.profile_stream);
+	    ec_.profile_stream = NULL;
+	    engine_tid.free(ec_.profiled_engine);
+	    ec_.profiled_engine = NULL;
+	} else if (ec_.profiled_engine) {
+	    Fail_;	/* other engine is being profiled */
+	} /* already off */
+
     } else {
 	Bip_Error(RANGE_ERROR)
     }
@@ -328,14 +333,16 @@ p_extension(value vext, type text, value v, type t, ec_eng_t *ec_eng)
 	{
 	case 0:
 	    break;
+
 	case 1:
 	    ext = d_threads_;
 	    break;
-#ifdef OBJECTS
+
 	case 2:
-	    ext = d_objects_;
+	    if (ec_.emulator == ec_emulate_profile)
+		ext = d_profiler_;
 	    break;
-#endif
+
 #ifdef PRINTAM
 	case 3:
 	    ext = d_development_;
@@ -1206,6 +1213,7 @@ bip_control_init(int flags)
     d_dfid_ = in_dict("dfid", 0);
     d_megalog_ = in_dict("megalog",0);
     d_parallel_ = in_dict("parallel",0);
+    d_profiler_ = in_dict("profiler",0);
     d_mps_ = in_dict("mps",0);
     d_current_ = in_dict("current",0);
     d_old_ = in_dict("old",0);

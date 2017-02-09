@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: init.c,v 1.15 2017/01/18 03:56:46 jschimpf Exp $
+ * VERSION	$Id: init.c,v 1.16 2017/02/09 23:36:40 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -264,9 +264,13 @@ ecl_set_option_long(t_eclipse_options *poptions, int opt, word val)
     case EC_OPTION_SHAREDSIZE:	poptions->sharedsize = val; break;
     case EC_OPTION_ALLOCATION:	poptions->allocation = (int) val; break;
     case EC_OPTION_IO:		poptions->io_option = (int) val; break;
-    case EC_OPTION_INIT:	poptions->init_flags = val; break;
+    case EC_OPTION_INIT:
+	poptions->init_flags = (int) val | (poptions->init_flags & ~(INIT_SHARED|REINIT_SHARED|INIT_PRIVATE|INIT_PROCESS));
+    	break;
     case EC_OPTION_DEBUG_LEVEL:	poptions->debug_level = val; break;
     case EC_OPTION_CWD_SEPARATE:ec_use_own_cwd = (int) val; break;
+    case EC_OPTION_WITH_PROFILER:
+	poptions->init_flags |= (val?INIT_WITH_PROFILER:0); break;
     default:			return RANGE_ERROR;
     }
     return PSUCCEED;
@@ -345,6 +349,11 @@ eclipse_global_init(int init_flags)
     {
 	ec_eclipse_home = strcpy((char*) hp_alloc(strlen(eclipsehome())+1), eclipsehome());
     }
+
+    if (init_flags & INIT_WITH_PROFILER)
+	ec_.emulator = ec_emulate_profile;
+    else
+	ec_.emulator = ec_emulate;
 
     dict_init(init_flags);
     opaddr_init();

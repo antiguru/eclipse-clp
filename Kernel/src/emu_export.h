@@ -24,7 +24,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * VERSION	$Id: emu_export.h,v 1.22 2016/11/14 15:09:58 jschimpf Exp $
+ * VERSION	$Id: emu_export.h,v 1.23 2017/02/09 23:36:40 jschimpf Exp $
  */
 
 /*
@@ -1803,4 +1803,8 @@ Extern t_ext_type heap_htable_tid;
 
 /* from bip_strings.c */
 Extern	pword	*empty_string;
+
+/* from emu.c */
+Extern func_ptr ec_emulate(ec_eng_t*);
+Extern func_ptr ec_emulate_profile(ec_eng_t*);
 

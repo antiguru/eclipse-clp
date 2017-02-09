@@ -23,7 +23,7 @@
 /*
  * SEPIA INCLUDE FILE
  *
- * $Id: sepia.h,v 1.22 2017/01/17 17:20:51 jschimpf Exp $
+ * $Id: sepia.h,v 1.23 2017/02/09 23:36:40 jschimpf Exp $
  *	
  * IDENTIFICATION		sepia.h
  *
@@ -1463,7 +1463,6 @@ extern double (*pow_ptr_to_avoid_buggy_inlining)(double,double);
 #define ORACLES_ENABLED	0X00000010 /* record oracles during execution	*/
 #define STATISTICS	0X00000020 /* we are counting VM instructions	*/
 #define STAT_PAIRS	0X00000800 /* we are counting pairs of VM instr. */
-#define PROFILING	0x00001000
 #define ENG_DETACHED	0x00002000 /* exit engine when finished		*/
 #define ENG_VERBOSE	0x00004000 /* print some debug messages		*/
 #define ENG_HIDDEN	0X00008000 /* engine not in current_engines/1	*/

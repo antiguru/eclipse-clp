@@ -23,7 +23,7 @@
 /*
  * SEPIA C SOURCE MODULE
  *
- * VERSION	$Id: emu_c_env.c,v 1.19 2017/01/17 17:20:51 jschimpf Exp $
+ * VERSION	$Id: emu_c_env.c,v 1.20 2017/02/09 23:36:40 jschimpf Exp $
  */
 
 /*
@@ -472,8 +472,7 @@ ecl_engine_clone(ec_eng_t* from_eng, ec_eng_t* to_eng)
 static int
 _emul_trampoline(ec_eng_t *ec_eng)
 {
-    extern func_ptr ec_emulate(ec_eng_t*);
-    continuation_t continuation = ec_emulate;
+    continuation_t continuation = ec_.emulator;
     do
     {
 	continuation = (continuation_t) (*continuation)(ec_eng);

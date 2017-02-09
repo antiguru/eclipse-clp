@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.26 2016/12/04 01:29:38 jschimpf Exp $
+# $Id: Makefile.in,v 1.27 2017/02/09 23:36:39 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -154,8 +154,8 @@ BUILD_WITH_TCL = @BUILD_WITH_TCL@
 
 # *************** OBJECTS ***************
 
-COMMON_OBJECTS =	dict.o read.o lex.o \
-		emu.o proc_desc.o bip_tconv.o io.o write.o bip_comp.o \
+COMMON_OBJECTS =	dict.o read.o lex.o emu.o emu_profile.o \
+		proc_desc.o bip_tconv.o io.o write.o bip_comp.o \
 		mem.o operator.o bip_record.o \
 		bip_bag.o bip_heapevents.o bip_shelf.o bip_store.o \
 		bip_array.o bip_strings.o bip_serialize.o \
@@ -456,6 +456,9 @@ emu.o:		emu.c
 		-$(OPTIMIZE) ./emu.no.s ./emu.s
 		@cmp -s ./emu.no.s ./emu.s || echo "Assembly code patched"
 		$(CC) $(CFLAGS) -c emu.s
+
+emu_profile.o:	emu_profile.c
+		$(CC) $(OPT_FLAGS_EMU) $(CFLAGS) $(CPPFLAGS) -c $<
 
 emu.obj:	emu.o
 		/bin/cp emu.o emu.obj
@@ -1055,6 +1058,9 @@ emu_c_env.o: opcode.h os_support.h
 emu_par.o: config.h sepia.h ec_public.h ec_general.h types.h embed.h error.h
 emu_par.o: ec_io.h mem.h dict.h emu_export.h opcode.h wm.h
 emu_par.o: sch_eng_interface.h trace.h
+emu_profile.o: emu.c config.h sepia.h ec_public.h ec_general.h types.h
+emu_profile.o: error.h mem.h dict.h ec_io.h emu_export.h embed.h opcode.h
+emu_profile.o: database.h module.h debug.h property.h
 emu_util.o: config.h sepia.h ec_public.h ec_general.h types.h debug.h embed.h
 emu_util.o: error.h mem.h opcode.h dict.h module.h emu_export.h ec_io.h
 emu_util.o: os_support.h

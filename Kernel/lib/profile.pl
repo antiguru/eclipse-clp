@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: profile.pl,v 1.2 2009/07/16 09:11:24 jschimpf Exp $
+% Version:	$Id: profile.pl,v 1.3 2017/02/09 23:37:18 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -44,20 +44,54 @@
 :- comment(summary, "Profiling package for ECLiPSe programs").
 :- comment(author, "Micha Meier and Stefano Novello, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2009/07/16 09:11:24 $").
-:- comment(profile/1, [template:"profile(+Goal)",
-    summary:"Execute Goal (once) and print profiling information"]).
-:- comment(profile/2, [template:"profile(+Goal, +Options)",
+:- comment(date, "$Date: 2017/02/09 23:37:18 $").
+
+:- comment(profile/1, [
+    amode:profile(+),
+    args:["Goal":"Callable term"],
+    summary:"Execute Goal (once) and print profiling information",
+    see_also:[profile/2]
+]).
+
+:- comment(profile/2, [
+    amode:profile(+,+),
     args:["Goal":"Callable term","Options":"List of options"],
     summary:"Execute Goal (once) and print profiling information",
-    desc:html("Possible options:
+    see_also:[profile/1],
+    desc:html("<P>
+    Runs the given goal with the sampling profiler, which collects
+    information about the currently executing predicate 100 times
+    per second.  After the goal finishes, a result table is printed.
+<P>
+    Possible options:
     <DL>
-    <DT>simple
-	<DD>show external predicates in the output profile
-    <DT>keep_file
-	<DD>don't destroy the samples file after profiling
+    <DT>keep_file</DT><DD>
+	don't destroy the samples file after profiling</DD>
     </DL>
-    ")]).
+<P>
+    Note: garbage collection time is shown as predicate garbage_collect/0,
+    even when garbage collection was automatically triggered.
+<P>
+    ECLiPSe must have been started with the -P command line option
+    (or equivalent) in order to support profiling.
+    ",
+    eg:"
+?- profile(length(_,100000000), []).
+goal succeeded
+
+		PROFILING STATISTICS
+		--------------------
+
+Goal:		  length(_68, 100000000)
+Total user time:  1.83s
+
+Predicate	      Module	    %Time   Time   %Cum
+--------------------------------------------------------
+length            /2  sepia_kernel  80.9%   1.48s  80.9%
+garbage_collect   /0  sepia_kernel  19.1%   0.35s 100.0%
+
+Yes (1.89s cpu)
+")]).
 
 :- pragma(system).
 :- export
@@ -71,16 +105,24 @@
 	prof/3
     from sepia_kernel.
 
-?- local initialization(
-    ( current_interrupt(_, prof) ->
-	set_interrupt_handler(prof, internal/0)
-    ; get_stream_info(warning_output, device, file) ->
-	% hack to suppress warning when it goes to a reference file in the tests
-    	true
-    ; 
-	writeln(warning_output,
-	    "WARNING: Profiler not implemented on this OS/HW architecture")
-    )).
+have_profiler(Out) :-
+    ( current_interrupt(_, prof) -> true ;
+	writeln(Out, "Profiler not implemented on this OS/HW architecture!"),
+	fail
+    ),
+    ( get_flag(extension, profiler) -> true ;
+	writeln(Out, "Profiler support not enabled, use -P command line option!"),
+	fail
+    ).
+
+?- local initialization((
+    % hack to suppress warning when it goes to a reference file in the tests
+    ( get_stream_info(warning_output, device, file) -> W = null
+    ; W = warning_output ),
+    ( have_profiler(W) -> set_interrupt_handler(prof, internal/0)
+    ; true
+    )
+)).
 
 :- tool(profile/1, profile_body/2).
 :- tool(profile/2, profile_body/3).
@@ -89,6 +131,8 @@ profile_body(Goal, M) :-
     profile_body(Goal, [], M).
 
 profile_body(Goal, Flags, M) :-
+    ( have_profiler(error) -> true ; abort ),
+
     % convert original goal to finite string for later printing
     open(string(""), write, Stream),
     write(Stream, Goal),	% will truncate to print_depth
@@ -117,11 +161,11 @@ prof_call(Goal, M, Flags, File, Time) :-
     prof(on, Flags, X),
     cputime(T0),
     set_timer(profile, 0.01),
-    (block(Goal, _, EB = 1, M)->
-	(var(EB) ->
+    ( catch(Goal, Ball, true)@M ->
+	( var(Ball) ->
 	    printf('goal succeeded%n%b', [])
 	;
-	    printf('goal aborted%n%b', [])
+	    printf('goal aborted (%w)%n%b', [Ball])
 	)
     ;
 	printf('goal failed%n%b', [])

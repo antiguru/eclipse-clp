@@ -109,6 +109,11 @@ created by the system, which serves as the context for \notation{-f} and
 This can be an arbitrary name, as long as it does not conflict with
 important library names.  The default is \notation{eclipse}.
 
+\item[$-$P]\cmdlineoptionidx{P}
+Enable support for the sampling profiler (see
+library(\bipref{profile}{../bips/lib/profile/index.html}).
+This will cause a slight slowdown in execution.
+
 \item[$-$ $-$]\cmdlineoptionidx{-}
 The {\eclipse} system will ignore this argument and everything that follows on
 the commmand line. The Prolog program will only see the part of the
@@ -163,5 +168,8 @@ The parameters corresponding to the {\eclipse} command line settings are
     Can be overridden by ECLIPSEDEFAULTLANGUAGE environment variable.
 \item[\notationidx{default_module} (string)]
     The default toplevel module name (default: eclipse).
+\item[\notationidx{with_profiler} (0/1)]
+    Enable support for the \bipref{profiler}{../bips/lib/profile/index.html}
+    (default: 0).
 \end{description}
 
