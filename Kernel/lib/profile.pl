@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: profile.pl,v 1.3 2017/02/09 23:37:18 jschimpf Exp $
+% Version:	$Id: profile.pl,v 1.4 2017/02/11 02:16:42 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -44,7 +44,7 @@
 :- comment(summary, "Profiling package for ECLiPSe programs").
 :- comment(author, "Micha Meier and Stefano Novello, ECRC Munich").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2017/02/09 23:37:18 $").
+:- comment(date, "$Date: 2017/02/11 02:16:42 $").
 
 :- comment(profile/1, [
     amode:profile(+),
@@ -77,20 +77,21 @@
     ",
     eg:"
 ?- profile(length(_,100000000), []).
-goal succeeded
 
-		PROFILING STATISTICS
-		--------------------
+		  PROFILING STATISTICS
+		  --------------------
+Goal:		  length(_80, 100000000)
+Result:		  success
+Sampling rate:	  every 0.01s process_cputime
+Samples taken:	  182
+Thread cputime:	  1.82s
 
-Goal:		  length(_68, 100000000)
-Total user time:  1.83s
+Predicate	      Module	    %Time    Time   %Cum
+---------------------------------------------------------
+length            /2  sepia_kernel  79.7%    1.45s  79.7%
+garbage_collect   /0  sepia_kernel  20.3%    0.37s 100.0%
 
-Predicate	      Module	    %Time   Time   %Cum
---------------------------------------------------------
-length            /2  sepia_kernel  80.9%   1.48s  80.9%
-garbage_collect   /0  sepia_kernel  19.1%   0.35s 100.0%
-
-Yes (1.89s cpu)
+Yes (1.86s cpu)
 ")]).
 
 :- pragma(system).
@@ -106,10 +107,6 @@ Yes (1.89s cpu)
     from sepia_kernel.
 
 have_profiler(Out) :-
-    ( current_interrupt(_, prof) -> true ;
-	writeln(Out, "Profiler not implemented on this OS/HW architecture!"),
-	fail
-    ),
     ( get_flag(extension, profiler) -> true ;
 	writeln(Out, "Profiler support not enabled, use -P command line option!"),
 	fail
@@ -119,7 +116,11 @@ have_profiler(Out) :-
     % hack to suppress warning when it goes to a reference file in the tests
     ( get_stream_info(warning_output, device, file) -> W = null
     ; W = warning_output ),
-    ( have_profiler(W) -> set_interrupt_handler(prof, internal/0)
+    ( have_profiler(W) ->
+	% Use SIGPROF timer, if supported
+	( current_interrupt(_, prof) -> set_interrupt_handler(prof, internal/0)
+	; true
+	)
     ; true
     )
 )).
@@ -133,47 +134,40 @@ profile_body(Goal, M) :-
 profile_body(Goal, Flags, M) :-
     ( have_profiler(error) -> true ; abort ),
 
-    % convert original goal to finite string for later printing
-    open(string(""), write, Stream),
-    write(Stream, Goal),	% will truncate to print_depth
-    get_stream_info(Stream, name, GoalString),
+    process_flags(Goal, Flags, 0, FlagBits),
+    sprintf(GoalString, "%w", [Goal]),	% for later printing
+    open_sample_file(File, Stream),
+    Rate = 0.01,
+
+    prof(Rate, FlagBits, Stream),	% start sampling
+    cputime(T0),
+    ( catch(Goal, Ball, true)@M ->
+	( var(Ball) -> Result = success ; Result = throw(Ball) )
+    ;
+	Result = failure
+    ),
+    cputime(T1),
+    prof(0.0, FlagBits, _),		% stop sampling
+    Time is T1 - T0,
     close(Stream),
-    process_flags(Goal, Flags, 0, FS),
-    prof_call(Goal, M, FS, File, Time),
-    build_preds(FS, Preds),
+
+    build_preds(FlagBits, Preds),
     collect_times(Preds, Ticks, File),
-    (FS /\ 4 =:= 4 ->
+    (FlagBits /\ 4 =:= 4 ->
 	true
     ;
 	delete(File)
     ),
     filter_used_preds(Preds, SortedPreds),
-    prof_print(GoalString, SortedPreds, Ticks, Time).
+    prof_print(GoalString, SortedPreds, Ticks, Time, Rate, Result).
 
-%
-% Collect the statistics
-%
-prof_call(Goal, M, Flags, File, Time) :-
+
+open_sample_file(File, Stream) :-
     get_flag(pid, Pid),
     get_flag(tmp_dir, Tmp),
     concat_atom([Tmp,'eclipse.prof.', Pid], File),
-    open(File, write, X),
-    prof(on, Flags, X),
-    cputime(T0),
-    set_timer(profile, 0.01),
-    ( catch(Goal, Ball, true)@M ->
-	( var(Ball) ->
-	    printf('goal succeeded%n%b', [])
-	;
-	    printf('goal aborted (%w)%n%b', [Ball])
-	)
-    ;
-	printf('goal failed%n%b', [])
-    ),
-    set_timer(profile, 0),
-    Time is cputime - T0,
-    prof(off, Flags, _),
-    close(X).
+    open(File, write, Stream).
+
 
 %
 % Build the structure containing all compiled predicates
@@ -221,10 +215,17 @@ filter_used_preds(Preds, Sorted) :-
     tree_list(Preds, Used),
     sort(1, >=, Used, Sorted).
 
-prof_print(Goal, Preds, Ticks, Time) :-
-    printf('%n%2tPROFILING STATISTICS%n%2t%20c%2n', [0'-]),
-    printf('Goal:%2t  %w%nTotal user time:  %.2fs%2n', [Goal, Time]),
-    printf('Predicate%t      Module%t    %%Time   Time   %%Cum%n%56c%n', [0'-]),
+prof_print(Goal, Preds, Ticks, Time, Rate, Result) :-
+    ( current_interrupt(_, prof) -> Timer=process_cputime
+    ; Timer=session_time
+    ),
+    printf('%n%2t  PROFILING STATISTICS%n%2t  %20c%n', [0'-]),
+    printf('Goal:%2t  %w%n', [Goal]),
+    printf('Result:%2t  %w%n', [Result]),
+    printf('Sampling rate:%t  every %.2fs %s%n', [Rate,Timer]),
+    printf('Samples taken:%t  %d%n', [Ticks]),
+    printf('Thread cputime:%t  %.2fs%2n', [Time]),
+    printf('Predicate%t      Module%t    %%Time    Time   %%Cum%n%57c%n', [0'-]),
     prof_print_preds(Preds, Ticks, Time, 0.0).
 
 prof_print_preds([], _, _, _).
@@ -233,10 +234,10 @@ prof_print_preds([pred(Counter, P, M)|L], Ticks, Time, CumPerc0) :-
     STime is Counter * Time/Ticks,
     CumPerc is CumPerc0+Perc,
     (P = N/A ->
-	printf('%-18.18s/%-2d %-12.12s%6.1f%%%7.2fs%6.1f%%%n',
+	printf('%-18.18s/%-2d %-12.12s%6.1f%%%8.2fs%6.1f%%%n',
 		[N, A, M, Perc, STime, CumPerc])
     ;
-	printf('%-18.18s    %-12.12s%6.1f%%%7.2fs%6.1f%%%n',
+	printf('%-18.18s    %-12.12s%6.1f%%%8.2fs%6.1f%%%n',
 		[P, M, Perc, STime, CumPerc])
     ),
     prof_print_preds(L, Ticks, Time, CumPerc).

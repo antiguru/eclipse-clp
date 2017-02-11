@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: handlers.c,v 1.18 2017/02/09 23:36:40 jschimpf Exp $
+ * VERSION	$Id: handlers.c,v 1.19 2017/02/11 02:16:09 jschimpf Exp $
  */
 
 /** @file
@@ -69,6 +69,8 @@ extern char	*strcpy();
 
 #include <stdio.h>	/* for sprintf() */
 #include <stdlib.h>	/* for exit() */
+#include <sys/time.h>	/* for setitimer() */
+#include <math.h>	/* for floor() */
 
 #include "sepia.h"
 #include "types.h"
@@ -687,8 +689,17 @@ _install_int_handler(int sig, int how, pri *proc, ec_eng_t *ec_eng)
 	engine_tid.free(interrupt_posting_engine_[sig]);
 	interrupt_posting_engine_[sig] = NULL;
     }
+    switch(how)
+    {
+	case IH_POST_EVENT:
+	case IH_THROW:
+	case IH_ABORT:
+	    /* let signal thread post event to this engine */
+	    interrupt_posting_engine_[sig] = engine_tid.copy(ec_eng);
+	    break;
+    }
 
-    /* if this is a fake signal number, do nothing */
+    /* if this is a fake signal number, do nothing else */
     if (0
 #ifndef SIGIO
 	|| sig == ec_sigio
@@ -718,21 +729,9 @@ _install_int_handler(int sig, int how, pri *proc, ec_eng_t *ec_eng)
 	    break;
 
 	case IH_POST_EVENT:
-	    /* block for this thread (and delegate to signal thread) */
-	    Block_Signal(sig);
-	    /* post event to this engine */
-	    interrupt_posting_engine_[sig] = engine_tid.copy(ec_eng);
-	    break;
-
 	case IH_THROW:
 	case IH_ABORT:
-	    interrupt_posting_engine_[sig] = engine_tid.copy(ec_eng);
-	    /* fall through */
 	case IH_HANDLE_ASYNC:
-	    /* block for this thread (and delegate to signal thread) */
-	    Block_Signal(sig);
-	    break;
-
 	case IH_HALT:
 	    /* block for this thread (and delegate to signal thread) */
 	    Block_Signal(sig);
@@ -1349,6 +1348,68 @@ handlers_fini()
 }
 
 
+/*
+ * prof(+SamplingRate, +Flags, +SampleStream)
+ * Stop if SamplingRate==0.0
+ */
+static int
+p_prof(value v, type t, value vf, type tf, value vs, type ts, ec_eng_t *ec_eng)
+{
+    int			err_or_copied;
+    stream_id		nst;
+    double		interv;
+
+    Check_Double(t);
+    interv = Dbl(v);
+
+    /* TODO: make these operations atomic */
+    if (interv > 0.0) {
+	if (ec_.profiled_engine) {
+	    Fail_;
+	}
+	nst = get_stream_id(vs, ts, SWRITE, 0, NULL, &err_or_copied);
+	if (nst == NO_STREAM) {
+	    Bip_Error(err_or_copied)
+	}
+	ec_.profile_stream = err_or_copied? nst : stream_tid.copy(nst);
+	ec_.profiled_engine = engine_tid.copy(ec_eng);
+
+    } else {
+	if (ec_.profiled_engine == ec_eng) {
+	    stream_tid.free(ec_.profile_stream);
+	    ec_.profile_stream = NULL;
+	    engine_tid.free(ec_.profiled_engine);
+	    ec_.profiled_engine = NULL;
+	} else if (ec_.profiled_engine) {
+	    Fail_;	/* other engine is being profiled */
+	} /* already off */
+
+    }
+
+#if defined(HAVE_SETITIMER) && defined(SIGPROF)
+    {
+	struct itimerval	desc;
+
+	desc.it_value.tv_sec =
+	desc.it_interval.tv_sec = (long) interv;
+	desc.it_value.tv_usec =
+	desc.it_interval.tv_usec = (long) ((interv-floor(interv))*1000000.0);
+	if (desc.it_value.tv_sec==0 && desc.it_value.tv_usec==0 && interv>0.0)
+	    desc.it_value.tv_usec = 1;
+
+	if (setitimer(ITIMER_PROF, &desc, NULL) < 0) {
+	    Bip_Error(SYS_ERROR_ERRNO);
+	}
+    }
+#elif defined(USE_TIMER_THREAD)
+    if (!ec_set_alarm(interv, interv, (void(*)(long))_sigprof_handler, 0L, NULL, NULL))
+	{ Bip_Error(SYS_ERROR_OS); }
+#endif
+
+    Succeed_;
+}
+
+
 /**
  * Globally initialize ECLiPSe signal handling.
  */
@@ -1564,6 +1625,7 @@ handlers_init(int flags)
      */
     if (flags & INIT_SHARED)
     {
+	(void) exported_built_in(in_dict("prof", 3), p_prof, B_SAFE);
 	(void) local_built_in(in_dict("post_events",1),
 				p_post_events,			B_SAFE);
 	(void) built_in(in_dict("pause",0),	p_pause,	B_SAFE);

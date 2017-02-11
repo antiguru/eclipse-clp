@@ -27,7 +27,7 @@
 # ECLiPSe Development Environment
 #
 #
-# $Id: tkeclipse.tcl,v 1.20 2017/02/09 23:37:56 jschimpf Exp $
+# $Id: tkeclipse.tcl,v 1.21 2017/02/11 02:18:59 jschimpf Exp $
 #
 
 #----------------------------------------------------------------------
@@ -880,10 +880,6 @@ menu .tkecl.mbar.run
 .tkecl.mbar.run add command -label "Port Profile" -command {tkecl:run_goal port_profile}
 .tkecl.mbar.run add separator
 .tkecl.mbar.run add command -label "History" -command {tkecl:popup_history}
-switch $tcl_platform(platform) {
-    # currently not supported on Windows
-    windows { .tkecl.mbar.run entryconfigure "Time Profile" -state disabled }
-}
 
 .tkecl.mbar add cascade -label "Tools" -underline 0 -menu .tkecl.mbar.windows
 

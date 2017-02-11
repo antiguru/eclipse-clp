@@ -21,7 +21,7 @@
  * END LICENSE BLOCK */
 
 /*
- * VERSION	$Id: bip_control.c,v 1.12 2017/02/09 23:36:39 jschimpf Exp $
+ * VERSION	$Id: bip_control.c,v 1.13 2017/02/11 02:16:09 jschimpf Exp $
  */
 
 /****************************************************************************
@@ -100,43 +100,6 @@ p_nodbgcomp(ec_eng_t *ec_eng)
 	EclGblFlags |= GOALEXPAND;
 	Succeed_;
 }
-
-/*ARGSUSED*/
-static int
-p_prof(value v, type t, value vf, type tf, value vs, type ts, ec_eng_t *ec_eng)
-{
-    int			err_or_copied;
-    stream_id		nst;
-
-    Check_Atom(t);
-    /* TODO: make these operations atomic */
-    if (v.did == d_.on) {
-	if (ec_.profiled_engine) {
-	    Fail_;
-	}
-	nst = get_stream_id(vs, ts, SWRITE, 0, NULL, &err_or_copied);
-	if (nst == NO_STREAM) {
-	    Bip_Error(err_or_copied)
-	}
-	ec_.profile_stream = err_or_copied? nst : stream_tid.copy(nst);
-	ec_.profiled_engine = engine_tid.copy(ec_eng);
-
-    } else if (v.did == d_.off) {
-	if (ec_.profiled_engine == ec_eng) {
-	    stream_tid.free(ec_.profile_stream);
-	    ec_.profile_stream = NULL;
-	    engine_tid.free(ec_.profiled_engine);
-	    ec_.profiled_engine = NULL;
-	} else if (ec_.profiled_engine) {
-	    Fail_;	/* other engine is being profiled */
-	} /* already off */
-
-    } else {
-	Bip_Error(RANGE_ERROR)
-    }
-    Succeed_;
-}
-
 
 /*
 	spied_(Name, Arity, Module)
@@ -1233,7 +1196,6 @@ bip_control_init(int flags)
 	(void) local_built_in(in_dict("sys_flags", 2), p_sys_flags, B_SAFE|U_SIMPLE);
 	(void) b_built_in(in_dict("extension", 2), p_extension,
 			  d_.kernel_sepia);
-	(void) exported_built_in(in_dict("prof", 3), p_prof, B_SAFE);
 
 	(void) built_in(in_dict("timestamp_init", 2), p_timestamp_init, B_UNSAFE);
 	(void) built_in(in_dict("timestamp_update", 2), p_timestamp_update, B_UNSAFE);
