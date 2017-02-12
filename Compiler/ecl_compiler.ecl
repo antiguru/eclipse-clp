@@ -22,7 +22,7 @@
 % ----------------------------------------------------------------------
 % System:	ECLiPSe Constraint Logic Programming System
 % Component:	ECLiPSe III compiler
-% Version:	$Id: ecl_compiler.ecl,v 1.24 2013/02/26 02:10:06 jschimpf Exp $
+% Version:	$Id: ecl_compiler.ecl,v 1.25 2017/02/12 17:19:41 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 :- module(ecl_compiler).
@@ -30,7 +30,7 @@
 :- comment(summary,	"ECLiPSe III compiler - toplevel predicates").
 :- comment(copyright,	"Cisco Technology Inc").
 :- comment(author,	"Joachim Schimpf").
-:- comment(date,	"$Date: 2013/02/26 02:10:06 $").
+:- comment(date,	"$Date: 2017/02/12 17:19:41 $").
 
 :- comment(desc, html("
     This module contains the toplevel predicates for invoking the
@@ -653,7 +653,7 @@ compile_source1(Source, OptionListOrModule, CM) :-
 			Size0, Pred0, PredPos1, Clauses0, ClauseTail0, AnnClauses0, AnnClauseTail0,
 			Size2, Pred1, PredPos2, Clauses1, ClauseTail1, AnnClauses1, AnnClauseTail1)
 
-		; Class = comment ->		% comment, ignore
+		; ignored_source_term(Class, Term) ->
                     Size0 = Size2,
                     Pred1 = Pred0,
 		    ClauseTail1 = ClauseTail0,
@@ -737,6 +737,13 @@ compile_source1(Source, OptionListOrModule, CM) :-
     valid_source(Source) :- string(Source).
     valid_source(library(_)) ?- true.
     valid_source(stream(_)) ?- true.
+
+    % source terms that are *not* predicate separators
+    :- mode ignored_source_term(+,+).
+    ignored_source_term(comment, _).
+    ignored_source_term(end_include, _).
+    ignored_source_term(handled_directive, (:-include(_))).
+    ignored_source_term(handled_directive, (:-[_|_])).
 
 
 source_processor_options_setup(options{load:Load,expand_clauses:ClauseExp}, OpenOptions, CloseOptions) :-
