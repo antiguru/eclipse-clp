@@ -932,6 +932,9 @@ check_nonvar(A) :-
 check_collection_to_list(C, L) :-
         (collection_to_list(C, L), nonvar(L) -> true ; set_bip_error(5)).
 
+check_collection_to_list(C, L, Opt) :-
+        (collection_to_list(C, L, Opt), nonvar(L) -> true ; set_bip_error(5)).
+
 
 %------------------------------------------------------------------------
 % Expression support
@@ -2007,7 +2010,7 @@ ec_to_gecode_arith_expr1(E, _H, In, _N0,_N, _Bs0,_Bs, _Auxs0,_AuxsT,
 
 '::_body'(X, Domain, Module):-
         get_prob_handle_nvars(H, NV0),
-        check_collection_to_list(flatten(X), NX),
+        check_collection_to_list(flatten(X), NX, [allow_singleton]),
 	process_domain_domain(Domain, NormalDomain, Module),
         process_domain_vars(NX, NormalDomain, H, NV0,NV, [],OldGVs, _),
         !, % cut here to avoid posting events with a live choicepoint
@@ -2054,16 +2057,6 @@ domain_reif_event1(X, Domain, Bool, RType, H, N0,N, Bs0,Bs, Event, GBool, Module
                 Event = post_var_dom_reif(GX,DArray,GBool, RType)
             )
         ).
-
-
-normalise_vars(V, N) :-
-        var(V), !,
-        N = [V].
-normalise_vars(I, N) :-
-        integer(I), !,
-        N = [I].
-normalise_vars(Xs, NXs) :-
-        check_collection_to_list(Xs, NXs).
 
 
 split_first_domain([H0|T0], H, T) ?- !,

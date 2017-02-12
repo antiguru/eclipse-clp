@@ -23,7 +23,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: lists.pl,v 1.13 2017/02/01 02:01:55 jschimpf Exp $
+% Version:	$Id: lists.pl,v 1.14 2017/02/12 01:42:22 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 /*
@@ -54,7 +54,7 @@
 :- comment(categories, ["Data Structures","Programming Utilities"]).
 :- comment(summary, "Predicates for list manipulation").
 :- comment(copyright, "Cisco Systems, Inc").
-:- comment(date, "$Date: 2017/02/01 02:01:55 $").
+:- comment(date, "$Date: 2017/02/12 01:42:22 $").
 :- comment(desc, html("<p>
     Library containing various simple list manipulation predicates which
     require no special form of lists. For ordered lists see library(ordset).
@@ -286,15 +286,55 @@ subscript(Mat, Index, X, M) :-
 	subscript(Row, IExprs, X, M).
 
 
-:- export append/2.
-append(Ls, Xs) :-
-	append_lists(Ls, Xs, []).
+:- comment(append/2, [
+    summary:"Concatenate a list of lists",
+    amode:(append(+,-) is det),
+    args:["ListOfLists":"A list of lists",
+    	"LongList":"Concatenation of the individual lists"
+    ],
+    desc:html("Concatenates (appends) several lists into one long list.
+    	The lists to be concatenated and their order is given as ListOfLists.
 
-    delay append_lists(L,_,_) if var(L).
-    append_lists([], Xs, Xs).
-    append_lists([L|Ls], Xs, Xs0) :-
-    	append(L, Xs1, Xs),
-	append_lists(Ls, Xs1, Xs0).
+	If the number or length of the given lists are unknown, the predicate
+	delays.
+    "),
+    eg:"\
+	?- append([[a,b],[c],[],[d]], Zs).
+	Zs = [a, b, c, d]
+	Yes (0.00s cpu)
+
+	?- append([[a,b],c,[d]], Zs).
+	No (0.00s cpu)
+
+	?- append([], Zs).
+	Zs = []
+	Yes (0.00s cpu)
+
+	?- append([[a]|Bs], Zs).
+	Bs = Bs
+	Zs = [a|_177]
+	Delayed goals:
+		append(Bs, _177)
+	Yes (0.00s cpu)
+
+	?- append([[a],Bs,[c]], Zs).
+	Zs = [a|_183]
+	Delayed goals:
+	    	lists : append3(Bs, [c], _183)
+	Yes (0.00s cpu)
+    ",
+    see_also:[append/3, flatten/3]]).
+
+:- export append/2.
+delay append(Ls,_) if var(Ls).
+append([], []).
+append([L|Ls], Xs) :-
+	append3(L, Xs1, Xs),
+	append(Ls, Xs1).
+
+    delay append3(Xs,_,_) if var(Xs).
+    append3([], Ys, Ys).
+    append3([X|Xs], Ys, [X|Zs]) :- append3(Xs, Ys, Zs).
 
 
 :- comment(collection_to_list/2, [
@@ -447,6 +487,17 @@ append(Ls, Xs) :-
 collection_to_list(Xe, Ys) :-
 	eval_cexpr(Xe, Ys, [], false).
 
+:- export collection_to_list/3.
+collection_to_list(Xe, Ys, Options) :-
+	collection_option(Options, false, AllowSingletons),
+	eval_cexpr(Xe, Ys, [], AllowSingletons).
+
+    :- mode collection_option(?,+,-).
+    collection_option([], S, S).
+    collection_option([O|Os], S0, S) :-
+    	( O==allow_singleton -> S1 = true ; S1=S0 ),
+	collection_option(Os, S1, S).
+
 % Evaluate expressions and convert data structures
 eval_cexpr(X, Ys, Ys0, AllowSingleton) :- var(X), !,
 	( AllowSingleton==true -> Ys = [X|Ys0]
@@ -462,11 +513,11 @@ eval_cexpr(subscript(A,I), Ys, Ys0, AllowSingleton) :- !,
 eval_cexpr(Xe>>Ye, Zs, Zs0, _AllowSingleton) :- !,
 	eval_cexpr(Xe, Zs, Zs1, false),
 	eval_cexpr(Ye, Zs1, Zs0, false).
-eval_cexpr(flatten(Xe), Ys, Ys0, _AllowSingleton) :- !,
-	eval_cexpr(Xe, Xs, [], true),
+eval_cexpr(flatten(Xe), Ys, Ys0, AllowSingleton) :- !,
+	eval_cexpr(Xe, Xs, [], AllowSingleton),
 	element_to_flat_list(Xs, Ys, Ys0, -1).
-eval_cexpr(flatten(D,Xe), Ys, Ys0, _AllowSingleton) :- !,
-	eval_cexpr(Xe, Xs, [], true),
+eval_cexpr(flatten(D,Xe), Ys, Ys0, AllowSingleton) :- !,
+	eval_cexpr(Xe, Xs, [], AllowSingleton),
 	element_to_flat_list(Xs, Ys, Ys0, D).
 eval_cexpr(X, [X|Ys0], Ys0, true).
 
@@ -648,6 +699,11 @@ eval_cexpr(X, [X|Ys0], Ys0, true).
 :- export collection_to_array/2.
 collection_to_array(Xe, Yz) :-
 	eval_cexpr_array(Xe, Yz, false).
+
+:- export collection_to_array/3.
+collection_to_array(Xe, Yz, Options) :-
+	collection_option(Options, false, AllowSingletons),
+	eval_cexpr_array(Xe, Yz, AllowSingletons).
 	
 % Evaluate expressions and convert data structures
 eval_cexpr_array(X, Yz, AllowSingleton) :- var(X), !,
@@ -665,11 +721,11 @@ eval_cexpr_array(Xe>>Ye, Zz, _AllowSingleton) :- !,
 	eval_cexpr_array(Xe, Xz, false),
 	eval_cexpr_array(Ye, Yz, false),
 	array_concat(Xz, Yz, Zz).
-eval_cexpr_array(flatten(Xe), Yz, _AllowSingleton) :- !,
-	eval_cexpr(Xe, Xs, [], true),
+eval_cexpr_array(flatten(Xe), Yz, AllowSingleton) :- !,
+	eval_cexpr(Xe, Xs, [], AllowSingleton),
 	element_to_flat_array(Xs, Yz, -1).
-eval_cexpr_array(flatten(D,Xe), Yz, _AllowSingleton) :- !,
-	eval_cexpr(Xe, Xs, [], true),
+eval_cexpr_array(flatten(D,Xe), Yz, AllowSingleton) :- !,
+	eval_cexpr(Xe, Xs, [], AllowSingleton),
 	element_to_flat_array(Xs, Yz, D).
 eval_cexpr_array(X, [](X), true).
 
