@@ -1300,7 +1300,7 @@ integer_or_var_vars(subscript(Array, IndexList)):-
 %
 '::_body'(X, Domain, Module):-
 	process_domain_domain(Domain, NormalDomain, Type, Module),
-	collection_to_list(flatten(X), Xs, [allow_singleton]).
+	collection_to_list(flatten(X), Xs, [allow_singleton]),
 	!,
 	call_priority((
 		set_vars_type(Xs, Type),
@@ -1314,7 +1314,7 @@ integer_or_var_vars(subscript(Array, IndexList)):-
 %
 '#::_body'(X, Domain, Module):-
 	process_domain_domain(Domain, NormalDomain, integer, Module),
-	collection_to_list(flatten(X), Xs, [allow_singleton]).
+	collection_to_list(flatten(X), Xs, [allow_singleton]),
 	!,
 	call_priority((
 		set_vars_type(Xs, integer),
@@ -1328,7 +1328,7 @@ integer_or_var_vars(subscript(Array, IndexList)):-
 %
 '$::_body'(X, Domain, Module):-
 	process_domain_domain(Domain, NormalDomain, real, Module),
-	collection_to_list(flatten(X), Xs, [allow_singleton]).
+	collection_to_list(flatten(X), Xs, [allow_singleton]),
 	!,
 	call_priority((
 		set_vars_type(Xs, real),
