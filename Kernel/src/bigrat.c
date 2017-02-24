@@ -23,7 +23,7 @@
 /*
  * IDENTIFICATION	bigrat.c
  * 
- * VERSION		$Id: bigrat.c,v 1.11 2016/07/28 03:34:35 jschimpf Exp $
+ * VERSION		$Id: bigrat.c,v 1.12 2017/02/24 13:05:02 jschimpf Exp $
  *
  * AUTHOR		Joachim Schimpf
  *
@@ -107,10 +107,12 @@ ec_get_long_long(const pword w, long long int *l)
 #include	<math.h>
 #include	"gmp.h"
 
-#ifndef GMP_LIMB_BITS
-/* for older gmp versions */
-#define GMP_LIMB_BITS __GMP_BITS_PER_MP_LIMB 
-#endif
+/* gmp.h may not set this correctly, as it needs to be configured */
+#undef GMP_LIMB_BITS
+#define	GMP_LIMB_BITS (SIZEOF_WORD*8)
+#undef GMP_NAIL_BITS
+#define	GMP_NAIL_BITS 0
+
 
 #ifdef USING_MPIR
 /* MP_INT and MP_RAT are from gmp 1, and gmp provides the
@@ -489,7 +491,7 @@ mpz_swap(MP_INT *x, MP_INT *y)
  */
 
 #define MIN_LIMB_DIFF (1+1024/GMP_NUMB_BITS)
-#define DBL_PRECISION_LIMBS (1+53/GMP_NUMB_BITS)
+#define DBL_PRECISION_LIMBS (2+53/GMP_NUMB_BITS)
 
 static double
 mpz_fdiv(MP_INT *num, MP_INT *den)
@@ -536,6 +538,9 @@ mpz_fdiv(MP_INT *num, MP_INT *den)
     }
     else
     {
+	double l,s;
+	MP_INT li, si;
+
 	/* we ignore limbs that are not significant for the result */
 	if (longer_size > MIN_LIMB_DIFF)	/* more can't be represented */
 	{
@@ -551,13 +556,16 @@ mpz_fdiv(MP_INT *num, MP_INT *den)
 	}
 	longer_d += ignored_limbs;
 	shorter_d += ignored_limbs;
-
-	res = swapped ?
-	    mpn_to_double(longer_d, longer_size)
-		    / mpn_to_double(shorter_d, shorter_size):
-	    mpn_to_double(shorter_d, shorter_size)
-		    / mpn_to_double(longer_d, longer_size);
-
+#if __GNU_MP_VERSION < 3
+	l = mpn_to_double(longer_d, longer_size);
+	s = mpn_to_double(shorter_d, shorter_size);
+#else
+	li._mp_alloc = li._mp_size = longer_size; li._mp_d = longer_d;
+	si._mp_alloc = si._mp_size = shorter_size; si._mp_d = shorter_d;
+	l = mpz_get_d(&li);
+	s = mpz_get_d(&si);
+#endif
+	res = swapped ? l/s : s/l;
     }
     return negative ? -res : res;
 }
@@ -1868,19 +1876,20 @@ static int
 _big_div(ec_eng_t *ec_eng, value v1, value v2, pword *pres)	/* big x big -> rat */
 {
     MP_INT a,b;
+    MP_RAT c;
     Big_To_Mpi(v1.ptr, &a);
     Big_To_Mpi(v2.ptr, &b);
+    mpz_init_set(mpq_numref(&c), &a);
+    mpz_init_set(mpq_denref(&c), &b);
+    mpq_canonicalize(&c);
     if (EclGblFlags & PREFER_RATIONALS)
     {
-	MP_RAT c;
-	mpz_init_set(mpq_numref(&c), &a);
-	mpz_init_set(mpq_denref(&c), &b);
-	mpq_canonicalize(&c);
 	Pw_From_Mpr(pres, &c);
     }
     else
     {
-	double d = mpz_fdiv(&a, &b);
+	double d = mpq_to_double(&c);
+	mpq_clear(&c);
 	Make_Checked_Float(pres, d);
     }
     Succeed_;
