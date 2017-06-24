@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.73 2016/09/28 03:33:52 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.74 2017/06/24 15:38:47 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -1303,6 +1303,23 @@ AC_LINK_IFELSE([
      STDCXXLIB=])
 LDFLAGS="$SAVED_LDFLAGS"
 AC_LANG_POP([C++])
+
+AC_MSG_CHECKING(test whether we can statically link libgcc)
+SAVED_LDFLAGS="$LDFLAGS"
+GCCLIB="-static-libgcc"
+LDFLAGS="$LDFLAGS $DYNLDFLAGS $GCCLIB"
+AC_LINK_IFELSE([
+    AC_LANG_PROGRAM([#include <stdio.h>], [return 0;])],
+    [AC_MSG_RESULT(yes)],
+    [AC_MSG_RESULT(no)
+     GCCLIB=])
+LDFLAGS="$SAVED_LDFLAGS"
+
+# For Windows, statically link libgcc to avoid dependency on extra dlls
+if test "$OBJECTS_SUFFIX" = dll && test -n "$GCCLIB"; then
+    AC_MSG_NOTICE([Linking libgcc statically])
+    DYNLDFLAGS="$DYNLDFLAGS $GCCLIB"
+fi
 
 
 #----------------------------------------------------------------------
