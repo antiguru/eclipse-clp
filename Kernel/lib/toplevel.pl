@@ -22,7 +22,7 @@
 % END LICENSE BLOCK
 %
 % System:	ECLiPSe Constraint Logic Programming System
-% Version:	$Id: toplevel.pl,v 1.10 2016/09/24 20:22:45 jschimpf Exp $
+% Version:	$Id: toplevel.pl,v 1.11 2017/06/26 13:20:39 jschimpf Exp $
 % ----------------------------------------------------------------------
 
 %
@@ -120,7 +120,7 @@
 
 :- comment(categories, ["Development Tools"]).
 :- comment(summary, "Interactive ECLiPSe toplevel interpreter").
-:- comment(date, "$Date: 2016/09/24 20:22:45 $").
+:- comment(date, "$Date: 2017/06/26 13:20:39 $").
 :- comment(copyright, "Cisco Systems, Inc").
 :- comment(author, "Joachim Schimpf, IC-Parc").
 :- comment(desc, html("
@@ -222,6 +222,16 @@ tyi(S, C) :-
 
 newline(10).
 newline(13).
+
+% If we just read a term that ended in a fullstop,
+% discard the blank space that follows the fullstop.
+% (not necessary for tty, since tyi discards pending input anyway)
+discard_fullstop_space(S, Goal) :-
+	( Goal == end_of_file -> true
+	; get_stream_info(S, device, tty) -> true
+	; get(S, -1) -> unget(S)
+	; true	% discard the space that was part of the fullstop
+	).
 
 
 tty_toplevel_init :-
@@ -437,7 +447,8 @@ tty_fail_loop :-
 		    true
 		),
 		set_stream_property(toplevel_input, reprompt_only, on),
-		readvar(toplevel_input, Goal, VL)@M
+		readvar(toplevel_input, Goal, VL)@M,
+		discard_fullstop_space(toplevel_input, Goal)
 	    )),
 	    tty_run_command(Goal, VL, M),
 	fail.
