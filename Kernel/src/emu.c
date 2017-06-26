@@ -23,7 +23,7 @@
 /*
  * SEPIA SOURCE FILE
  *
- * VERSION	$Id: emu.c,v 1.46 2017/02/09 23:36:40 jschimpf Exp $
+ * VERSION	$Id: emu.c,v 1.47 2017/06/26 13:22:13 jschimpf Exp $
  */
 
 /*
@@ -144,10 +144,6 @@ typedef code_item	*emu_code;
  * Mapping of abstract machine registers to C variables
  * This is important for performance!
  *----------------------------------------------------------------------*/
-/*
- * The PP register: we are using tricks to be able to access
- * it from within sigprof_handler() via Int_Pp
- */
 
 #ifdef EMU_PROFILE
 /* PP must be flushed for the profiler whenever the predicate may change! */
@@ -156,108 +152,79 @@ typedef code_item	*emu_code;
 #define Flush_Pp
 #endif
 
-#ifdef __GNUC__
-#  ifdef i386
-#define Declare_Pp	register emu_code pp asm("%esi");
-#define Restore_Pp
-#define Import_Pp	pp = (emu_code) ec_eng->pp;
-#ifdef HAVE_UCONTEXTGREGS
-#define Int_Pp		(((ucontext_t*) context)->uc_mcontext.gregs[REG_ESI])
-#else
-#define Int_Pp		0
-#endif
-#  else
-#  ifdef __x86_64
-#define Declare_Pp	register emu_code pp asm("%r13");
-#define Restore_Pp
-#define Import_Pp	pp = (emu_code) ec_eng->pp;
-#ifdef HAVE_UCONTEXTGREGS
-#define Int_Pp		(((ucontext_t*) context)->uc_mcontext.gregs[REG_R13])
-#else
-#define Int_Pp		0
-#endif
-#  else
-#  if defined(sparc) 
-/* Register choice for Sparc:
- * Refer to developers.sum.com/solaris/articles/sparcv9abi.html
- * Also the -mapp-regs gcc options is relevant for g2-4
- * Experimentaly, this is (as of 2011) the only choice that works out of g1-5
- * but of dubiouos reliability, as any callee could presumably clobber
- * the register 
- */
-register emu_code	pp	asm("%g4");
-#define Declare_Pp
-#define Restore_Pp	pp = (emu_code) ec_eng->pp;
-#define Import_Pp
-#define Int_Pp		pp
-#  else
-#  ifdef __alpha__
-register emu_code	pp	asm("$12");
-#define Declare_Pp
-#define Restore_Pp	pp = (emu_code) ec_eng->pp;
-#define Import_Pp
-#define Int_Pp		pp
-#  else
 #define Declare_Pp	register emu_code pp;
 #define Restore_Pp
-#define Import_Pp	pp = (emu_code) ec_eng->pp;
-#define Int_Pp		0
-#  endif
-#  endif
-#  endif
-#  endif
-#else
-#define Declare_Pp	register emu_code pp;
-#define Restore_Pp
-#define Import_Pp	pp = (emu_code) ec_eng->pp;
-#define Int_Pp		0
-#endif
-
-#define PP		pp
 #define Export_Pp	ec_eng->pp = (vmcode *) pp;
+#define Import_Pp	pp = (emu_code) ec_eng->pp;
+#define PP		pp
 
-#ifdef FEW_REGISTERS	/* leave EB,GB,E,TG in the global structure */
+#define FEW_REGISTERS
+#ifdef FEW_REGISTERS	/* shadow only some registers in local variables */
 
 #define Declare_Eb
+#define Export_Eb
+#define Import_Eb
 #define	EB		ec_eng->eb
+
 #define Declare_Gb
+#define Export_Gb
+#define Import_Gb
 #define	GB		ec_eng->gb
+
 #define Declare_E
+#define Export_E
+#define Import_E
 #define	E		ec_eng->e
-#define Declare_Tg
-#define	TG		ec_eng->tg
 
-#define Export_B_Sp_Tg_Tt	ec_eng->sp = sp; \
-				Export_Pp ec_eng->vm_flags |= EXPORTED;
-#define Export_B_Sp_Tg_Tt_Eb_Gb	Export_B_Sp_Tg_Tt
-#define Import_Tg_Tt		Import_None
-#define Import_B_Sp_Tg_Tt_Eb_Gb	sp = ec_eng->sp; Import_Tg_Tt
-
-#else		/* !FEW_REGISTERS: shadow EB,GB,E,TG in local variables */
-
-#define Declare_Eb	register pword *eb;
-#define	EB		eb
-#define Declare_Gb	register pword *gb;
-#define	GB		gb
-#define Declare_E	register pword *e;
-#define	E		e
 #define Declare_Tg	register pword *tg;
+#define Export_Tg	ec_eng->tg=tg;
+#define Import_Tg	tg=ec_eng->tg;
 #define	TG		tg
 
-#define Export_B_Sp_Tg_Tt	ec_eng->sp=sp; ec_eng->e=e; ec_eng->tg=tg;\
-				Export_Pp ec_eng->vm_flags |= EXPORTED;
-#define Export_B_Sp_Tg_Tt_Eb_Gb	ec_eng->eb=eb; ec_eng->gb=gb; Export_B_Sp_Tg_Tt
-#define Import_Tg_Tt		tg=ec_eng->tg; Import_None
-#define Import_B_Sp_Tg_Tt_Eb_Gb	eb=ec_eng->eb; gb=ec_eng->gb; sp=ec_eng->sp; e=ec_eng->e; Import_Tg_Tt
+#define Declare_Sp	register pword *sp;
+#define Export_Sp	ec_eng->sp=sp;
+#define Import_Sp	sp=ec_eng->sp;
+#define	SP		sp
+
+
+#else		/* !FEW_REGISTERS: shadow most registers in local variables */
+
+#define Declare_Eb	register pword *eb;
+#define Export_Eb	ec_eng->eb=eb;
+#define Import_Eb	eb=ec_eng->eb;
+#define	EB		eb
+
+#define Declare_Gb	register pword *gb;
+#define Export_Gb	ec_eng->gb=gb;
+#define Import_Gb	gb=ec_eng->gb;
+#define	GB		gb
+
+#define Declare_E	register pword *e;
+#define Export_E	ec_eng->e=e;
+#define Import_E	e=ec_eng->e;
+#define	E		e
+
+#define Declare_Tg	register pword *tg;
+#define Export_Tg	ec_eng->tg=tg;
+#define Import_Tg	tg=ec_eng->tg;
+#define	TG		tg
+
+#define Declare_Sp	register pword *sp;
+#define Export_Sp	ec_eng->sp=sp;
+#define Import_Sp	sp=ec_eng->sp;
+#define	SP		sp
 
 #endif /* FEW_REGISTERS */
 
-#define Declare_Sp	register pword *sp;
-#define	SP		sp
 #define Declare_S	register pword *s;
 #define	S		s
 #define TT		ec_eng->tt
 #define B		ec_eng->b
+
+#define Export_B_Sp_Tg_Tt	Export_Sp Export_E Export_Tg Export_Pp ec_eng->vm_flags |= EXPORTED;
+#define Export_B_Sp_Tg_Tt_Eb_Gb	Export_Eb Export_Gb Export_B_Sp_Tg_Tt
+#define Import_Tg_Tt		Import_Tg Import_None
+#define Import_B_Sp_Tg_Tt_Eb_Gb	Import_Eb Import_Gb Import_Sp Import_E Import_Tg_Tt
 
 #define Export_All	Export_B_Sp_Tg_Tt_Eb_Gb
 #define Import_None	Restore_Pp ec_eng->vm_flags &= ~EXPORTED;
@@ -770,16 +737,16 @@ ec_emulate(ec_eng_t *ec_eng)
     Declare_Pp
     Declare_Sp
     Declare_S
-    register pword *pw1;
+    pword *pw1;
     Declare_Tg
     Declare_E
     Declare_Eb
     Declare_Gb
     pword *pw2;
     pword *pw3;
-    register int emu_flags;
-    register uword i;		/* unsigned !		       */
-    register word tmp1;		/* signed !			*/
+    int emu_flags;
+    uword i;		/* unsigned !		       */
+    word tmp1;		/* signed !			*/
     control_ptr	b_aux;
     dident	val_did;
     int		err_code;
@@ -1820,8 +1787,8 @@ _handle_events_at_res_:				/* (tmp1) */
 	{
 	    PushDynEnvHdr(tmp1+DYNENVDBGSIZE, WAS_CALL, PP);	/* save arity, PP, DE */
 	    SP -= DYNENVDBGSIZE;
-	    DynEnvDE(e)->tag.kernel = DE?TSUSP:TNIL;
-	    DynEnvDE(e)->val.ptr = DE;
+	    DynEnvDE(E)->tag.kernel = DE?TSUSP:TNIL;
+	    DynEnvDE(E)->val.ptr = DE;
 	    DynEnvDbgPri(E)->tag.kernel = TPTR;		/* ... and debug info */
 	    DynEnvDbgPri(E)->val.wptr = (uword *) DBG_PRI;
 	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
@@ -4353,10 +4320,6 @@ _read_choice_point_:			/* (pw2 points to args, DBG_PORT,back_code) */
 	    Next_Pp;
 
 
-	Case(List_switchL, I_List_switchL)
-	    Get_Local(pw1)
-	    goto _list_switch_;
-
 	Case(List_switchAM, I_List_switchAM)
 	    Get_Argument(pw1)
 _list_switch_:
@@ -4371,6 +4334,10 @@ _list_switch_:
 	    else
 		PP = (PP + 2)->code;
 	    Next_Pp;
+
+	Case(List_switchL, I_List_switchL)
+	    Get_Local(pw1)
+	    goto _list_switch_;
 
 
 	Case(Atom_switchL, I_Atom_switchL)
@@ -5700,8 +5667,8 @@ _metacall_port_:	/* (proc) */
 	    Push_Env				/* allocate an environment */
 	    PushDynEnvHdr(tmp1+DYNENVDBGSIZE, WAS_CALL, PP);	/* save arity, PP */
 	    SP -= DYNENVDBGSIZE;
-	    DynEnvDE(e)->tag.kernel = DE?TSUSP:TNIL;
-	    DynEnvDE(e)->val.ptr = DE;
+	    DynEnvDE(E)->tag.kernel = DE?TSUSP:TNIL;
+	    DynEnvDE(E)->val.ptr = DE;
 	    DynEnvDbgPri(E)->tag.kernel = TPTR;		/* ... and debug info */
 	    DynEnvDbgPri(E)->val.wptr = (uword *) proc;
 	    Make_Integer(DynEnvDbgPort(E), DBG_PORT);
@@ -7310,8 +7277,8 @@ _exit_engine_:				/* (scratch_pw) */
 	Kill_DE;\
 	if (IsInteger(pw1->tag)) {\
 	    if (IsInteger(pw2->tag)) {\
-		register word	n1 = pw1->val.nint;\
-		register word	n2 = pw2->val.nint;\
+		word	n1 = pw1->val.nint;\
+		word	n2 = pw2->val.nint;\
 		tmp1 = n1 Op n2;\
 		if (((n1 >= 0) SignOp (n2 >= 0)) && \
 		    (n1 >= 0) != (tmp1 >= 0)) {\
@@ -7485,8 +7452,8 @@ _nun_op_:				/* (err_code,pw1,PP,proc) */
 	    NDelay_Check_1(pw1)
 	    Kill_DE;
 	    if (IsInteger(pw1->tag)) {
-		register word	n1 = pw1->val.nint;
-		register word	n2 = PP[-3].nint;
+		word	n1 = pw1->val.nint;
+		word	n2 = PP[-3].nint;
 		tmp1 = n1 + n2;
 		if (((n1 >= 0) == (n2 >= 0)) && 
 		    (n1 >= 0) != (tmp1 >= 0)) {

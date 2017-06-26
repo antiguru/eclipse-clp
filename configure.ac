@@ -35,7 +35,7 @@ dnl
 AC_INIT([ECLiPSe], [7.0])
 AC_PREREQ([2.59])
 AC_COPYRIGHT([ECLiPSe is copyright Cisco Systems Inc, and open-sourced under eclipseclp.org/licence.html])
-AC_REVISION([$Id: configure.ac,v 1.74 2017/06/24 15:38:47 jschimpf Exp $])
+AC_REVISION([$Id: configure.ac,v 1.75 2017/06/26 13:22:56 jschimpf Exp $])
 AC_CONFIG_SRCDIR([BUILD_ROTD])
 AC_CONFIG_AUX_DIR([config])
 AC_PREFIX_DEFAULT([\${top_srcdir}])
@@ -148,20 +148,14 @@ fi
 # Defaults for variables
 #----------------------------------------------------------------------
 
-# Notes on OPT_FLAGS* -- these settings are for gcc (tested with 
-# versions 3.3.5 (i386_linux) and 4.0.1 (Mac OS X)
-# -O3 leads to seg faults when running some programs
-# -O2 for OPT_FLAGS_EMU leads to not distinguishable emu instructions for threaded code
-#     due to -freorder-blocks optimisation
+# Notes on OPT_FLAGS* -- these settings are for gcc (tested with gcc 5.4 - 7.1)
 # -fomit-frame-pointer gives faster code for x86
-# the flags for OPT_FLAGS_EMU are -O2 optimisations that don't cause problems 
-# and do not slow down execution on i386_linux
 # no -fomit-frame-pointer from optimised debugging -- it makes debugging
 # impossible on some machines (otherwise -O1+ will turn it on) 
-OPT_FLAGS="-O2 -fomit-frame-pointer"
-OPT_FLAGS_EMU="-O1 -fomit-frame-pointer -fthread-jumps -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves"
 OPTDBG_FLAGS="-O2"
-OPTDBG_FLAGS_EMU="-O1 -fthread-jumps -fforce-addr  -fexpensive-optimizations -fdelete-null-pointer-checks -fpeephole2 -falign-functions -falign-jumps  -foptimize-sibling-calls -fregmove  -fsched-interblock -fcaller-saves"
+OPTDBG_FLAGS_EMU="-O2 -fno-schedule-insns -fno-schedule-insns2 -fno-strict-aliasing -fira-loop-pressure -fschedule-fusion -frename-registers"
+OPT_FLAGS="$OPTDBG_FLAGS -fomit-frame-pointer"
+OPT_FLAGS_EMU="$OPTDBG_FLAGS_EMU -fomit-frame-pointer"
 
 # For some cross-compilations, gcc's include path is in the wrong order.
 # We can fix this by adding an explicit -isystem <dir> argument.

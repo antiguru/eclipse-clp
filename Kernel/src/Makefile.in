@@ -22,7 +22,7 @@
 
 # SCCS CONTROL BLOCK:
 #
-# $Id: Makefile.in,v 1.27 2017/02/09 23:36:39 jschimpf Exp $
+# $Id: Makefile.in,v 1.28 2017/06/26 13:22:13 jschimpf Exp $
 #
 # IDENTIFICATION:	Makefile.in
 #
@@ -82,6 +82,10 @@ ECO_DBG = off
 
 # C compiler flags and defines
 
+#FPROFILE=-fprofile-generate
+#FPROFILE=-fprofile-use -fprofile-correction
+FPROFILE=
+
 EXE = @EXEEXT@
 CC = @CC@
 CPP = @CPP@
@@ -90,7 +94,7 @@ CXXCPP = @CXXCPP@
 LD = @LD@
 AR = @AR@
 OPT_FLAGS = @OPT_FLAGS@ 
-OPT_FLAGS_EMU = @OPT_FLAGS_EMU@ 
+OPT_FLAGS_EMU = $(FPROFILE) @OPT_FLAGS_EMU@ 
 OPT_FLAGS_ARITH = @OPT_FLAGS_ARITH@ 
 LOCAL_FLAGS = @LOCAL_FLAGS@
 FLOAT_ROUND_FLAGS = @FLOAT_ROUND_FLAGS@
