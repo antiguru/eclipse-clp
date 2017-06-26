@@ -257,7 +257,7 @@ packarch ()	# $1=arch $2=name $3=subdir $4=files $5=excludedfiles $6=excludepatt
     echo $4
 
     # make list of all the files
-    find $4 -follow -print | sort -u > $ALLFILES
+    find -L $4 \( -type f -o -empty \) -print | sort -u > $ALLFILES
 
     # make the list of excluded files
     (
