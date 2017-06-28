@@ -803,6 +803,9 @@ cpx_read(lp_desc *lpd, char *file, char *fmt)
  *
  *   s/^#define[	 ]CPX_PARAM_\([^ ]*\).*$/{"\L\1\E", CPX_PARAM_\1, 0},/
  *
+ * From Cplex 12.6 we could alternatively use their long parameter names:
+ *   1,$s/^#define[	 ]CPXPARAM_\([^ ]*\).*$/{"\L\1\E", CPXPARAM_\1, 0},/
+ *
  * mark the int params with 0, the doubles with 1, the strings with 2
  * count the lines and define NUMPARAMS accordingly!
  * add the new section within the proper #if's
